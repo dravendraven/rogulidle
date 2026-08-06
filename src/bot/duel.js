@@ -5,7 +5,7 @@
 // depends on how long it takes to kill, so a wolf and an ogre share xp 4
 // while the ogre costs about half again as much.
 
-import { KILLS_PER_XP, MONSTER_SKIP_CHANCE } from '../sim/balance.js';
+import { KILLS_PER_XP, MONSTER_SKIP_CHANCE, XP_FROM_KILLS } from '../sim/balance.js';
 import { armourValue, expectedDamage, weaponDamage } from '../sim/combat.js';
 
 // Monsters carry no inventory, so they never get a weapon bonus and never
@@ -33,7 +33,11 @@ export function duelCost(player, monster) {
 // cheaper, so the order changes the total. This is the snowball from
 // docs/bot-strategy.md §3, and it is why a piece of gear has to be priced
 // against the whole remaining campaign rather than against one fight.
-export function campaignCost(player, monsters, growsXp = true) {
+// `growsXp` defaults to the rule actually in force. It used to default to
+// true regardless, which quietly credited the hero with levelling up
+// mid-campaign after xp growth had been switched off — making every cost
+// this produced optimistic.
+export function campaignCost(player, monsters, growsXp = XP_FROM_KILLS) {
   let xp = player.xp;
   let kills = player.kills ? player.kills.length : 0;
   let total = 0;

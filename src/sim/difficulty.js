@@ -47,8 +47,8 @@
 // monsters, and gear as a bonus for what comes after rather than a
 // prerequisite for surviving the room you are in.
 const CALIBRATION = [
-  { at: 0.0, monsters: 3, covers: 14, difficultyScale: 0.30, dropChance: 0.35, gearScarcity: 5.0 },
-  { at: 0.25, monsters: 6, covers: 15, difficultyScale: 0.55, dropChance: 0.45, gearScarcity: 3.0 },
+  { at: 0.0, monsters: 2, covers: 14, difficultyScale: 0.12, dropChance: 0.35, gearScarcity: 5.0 },
+  { at: 0.25, monsters: 5, covers: 15, difficultyScale: 0.40, dropChance: 0.45, gearScarcity: 3.0 },
   { at: 0.5, monsters: 9, covers: 16, difficultyScale: 0.75, dropChance: 0.55, gearScarcity: 2.0 },
   { at: 0.75, monsters: 14, covers: 17, difficultyScale: 0.90, dropChance: 0.65, gearScarcity: 1.4 },
   { at: 1.0, monsters: 21, covers: 18, difficultyScale: 1.00, dropChance: 0.75, gearScarcity: 1.0 },

@@ -8,7 +8,7 @@
 // The reference is deliberately fixed. A yardstick that changed with the
 // floor would measure nothing.
 
-import { MONSTER_TABLE } from '../sim/balance.js';
+import { MONSTER_TABLE, XP_FROM_KILLS } from '../sim/balance.js';
 import { campaignCost } from '../bot/duel.js';
 
 // A spread across the table, skipping the extremes: the rat is free for
@@ -17,14 +17,17 @@ const REFERENCE_BAND = ['ghost', 'wolf', 'ogre', 'vampire', 'dragon']
   .map((name) => MONSTER_TABLE.find((m) => m.name === name))
   .map((m) => ({ xp: m.xp, hp: m.hp }));
 
-export function heroPower(player) {
+// `growsXp` must match the rule actually in force. Getting it wrong makes
+// every cost here optimistic, because the model then credits the hero with
+// levelling up mid-fight when they cannot.
+export function heroPower(player, growsXp = XP_FROM_KILLS) {
   return campaignCost({
     xp: player.xp,
     hp: player.hp,
     hpMax: player.hpMax,
     inventory: player.inventory,
     kills: player.kills,
-  }, REFERENCE_BAND);
+  }, REFERENCE_BAND, growsXp);
 }
 
 // Cost for a hero who has just started: 43.88hp, i.e. a fresh hero cannot

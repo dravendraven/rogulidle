@@ -52,7 +52,10 @@ export const LEVELS = 10;
 // Floor 1 is gentle, floor 10 is nearly the hardest the dial goes. Linear
 // between, which is the simplest thing that could work and therefore the
 // right thing to measure before reaching for a curve.
-export const FIRST_LEVEL_DIFFICULTY = 0.2;
+// Gentle on purpose. With xp frozen and weapons only widening the roll, a
+// bare hero deals 0.83 a blow — floor one has to be clearable with nothing
+// in hand, and gear is a bonus for what comes after.
+export const FIRST_LEVEL_DIFFICULTY = 0.05;
 export const LAST_LEVEL_DIFFICULTY = 0.9;
 
 export function difficultyForLevel(level) {
@@ -95,7 +98,10 @@ export function playDungeon(seed, makePolicy, options = {}) {
       covers: plan.covers,
       difficultyScale: plan.difficultyScale,
       dropChance: plan.dropChance,
-      gearScarcity: plan.gearScarcity,
+      // A fixed rate overrides the per-floor one. Worth being able to try:
+      // letting deeper floors hand over more gear rewards the descent, but
+      // it accelerates accumulation exactly where there is already too much.
+      gearScarcity: options.gearScarcity ?? plan.gearScarcity,
       carry,
       // Rule variants apply to every floor of the descent.
       xpFromKills: options.xpFromKills,

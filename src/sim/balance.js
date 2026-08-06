@@ -67,7 +67,10 @@ export const HIT_CHANCE = 5 / 6;         // FAITHFUL engine.cljs:257
 // The halving is the point: gear is the resource that runs away over a
 // ten-floor descent, and this is the cheapest way to blunt it without
 // capping what can be carried.
-export const WEAPONS_WIDEN_ROLL = false;
+// ON by owner decision: a weapon always widens the range, never raises the
+// floor. The hero can still whiff however well armed, and each point of
+// weapon is worth half what a flat bonus would be.
+export const WEAPONS_WIDEN_ROLL = true;
 
 // ***** monsters ***** //
 

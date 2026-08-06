@@ -34,10 +34,15 @@ export function runCurve(options) {
 
       const hero = level.arrivedWith;
       f.hp += hero.hp;
+      // Both must be told which xp rule is in force, or they credit the
+      // hero with levelling up that cannot happen and read far too cheap.
+      // Passing undefined falls through to the shipped rule, which is what
+      // we want when the caller did not override it.
+      const growsXp = dungeonOptions.xpFromKills;
       // Strength on arrival, against the fixed yardstick.
-      f.power += heroPower(hero);
+      f.power += heroPower(hero, growsXp);
       // What THIS floor's roster costs THAT hero — the demand side.
-      f.floorCost += campaignCost(hero, level.roster);
+      f.floorCost += campaignCost(hero, level.roster, growsXp);
       f.gear += hero.inventory.filter((it) => it.dmg || it.armour).length;
       f.xp += hero.xp;
     }
