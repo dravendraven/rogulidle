@@ -123,6 +123,18 @@ Not used until P3. Listed here so there is one place to look.
 | `BOT_KNOWS_MONSTER_COUNT` | `true` | decided — see bot-strategy §4.1 |
 | `STEP_COST_IN_HP` | 0.01 | **INITIAL GUESS** |
 | `GOAL_STICKINESS` | 1.15 | **INITIAL GUESS** |
+| `UNKNOWN_MONSTER_ESTIMATE` | `{ xp: 4, hp: 7 }` | **INITIAL GUESS** |
+| `COVER_LOOT_CHANCE` | 0.60 | measured over 150 maps |
+
+`UNKNOWN_MONSTER_ESTIMATE` stands in for a monster the bot has not met yet.
+It knows how many are unaccounted for but not what they are, and gear has
+to be priced against them too — otherwise the bot values a shield at zero
+in exactly the moment it should be stocking up. The values are the median
+of `MONSTER_TABLE`, which happens to be the ogre.
+
+`COVER_LOOT_CHANCE` is what the bot assumes when deciding whether opening
+a cover is worth the two turns it costs. Measured, not guessed, but it will
+move if `COVER_LOOT_RICHER_FAR` or the cover count changes.
 
 `STEP_COST_IN_HP` is the practical form of the λ dial from bot-strategy §0.
 At 0.01 the bot walks 100 extra steps to save 1 hp. Raise it and it gets
