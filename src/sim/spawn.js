@@ -13,7 +13,19 @@ import { drawChance, drawInt, drawPick, drawWeighted } from './rng.js';
 import { findPath, playerPassable, posKey, walkablePositions } from './mapgen.js';
 
 // Items are drawn with weight 1/value, so a high value is a RARE item.
-const ITEM_WEIGHTS = ITEM_TABLE.map((item) => [item, 1 / item.value]);
+//
+// `armourScarcity` divides the pick weight of anything that grants armour.
+// It exists because armour is the one item that does not merely help, it
+// ELIMINATES: subtracting flat with a floor of zero means armour A makes
+// every monster of xp <= A+1 completely harmless. Over a ten-floor descent
+// the hero accumulates enough shields to be untouchable by floor three, so
+// how often a shield appears is a difficulty lever of its own.
+function itemWeights(armourScarcity = 1) {
+  return ITEM_TABLE.map((item) => [
+    item,
+    1 / (item.value * (item.armour ? armourScarcity : 1)),
+  ]);
+}
 
 function nextId(state) {
   return 'e' + (state.nextId++);
@@ -68,6 +80,7 @@ export function populate(state, map, counts = {}) {
   // crowding the floor arms the player as well as threatening them. Without
   // this the win rate bottoms out around 13% however many you add.
   const dropChance = counts.dropChance ?? MONSTER_DROP_CHANCE;
+  const weights = itemWeights(counts.armourScarcity ?? 1);
   const passable = playerPassable(map);
   const free = new Map();
   for (const pos of walkablePositions(map)) free.set(posKey(pos), pos);
@@ -137,7 +150,7 @@ export function populate(state, map, counts = {}) {
     // Sweeps 10%..100% across the map; the flag decides which end is rich.
     const emptiness = COVER_LOOT_RICHER_FAR ? 1 - depth : depth;
     const hasLoot = drawChance(state, 'spawn', 1 - COVER_DIFFICULTY_SCALE * emptiness);
-    const template = drawWeighted(state, 'spawn', ITEM_WEIGHTS);
+    const template = drawWeighted(state, 'spawn', weights);
 
     const cover = drawPick(state, 'spawn', COVER_TABLE);
     state.covers.push({
@@ -163,7 +176,7 @@ export function populate(state, map, counts = {}) {
     const template = MONSTER_TABLE[slot];
 
     const carries = drawChance(state, 'spawn', dropChance);
-    const dropTemplate = drawWeighted(state, 'spawn', ITEM_WEIGHTS);
+    const dropTemplate = drawWeighted(state, 'spawn', weights);
 
     state.monsters.push({
       id: nextId(state),

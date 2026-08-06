@@ -20,10 +20,28 @@
 // points — one swing. A dial that runs 0.2 to 0.9 cannot express a range
 // wide enough to keep up with that.
 //
-// Fixing it is a game-design choice, not a tuning one: slow the growth
-// (xp is currently +1 every 2 kills, uncapped, and 10 floors is ~70 kills),
-// cap what can be carried (15 items is not a thing Rogule ever intended,
-// since a Rogule run is one floor), or drop some of it on the stairs.
+// THREE FIXES TRIED AND MEASURED, none of which changed the shape:
+//
+//   freeze xp (XP_FROM_KILLS)        8/10 cleared -> 7/10
+//   halve weapons (WEAPONS_WIDEN_ROLL) 8/10 -> 8/10
+//   make armour scarce (armourScarcity 4)  5/10 -> 4/10, hp at floor 10
+//                                          8.3 -> 7.2
+//
+// The first two aimed at damage OUTPUT, which was never the constraint —
+// the hero finishes floor ten on 10 hp out of 10. Scarcity does bite at
+// depth, but the outcome distribution stays stubbornly bimodal:
+//
+//   depths reached, ten dungeons:  1, 1, 1, 3, 10, 10, 10, 10, 10, 10
+//
+// The dungeon is decided in its first three floors. Survive the opening,
+// where the hero has nothing, and the accumulation carries the rest.
+//
+// That is a curve problem, not a mechanic problem. Floor difficulty climbs
+// from dial 0.2 to 0.9 while the hero's power multiplies several times
+// over, and 1.0 is as far as the dial goes. Closing it needs one of:
+// a difficulty range that runs past what a single floor can express, a
+// hard cap on accumulation (equipment slots), or progress surrendered on
+// the stairs.
 
 import { hashSeeds } from './rng.js';
 import { difficultyToParams } from './difficulty.js';
@@ -82,6 +100,7 @@ export function playDungeon(seed, makePolicy, options = {}) {
       xpFromKills: options.xpFromKills,
       attackWhenAdjacent: options.attackWhenAdjacent,
       weaponsWidenRoll: options.weaponsWidenRoll,
+      armourScarcity: options.armourScarcity,
     };
 
     const run = playGame(
