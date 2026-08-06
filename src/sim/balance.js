@@ -77,6 +77,7 @@ export const COVER_TABLE = [
   { name: 'wood block',   emoji: '🪵' },
 ];
 
+export const POTION_HEAL = 3;               // FAITHFUL engine.cljs:209
 export const COVER_DIFFICULTY_SCALE = 0.9;  // FAITHFUL generator.cljs:238
 
 // GUESS — our fix for spec quirk 9.3.
@@ -100,3 +101,13 @@ export const STEP_COST_IN_HP = 0.01;
 // bot switches. Without it, two near-equal targets make it dither on the
 // spot instead of committing to either.
 export const GOAL_STICKINESS = 1.15;
+
+// GUESS — stand-in stats for a monster the bot has not met yet. It knows
+// how many are still unaccounted for (BOT_KNOWS_MONSTER_COUNT) but not what
+// they are, and gear has to be priced against them too. These are the
+// median of MONSTER_TABLE, which happens to be the ogre.
+export const UNKNOWN_MONSTER_ESTIMATE = { xp: 4, hp: 7 };
+
+// GUESS — measured at 0.60 over 150 generated maps. What the bot assumes
+// when deciding whether opening a cover is worth the two turns.
+export const COVER_LOOT_CHANCE = 0.60;
