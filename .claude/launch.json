@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "rogulidle-tests",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["tools/dev-server.py", "8141"],
+      "port": 8141
+    }
+  ]
+}

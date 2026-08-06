@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rogulidle — engine tests</title>
+<style>
+  body {
+    font: 15px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    margin: 0; padding: 2rem 1.5rem; background: #14161a; color: #d8dee9;
+  }
+  h1 { font-size: 1.1rem; margin: 0 0 .25rem; }
+  .sub { color: #7a8595; margin: 0 0 1.5rem; }
+  #summary { padding: .6rem .9rem; border-radius: 6px; margin-bottom: 1.25rem; font-weight: 600; }
+  .all-pass { background: #16351f; color: #8ce99a; }
+  .some-fail { background: #3a1a1c; color: #ffa8a8; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { padding: .3rem 0; border-bottom: 1px solid #22262d; }
+  .ok::before { content: "PASS"; color: #8ce99a; margin-right: .75rem; }
+  .fail::before { content: "FAIL"; color: #ff8787; margin-right: .75rem; }
+  .fail { color: #ffc9c9; }
+  .why { display: block; margin: .2rem 0 .3rem 3.4rem; color: #ff8787; }
+</style>
+</head>
+<body>
+<h1>Rogulidle engine tests</h1>
+<p class="sub">P1 — rules checked against docs/rogule-spec.md</p>
+<div id="summary">running…</div>
+<ul id="results"></ul>
+
+<script type="module">
+  const summary = document.getElementById('summary');
+  const list = document.getElementById('results');
+
+  try {
+    const { runAll } = await import('./test/tests.js');
+    const results = runAll();
+    const failed = results.filter((r) => !r.ok);
+
+    summary.textContent = failed.length
+      ? `${failed.length} failed / ${results.length} tests`
+      : `all ${results.length} tests passed`;
+    summary.className = failed.length ? 'some-fail' : 'all-pass';
+
+    for (const result of results) {
+      const li = document.createElement('li');
+      li.className = result.ok ? 'ok' : 'fail';
+      li.textContent = result.name;
+      if (!result.ok) {
+        const why = document.createElement('span');
+        why.className = 'why';
+        why.textContent = result.error;
+        li.appendChild(why);
+      }
+      list.appendChild(li);
+    }
+    // Lets a future headless runner read the outcome without scraping the DOM.
+    window.__testResults = results;
+  } catch (error) {
+    summary.textContent = 'the test module failed to load: ' + error.message;
+    summary.className = 'some-fail';
+    console.error(error);
+  }
+</script>
+</body>
+</html>
