@@ -141,10 +141,15 @@ export const CROWD_PENALTY = 6;
 // a monster has to be before it bothers. Away from monsters the route is
 // already the answer and searching is wasted work; nearby it decides who
 // lands the first blow and whether the bot reaches the corridor in time.
-// Range is deliberately tight: the search costs about 5ms a turn and only
-// earns it in contact. Beyond a few tiles the danger-priced route already
-// gives the same answer for a fraction of the price.
-export const TACTICAL_DEPTH = 3;
+// Depth ONE, not three. At depth 1 this is what the original plan asked
+// for: simulate the monsters' reply to the step about to be taken, and
+// refuse the step that leaves the bot between two of them. Deeper searches
+// start optimising for not being hit at all, which they achieve by never
+// closing — see bot-strategy §4.4 for the measurements.
+//
+// Range is tight: it only earns its keep in contact. Further out the
+// danger-priced route already gives the same answer for far less.
+export const TACTICAL_DEPTH = 1;
 export const TACTICAL_RANGE = 4;
 
 // GUESS — how much better, in hp, an alternative must look before the bot

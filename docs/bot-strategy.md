@@ -490,20 +490,36 @@ algo ao alcance, então a média fica bem abaixo disso.
 Como a run é calculada inteira antes de ser exibida (P2), esse custo é
 invisível para quem assiste.
 
-### 4.4 A busca tática foi construída e NÃO se pagou
+### 4.4 A busca tática paga em profundidade 1, e só nela
 
-Resultado negativo, registrado para não ser refeito por engano. Está em
-`src/bot/tactics.js` e `src/bot/hypothetical.js`, atrás da opção
-`tactical`, **desligada por padrão**.
+**Ligada por padrão, com `TACTICAL_DEPTH = 1`.** Em profundidade 1 ela é
+exatamente o que o plano original pedia: simular a resposta das criaturas ao
+passo que o bot vai dar, e recusar o passo que o deixa entre duas.
 
-Medido em 12 seeds, profundidade 3:
+Medido em 60 seeds retidas (400–459):
 
-|  | vitórias | kills | turnos | ms/run |
-|---|---|---|---|---|
-| desligada | 5 | 2,83 | 97 | 78 |
-| ligada | 4 | 3,33 | 157 | 740 |
+|  | vitórias | kills | dano/kill | golpes/kill | turnos |
+|---|---|---|---|---|---|
+| desligada | 31 | 3,50 | 2,67 | 3,52 | 129 |
+| profundidade 1 | **37** | **3,68** | **2,24** | **2,76** | 181 |
+| profundidade 3 | — | 3,63 | 2,45 | **11,01** | 214 |
 
-Luta visivelmente melhor e não ganha mais. Dez vezes o custo.
+Somando duas famílias de seeds, 58 contra 55 vitórias em 100 — empate — mas
+todas as métricas de comportamento apontam junto. O custo é 1,8× por run,
+invisível para quem assiste, já que a run é calculada antes de ser exibida.
+
+**Profundidade 3 é pior que profundidade 1**, e o número que denuncia é
+`golpes/kill`: 11,01 contra 2,76. Ela não esquiva, ela **hesita** — fica
+colada em monstros absorvendo ataques fracos em vez de resolver a luta. Ver
+as três armadilhas abaixo: são todas formas da mesma doença, uma avaliação
+de horizonte curto que consegue "não apanhar" simplesmente não lutando.
+
+> **Lição de método.** Eu descartei esta feature inteira uma vez, medindo só
+> taxa de vitória em profundidade 3. A taxa de vitória mistura qualidade do
+> bot com dificuldade do mapa, e profundidade 3 era a única variante testada.
+> Métricas de comportamento (dano e golpes por kill) mostraram o oposto, e a
+> variante barata que a especificação original pedia nunca tinha sido
+> medida sozinha.
 
 Três armadilhas encontradas no caminho, todas de avaliação e nenhuma de
 simulação — o motor como previsor funcionou exatamente como projetado:

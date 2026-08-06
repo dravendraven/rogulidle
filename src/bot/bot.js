@@ -298,10 +298,10 @@ export function makeBot(options = {}) {
     // before switching either on.
     chokepoint: false,
     exposurePricing: false,
-    // OFF by default. Built, works, and does not pay: it fights visibly
-    // better (kills 2.83 -> 3.33) but wins no more often, at about ten
-    // times the cost per run. See docs/bot-strategy.md §4.4.
-    tactical: false,
+    // ON, at depth 1 — one turn of lookahead that vetoes a step landing the
+    // bot between two monsters. Deeper is worse, not better: see
+    // docs/bot-strategy.md §4.4.
+    tactical: true,
     overrideMargin: TACTICAL_OVERRIDE_MARGIN,
     ...options,
   };
