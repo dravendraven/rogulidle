@@ -78,6 +78,9 @@ export function playDungeon(seed, makePolicy, options = {}) {
       difficultyScale: plan.difficultyScale,
       dropChance: plan.dropChance,
       carry,
+      // Rule variants apply to every floor of the descent.
+      xpFromKills: options.xpFromKills,
+      attackWhenAdjacent: options.attackWhenAdjacent,
     };
 
     const run = playGame(

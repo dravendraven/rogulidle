@@ -3,7 +3,7 @@
 // The blow always goes attacker -> defender and there is NO counter-attack:
 // only whoever moved gets to hit. A duel is therefore strictly alternating.
 
-import { HIT_CHANCE, KILLS_PER_XP } from './balance.js';
+import { HIT_CHANCE, KILLS_PER_XP, XP_FROM_KILLS } from './balance.js';
 import { drawChance, drawInt } from './rng.js';
 
 // Monsters have no inventory at all, so they never get a weapon bonus — the
@@ -75,7 +75,8 @@ export function playerAttacks(state, monster) {
     }
     state.player.kills.push(monster.name);
     // One xp every second kill. FAITHFUL engine.cljs:272.
-    if (state.player.kills.length % KILLS_PER_XP === 0) state.player.xp++;
+    const growsXp = state.xpFromKills ?? XP_FROM_KILLS;
+    if (growsXp && state.player.kills.length % KILLS_PER_XP === 0) state.player.xp++;
   }
 
   state.log.push({

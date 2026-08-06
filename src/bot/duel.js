@@ -33,7 +33,7 @@ export function duelCost(player, monster) {
 // cheaper, so the order changes the total. This is the snowball from
 // docs/bot-strategy.md §3, and it is why a piece of gear has to be priced
 // against the whole remaining campaign rather than against one fight.
-export function campaignCost(player, monsters) {
+export function campaignCost(player, monsters, growsXp = true) {
   let xp = player.xp;
   let kills = player.kills ? player.kills.length : 0;
   let total = 0;
@@ -51,7 +51,7 @@ export function campaignCost(player, monsters) {
     total += cheapestCost;
 
     kills++;
-    if (kills % KILLS_PER_XP === 0) xp++;
+    if (growsXp && kills % KILLS_PER_XP === 0) xp++;
   }
   return total;
 }

@@ -19,6 +19,28 @@ export const PLAYER_HP = 10;             // FAITHFUL generator.cljs:216
 export const PLAYER_XP = 3;              // FAITHFUL generator.cljs:26
 export const KILLS_PER_XP = 2;           // FAITHFUL engine.cljs:272
 
+// Divergence, off by default. With this false the player's xp never grows
+// and gear is the ONLY progression.
+//
+// MEASURED, and it does NOT do what you would expect over a dungeon:
+//
+//   one floor at dial 0.5   50% wins with xp,  43% without
+//   ten-floor dungeon        8/10 cleared with, 7/10 without
+//
+// Freezing xp barely changes how deep the hero gets, because GEAR compounds
+// just as freely — carried items went 2.2 -> 8.9 -> 14.6 across the ten
+// floors, higher than with xp on, since the bot values loot more when it
+// cannot level. Either resource alone is enough to trivialise the descent.
+//
+// What it does change is WHERE the danger sits: with xp frozen, three of
+// ten dungeons ended on floor ONE (against one of ten with xp), because a
+// hero who cannot level and has not yet looted is at his weakest ever.
+//
+// It also kills the snowball that bot-strategy §3 leans on: cheap kills
+// first stop making later fights cheaper, so kill order matters only
+// through drops.
+export const XP_FROM_KILLS = true;
+
 // ***** regeneration ***** //
 
 export const REJUVINATION_RATE = 100;    // FAITHFUL engine.cljs:27

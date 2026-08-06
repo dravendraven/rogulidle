@@ -33,6 +33,7 @@ export function newGame(seed, counts = {}) {
     // Rule variant rather than a generation count, but it rides along in the
     // same options bag so it travels into replays too.
     attackWhenAdjacent: counts.attackWhenAdjacent,
+    xpFromKills: counts.xpFromKills,
   };
 
   state.map = generateMap(state.rng.map);

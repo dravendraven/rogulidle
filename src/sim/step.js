@@ -32,6 +32,7 @@ function cloneState(state) {
     // one after a single step.
     sim: state.sim,
     attackWhenAdjacent: state.attackWhenAdjacent,
+    xpFromKills: state.xpFromKills,
     map: state.map,
     rng: { ...state.rng },
     player: {
