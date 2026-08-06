@@ -29,9 +29,9 @@ function priceOfReaching(field, pos) {
 // R0, the owner's rule: the shrine is not a legal target until everything
 // is dead. docs/bot-strategy.md §0 — a hard constraint, not a weight. The
 // bot is not allowed to flee to the exit.
-function clearedTheFloor(belief) {
+function clearedTheFloor(belief, total) {
   const dead = [...belief.monsters.values()].filter((m) => m.dead).length;
-  return dead >= MONSTER_COUNT;
+  return dead >= total;
 }
 
 function liveMonsters(belief) {
@@ -142,8 +142,8 @@ function monsterWithin(belief, field, steps) {
 // picking a fight. It is expressed as value rather than as a priority, so
 // a chestnut — worth exactly zero — never earns a detour, while a shield
 // two rooms away does.
-function lootGoals(belief, field, danger) {
-  const values = valueByItemName(belief);
+function lootGoals(belief, field, danger, total) {
+  const values = valueByItemName(belief, total);
   const coverValue = expectedCoverValue(values);
   const out = [];
 
@@ -183,8 +183,8 @@ function lootGoals(belief, field, danger) {
 // (there is no clock, spec §8) and a monster that follows the bot never
 // closes the gap — it moves after the player does, so retreating holds
 // the distance. Delay is genuinely cheap; only dead ends are not.
-function preparationGoals(belief, field, danger) {
-  const useful = lootGoals(belief, field, danger).filter((g) => g.gross > 0);
+function preparationGoals(belief, field, danger, total) {
+  const useful = lootGoals(belief, field, danger, total).filter((g) => g.gross > 0);
   if (useful.length) {
     return useful.reduce((a, b) => {
       if (b.gross !== a.gross) return b.gross > a.gross ? b : a;
@@ -201,7 +201,8 @@ function chooseGoal(belief, field, danger, current, options) {
   //    and now the walk is priced in danger too, so a shield guarded by a
   //    wolf is correctly no longer free.
   if (options.loot) {
-    const worthwhile = lootGoals(belief, field, danger).filter((g) => g.net > 0);
+    const worthwhile = lootGoals(belief, field, danger, options.monsterCount)
+      .filter((g) => g.net > 0);
     if (worthwhile.length) {
       return worthwhile.reduce((a, b) => (b.net > a.net ? b : a));
     }
@@ -224,7 +225,7 @@ function chooseGoal(belief, field, danger, current, options) {
     // were started knowing the sum did not add up, and 63% of deaths came
     // from exactly that.
     if (options.refuseLostFights && !best.worthStarting) {
-      const prepare = preparationGoals(belief, field, danger);
+      const prepare = preparationGoals(belief, field, danger, options.monsterCount);
       if (prepare) return prepare;
       // Nothing left to prepare with. Take it — the bot is not allowed to
       // give up, and dying trying is an accepted outcome (§0).
@@ -241,7 +242,7 @@ function chooseGoal(belief, field, danger, current, options) {
 
   // 3. Nothing known to fight and the floor is not clear — the rest are out
   //    there in the dark. Go and look.
-  if (!clearedTheFloor(belief)) {
+  if (!clearedTheFloor(belief, options.monsterCount)) {
     return cheapestOf(field, frontierGoals(belief));
   }
 
@@ -255,7 +256,7 @@ function chooseGoal(belief, field, danger, current, options) {
 // A goal survives between turns so the bot commits instead of dithering,
 // and so the policy is not a pure function of the belief, which can
 // livelock — docs/bot-strategy.md §4.0.
-function stillValid(goal, belief, field) {
+function stillValid(goal, belief, field, total) {
   if (!goal) return false;
 
   if (goal.kind === 'monster') {
@@ -266,7 +267,7 @@ function stillValid(goal, belief, field) {
 
   if (goal.kind === 'item' && !belief.items.has(goal.id)) return false;
   if (goal.kind === 'cover' && !belief.covers.has(goal.id)) return false;
-  if (goal.kind === 'shrine' && !clearedTheFloor(belief)) return false;
+  if (goal.kind === 'shrine' && !clearedTheFloor(belief, total)) return false;
 
   if (goal.kind === 'frontier') {
     const stillDark = frontiers(belief).some((pos) => key(pos) === key(goal.pos));
@@ -282,6 +283,11 @@ const samePosition = (a, b) => a[0] === b[0] && a[1] === b[1];
 
 export function makeBot(options = {}) {
   const settings = {
+    // How many monsters the floor holds. The bot is told (bot-strategy
+    // §4.1) so it knows when R0 is satisfied; it has to travel with the
+    // generation setting rather than be read from balance.js, or sweeping
+    // the map density would silently break the stop condition.
+    monsterCount: MONSTER_COUNT,
     pick: 'cheapest',
     stickiness: GOAL_STICKINESS,
     loot: true,
@@ -328,7 +334,7 @@ export function makeBot(options = {}) {
     // or a new shield reorders the whole board. Frontier goals stay sticky:
     // dozens of them sit at the same distance, so re-choosing would make the
     // bot swap targets every step and never arrive.
-    const held = stillValid(goal, belief, field) ? goal : null;
+    const held = stillValid(goal, belief, field, settings.monsterCount) ? goal : null;
     goal = (held && held.kind === 'frontier')
       ? held
       : chooseGoal(belief, field, danger, held, settings);

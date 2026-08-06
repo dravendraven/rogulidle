@@ -54,7 +54,13 @@ function makeItem(state, template, pos) {
   };
 }
 
-export function populate(state, map) {
+// `counts` overrides how many monsters and covers to place. Generation
+// numbers are the other half of the difficulty dial, and a bot rule that
+// does not pay on a sparse map may pay on a crowded one — so they have to
+// be sweepable without editing balance.js.
+export function populate(state, map, counts = {}) {
+  const monsterCount = counts.monsters ?? MONSTER_COUNT;
+  const coverCount = counts.covers ?? COVER_COUNT;
   const passable = playerPassable(map);
   const free = new Map();
   for (const pos of walkablePositions(map)) free.set(posKey(pos), pos);
@@ -106,7 +112,7 @@ export function populate(state, map) {
 
   // 4. Covers. Rooms only — never corridors.
   state.covers = [];
-  for (let i = 0; i < COVER_COUNT; i++) {
+  for (let i = 0; i < coverCount; i++) {
     if (!roomPaths.length) break;
     const entry = drawPick(state, 'spawn', roomPaths);
     const roomFree = [];
@@ -138,7 +144,7 @@ export function populate(state, map) {
 
   // 5. Monsters. Anywhere still free, harder the deeper they sit.
   state.monsters = [];
-  for (let i = 0; i < MONSTER_COUNT; i++) {
+  for (let i = 0; i < monsterCount; i++) {
     if (!free.size) break;
     const pos = pickFree();
     takeFree(pos);

@@ -18,7 +18,8 @@ function makeStreams(rootSeed) {
 }
 
 // `seed` may be a number or a string ("2026-08-05").
-export function newGame(seed) {
+// `counts` optionally overrides how many monsters and covers get placed.
+export function newGame(seed, counts = {}) {
   const rootSeed = typeof seed === 'string' ? seedFromString(seed) : seed >>> 0;
 
   const state = {
@@ -32,7 +33,7 @@ export function newGame(seed) {
   };
 
   state.map = generateMap(state.rng.map);
-  populate(state, state.map);
+  populate(state, state.map, counts);
   return state;
 }
 
@@ -48,7 +49,7 @@ export function playGame(seed, policy, options = {}) {
   const maxTurns = options.maxTurns ?? 5000;
   const maxDecisions = options.maxDecisions ?? maxTurns * 4;
 
-  let state = newGame(seed);
+  let state = newGame(seed, options.counts);
   let observation = observe(state);
   let belief = foldBelief(emptyBelief(), observation);
 

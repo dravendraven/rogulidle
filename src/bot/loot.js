@@ -28,10 +28,10 @@ const ITEM_MIX = (() => {
 // Known live monsters, plus a stand-in for each one still unaccounted for.
 // Without the stand-ins the bot would value gear at zero whenever it cannot
 // currently see anything — exactly when it should be stocking up.
-export function monstersStillToFight(belief) {
+export function monstersStillToFight(belief, total = MONSTER_COUNT) {
   const known = [...belief.monsters.values()];
   const live = known.filter((m) => !m.dead);
-  const unaccounted = Math.max(0, MONSTER_COUNT - known.length);
+  const unaccounted = Math.max(0, total - known.length);
 
   const out = live.map((m) => ({ xp: m.xp, hp: m.hp }));
   for (let i = 0; i < unaccounted; i++) out.push({ ...UNKNOWN_MONSTER_ESTIMATE });
@@ -44,9 +44,9 @@ function withItem(player, item) {
 
 // One value per item TYPE rather than per item on the floor — there are 7
 // types and can be dozens of items, and the value only depends on the type.
-export function valueByItemName(belief) {
+export function valueByItemName(belief, total = MONSTER_COUNT) {
   const player = belief.player;
-  const monsters = monstersStillToFight(belief);
+  const monsters = monstersStillToFight(belief, total);
   const baseline = campaignCost(player, monsters);
 
   const values = new Map();
