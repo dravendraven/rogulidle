@@ -8,7 +8,7 @@
 
 import { playGame, replayGame } from '../sim/game.js';
 import { hashSeeds, seedFromString } from '../sim/rng.js';
-import { makePlaceholderPolicy } from '../bot/placeholder.js';
+import { makeBot } from '../bot/bot.js';
 import { buildGrid, renderFrame, renderHud, renderLog } from './render.js';
 
 const MAX_TURNS = 900;
@@ -118,7 +118,7 @@ async function runForever(sessionSeed) {
     session.runNumber++;
 
     const seed = hashSeeds(sessionSeed, session.runNumber);
-    const run = playGame(seed, makePlaceholderPolicy(seed), { maxTurns: MAX_TURNS });
+    const run = playGame(seed, makeBot(), { maxTurns: MAX_TURNS });
     const frames = watchableFrames(replayGame(run.replay));
 
     await playFrames(frames);
