@@ -47,7 +47,12 @@ Only build what the current phase requires.
 
 ## Running it
 `python tools/dev-server.py` then open <http://localhost:8141/index.html>
-to watch, or `/run-tests.html` to check the rules.
+to watch, `/run-tests.html` to check the rules, or `/run-batch.html` to
+measure the bot over many games and sweep a setting.
+
+Keep the batch tab VISIBLE while it runs. Browsers clamp `setTimeout` to
+about a second in a background tab, and the runner yields between chunks,
+so hiding it makes a sweep take many times longer than it should.
 Port 8141, because the sibling roguidle project already uses 8137 and 8138.
 That server disables browser caching, so edits to `src/*.js` actually take
 effect. Opening the file directly will not work — ES modules need `http://`.

@@ -136,6 +136,21 @@ of `MONSTER_TABLE`, which happens to be the ogre.
 a cover is worth the two turns it costs. Measured, not guessed, but it will
 move if `COVER_LOOT_RICHER_FAR` or the cover count changes.
 
+### How to tune these
+
+Open `/run-batch.html`, put the setting in "sweep" with a few values, and
+run. Every value plays the same seeds, so the comparison is paired.
+
+Two rules learned the hard way:
+
+- **Confirm on seeds you did not tune against.** `DANGER_FALLOFF` 0.4
+  looked best on seeds 400–479 and worst on 500–544. At 45–80 runs the
+  confidence intervals still overlap enough to flip the ranking.
+- **Read the behaviour columns, not just the win rate.** Win rate mixes bot
+  quality with map difficulty; damage and blows per kill do not. Where win
+  rate flapped between seed families, damage per kill fell monotonically
+  with higher `DANGER_FALLOFF` in every family — that is the real signal.
+
 ### Danger and fighting
 
 | Name | Value | Status |

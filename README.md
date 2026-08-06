@@ -22,9 +22,14 @@ P3.
 python tools/dev-server.py
 ```
 
-Then open <http://localhost:8141/index.html> to watch, or
-<http://localhost:8141/run-tests.html> to check the rules. Opening the HTML
-files directly will not work — ES modules need `http://`.
+Then open <http://localhost:8141/index.html> to watch,
+<http://localhost:8141/run-tests.html> to check the rules, or
+<http://localhost:8141/run-batch.html> to measure the bot over many games.
+Opening the HTML files directly will not work — ES modules need `http://`.
+
+In the spectator, **🔎 debug** paints the danger map the bot believes in and
+marks what it is heading for — worth turning on whenever it does something
+that looks stupid.
 
 Add `?seed=anything` to make a whole session reproducible.
 
