@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rogulidle — batch runner</title>
+<style>
+  :root { --bg:#101216; --panel:#171a21; --line:#262b35; --text:#d8dee9; --dim:#7a8595; --good:#8ce99a; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:1.5rem 1rem 3rem; background:var(--bg); color:var(--text);
+         font:13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .app { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size:.95rem; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); margin:0 0 1rem; }
+  fieldset { border:1px solid var(--line); border-radius:8px; background:var(--panel);
+             margin:0 0 1rem; padding:.9rem 1rem 1rem; }
+  legend { color:var(--dim); font-size:11px; letter-spacing:.1em; text-transform:uppercase; padding:0 .4rem; }
+  label { display:block; color:var(--dim); font-size:11px; margin:.5rem 0 .2rem; }
+  input, textarea, select { font:inherit; color:var(--text); background:#12151b;
+    border:1px solid var(--line); border-radius:5px; padding:.35rem .5rem; width:100%; }
+  textarea { min-height:64px; resize:vertical; }
+  .row { display:flex; gap:1rem; flex-wrap:wrap; }
+  .row > div { flex:1 1 150px; }
+  button { font:inherit; color:var(--text); background:#20242d; border:1px solid var(--line);
+    border-radius:6px; padding:.4rem .9rem; cursor:pointer; margin-right:.5rem; }
+  button:hover { border-color:#3a4150; }
+  button[disabled] { opacity:.45; cursor:default; }
+  #progress { color:var(--dim); margin:.6rem 0 0; }
+  table { border-collapse:collapse; width:100%; margin-top:.5rem; font-size:12px; }
+  th, td { text-align:right; padding:.3rem .5rem; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:var(--dim); font-weight:600; }
+  tbody tr:hover { background:#1b1f27; }
+  .best { color:var(--good); font-weight:700; }
+  .note { color:#5b6472; font-size:11.5px; max-width:75ch; margin:.4rem 0 0; }
+</style>
+</head>
+<body>
+<div class="app">
+<h1>Rogulidle batch runner</h1>
+
+<fieldset>
+  <legend>runs</legend>
+  <div class="row">
+    <div><label>how many</label><input id="count" type="number" value="60" min="1"></div>
+    <div><label>first seed</label><input id="firstSeed" type="number" value="300"></div>
+    <div><label>max turns</label><input id="maxTurns" type="number" value="1500"></div>
+    <div><label>monsters (blank = default)</label><input id="monsters" type="number" placeholder="5"></div>
+  </div>
+  <label>bot options (JSON)</label>
+  <textarea id="botOptions">{}</textarea>
+  <p class="note">Anything <code>makeBot</code> accepts: <code>stepCost</code>,
+  <code>falloff</code>, <code>crowdPenalty</code>, <code>safetyMargin</code>,
+  <code>stickiness</code>, <code>depth</code>, <code>tactical</code>,
+  <code>threat</code>, <code>loot</code>, <code>chokepoint</code>,
+  <code>pick</code>.</p>
+</fieldset>
+
+<fieldset>
+  <legend>sweep one setting</legend>
+  <div class="row">
+    <div><label>setting</label><input id="sweepName" placeholder="falloff"></div>
+    <div><label>values, comma separated</label><input id="sweepValues" placeholder="0.3, 0.5, 0.7"></div>
+  </div>
+  <p class="note">Every value runs the same seeds, so the comparison is paired.
+  Leave blank to just run the options above once.</p>
+</fieldset>
+
+<button id="start">Run</button>
+<button id="stop" disabled>Stop</button>
+<p id="progress">idle</p>
+
+<div id="results"></div>
+</div>
+
+<script type="module">
+import { runBatch, sweep } from './src/analysis/batch.js';
+
+const $ = (id) => document.getElementById(id);
+let stopping = false;
+
+const COLUMNS = [
+  ['runs', 'runs'], ['winPct', 'win %'], ['ci95', '95% ci'],
+  ['onWinnablePct', 'win % winnable'], ['timeouts', 'stuck'],
+  ['avgKills', 'kills'], ['damagePerKill', 'dmg/kill'],
+  ['blowsPerKill', 'blows/kill'], ['avgTurns', 'turns'],
+  ['avgGear', 'gear'], ['avgHpOnWin', 'hp left'], ['msPerRun', 'ms'],
+];
+
+// Higher is better for these; the rest are either lower-is-better or neutral.
+const HIGHER_IS_BETTER = new Set(['winPct', 'onWinnablePct', 'avgKills', 'avgGear', 'avgHpOnWin']);
+const LOWER_IS_BETTER = new Set(['damagePerKill', 'blowsPerKill', 'timeouts']);
+
+function render(rows) {
+  const table = document.createElement('table');
+  table.innerHTML = `<thead><tr><th>config</th>${
+    COLUMNS.map(([, label]) => `<th>${label}</th>`).join('')}</tr></thead>`;
+
+  const body = document.createElement('tbody');
+  for (const { label, summary } of rows) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${label}</td>${COLUMNS.map(([key]) => {
+      const v = summary[key];
+      const text = Array.isArray(v) ? `${v[0]}–${v[1]}` : (v ?? '—');
+      return `<td data-key="${key}">${text}</td>`;
+    }).join('')}`;
+    body.append(tr);
+  }
+  table.append(body);
+
+  // Mark the best cell in each comparable column, so a sweep reads at a glance.
+  if (rows.length > 1) {
+    for (const [key] of COLUMNS) {
+      if (!HIGHER_IS_BETTER.has(key) && !LOWER_IS_BETTER.has(key)) continue;
+      const values = rows.map((r) => r.summary[key]).filter((v) => typeof v === 'number');
+      if (!values.length) continue;
+      const best = HIGHER_IS_BETTER.has(key) ? Math.max(...values) : Math.min(...values);
+      for (const cell of body.querySelectorAll(`td[data-key="${key}"]`)) {
+        if (Number(cell.textContent) === best) cell.classList.add('best');
+      }
+    }
+  }
+
+  $('results').innerHTML = '';
+  $('results').append(table);
+}
+
+$('stop').addEventListener('click', () => { stopping = true; $('progress').textContent = 'stopping…'; });
+
+$('start').addEventListener('click', async () => {
+  stopping = false;
+  $('start').disabled = true;
+  $('stop').disabled = false;
+  $('results').innerHTML = '';
+
+  let botOptions;
+  try {
+    botOptions = JSON.parse($('botOptions').value || '{}');
+  } catch (error) {
+    $('progress').textContent = 'bot options are not valid JSON: ' + error.message;
+    $('start').disabled = false; $('stop').disabled = true;
+    return;
+  }
+
+  const monsters = $('monsters').value ? Number($('monsters').value) : null;
+  const shared = {
+    count: Number($('count').value),
+    firstSeed: Number($('firstSeed').value),
+    maxTurns: Number($('maxTurns').value),
+    counts: monsters ? { monsters } : undefined,
+    botOptions,
+    shouldStop: () => stopping,
+  };
+  // The bot has to be told the count too, or R0 never becomes satisfiable.
+  if (monsters) shared.botOptions = { monsterCount: monsters, ...botOptions };
+
+  const name = $('sweepName').value.trim();
+  const raw = $('sweepValues').value.trim();
+  const started = performance.now();
+  const rows = [];
+
+  try {
+    if (name && raw) {
+      const values = raw.split(',').map((v) => {
+        const t = v.trim();
+        if (t === 'true') return true;
+        if (t === 'false') return false;
+        return Number.isNaN(Number(t)) ? t : Number(t);
+      });
+      let done = 0;
+      await sweep(name, values, {
+        ...shared,
+        onProgress: (n, total) => {
+          $('progress').textContent = `${name}: value ${done + 1}/${values.length} — run ${n}/${total}`;
+        },
+        onValueDone: (_n, value, summary) => {
+          done++;
+          rows.push({ label: `${name} = ${value}`, summary });
+          render(rows);
+        },
+      });
+    } else {
+      const { summary } = await runBatch({
+        ...shared,
+        onProgress: (n, total) => { $('progress').textContent = `run ${n}/${total}`; },
+      });
+      rows.push({ label: 'current options', summary });
+      render(rows);
+    }
+    const seconds = ((performance.now() - started) / 1000).toFixed(1);
+    $('progress').textContent = (stopping ? 'stopped' : 'done') + ` in ${seconds}s`;
+  } catch (error) {
+    $('progress').textContent = 'failed: ' + error.message;
+    console.error(error);
+  } finally {
+    $('start').disabled = false;
+    $('stop').disabled = true;
+  }
+});
+</script>
+</body>
+</html>

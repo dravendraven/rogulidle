@@ -23,7 +23,12 @@ function isAwakeAt(monster, distance) {
   return distance + 1 < monster.activation;
 }
 
-export function dangerField(belief, useExposure = false) {
+// `tuning` lets P4 sweep the numbers without editing balance.js. Anything
+// left out falls back to the shipped value.
+export function dangerField(belief, tuning = {}) {
+  const falloff = tuning.falloff ?? DANGER_FALLOFF;
+  const crowdPenalty = tuning.crowdPenalty ?? CROWD_PENALTY;
+  const useExposure = tuning.useExposure ?? false;
   const player = belief.player;
   const armour = armourValue(player);
   const passable = believedWalkable(belief);
@@ -48,7 +53,7 @@ export function dangerField(belief, useExposure = false) {
     for (const [tile, distance] of spread.dist) {
       if (!isAwakeAt(monster, distance)) continue;
 
-      menace.set(tile, (menace.get(tile) || 0) + bite * DANGER_FALLOFF ** distance);
+      menace.set(tile, (menace.get(tile) || 0) + bite * falloff ** distance);
       if (distance <= 1) crowd.set(tile, (crowd.get(tile) || 0) + 1);
     }
   }
@@ -81,7 +86,7 @@ export function dangerField(belief, useExposure = false) {
           : exposedTiles.set(tile, exposure(belief, [x, y])).get(tile);
         price = bite * (1 + EXPOSURE_WEIGHT * (ways - 1));
       }
-      if ((crowd.get(tile) || 0) >= 2) price += CROWD_PENALTY;
+      if ((crowd.get(tile) || 0) >= 2) price += crowdPenalty;
       return price;
     },
   };

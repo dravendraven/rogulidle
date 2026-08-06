@@ -8,8 +8,9 @@
 //   increment 4  refuse to be cornered by two monsters at once
 
 import {
-  DUEL_SAFETY_MARGIN, GOAL_STICKINESS, MONSTER_COUNT, STEP_COST_IN_HP,
-  HOLD_RANGE, TACTICAL_OVERRIDE_MARGIN, TACTICAL_RANGE,
+  CROWD_PENALTY, DANGER_FALLOFF, DUEL_SAFETY_MARGIN, GOAL_STICKINESS,
+  HOLD_RANGE, MONSTER_COUNT, STEP_COST_IN_HP, TACTICAL_OVERRIDE_MARGIN,
+  TACTICAL_RANGE,
 } from '../sim/balance.js';
 import { scoreActions } from './tactics.js';
 import { duelCost } from './duel.js';
@@ -45,7 +46,7 @@ function liveMonsters(belief) {
 // the expensive monster at the end is met with double the starting damage.
 // Nothing here encodes that — it falls out of repricing every turn against
 // current xp and gear.
-function priceMonsters(belief, field) {
+function priceMonsters(belief, field, safetyMargin) {
   const out = [];
   for (const monster of liveMonsters(belief)) {
     const approach = priceOfReaching(field, monster.pos);
@@ -60,7 +61,7 @@ function priceMonsters(belief, field) {
       // Not `survivable`, which is break-even. Expected damage is an
       // average, so a duel that costs exactly all the hp there is loses
       // about half the time. The bot wants headroom before committing.
-      worthStarting: duel.hpLost <= belief.player.hp * DUEL_SAFETY_MARGIN,
+      worthStarting: duel.hpLost <= belief.player.hp * safetyMargin,
       cost: duel.hpLost + approach,
     });
   }
@@ -142,7 +143,7 @@ function monsterWithin(belief, field, steps) {
 // picking a fight. It is expressed as value rather than as a priority, so
 // a chestnut — worth exactly zero — never earns a detour, while a shield
 // two rooms away does.
-function lootGoals(belief, field, danger, total) {
+function lootGoals(belief, field, danger, total, stepCost) {
   const values = valueByItemName(belief, total);
   const coverValue = expectedCoverValue(values);
   const out = [];
@@ -165,7 +166,7 @@ function lootGoals(belief, field, danger, total) {
     // player, then stepping onto the tile costs another (spec §6). Those
     // two turns are spent standing where the cover is, so they are charged
     // at that tile's danger, not at the flat walking rate.
-    const lingering = 2 * (STEP_COST_IN_HP + danger.priceAt(cover.pos[0], cover.pos[1]));
+    const lingering = 2 * (stepCost + danger.priceAt(cover.pos[0], cover.pos[1]));
     out.push({
       kind: 'cover', id: cover.id, pos: cover.pos, distance: approach,
       gross: coverValue,
@@ -183,8 +184,9 @@ function lootGoals(belief, field, danger, total) {
 // (there is no clock, spec §8) and a monster that follows the bot never
 // closes the gap — it moves after the player does, so retreating holds
 // the distance. Delay is genuinely cheap; only dead ends are not.
-function preparationGoals(belief, field, danger, total) {
-  const useful = lootGoals(belief, field, danger, total).filter((g) => g.gross > 0);
+function preparationGoals(belief, field, danger, total, stepCost) {
+  const useful = lootGoals(belief, field, danger, total, stepCost)
+    .filter((g) => g.gross > 0);
   if (useful.length) {
     return useful.reduce((a, b) => {
       if (b.gross !== a.gross) return b.gross > a.gross ? b : a;
@@ -201,8 +203,9 @@ function chooseGoal(belief, field, danger, current, options) {
   //    and now the walk is priced in danger too, so a shield guarded by a
   //    wolf is correctly no longer free.
   if (options.loot) {
-    const worthwhile = lootGoals(belief, field, danger, options.monsterCount)
-      .filter((g) => g.net > 0);
+    const worthwhile = lootGoals(
+      belief, field, danger, options.monsterCount, options.stepCost,
+    ).filter((g) => g.net > 0);
     if (worthwhile.length) {
       return worthwhile.reduce((a, b) => (b.net > a.net ? b : a));
     }
@@ -210,7 +213,7 @@ function chooseGoal(belief, field, danger, current, options) {
 
   // 2. Something alive and known? Take the cheapest fight, not the closest.
   //    Walking into it is the attack, so combat needs no special case.
-  const priced = priceMonsters(belief, field);
+  const priced = priceMonsters(belief, field, options.safetyMargin);
   if (priced.length) {
     // `pick` exists so P4 can ablate one rule at a time and measure what it
     // is actually worth, rather than trusting that it helped.
@@ -225,7 +228,9 @@ function chooseGoal(belief, field, danger, current, options) {
     // were started knowing the sum did not add up, and 63% of deaths came
     // from exactly that.
     if (options.refuseLostFights && !best.worthStarting) {
-      const prepare = preparationGoals(belief, field, danger, options.monsterCount);
+      const prepare = preparationGoals(
+        belief, field, danger, options.monsterCount, options.stepCost,
+      );
       if (prepare) return prepare;
       // Nothing left to prepare with. Take it — the bot is not allowed to
       // give up, and dying trying is an accepted outcome (§0).
@@ -288,6 +293,16 @@ export function makeBot(options = {}) {
     // generation setting rather than be read from balance.js, or sweeping
     // the map density would silently break the stop condition.
     monsterCount: MONSTER_COUNT,
+
+    // Every tunable the bot reads, defaulting to the shipped value. They
+    // live here rather than being imported at the point of use so that P4
+    // can sweep them without editing balance.js — and so a sweep cannot
+    // silently miss one.
+    stepCost: STEP_COST_IN_HP,
+    falloff: DANGER_FALLOFF,
+    crowdPenalty: CROWD_PENALTY,
+    safetyMargin: DUEL_SAFETY_MARGIN,
+
     pick: 'cheapest',
     stickiness: GOAL_STICKINESS,
     loot: true,
@@ -324,11 +339,15 @@ export function makeBot(options = {}) {
     // plain makeBot() silently ran with danger pricing switched off, and
     // only the measurements that passed the flag explicitly ever saw it.
     const danger = settings.threat
-      ? dangerField(belief, settings.exposurePricing)
+      ? dangerField(belief, {
+        falloff: settings.falloff,
+        crowdPenalty: settings.crowdPenalty,
+        useExposure: settings.exposurePricing,
+      })
       : { menace: new Map(), crowd: new Map(), reach: new Map(), priceAt: () => 0 };
 
     const field = dijkstra(belief.player.pos, passable,
-      (x, y) => STEP_COST_IN_HP + danger.priceAt(x, y));
+      (x, y) => settings.stepCost + danger.priceAt(x, y));
 
     // Everything except exploration is re-priced every turn, because a kill
     // or a new shield reorders the whole board. Frontier goals stay sticky:
@@ -415,7 +434,7 @@ export function makeBot(options = {}) {
       // made the tiles around a target monster expensive, so closing in on
       // the thing the bot had decided to kill scored as moving away.
       const costToGoal = dijkstra(goal.pos, passable,
-        () => STEP_COST_IN_HP).cost;
+        () => settings.stepCost).cost;
 
       const scores = scoreActions(belief, costToGoal, settings.depth);
       const plannedScore = scores.get(planned);
