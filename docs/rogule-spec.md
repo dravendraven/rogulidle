@@ -217,8 +217,10 @@ Pontos que mudam a estratégia do bot:
 - **`xp` é a estatística de dano de ambos os lados.** O jogador começa com
   xp 3, rolando 0..2. Um t-rex (xp 10) rola 0..9.
 - **O roll pode ser 0.** Mesmo acertando (`hit = 1`), um atacante com xp 1
-  (rat) sempre causa 0 sem armas. Uma rat é literalmente inofensiva contra
-  um jogador parado, a menos que ela pegue uma arma no drop.
+  (rat) sempre causa 0. E monstros **nunca** ganham bônus de arma: o cálculo
+  lê `:inventory`, que monstros não possuem — o item que carregam fica em
+  `:drop`, que não entra na conta. Logo **a rat 🐀 é permanentemente
+  inofensiva**: kill grátis, sem custo de HP, e vale 1/2 de um ponto de xp.
 - **Armadura subtrai antes do clamp**, então armadura ≥ xp-1 do monstro
   torna o jogador imune àquele monstro.
 - Dano esperado por golpe do atacante = `(5/6) * E[max(0, roll + weapons - armour)]`.
@@ -395,19 +397,12 @@ reimplementação, tratar ausente como 0 explicitamente.
 
 ## 10. Decisões em aberto para o rogulidle
 
-### 10.1 O bot enxerga tudo ou só o viewport? — *decisão principal*
+### 10.1 Fog of war — **decidido: fog real com memória**
 
-O Rogule renderiza 18×18 com raio 9 e **sem memória de fog**. Três opções:
+Decisão do dono em 2026-08-05: o bot **não** é onisciente. Ele decide com o
+que está na tela mais uma memória do que já viu.
 
-| Opção | Consequência |
-|---|---|
-| **Onisciente** | O bot planeja com o mapa inteiro. Simples, e as 3 regras de estratégia funcionam direto. Assiste bem: o bot parece competente. |
-| **Fog com memória** | O bot lembra o que já viu. Exige uma camada de exploração (ir ao desconhecido) além do planejamento. Mais realista, bem mais trabalho. |
-| **Fog fiel ao original** | O bot esquece o que viu. Comportamento errático e ruim de assistir. |
-
-**Recomendação: onisciente no MVP.** É um brinquedo de espectador; um bot
-que erra por falta de informação é frustrante de olhar. Fog com memória pode
-virar um toggle depois, se você quiser tensão dramática.
+Consequências arquiteturais — ver §12 para o modelo completo.
 
 ### 10.2 Contagens de povoamento
 
@@ -441,3 +436,70 @@ Dependências a substituir: `rot-js` (Digger + A* + RNG ponderado) e
 `seedrandom`. O A* com topology 4 e a tabela ponderada são triviais de
 reescrever; o `Map.Digger` é a única peça não-trivial — vale usar o `rot-js`
 direto via npm, que é MIT.
+
+---
+
+## 12. Modelo de observação (consequência da decisão §10.1)
+
+Com fog real, o motor deixa de ter uma única representação de estado. Passa
+a ter duas, e o `step()` precisa expor as duas separadamente:
+
+- **`GameState`** — a verdade. Mapa completo, todas as entidades. Só o motor
+  e o renderizador de debug enxergam.
+- **`Observation`** — o que o jogador percebe neste turno.
+- **`Belief`** — a memória acumulada do bot, construída dobrando cada
+  `Observation` sobre a anterior. É a **única** entrada do bot.
+
+Contrato: `step(GameState, action) → { GameState, Observation }` e
+`fold(Belief, Observation) → Belief`. Se o bot tocar em `GameState`, o fog
+virou decoração — vale um teste que garanta isso.
+
+### 12.1 Visibilidade é por distância, não por linha de visão
+
+O original calcula opacidade puramente de `distance²` até o jogador
+(`ui.cljs:153`). **Não há raycasting: o jogador enxerga através de paredes**
+dentro do raio 9.
+
+Isso não é um bug a corrigir — é o que torna as regras 1 e 3 jogáveis.
+Escolher entre "a sala com o rat" e "a sala com o ghost" exige enxergar o
+conteúdo das duas antes de entrar. Com linha de visão real, o bot só
+descobriria o que há numa sala depois de cruzar a porta, e as duas regras
+degeneram em tentativa e erro.
+
+**Recomendação: manter visibilidade por distância.** Fiel ao original e
+estrategicamente mais rico.
+
+### 12.2 O que persiste na memória
+
+| Categoria | Persiste? | Observação |
+|---|---|---|
+| Tiles (chão/parede/porta) | **sim, permanente** | estáticos |
+| 🪴🪨🪵 coberturas | **sim, permanente** | estáticas até serem destampadas |
+| Itens de chão, ⛩ santuário, 💀 corpos | **sim, permanente** | estáticos |
+| **Monstros** | **não — envelhece** | movem-se; ver abaixo |
+
+Monstro é o único caso difícil. A memória guarda
+`{ tipo, xp, hp_visto, ultima_pos, turno_visto }`. Fora do raio de visão a
+posição é uma hipótese que envelhece — e como monstros só se movem quando o
+jogador está dentro do `activation` deles (§7), o envelhecimento não é
+uniforme:
+
+- Se `dist(jogador, ultima_pos) ≥ activation`, o monstro está **parado por
+  construção**. A memória continua exata por tempo indefinido.
+- Caso contrário, ele está perseguindo, e a incerteza cresce ~1 tile por
+  turno (com 10% de chance de não andar).
+
+Ou seja, a memória do bot é confiável exatamente nas regiões que ele evita —
+o que é conveniente, e é a base da formalização da regra 1 em
+`docs/bot-strategy.md`.
+
+### 12.3 Exploração passa a ser obrigatória
+
+Sem onisciência, o santuário pode simplesmente não ter sido visto ainda. O
+bot precisa de um tipo de objetivo novo — **fronteira**: tiles conhecidos e
+passáveis adjacentes a tiles desconhecidos. Sem isso a run trava.
+
+Custo real desta decisão: uma camada a mais na seleção de alvos (Fase 3) e
+um `Belief` a mais para testar (Fase 1). Não é gratuito, mas é o que dá
+sentido a "assistir" — um bot onisciente não hesita, e hesitação é metade da
+graça de olhar.
