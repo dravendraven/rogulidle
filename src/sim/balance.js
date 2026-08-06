@@ -111,3 +111,23 @@ export const UNKNOWN_MONSTER_ESTIMATE = { xp: 4, hp: 7 };
 // GUESS — measured at 0.60 over 150 generated maps. What the bot assumes
 // when deciding whether opening a cover is worth the two turns.
 export const COVER_LOOT_CHANCE = 0.60;
+
+// GUESS — how fast a monster's menace fades with distance. The hp it is
+// expected to deal is multiplied by this per tile away, so at 0.5 a wolf
+// two tiles off is charged a quarter of its bite. Lower makes the bot
+// bolder about squeezing past; higher makes it give monsters a wide berth.
+export const DANGER_FALLOFF = 0.5;
+
+// GUESS — extra hp charged for standing where two or more awake monsters
+// could reach the bot at once. This is rule R2 (bot-strategy §2) as a
+// strong price rather than a ban: a ban can leave a goal unreachable and
+// needs fallback machinery, while a price this size is avoided whenever
+// there is any alternative. The hard version belongs at action-selection
+// time, with the tactical search.
+export const CROWD_PENALTY = 6;
+
+// GUESS — a fight is worth starting only while its EXPECTED cost stays
+// under this share of current hp. Expected is an average: a duel costing
+// exactly all the hp there is loses about half the time, so the bot needs
+// headroom rather than a break-even test.
+export const DUEL_SAFETY_MARGIN = 0.7;

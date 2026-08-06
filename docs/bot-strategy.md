@@ -150,6 +150,32 @@ aggro de mais de um monstro, não evitá-los.
 Sob fog, `ameaça` só conta monstros conhecidos. Adjacência a um tile
 inexplorado carrega risco de surpresa.
 
+### Como ficou implementado (P3 incremento 4)
+
+Duas correções ao que estava escrito acima, ambas por medição.
+
+**A regra R2 virou preço, não proibição.** Uma proibição pode deixar o alvo
+inalcançável e exige maquinário de fallback; um preço alto (`CROWD_PENALTY`)
+é evitado sempre que existe alternativa e degrada sozinho quando não existe.
+A versão dura pertence à seleção de ação, junto com a busca tática (§4.3),
+não ao planejamento de rota.
+
+**O problema principal não era escolher lutas ruins — era ser alcançado.**
+A medição que motivou este incremento perguntou, errado, se o monstro que
+matou era insobrevivível no instante da morte; isso é quase tautológico. A
+pergunta certa — o bot *escolheu* essa luta? — mostrou que ele escolhe
+quase nunca: em 2859 turnos com monstro à vista, o ramo de "recusar luta
+perdida" disparou **uma vez**. Ele passava a run inteira indo buscar loot e
+era interceptado no caminho, porque toda rota era precificada só em passos.
+
+A correção foi precificar o tile: `danger(t)` é o dano esperado por turno
+gasto ali, somado sobre os monstros acordados em relação a `t` e atenuado
+por distância. A rota passa a ser Dijkstra sobre custo em HP em vez de BFS
+sobre passos, o que unifica "andar até lá" e "ter esta luta" numa moeda só.
+
+Resultado em 100 seeds retidas: 39,0% para 57,0% de vitórias, e em mapas
+vencíveis 39,4% para 59,6%.
+
 ---
 
 ## 3. Regra 3 — fracos primeiro

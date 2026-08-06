@@ -7,12 +7,21 @@
 //   increment 3  go out of the way for loot
 //   increment 4  refuse to be cornered by two monsters at once
 
-import { GOAL_STICKINESS, MONSTER_COUNT, STEP_COST_IN_HP } from '../sim/balance.js';
+import {
+  DUEL_SAFETY_MARGIN, GOAL_STICKINESS, MONSTER_COUNT, STEP_COST_IN_HP,
+} from '../sim/balance.js';
 import { duelCost } from './duel.js';
 import { expectedCoverValue, valueByItemName } from './loot.js';
+import { dangerField } from './threat.js';
 import {
-  actionToward, believedWalkable, flood, frontiers, key, routeTo,
+  actionToward, believedWalkable, dijkstra, flood, frontiers, key, routeTo,
 } from './nav.js';
+
+// Hp it costs to walk to a tile, danger included. Infinity when unreachable.
+function priceOfReaching(field, pos) {
+  const cost = field.cost.get(key(pos));
+  return cost === undefined ? Infinity : cost;
+}
 
 // R0, the owner's rule: the shrine is not a legal target until everything
 // is dead. docs/bot-strategy.md §0 — a hard constraint, not a weight. The
@@ -36,8 +45,8 @@ function liveMonsters(belief) {
 function priceMonsters(belief, field) {
   const out = [];
   for (const monster of liveMonsters(belief)) {
-    const distance = field.dist.get(key(monster.pos));
-    if (distance === undefined) continue;         // walled off for now
+    const approach = priceOfReaching(field, monster.pos);
+    if (!Number.isFinite(approach)) continue;     // walled off for now
 
     const duel = duelCost(belief.player, monster);
     out.push({
@@ -45,21 +54,26 @@ function priceMonsters(belief, field) {
       id: monster.id,
       pos: monster.pos,
       hpLost: duel.hpLost,
-      survivable: duel.survivable,
-      cost: duel.hpLost + STEP_COST_IN_HP * distance,
+      // Not `survivable`, which is break-even. Expected damage is an
+      // average, so a duel that costs exactly all the hp there is loses
+      // about half the time. The bot wants headroom before committing.
+      worthStarting: duel.hpLost <= belief.player.hp * DUEL_SAFETY_MARGIN,
+      cost: duel.hpLost + approach,
     });
   }
   return out;
 }
 
-function nearestOf(field, candidates) {
+// Cheapest to reach, in hp — which is not the same as closest, since the
+// short way round may run under a wolf's nose.
+function cheapestOf(field, candidates) {
   let best = null;
-  let bestDist = Infinity;
+  let bestPrice = Infinity;
   for (const candidate of candidates) {
-    const d = field.dist.get(key(candidate.pos));
-    if (d === undefined || d >= bestDist) continue;
+    const price = priceOfReaching(field, candidate.pos);
+    if (price >= bestPrice) continue;
     best = candidate;
-    bestDist = d;
+    bestPrice = price;
   }
   return best;
 }
@@ -74,40 +88,66 @@ function frontierGoals(belief) {
 // picking a fight. It is expressed as value rather than as a priority, so
 // a chestnut — worth exactly zero — never earns a detour, while a shield
 // two rooms away does.
-function lootGoals(belief, field) {
+function lootGoals(belief, field, danger) {
   const values = valueByItemName(belief);
   const coverValue = expectedCoverValue(values);
   const out = [];
 
   for (const item of belief.items.values()) {
-    const distance = field.dist.get(key(item.pos));
-    if (distance === undefined) continue;
+    const approach = priceOfReaching(field, item.pos);
+    if (!Number.isFinite(approach)) continue;
     const value = values.get(item.name) || 0;
     out.push({
-      kind: 'item', id: item.id, pos: item.pos,
-      net: value - STEP_COST_IN_HP * distance,
+      kind: 'item', id: item.id, pos: item.pos, distance: approach,
+      gross: value,
+      net: value - approach,
     });
   }
 
   for (const cover of belief.covers.values()) {
-    const distance = field.dist.get(key(cover.pos));
-    if (distance === undefined) continue;
+    const approach = priceOfReaching(field, cover.pos);
+    if (!Number.isFinite(approach)) continue;
     // Two turns, not one: opening it costs a turn and does not move the
-    // player, then stepping onto the tile costs another (spec §6).
+    // player, then stepping onto the tile costs another (spec §6). Those
+    // two turns are spent standing where the cover is, so they are charged
+    // at that tile's danger, not at the flat walking rate.
+    const lingering = 2 * (STEP_COST_IN_HP + danger.priceAt(cover.pos[0], cover.pos[1]));
     out.push({
-      kind: 'cover', id: cover.id, pos: cover.pos,
-      net: coverValue - STEP_COST_IN_HP * (distance + 2),
+      kind: 'cover', id: cover.id, pos: cover.pos, distance: approach,
+      gross: coverValue,
+      net: coverValue - approach - lingering,
     });
   }
   return out;
 }
 
-function chooseGoal(belief, field, current, options) {
+// Anything that might turn a lost fight into a winnable one: gear worth
+// having at ANY distance, or unexplored map that might hold some.
+//
+// The usual "does it pay for the walk" test is the wrong question here,
+// because the alternative on the table is dying. Steps are nearly free
+// (there is no clock, spec §8) and a monster that follows the bot never
+// closes the gap — it moves after the player does, so retreating holds
+// the distance. Delay is genuinely cheap; only dead ends are not.
+function preparationGoals(belief, field, danger) {
+  const useful = lootGoals(belief, field, danger).filter((g) => g.gross > 0);
+  if (useful.length) {
+    return useful.reduce((a, b) => {
+      if (b.gross !== a.gross) return b.gross > a.gross ? b : a;
+      return b.distance < a.distance ? b : a;
+    });
+  }
+  return cheapestOf(field, frontierGoals(belief));
+}
+
+function chooseGoal(belief, field, danger, current, options) {
   // 1. Anything free worth having? Rule 1: stock up before fighting. Loot
   //    that does not pay for its own walk scores negative and is skipped,
-  //    so this does not become a compulsion to hoover up every chestnut.
+  //    so this does not become a compulsion to hoover up every chestnut —
+  //    and now the walk is priced in danger too, so a shield guarded by a
+  //    wolf is correctly no longer free.
   if (options.loot) {
-    const worthwhile = lootGoals(belief, field).filter((g) => g.net > 0);
+    const worthwhile = lootGoals(belief, field, danger).filter((g) => g.net > 0);
     if (worthwhile.length) {
       return worthwhile.reduce((a, b) => (b.net > a.net ? b : a));
     }
@@ -124,6 +164,18 @@ function chooseGoal(belief, field, current, options) {
       : (c) => c.cost;
     const best = priced.reduce((a, b) => (rank(b) < rank(a) ? b : a));
 
+    // Do not walk into a fight already computed as lost while there is
+    // still something to try. R0 forbids fleeing to the shrine; it does not
+    // forbid DELAYING. Measured before this existed: 11% of engagements
+    // were started knowing the sum did not add up, and 63% of deaths came
+    // from exactly that.
+    if (options.refuseLostFights && !best.worthStarting) {
+      const prepare = preparationGoals(belief, field, danger);
+      if (prepare) return prepare;
+      // Nothing left to prepare with. Take it — the bot is not allowed to
+      // give up, and dying trying is an accepted outcome (§0).
+    }
+
     // Stick with the current target unless the new one is clearly better,
     // otherwise two near-equal monsters make the bot dither on the spot.
     if (current && current.kind === 'monster') {
@@ -136,14 +188,14 @@ function chooseGoal(belief, field, current, options) {
   // 3. Nothing known to fight and the floor is not clear — the rest are out
   //    there in the dark. Go and look.
   if (!clearedTheFloor(belief)) {
-    return nearestOf(field, frontierGoals(belief));
+    return cheapestOf(field, frontierGoals(belief));
   }
 
   // 4. Floor clear: leave, if the way out has been found.
   if (belief.shrine) return { kind: 'shrine', pos: belief.shrine.pos };
 
   // 5. Cleared but the shrine was never seen — keep looking for it.
-  return nearestOf(field, frontierGoals(belief));
+  return cheapestOf(field, frontierGoals(belief));
 }
 
 // A goal survives between turns so the bot commits instead of dithering,
@@ -174,17 +226,30 @@ function stillValid(goal, belief, field) {
 
 export function makeBot(options = {}) {
   const settings = {
-    pick: 'cheapest', stickiness: GOAL_STICKINESS, loot: true, ...options,
+    pick: 'cheapest',
+    stickiness: GOAL_STICKINESS,
+    loot: true,
+    refuseLostFights: true,
+    threat: true,
+    ...options,
   };
   let goal = null;
 
   return function decide(belief) {
     const passable = believedWalkable(belief);
 
-    // One flood per turn prices every candidate at once. Live monsters stay
-    // passable so they can be targeted at all; the bot is choosing among
-    // them by cost anyway, so it will meet the near one before the far one.
-    const field = flood(belief.player.pos, passable);
+    // Price the board, then price every route across it. The field holds
+    // the cheapest hp cost of reaching each tile, danger included, so one
+    // number compares "walk over there" against "have this fight".
+    //
+    // Live monsters stay passable so they can be targeted at all; the bot
+    // chooses among them by cost anyway.
+    const danger = options.threat
+      ? dangerField(belief)
+      : { menace: new Map(), crowd: new Map(), priceAt: () => 0 };
+
+    const field = dijkstra(belief.player.pos, passable,
+      (x, y) => STEP_COST_IN_HP + danger.priceAt(x, y));
 
     // Everything except exploration is re-priced every turn, because a kill
     // or a new shield reorders the whole board. Frontier goals stay sticky:
@@ -193,7 +258,7 @@ export function makeBot(options = {}) {
     const held = stillValid(goal, belief, field) ? goal : null;
     goal = (held && held.kind === 'frontier')
       ? held
-      : chooseGoal(belief, field, held, settings);
+      : chooseGoal(belief, field, danger, held, settings);
     if (!goal) return 'rest';
 
     const route = routeTo(field, goal.pos);

@@ -35,7 +35,7 @@ export function believedWalkable(belief) {
 // The whole believed map is about 200 walkable tiles, so this is cheap
 // enough to run a couple of times per turn and beats calling A* per
 // candidate target.
-export function flood(origin, passable, blocked = new Set()) {
+export function flood(origin, passable, maxDist = Infinity) {
   const dist = new Map();
   const from = new Map();
   const queue = [origin];
@@ -44,18 +44,98 @@ export function flood(origin, passable, blocked = new Set()) {
   for (let head = 0; head < queue.length; head++) {
     const pos = queue[head];
     const d = dist.get(key(pos));
+    if (d >= maxDist) continue;               // nothing further out matters
     for (const [dx, dy] of STEPS) {
       const next = [pos[0] + dx, pos[1] + dy];
       const nextKey = key(next);
       if (dist.has(nextKey)) continue;
       if (!passable(next[0], next[1])) continue;
-      if (blocked.has(nextKey)) continue;
       dist.set(nextKey, d + 1);
       from.set(nextKey, pos);
       queue.push(next);
     }
   }
   return { dist, from };
+}
+
+// Weighted flood: same shape as `flood`, but every tile carries a price and
+// the field holds the CHEAPEST total, not the fewest steps.
+//
+// Prices are in hp, so a route that strolls past a wolf costs more than the
+// long way round, and one number compares walking against fighting. Steps
+// are still tracked separately, because some things (opening a cover) cost
+// turns rather than danger.
+//
+// `priceOf(x, y)` returns the hp charged for standing on that tile, or
+// Infinity for somewhere the bot refuses to go.
+export function dijkstra(origin, passable, priceOf) {
+  const cost = new Map();
+  const steps = new Map();
+  const from = new Map();
+
+  const originKey = key(origin);
+  cost.set(originKey, 0);
+  steps.set(originKey, 0);
+
+  // A binary heap, not a linear scan of the open set. Unknown tiles count
+  // as walkable, so the flood covers the whole 32x32 map rather than the
+  // ~200 tiles actually seen — a scan makes this O(V^2) and the batch
+  // runner grinds to a halt.
+  const heap = [{ pos: origin, cost: 0 }];
+  const push = (entry) => {
+    heap.push(entry);
+    let i = heap.length - 1;
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (heap[parent].cost <= heap[i].cost) break;
+      [heap[parent], heap[i]] = [heap[i], heap[parent]];
+      i = parent;
+    }
+  };
+  const pop = () => {
+    const top = heap[0];
+    const last = heap.pop();
+    if (heap.length) {
+      heap[0] = last;
+      let i = 0;
+      for (;;) {
+        const left = 2 * i + 1;
+        const right = left + 1;
+        let small = i;
+        if (left < heap.length && heap[left].cost < heap[small].cost) small = left;
+        if (right < heap.length && heap[right].cost < heap[small].cost) small = right;
+        if (small === i) break;
+        [heap[small], heap[i]] = [heap[i], heap[small]];
+        i = small;
+      }
+    }
+    return top;
+  };
+
+  while (heap.length) {
+    const { pos, cost: here } = pop();
+    const posKey = key(pos);
+    if (here > cost.get(posKey)) continue;          // a stale heap entry
+
+    for (const [dx, dy] of STEPS) {
+      const next = [pos[0] + dx, pos[1] + dy];
+      if (!passable(next[0], next[1])) continue;
+
+      const price = priceOf(next[0], next[1]);
+      if (!Number.isFinite(price)) continue;
+
+      const nextKey = key(next);
+      const candidate = here + price;
+      if (cost.has(nextKey) && cost.get(nextKey) <= candidate) continue;
+
+      cost.set(nextKey, candidate);
+      steps.set(nextKey, steps.get(posKey) + 1);
+      from.set(nextKey, pos);
+      push({ pos: next, cost: candidate });
+    }
+  }
+  // `dist` is kept as an alias for steps so routeTo works on either field.
+  return { cost, steps, dist: steps, from };
 }
 
 // Rebuilds [origin, ..., goal]. Empty when the goal was never reached.
