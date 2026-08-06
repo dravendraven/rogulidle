@@ -37,6 +37,24 @@ export function newGame(seed, counts = {}) {
 
   state.map = generateMap(state.rng.map);
   populate(state, state.map, counts);
+
+  // Carrying a player in from the floor above. The position always comes
+  // from this floor's generation — only what the hero IS travels, not
+  // where they stood.
+  if (counts.carry) {
+    const carried = counts.carry;
+    state.player = {
+      ...state.player,
+      hp: carried.hp,
+      hpMax: carried.hpMax,
+      xp: carried.xp,
+      inventory: carried.inventory.map((i) => ({ ...i })),
+      kills: carried.kills.slice(),
+      // The passive regeneration allowance is per floor, not per dungeon.
+      regenCounter: 0,
+      regenUsed: 0,
+    };
+  }
   return state;
 }
 
