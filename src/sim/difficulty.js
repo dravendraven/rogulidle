@@ -59,12 +59,18 @@
 // not claim comes up as an empty cover, which is what replaced Rogule's junk
 // collectibles — so this dial sets both the mix AND how often opening a
 // cover pays at all.
+// Covers climb steeply rather than sitting flat. Early floors are meant to
+// be lean — the hero has to earn the first weapon — while deep floors are
+// generous, which is what the owner asked for: a hard room should pay.
+//
+// It also thins the total. Ten floors of 15 covers is 150 chances at loot,
+// and even a 10% hit rate leaves the hero swimming in gear by the bottom.
 const CALIBRATION = [
-  { at: 0.0, monsters: 2, covers: 14, difficultyScale: 0.12, dropChance: 0.5, scarcity: 3.0 },
-  { at: 0.25, monsters: 5, covers: 14, difficultyScale: 0.40, dropChance: 0.5, scarcity: 3.0 },
-  { at: 0.5, monsters: 9, covers: 15, difficultyScale: 0.75, dropChance: 0.5, scarcity: 3.0 },
-  { at: 0.75, monsters: 14, covers: 15, difficultyScale: 0.90, dropChance: 0.5, scarcity: 3.0 },
-  { at: 1.0, monsters: 21, covers: 16, difficultyScale: 1.00, dropChance: 0.5, scarcity: 3.0 },
+  { at: 0.0, monsters: 2, covers: 4, difficultyScale: 0.12, dropChance: 0.5, scarcity: 3.0 },
+  { at: 0.25, monsters: 5, covers: 6, difficultyScale: 0.40, dropChance: 0.5, scarcity: 3.0 },
+  { at: 0.5, monsters: 9, covers: 9, difficultyScale: 0.75, dropChance: 0.5, scarcity: 3.0 },
+  { at: 0.75, monsters: 14, covers: 13, difficultyScale: 0.90, dropChance: 0.5, scarcity: 3.0 },
+  { at: 1.0, monsters: 21, covers: 18, difficultyScale: 1.00, dropChance: 0.5, scarcity: 3.0 },
 ];
 
 const lerp = (a, b, t) => a + (b - a) * t;
