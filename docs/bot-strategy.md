@@ -10,42 +10,55 @@ Premissa fixada em §10.1 da spec: **fog of war real com memória**. O bot lê
 
 ---
 
-## 0. O objetivo: limpar o andar no menor número de passos
+## 0. O objetivo: vencer primeiro, passos depois
 
 Regra fixada pelo dono: **matar todos os monstros antes de tocar o santuário
 é obrigatório**, não um peso. Vem da regra de casa que ele jogava com
-amigos — o placar era quem completava o desafio do dia em menos passos, e
-limpar o andar inteiro aumentava a chance de fracasso, que era justamente o
-que tornava a coisa divertida.
+amigos — limpar o andar inteiro aumentava a chance de fracasso, e era isso
+que tornava o desafio divertido.
+
+Mas passos são **critério de desempate, não objetivo**. Uma run de 1000
+passos que vence vale mais que qualquer run curta que morre.
 
 ```
-minimizar  passos
-sujeito a  todos os monstros mortos  ∧  santuário alcançado
+maximizar  P(vitória) − λ · passos
+sujeito a  R0: santuário só é alvo válido com todos os monstros mortos
+           R2: nunca escolher ação que resulte em ameaça ≥ 2
 falha      morte do jogador
 ```
 
-O santuário **não é alvo válido** enquanto restar monstro vivo. Não existe
-saída de emergência: se o bot está com 2 HP e sobrou um dragon, ele luta.
+### λ — o botão de aversão a risco
 
-### Três consequências
+`λ` tem unidade de "probabilidade de vitória por passo", e a forma legível
+dele é a inversa: **quantos passos o bot paga por 1 ponto percentual de
+chance de vitória.**
 
-**1. Passos são o placar, então turnos deixam de ser de graça.** O jogo não
-tem relógio (spec §8) e regenerar só custa tempo (spec §5), então nada mata
-o bot por demorar — mas cada passo piora a nota. A pergunta "vale a pena
-andar 20 tiles por aquele loot?" passa a ter resposta de verdade, em vez de
-ser sempre sim. Todo desvio precisa se pagar em sobrevivência.
+| λ | Comportamento | Como assiste |
+|---|---|---|
+| ≈ 0 | pega todo desvio seguro, nunca arrisca | metódico, vence muito, lento |
+| médio | desvia pelo loot que importa | equilibrado |
+| alto | vai direto ao alvo, ignora loot distante | speedrun, morre bastante |
 
-**2. Descansar custa um passo, e é isso que impede a degeneração.** Sem essa
-propriedade, a jogada ótima sob "matar todos" seria recuar para a zona fria,
-descansar até encher o HP e voltar — regeneração infinita, HP irrelevante,
-e horrível de assistir. Como `move-to` com direção nula incrementa `:moves`
-(spec §6), curar 1 HP custa 100 passos no placar. O metrificador se corrige
-sozinho, e isso o torna **load-bearing**: se a Fase 4 mexer no placar, esse
-buraco reabre.
+Não é só um parâmetro de tuning — é **personalidade visível**. Vale expor ao
+espectador como "cauteloso / equilibrado / imprudente" na Fase 2, porque
+muda o que se vê na tela sem exigir bot nenhum a mais.
 
-**3. Morrer é um desfecho aceito.** O bot não deve jogar com segurança
-máxima — a chance de fracasso é o produto, não o defeito. Isso proíbe
-qualquer heurística de auto-preservação que faça o bot desistir de um alvo.
+Valor inicial e curva de sensibilidade ficam para a Fase 4.
+
+### Duas consequências
+
+**1. O bot joga para vencer, mas não pode desistir.** As duas coisas
+convivem: ele maximiza sobrevivência dentro do espaço de jogadas legais, mas
+R0 proíbe a fuga para o santuário. Se está com 2 HP e sobrou um dragon, ele
+luta. Isso proíbe heurística de auto-preservação que viole R0 — não proíbe
+cautela.
+
+**2. Passos não disciplinam o descanso.** Uma versão anterior deste
+documento afirmava que o custo em passos do descanso bastava para impedir o
+farm de regeneração. **Errado**: isso só valia enquanto passos fossem o
+objetivo primário. Com vitória dominando, pagar 100 passos por 1 HP é barato,
+e a jogada ótima volta a ser acampar na zona fria até encher a vida. A trava
+tem que ser mecânica — ver §5.
 
 ---
 
@@ -300,3 +313,26 @@ run inteira.
 Fica como item de Fase 4 medir a taxa de morte real. Se ela vier alta demais
 para ser divertida, o ajuste correto é o **balanceamento** (contagem de
 monstros, densidade de loot, §10.2 da spec) — não relaxar R0.
+
+---
+
+## 5. Teto de regeneração
+
+O original permite curar indefinidamente parado em zona fria. Como o bot
+maximiza vitória e passos são só desempate, ele **vai** descobrir e explorar
+essa jogada: acampar até HP cheio antes de cada duelo torna o HP irrelevante
+e a run inteira mecânica. É a tática não-divertida que o dono identificou.
+
+Divergência deliberada do original, especificada em `rogule-spec.md` §13:
+**a regeneração passiva tem um teto por run** (default 20% do HP máximo).
+Poções 🥃 não contam contra o teto.
+
+Consequência estratégica, e é a que importa: **HP vira recurso não-renovável.**
+Cada ponto perdido num duelo é permanente, salvo poção. Isso é o que dá peso
+de verdade à regra 3 — a ordem dos duelos deixa de ser otimização de margem
+e passa a determinar se a run termina. E dá função real à poção, que no
+original é quase irrelevante perto de um regenerador infinito.
+
+Também elimina a jogada degenerada de "recuar, curar, voltar" como resposta
+padrão a HP baixo. Sem ela, a única resposta a HP baixo é **jogar melhor**:
+escolher duelos mais baratos, buscar escudo antes, usar corredor.

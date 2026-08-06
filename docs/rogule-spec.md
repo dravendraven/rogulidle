@@ -503,3 +503,58 @@ Custo real desta decisão: uma camada a mais na seleção de alvos (Fase 3) e
 um `Belief` a mais para testar (Fase 1). Não é gratuito, mas é o que dá
 sentido a "assistir" — um bot onisciente não hesita, e hesitação é metade da
 graça de olhar.
+
+---
+
+## 13. Divergências deliberadas do original
+
+Diferente de §9, que lista prováveis bugs a corrigir. Aqui são mudanças de
+regra conscientes.
+
+### 13.1 Teto de regeneração passiva
+
+**Problema no original.** `restore-player-health` (`engine.cljs:112`) dá +1
+HP a cada 100 turnos gastos, sem limite, e monstros são estáticos fora do
+`activation` (§7). Logo existe sempre uma zona onde o jogador cura de graça
+e para sempre. Sem limite de turnos (§8), o HP máximo efetivo é infinito.
+
+Para um humano isso é só tedioso, e a etiqueta da mesa resolve. Para um bot
+que maximiza vitória, é a jogada ótima — ele acampa antes de cada duelo, o
+HP para de significar qualquer coisa e a run vira mecânica.
+
+**Regra nova.** A regeneração passiva tem um **teto por run**:
+
+```
+regen_maximo_por_run = ceil(0.20 × hp_maximo)     ; default: 2 HP com hp 10
+```
+
+Ao esgotar o teto, a regeneração passiva **para de vez** pelo resto da run.
+O contador não reseta.
+
+**Três detalhes que fazem a regra funcionar:**
+
+1. **O teto conta regeneração, não descanso.** No original o contador
+   `hp-inc` avança em *todo* turno que passa, não só nos de descanso — um
+   teto que só punisse a ação de descansar seria contornado andando em
+   círculos, mesma degeneração com animação diferente.
+2. **Poções 🥃 não contam contra o teto.** São loot conquistado; o teto
+   existe para matar o recurso *gratuito*. Manter as duas fontes separadas
+   é o que dá função à poção, que hoje é quase irrelevante ao lado de um
+   regenerador infinito.
+3. **O teto é por run**, não por sala ou por combate. Não recarrega.
+
+**Parâmetros para a Fase 4:** os 20% são chute inicial. Ajustar junto com
+`rejuvination-rate` (100 turnos/HP) — os dois juntos definem se o teto é
+alcançável dentro de uma run típica. Com 20% de 10 HP e taxa 100, gastar o
+teto inteiro custa 200 passos, o que já é caro no placar.
+
+**Alternativas descartadas:** desligar a regeneração por completo (perde a
+margem de recuperação que torna runs longas viáveis); taxa decrescente
+(mesmo efeito, mais difícil de explicar e de ajustar); regenerar só sob
+aggro (anti-camping direto, mas inverte a ficção — curar apenas em perigo).
+
+### 13.2 Consequência de design
+
+Com o teto, **HP vira recurso não-renovável**. Toda a estratégia do bot se
+reorganiza em volta disso: a ordem dos duelos deixa de ser otimização de
+margem e passa a determinar se a run termina. Ver `bot-strategy.md` §5.
