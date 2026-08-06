@@ -286,6 +286,29 @@ explorar fronteira fria → matar o monstro mais barato alcançável → recolhe
 o que ficou frio depois da morte dele → repetir, com o custo dos duelos
 caindo a cada 2 kills → santuário.
 
+### 4.0 O bot não pode ser função pura da crença
+
+Descoberto ao construir a P1, e vai morder na P3.
+
+Bater numa parede **não gasta turno** (spec §6): nada muda no estado, e os
+monstros não agem. Logo, um bot que decida puramente a partir da crença
+atual, ao escolher uma ação que esbarra numa parede, recebe de volta
+exatamente a mesma crença — e escolhe a mesma ação. Para sempre. Não é um
+travamento do motor, é um ponto fixo da política.
+
+A política de teste da P1 caiu nisso: 1200 decisões, 2 turnos jogados.
+
+Duas defesas, e vale ter as duas:
+
+1. **Nunca escolher uma ação que esbarre em parede.** É trivial de checar
+   com a crença — o tile é conhecido e não-andável — e é o que um bot
+   competente faria de qualquer forma.
+2. **Carregar estado próprio** (o plano atual, ou pelo menos um contador),
+   para que a política não seja função apenas da crença.
+
+`playGame` tem um guarda `maxDecisions` separado de `maxTurns` exatamente
+porque `maxTurns` não detecta esse caso — o contador de turnos nunca sobe.
+
 ### 4.1 O bot precisa saber quantos monstros existem
 
 R0 exige comparar `kills` com o total, e sob fog o bot não descobre esse
