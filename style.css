@@ -52,6 +52,21 @@ button {
 }
 button:hover { border-color: #3a4150; }
 
+.banner {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+  background: #2b2413;
+  border: 1px solid #5c4a1d;
+  border-left: 3px solid #d8a657;
+  border-radius: 6px;
+  padding: .55rem .8rem;
+  margin-bottom: 1rem;
+  font-size: 12.5px;
+  color: #e0c58a;
+}
+.banner b { color: #ffd8a8; }
+
 main {
   display: flex;
   gap: 1rem;
