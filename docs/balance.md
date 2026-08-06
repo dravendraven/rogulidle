@@ -1,5 +1,33 @@
 # Balance — single source of truth for every tunable number
 
+> ⚠️ **The single-floor win-rate curve below predates the armour change**
+> (spec §13.2) and needs re-measuring. The dungeon curve is current — see
+> "the dungeon" immediately below.
+
+## The dungeon curve
+
+Measured over 12 dungeons after armour became a spent second bar and passive
+regeneration was removed. Net challenge is what the floor is expected to
+cost divided by the hp+armour the hero walked in with; above 1.00 the floor
+asks for more than the hero brought.
+
+| floor | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| net challenge | 0.20 | 0.30 | 0.48 | 0.24 | 0.36 | 1.02 | 0.81 | 1.20 | 1.02 | 0.88 |
+| deaths | 0 | 0 | 0 | 0 | 1 | 2 | 1 | 3 | 0 | 0 |
+| capacity in | 10 | 11.3 | 14.6 | 16.3 | 19.7 | 17.9 | 18.9 | 15.5 | 15.0 | 17.6 |
+
+5 of 12 dungeons cleared; depths 5, 6, 6, 7, 8, 8, 8, 10, 10, 10, 10, 10.
+
+`LAST_LEVEL_DIFFICULTY` is 0.5, not 0.9. At 0.9 the net challenge crossed
+1.00 by floor five and nobody reached the bottom — the dial has far more
+bite now that floor cost genuinely climbs instead of being cancelled out by
+stockpiled armour.
+
+The wobble (floor 4 dips below floor 3) is sampling noise at n=12, not
+structure. Re-measure with a different `firstSeed` before reading anything
+into a single floor.
+
 ## The difficulty dial
 
 One number, 0 to 1, sets how hard the floors are without touching the bot.
@@ -70,10 +98,12 @@ Five monsters on a 32×32 map is very sparse — see spec §10.2.
 
 | Name | Value | Status |
 |---|---|---|
-| `REJUVINATION_RATE` | 100 turns per +1 HP | FAITHFUL (`engine.cljs:27`) |
-| `REGEN_CAP_FRACTION` | 0.20 of max HP | **INITIAL GUESS** |
+**There is none.** Rogule healed +1 hp every 100 turns, uncapped; we removed
+it outright (spec §13.1). Waiting heals nothing, so the only source of hp is
+a potion, and potions only fall off monsters.
 
-`REGEN_CAP_FRACTION` is our divergence from the original — see spec §13.1.
+We tried a cap first (20% of max hp per run). It worked, but it was
+machinery guarding a resource we did not want to exist.
 The original has no cap, which lets a bot camp in a cold zone and heal
 forever. With `PLAYER_HP` 10 the cap is 2 HP per run, and spending it all
 costs 200 turns.
@@ -87,7 +117,11 @@ reachable in a typical run. Tune them as a pair, never alone.
 |---|---|---|
 | `HIT_CHANCE` | 5/6 | FAITHFUL (`engine.cljs:257`) |
 | damage roll | uniform `0 .. attacker.xp - 1` | FAITHFUL (`engine.cljs:258`) |
-| damage formula | `max(0, (roll + weapons - armour) * hit)` | FAITHFUL (`engine.cljs:261`) |
+| damage formula | `(roll + weapons) * hit` | **DIVERGES** — see spec §13.2 |
+
+The defender no longer enters the damage formula: armour became extra max
+hp rather than damage reduction, so gear buys blows absorbed instead of
+blows softened. Rogule's original was `max(0, (roll + weapons - armour) * hit)`.
 
 ## Monsters
 
@@ -129,7 +163,7 @@ FAITHFUL — `generator.cljs:28`. Pick weight is `1 / value`, so a high
 | chestnut | 🌰 | 1 | 1.000 | 32.9% | none (collectible) |
 | mushroom | 🍄 | 2 | 0.500 | 16.4% | none (collectible) |
 | health | 🥃 | 2 | 0.500 | 16.4% | +3 HP, capped at max |
-| shield | 🛡️ | 3 | 0.333 | 11.0% | +1 armour |
+| shield | 🛡️ | 3 | 0.333 | 11.0% | **+3 armour** — a second bar, and it is spent |
 | dagger | 🗡️ | 3 | 0.333 | 11.0% | +1 damage |
 | axe | 🪓 | 4 | 0.250 | 8.2% | +2 damage |
 | gem-stone | 💎 | 8 | 0.125 | 4.1% | none (collectible) |

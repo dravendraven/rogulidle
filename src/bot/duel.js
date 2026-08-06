@@ -6,13 +6,18 @@
 // while the ogre costs about half again as much.
 
 import { KILLS_PER_XP, MONSTER_SKIP_CHANCE, XP_FROM_KILLS } from '../sim/balance.js';
-import { armourValue, expectedDamage, weaponDamage } from '../sim/combat.js';
+import { effectiveHp, expectedDamage, weaponDamage } from '../sim/combat.js';
 
-// Monsters carry no inventory, so they never get a weapon bonus and never
-// have armour — the item they hold sits in `drop`, outside the maths.
+// Monsters carry no inventory, so they never get a weapon bonus — the item
+// they hold sits in `drop`, outside the maths.
+//
+// What a monster hits for no longer depends on the hero at all, since
+// armour became extra hp rather than damage reduction. That is one fewer
+// coupling: a monster's bite is a constant, and gear changes how many of
+// them the hero can absorb.
 export function duelCost(player, monster) {
-  const mine = expectedDamage(player.xp, weaponDamage(player), 0);
-  const theirs = expectedDamage(monster.xp, 0, armourValue(player));
+  const mine = expectedDamage(player.xp, weaponDamage(player));
+  const theirs = expectedDamage(monster.xp, 0);
 
   if (mine <= 0) {
     return { hpLost: Infinity, turns: Infinity, survivable: false };
@@ -24,7 +29,7 @@ export function duelCost(player, monster) {
   // the blow that kills them happens on the player's turn.
   const hpLost = (1 - MONSTER_SKIP_CHANCE) * Math.max(0, turns - 1) * theirs;
 
-  return { hpLost, turns, survivable: hpLost < player.hp };
+  return { hpLost, turns, survivable: hpLost < effectiveHp(player) };
 }
 
 // What killing ALL of them costs, fighting in the cheapest-first order.

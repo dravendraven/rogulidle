@@ -46,8 +46,13 @@ export const XP_FROM_KILLS = false;
 
 // ***** regeneration ***** //
 
-export const REJUVINATION_RATE = 100;    // FAITHFUL engine.cljs:27
-export const REGEN_CAP_FRACTION = 0.20;  // GUESS — our divergence, spec 13.1
+// REMOVED by owner decision: there is no passive regeneration at all.
+//
+// Rogule gave +1 hp every 100 turns, uncapped, and monsters are motionless
+// outside their chase radius — so a bot that maximises winning simply camps
+// somewhere cold and heals to full before every fight. We first tried a cap
+// (spec §13.1); deleting it outright is simpler and leaves nothing to
+// exploit. Hp is now strictly non-renewable except by drinking a potion.
 
 // ***** combat ***** //
 
@@ -120,6 +125,19 @@ export const MONSTER_WEIGHTS = [
 
 // Pick weight is 1/value, so a HIGH value means a RARE item.
 // dmg / armour / heal are absent when the item has no effect.
+//
+// `armour` is a SECOND BAR that soaks damage before hp does (spec §13.2).
+// Max hp never moves; what a shield buys is a buffer, and the buffer is
+// spent. Two things follow, and both matter:
+//
+//   - it is consumable, so shields are a flow rather than a stock. Fifteen
+//     of them across ten floors do not make a hero permanently tougher.
+//   - max hp stays constant at PLAYER_HP, so every piece of code that
+//     assumes that keeps being right.
+//
+// Rogule's original subtracted armour from each blow with a floor of zero,
+// which made every point erase a whole tier of the monster table and then
+// saturate — the reason a ten-floor descent never got harder.
 // DIVERGENCE: Rogule's chestnut, mushroom and gem-stone are gone.
 //
 // They do nothing mechanically — they exist in the original as the score on
@@ -132,7 +150,7 @@ export const MONSTER_WEIGHTS = [
 // equally likely overall, and within a kind the stronger item is rarer.
 export const ITEM_TABLE = [
   { name: 'health', emoji: '🥃',  value: 2, heal: 3, kind: 'potion' },  // FAITHFUL engine.cljs:209
-  { name: 'shield', emoji: '🛡️', value: 3, armour: 1, kind: 'armour' },
+  { name: 'shield', emoji: '🛡️', value: 3, armour: 3, kind: 'armour' },
   { name: 'dagger', emoji: '🗡️', value: 3, dmg: 1, kind: 'weapon' },
   { name: 'axe',    emoji: '🪓',  value: 4, dmg: 2, kind: 'weapon' },
 ];

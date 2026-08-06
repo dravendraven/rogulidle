@@ -12,6 +12,7 @@
 // prediction followed by a route (docs/bot-strategy.md §4.3).
 
 import { CROWD_PENALTY, TACTICAL_DEPTH } from '../sim/balance.js';
+import { effectiveHp } from '../sim/combat.js';
 import { ACTIONS, step } from '../sim/step.js';
 import { beliefToState } from './hypothetical.js';
 import { key } from './nav.js';
@@ -58,7 +59,8 @@ function makeEvaluator(costToGoal, monsterHpAtRoot) {
     // die (R0), so hp removed from one is worth about as much as hp kept.
     const dealt = monsterHpAtRoot - monsterHpLeft(state);
 
-    return state.player.hp + dealt - toGo - CROWD_PENALTY * crowd;
+    // Both bars count: armour is damage the hero can still absorb.
+    return effectiveHp(state.player) + dealt - toGo - CROWD_PENALTY * crowd;
   };
 }
 

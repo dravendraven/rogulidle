@@ -43,6 +43,7 @@
 // hard cap on accumulation (equipment slots), or progress surrendered on
 // the stairs.
 
+import { PLAYER_HP, PLAYER_XP } from './balance.js';
 import { hashSeeds } from './rng.js';
 import { difficultyToParams } from './difficulty.js';
 import { playGame } from './game.js';
@@ -56,7 +57,10 @@ export const LEVELS = 10;
 // bare hero deals 0.83 a blow — floor one has to be clearable with nothing
 // in hand, and gear is a bonus for what comes after.
 export const FIRST_LEVEL_DIFFICULTY = 0.05;
-export const LAST_LEVEL_DIFFICULTY = 0.9;
+// The top of the dial is deliberately well short of 1.0. Now that armour is
+// spent rather than stockpiled, floor cost genuinely climbs, and 0.9 put the
+// net challenge over 1.0 by floor five — nobody reached the bottom.
+export const LAST_LEVEL_DIFFICULTY = 0.5;
 
 export function difficultyForLevel(level) {
   const t = (level - 1) / (LEVELS - 1);
@@ -74,6 +78,7 @@ function carryFrom(player) {
   return {
     hp: player.hp,
     hpMax: player.hpMax,
+    armour: player.armour,
     xp: player.xp,
     inventory: player.inventory,
     kills: player.kills,
@@ -120,9 +125,10 @@ export function playDungeon(seed, makePolicy, options = {}) {
     // held. Both are needed to read net challenge: the floor's cost is only
     // meaningful against the hero who walked into it.
     const arrivedWith = carry
-      ? { hp: carry.hp, hpMax: carry.hpMax, xp: carry.xp,
+      ? { hp: carry.hp, hpMax: carry.hpMax, armour: carry.armour, xp: carry.xp,
         inventory: carry.inventory.map((i) => ({ ...i })), kills: carry.kills.slice() }
-      : { hp: 10, hpMax: 10, xp: 3, inventory: [], kills: [] };
+      : { hp: PLAYER_HP, hpMax: PLAYER_HP, armour: 0, xp: PLAYER_XP,
+        inventory: [], kills: [] };
 
     // hpMax and xp survive a monster's death, so the roster can be read back
     // from the finished state without regenerating the floor.

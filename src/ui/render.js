@@ -154,16 +154,20 @@ export function renderFrame(state, belief, debug = null) {
   }
 }
 
-function hearts(current, max) {
+// Health first, then the armour bar. Armour is a separate pool that soaks
+// damage before hp does, so it reads as pips tacked on the end rather than
+// as more hearts.
+function hearts(current, max, armour = 0) {
   let out = '';
   for (let i = 0; i < max; i++) out += i < current ? '🟩' : '⬜';
+  for (let i = 0; i < armour; i++) out += '🛡️';
   return out;
 }
 
 export function renderHud(elements, state, session) {
   const player = state.player;
 
-  elements.hp.textContent = hearts(player.hp, player.hpMax);
+  elements.hp.textContent = hearts(player.hp, player.hpMax, player.armour);
   elements.xp.textContent = player.xp + ' xp';
   elements.steps.textContent = state.turn + ' 👣';
   elements.kills.textContent = player.kills.length

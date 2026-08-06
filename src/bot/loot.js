@@ -4,13 +4,15 @@
 // that actually runs out (the regen cap, spec §13.1). So an item is worth
 // exactly the hp it saves over the rest of the run:
 //
-//   value(item) = cost of killing everything left WITHOUT it
-//               - cost of killing everything left WITH it
+//   value(weapon) = cost of killing everything left WITHOUT it
+//                 - cost of killing everything left WITH it
 //
-// That gets the thresholds right for free. A shield is not worth "a bit of
-// defence" — against a bat it is worth the entire fight, because armour 1
-// clamps an xp-2 monster to zero damage (docs/bot-strategy.md §3). No table
-// of hand-tuned item weights can express that; this subtraction can.
+// That prices a weapon properly: it is worth more when there is a lot left
+// to kill, and nearly nothing on an empty floor.
+//
+// Armour and potions are simpler, because both are just damage the hero can
+// take. Armour is worth its full value every time, since the bar refills
+// regardless; a potion is worth only the gap it can actually fill.
 
 import {
   COVER_LOOT_CHANCE, ITEM_TABLE, MONSTER_COUNT, POTION_HEAL,
@@ -63,8 +65,15 @@ export function valueByItemName(belief, total = MONSTER_COUNT) {
       values.set(template.name, Math.min(POTION_HEAL, player.hpMax - player.hp));
       continue;
     }
-    if (!template.dmg && !template.armour) {
-      values.set(template.name, 0);           // pure collectible, no combat use
+    if (template.armour) {
+      // Refills the armour bar, which soaks damage before hp does. Always
+      // worth its full face value — unlike a potion it is not capped by how
+      // hurt the hero currently is.
+      values.set(template.name, template.armour);
+      continue;
+    }
+    if (!template.dmg) {
+      values.set(template.name, 0);           // no combat use
       continue;
     }
     values.set(template.name, baseline - campaignCost(withItem(player, template), monsters));

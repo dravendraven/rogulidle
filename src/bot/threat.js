@@ -10,7 +10,7 @@
 //   - crowding, rule R2: being reachable by two at once (bot-strategy §2)
 
 import { CROWD_PENALTY, DANGER_FALLOFF, EXPOSURE_WEIGHT } from '../sim/balance.js';
-import { armourValue, expectedDamage } from '../sim/combat.js';
+import { expectedDamage } from '../sim/combat.js';
 import { believedWalkable, exposure, flood, key } from './nav.js';
 
 // A monster is awake with respect to a tile when standing there would put
@@ -29,8 +29,6 @@ export function dangerField(belief, tuning = {}) {
   const falloff = tuning.falloff ?? DANGER_FALLOFF;
   const crowdPenalty = tuning.crowdPenalty ?? CROWD_PENALTY;
   const useExposure = tuning.useExposure ?? false;
-  const player = belief.player;
-  const armour = armourValue(player);
   const passable = believedWalkable(belief);
 
   const menace = new Map();       // tile -> expected hp lost per turn there
@@ -41,8 +39,10 @@ export function dangerField(belief, tuning = {}) {
   for (const monster of belief.monsters.values()) {
     if (monster.dead) continue;
 
-    const bite = expectedDamage(monster.xp, 0, armour);
-    if (bite <= 0) continue;    // armour already makes this one harmless
+    // A bite no longer depends on what the hero is wearing. Only an xp 1
+    // monster deals nothing, because its die has a single face: zero.
+    const bite = expectedDamage(monster.xp, 0);
+    if (bite <= 0) continue;
 
     // Flooding from the monster gives its distance to every tile at once.
     // Stop at the chase radius: past it the monster is provably motionless

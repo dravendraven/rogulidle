@@ -222,12 +222,15 @@ por turno, `hp` diz quantos turnos ele dura.
 
 ```
 turnos_para_matar ≈ hp_dele / dano_esperado_meu
-dano_dele_por_turno = (5/6) × E[max(0, U{0..xp-1} − minha_armadura)]
+dano_dele_por_turno = (5/6) × E[U{0..xp-1}]
 HP_esperado_perdido ≈ 0.9 × (turnos_para_matar − 1) × dano_dele_por_turno
 ```
 
 O `0.9` é a chance de o monstro não pular o turno; o `−1` é o último golpe,
 que ele não chega a dar.
+
+O que o herói veste não aparece nessa conta: armadura virou HP extra, então
+ela muda quantos golpes ele aguenta, não o tamanho de cada um.
 
 ### Custo de duelo com jogador recém-nascido (xp 3, sem equipamento, 10 HP)
 
@@ -259,59 +262,73 @@ Onde `xp` erra a ordenação:
 - **dragon (xp 8) e t-rex (xp 10)** também. O rótulo sugere uma diferença
   que não existe.
 
-### Armadura é degrau, não rampa
+### Armadura era degrau — agora é rampa
 
-Como o dano é `max(0, roll − armadura)` e o roll vai até `xp−1`, uma
-armadura `A` **zera completamente** todo monstro com `xp ≤ A+1`:
+> **Substituída.** Armadura deixou de reduzir dano e passou a ser HP máximo
+> extra (spec §13.2). O que segue é o que *era* verdade, mantido porque
+> explica por que a mudança precisou acontecer.
 
-| Armadura | Fica imune a |
+Com `max(0, roll − armadura)` e o roll indo até `xp−1`, uma armadura `A`
+**zerava completamente** todo monstro com `xp ≤ A+1`:
+
+| Armadura | Ficava imune a |
 |---|---|
 | 1 escudo | 🐀 rat, 🦇 bat |
 | 2 escudos | + 👻 ghost, 🐗 boar |
 | 3 escudos | + 🐺 wolf, 👹 ogre |
 | 5 escudos | + 🧟 zombie, 🧛 vampire, 🧞 genie |
 
-Isso é a consequência estratégica mais forte do jogo inteiro: **o valor de um
-escudo não é marginal, é de limiar.** O terceiro escudo transforma o ogre de
-"quase fatal" em "grátis". A prioridade de loot do bot deve refletir isso —
-escudo vale muito mais que adaga na maior parte das runs.
+Cada ponto apagava uma faixa inteira da tabela, e depois de ~5 não sobrava
+nada para anular. Numa run de um andar isso era uma reviravolta boa; numa
+descida de dez andares era o que travava tudo, porque o herói ficava
+invulnerável no andar 3 e nenhuma curva de dificuldade alcança isso.
 
-E armas cortam o outro lado: um machado (+2) leva o dano do jogador de 0.833
-para 2.5, triplicando a velocidade de kill e reduzindo o HP perdido na mesma
-proporção em *todos* os duelos.
+**Hoje:** um escudo dá +3 de HP máximo e cura 3. Cada um vale o mesmo que o
+anterior, sem degrau e sem saturação — a força do herói vira linear, que é o
+que a curva de progressão precisa. Nada nunca fica inofensivo.
 
-### Sob "matar todos", a regra 3 deixa de ser sobre evitar risco
+Para o bot, isso simplifica duas coisas: o valor de um escudo é constante
+(+3, sempre) em vez de depender de quais monstros restam, e o dano de um
+monstro deixa de depender do equipamento do herói.
 
-Se nenhum monstro pode ser pulado, "enfrentar os fracos primeiro" não é mais
-uma forma de evitar perigo — é **construção de bola de neve**, e essa é a
-justificativa forte.
+Armas continuam cortando o outro lado, e agora são o único item cujo valor
+depende do que sobrou para matar.
 
-O jogador ganha +1 xp a cada 2 kills (spec §5). Com 5 monstros no mapa,
-matar os 4 mais baratos primeiro leva o xp de 3 para 5 antes do confronto
-final. Dano esperado do jogador vai de `0.833` para `(5/6) × E[U{0..4}] =
-1.667` — **exatamente o dobro**, o que corta pela metade o custo do duelo
-mais caro da run.
+### Sob "matar todos", a ordem importa por causa das armas
 
-Somando o equipamento colhido no caminho, o monstro terminal deixa de ser
-inviável. Um dragon (xp 8, 15 hp) enfrentado por último, com xp 5, um
-machado e dois escudos:
+> **Revisado.** Esta seção argumentava que a bola de neve vinha do xp. O xp
+> deixou de crescer (balance.js) e a armadura deixou de reduzir dano, então
+> o argumento foi refeito com o que sobrou: armas e HP acumulado.
 
-```
-dano do jogador  = (5/6) × E[U{0..4} + 2] = 3.33  → 4.5 turnos para matar
-dano do dragon   = (5/6) × E[max(0, U{0..7} − 2)] = 1.56
-HP perdido       ≈ 0.9 × 3.5 × 1.56 ≈ 4.9
-```
+Se nenhum monstro pode ser pulado, "enfrentar os fracos primeiro" não é
+evitar perigo — é ordenar para que o confronto caro aconteça no momento mais
+forte da run.
 
-Contra os 44.6 da tabela de mãos vazias. **A ordem de execução vale mais que
-qualquer item isolado** — e é por isso que a regra obrigatória é jogável em
-vez de suicida.
+Duas coisas se acumulam, e elas agem em lados diferentes:
+
+- **Armas** encurtam cada luta. Um machado leva o dano de `0.833` para
+  `(5/6) × E[U{0..4}] = 1.667` com a rolagem alargada — o dobro, o que corta
+  pela metade os turnos que o monstro tem para revidar.
+- **Escudos** compram golpes absorvidos, +3 de HP máximo cada. Não mudam o
+  custo de um duelo; mudam quantos duelos cabem antes do fim.
+
+O monstro terminal continua sendo o caso de teste. Um dragon (xp 8, 15 hp)
+bate `(5/6) × E[U{0..7}] = 2.92` por golpe, **sempre** — nenhum equipamento
+reduz isso. Com um machado, matá-lo leva ~9 turnos e custa cerca de 21 HP,
+o que só é pagável com escudos acumulados suficientes.
+
+É uma economia mais honesta que a anterior: o dragon nunca vira grátis, ele
+vira **financiável**.
 
 ### Reformulação da regra 3
 
 > Ordenar alvos por **HP esperado perdido contra o equipamento atual**, não
-> por xp. Reavaliar a ordem inteira sempre que o inventário ou o xp mudarem —
-> um único escudo pode mover um monstro de "letal" para "grátis", e cada
-> segundo kill reordena o resto do plano.
+> por xp. Reavaliar sempre que uma **arma** entrar no inventário, já que ela
+> encurta todos os duelos restantes de uma vez.
+>
+> Escudos não reordenam nada — eles não mudam o custo de duelo nenhum, só o
+> saldo disponível para pagar. Um monstro nunca passa de "letal" a "grátis";
+> ele passa a caber no orçamento.
 
 A sua intuição (sala com xp 1 antes de sala com xp 3) continua correta; o
 cálculo só a estende para os casos onde o rótulo engana.
@@ -562,23 +579,33 @@ com todas as 5 já avistadas.
 
 ---
 
-## 5. Teto de regeneração
+## 5. Os dois recursos do herói
 
 O original permite curar indefinidamente parado em zona fria. Como o bot
 maximiza vitória e passos são só desempate, ele **vai** descobrir e explorar
 essa jogada: acampar até HP cheio antes de cada duelo torna o HP irrelevante
-e a run inteira mecânica. É a tática não-divertida que o dono identificou.
+e a run inteira mecânica.
 
-Divergência deliberada do original, especificada em `rogule-spec.md` §13:
-**a regeneração passiva tem um teto por run** (default 20% do HP máximo).
-Poções 🥃 não contam contra o teto.
+Duas divergências deliberadas fecham isso (`rogule-spec.md` §13.1 e §13.2):
 
-Consequência estratégica, e é a que importa: **HP vira recurso não-renovável.**
-Cada ponto perdido num duelo é permanente, salvo poção. Isso é o que dá peso
-de verdade à regra 3 — a ordem dos duelos deixa de ser otimização de margem
-e passa a determinar se a run termina. E dá função real à poção, que no
-original é quase irrelevante perto de um regenerador infinito.
+**Não há regeneração passiva.** Esperar não cura. A única fonte de HP é a
+poção 🥃, que só cai de criatura. HP vira estritamente não-renovável a não
+ser por loot conquistado.
 
-Também elimina a jogada degenerada de "recuar, curar, voltar" como resposta
-padrão a HP baixo. Sem ela, a única resposta a HP baixo é **jogar melhor**:
-escolher duelos mais baratos, buscar escudo antes, usar corredor.
+**Armadura é uma segunda barra que se gasta.** Escudos enchem um tampão que
+absorve o golpe antes do HP, e o que foi gasto fica gasto. O HP máximo nunca
+se move.
+
+Consequência estratégica, e é a que importa: o herói tem **dois recursos com
+comportamentos diferentes**, e o bot precisa tratá-los assim.
+
+| | HP | Armadura |
+|---|---|---|
+| onde repõe | poção, de criatura | escudo, de cobertura |
+| se acumula? | não, tem teto | não, é gasta |
+| o que faz | mantém vivo | adia o dano |
+
+A ordem dos duelos deixa de ser otimização de margem e passa a determinar se
+a run termina. E a resposta a HP baixo deixa de ser "recuar e curar" — essa
+jogada não existe mais. A única resposta é **jogar melhor**: escolher duelos
+mais baratos, buscar escudo antes, usar corredor.

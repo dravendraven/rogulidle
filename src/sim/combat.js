@@ -15,18 +15,47 @@ export function weaponDamage(entity) {
   return entity.inventory.reduce((sum, item) => sum + (item.dmg || 0), 0);
 }
 
+// Armour a shield is worth when picked up. The hero's CURRENT armour lives
+// in `player.armour`, not here — this only reads the item side.
 export function armourValue(entity) {
   if (!entity.inventory) return 0;
   return entity.inventory.reduce((sum, item) => sum + (item.armour || 0), 0);
+}
+
+// Damage the hero can take before dying: both bars together. Anything
+// deciding whether a fight is survivable has to use this, not `hp` alone,
+// or it throws away everything the armour bar is holding.
+export function effectiveHp(entity) {
+  return entity.hp + (entity.armour || 0);
+}
+
+// Spends a blow against the armour bar first, then hp. Armour is a buffer
+// that is consumed, never a reduction — a blow lands for its full size
+// whatever the target is wearing, it just may land on the buffer.
+//
+// Returns how much of the blow reached hp.
+export function applyDamage(defender, damage) {
+  let left = damage;
+
+  if (defender.armour > 0) {
+    const soaked = Math.min(defender.armour, left);
+    defender.armour -= soaked;
+    left -= soaked;
+  }
+
+  defender.hp = Math.max(0, defender.hp - left);
+  return left;
 }
 
 // Average damage of one blow, without rolling for it. The bot plans with
 // this (docs/bot-strategy.md §3) and it must stay in step with the roll
 // below — one formula, one place.
 //
-// The roll is uniform over 0 .. xp-1, armour is subtracted before the
-// clamp, and the whole thing only lands `HIT_CHANCE` of the time.
-export function expectedDamage(attackerXp, weapons, armour, widen = WEAPONS_WIDEN_ROLL) {
+// The roll is uniform over 0 .. xp-1 and the whole thing only lands
+// `HIT_CHANCE` of the time. The defender does not enter the formula at all:
+// armour is extra hp rather than damage reduction, so how tough the target
+// is changes how many blows they survive, never how hard a blow lands.
+export function expectedDamage(attackerXp, weapons, widen = WEAPONS_WIDEN_ROLL) {
   // Two ways a weapon can help, and they behave very differently.
   //
   // FLAT (faithful): the roll is 0..xp-1 and the weapon is added after, so
@@ -41,7 +70,7 @@ export function expectedDamage(attackerXp, weapons, armour, widen = WEAPONS_WIDE
 
   let total = 0;
   for (let roll = 0; roll < sides; roll++) {
-    total += Math.max(0, roll + bonus - armour);
+    total += roll + bonus;
   }
   return HIT_CHANCE * (total / sides);
 }
@@ -52,7 +81,6 @@ export function expectedDamage(attackerXp, weapons, armour, widen = WEAPONS_WIDE
 // the same way the original's does (engine.cljs:257-258).
 export function resolveAttack(state, attacker, defender) {
   const weapons = weaponDamage(attacker);
-  const armour = armourValue(defender);
   const widen = state.weaponsWidenRoll ?? WEAPONS_WIDEN_ROLL;
 
   // `state.sim` marks a hypothetical world the bot is thinking inside, never
@@ -60,8 +88,8 @@ export function resolveAttack(state, attacker, defender) {
   // average instead of being rolled: the search stays deterministic, no
   // branch on luck, and no lucky streak fools the bot into a bad plan.
   if (state.sim) {
-    const damage = expectedDamage(attacker.xp, weapons, armour, widen);
-    defender.hp = Math.max(0, defender.hp - damage);
+    const damage = expectedDamage(attacker.xp, weapons, widen);
+    applyDamage(defender, damage);
     return { damage, killed: defender.hp <= 0, hit: true };
   }
 
@@ -70,10 +98,11 @@ export function resolveAttack(state, attacker, defender) {
   const roll = drawInt(state, 'combat', 0,
     Math.max(0, (widen ? attacker.xp + weapons : attacker.xp) - 1));
 
-  const damage = Math.max(0, (roll + (widen ? 0 : weapons) - armour) * hit);
-  defender.hp = Math.max(0, defender.hp - damage);
+  const damage = (roll + (widen ? 0 : weapons)) * hit;
+  const toHp = applyDamage(defender, damage);
 
-  return { damage, killed: defender.hp === 0, hit: hit === 1 };
+  // `damage` is the size of the blow; `toHp` is how much got past armour.
+  return { damage, toHp, killed: defender.hp === 0, hit: hit === 1 };
 }
 
 // The player walks into a monster.

@@ -511,7 +511,7 @@ graça de olhar.
 Diferente de §9, que lista prováveis bugs a corrigir. Aqui são mudanças de
 regra conscientes.
 
-### 13.1 Teto de regeneração passiva
+### 13.1 Não existe regeneração passiva
 
 **Problema no original.** `restore-player-health` (`engine.cljs:112`) dá +1
 HP a cada 100 turnos gastos, sem limite, e monstros são estáticos fora do
@@ -522,38 +522,71 @@ Para um humano isso é só tedioso, e a etiqueta da mesa resolve. Para um bot
 que maximiza vitória, é a jogada ótima — ele acampa antes de cada duelo, o
 HP para de significar qualquer coisa e a run vira mecânica.
 
-**Regra nova.** A regeneração passiva tem um **teto por run**:
+**Regra nova.** Não há regeneração passiva nenhuma. Esperar não cura.
+
+**A única fonte de HP é a poção 🥃**, que só cai de criatura (§13.3). Curar
+deixa de ser algo que o tempo dá e passa a ser algo que se conquista.
+
+Tentamos primeiro um teto por run — `ceil(20% × hp_máximo)`, com o contador
+avançando em todo turno para não ser contornado andando em círculos. Ele
+funcionava, mas era maquinário para um recurso que a gente não queria que
+existisse. Remover é mais simples e não deixa nada para explorar.
+
+**Consequência:** HP vira estritamente não-renovável a não ser por loot. A
+ordem dos duelos deixa de ser otimização de margem e passa a determinar se
+a run termina, e a resposta a HP baixo passa a ser jogar melhor — escolher
+duelo mais barato, buscar escudo antes — em vez de esperar.
+
+### 13.2 Armadura é uma segunda barra, não redução de dano
+
+**Problema no original.** `dano = max(0, roll + armas − armadura)` (§5). Como
+o roll de um monstro vai até `xp−1`, uma armadura `A` **zera completamente**
+todo monstro com `xp ≤ A+1`. Não é uma inclinação, é um degrau: cada ponto
+apaga uma faixa inteira da tabela de uma vez, e depois de ~5 pontos não
+sobra nada para anular.
+
+Numa run de um andar isso é uma reviravolta boa. Numa descida de dez andares
+é o que impede a dificuldade de subir: medido, o herói chegava ao andar 3
+com armadura suficiente para ser intocável, e terminava os dez andares com
+HP cheio. Nenhuma curva de dificuldade alcança um alvo invulnerável.
+
+**Regra nova.** Armadura sai da fórmula de dano e vira uma **segunda barra**
+que absorve o golpe antes do HP:
 
 ```
-regen_maximo_por_run = ceil(0.20 × hp_maximo)     ; default: 2 HP com hp 10
+dano = (roll + armas) × acerto          // o defensor saiu da conta
+
+gasta-se a armadura primeiro, o que sobrar desce no HP
 ```
 
-Ao esgotar o teto, a regeneração passiva **para de vez** pelo resto da run.
-O contador não reseta.
+O HP máximo **nunca se move** — fica em `PLAYER_HP`. Um escudo recarrega a
+barra de armadura em `armour: 3`, e essa armadura é **consumida**.
 
-**Três detalhes que fazem a regra funcionar:**
+**Quatro consequências, e a primeira é a que mais importa:**
 
-1. **O teto conta regeneração, não descanso.** No original o contador
-   `hp-inc` avança em *todo* turno que passa, não só nos de descanso — um
-   teto que só punisse a ação de descansar seria contornado andando em
-   círculos, mesma degeneração com animação diferente.
-2. **Poções 🥃 não contam contra o teto.** São loot conquistado; o teto
-   existe para matar o recurso *gratuito*. Manter as duas fontes separadas
-   é o que dá função à poção, que hoje é quase irrelevante ao lado de um
-   regenerador infinito.
-3. **O teto é por run**, não por sala ou por combate. Não recarrega.
+1. **Armadura vira fluxo, não estoque.** Quinze escudos ao longo de dez
+   andares não deixam o herói permanentemente mais resistente — eles são
+   gastos e precisam ser repostos. É a única mudança testada nesta série
+   que ataca o acúmulo na raiz em vez de reduzir a taxa dele.
+2. **`hpMax` volta a ser constante.** Todo código que assume "o máximo é 10"
+   volta a estar correto sozinho — inclusive o `hpMax: PLAYER_HP` fixo do
+   analisador, que numa versão de HP-extra teria virado bug silencioso.
+3. **Nada fica inofensivo.** Só um monstro de xp 1 causa zero, por ter um
+   dado de uma face só. O teto de poder some por construção.
+4. **O modelo do bot encolhe.** O dano de um monstro não depende mais do
+   equipamento do herói, então `duelCost` para de reprecificar tudo a cada
+   escudo. Uma variável a menos.
 
-**Parâmetros para a Fase 4:** os 20% são chute inicial. Ajustar junto com
-`rejuvination-rate` (100 turnos/HP) — os dois juntos definem se o teto é
-alcançável dentro de uma run típica. Com 20% de 10 HP e taxa 100, gastar o
-teto inteiro custa 200 passos, o que já é caro no placar.
+**Descartado:** armadura como HP máximo extra numa poça só. Chegou a ser
+implementada. Era ligeiramente menos código no combate, mas fazia `hpMax`
+variar — quebrando a invariante do item 2 — e, pior, mantinha o escudo como
+ganho **permanente**, que é exatamente o acúmulo que a gente queria conter.
 
-**Alternativas descartadas:** desligar a regeneração por completo (perde a
-margem de recuperação que torna runs longas viáveis); taxa decrescente
-(mesmo efeito, mais difícil de explicar e de ajustar); regenerar só sob
-aggro (anti-camping direto, mas inverte a ficção — curar apenas em perigo).
+**A calibração inteira fica inválida** com esta mudança, incluindo a curva
+de vitória por dial em `docs/balance.md`. Espere o começo mais difícil: um
+escudo não torna mais morcegos inofensivos.
 
-### 13.2 Consequência de design
+### 13.3 Consequência de design
 
 Com o teto, **HP vira recurso não-renovável**. Toda a estratégia do bot se
 reorganiza em volta disso: a ordem dos duelos deixa de ser otimização de

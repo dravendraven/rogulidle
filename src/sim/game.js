@@ -49,12 +49,12 @@ export function newGame(seed, counts = {}) {
       ...state.player,
       hp: carried.hp,
       hpMax: carried.hpMax,
+      // Whatever is left of the armour bar goes down the stairs too. It is
+      // a buffer, so what was already spent stays spent.
+      armour: carried.armour ?? 0,
       xp: carried.xp,
       inventory: carried.inventory.map((i) => ({ ...i })),
       kills: carried.kills.slice(),
-      // The passive regeneration allowance is per floor, not per dungeon.
-      regenCounter: 0,
-      regenUsed: 0,
     };
   }
   return state;

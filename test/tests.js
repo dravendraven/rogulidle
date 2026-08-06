@@ -2,7 +2,7 @@
 // Run them with: python tools/dev-server.py -> http://localhost:8138/run-tests.html
 
 import {
-  MONSTER_TABLE, PLAYER_HP, REGEN_CAP_FRACTION, REJUVINATION_RATE,
+  MONSTER_TABLE, PLAYER_HP,
 } from '../src/sim/balance.js';
 import { newGame, playGame, replayGame } from '../src/sim/game.js';
 import { step, ACTIONS } from '../src/sim/step.js';
@@ -67,8 +67,7 @@ function makeState(options) {
       xp: options.xp ?? 3,
       inventory: options.inventory ?? [],
       kills: [],
-      regenCounter: 0,
-      regenUsed: 0,
+      armour: options.armour ?? 0,
     },
     monsters: options.monsters ?? [],
     items: options.items ?? [],
@@ -222,16 +221,45 @@ test('a rat can never deal damage', () => {
   assertEq(state.player.hp, PLAYER_HP, 'player took damage from a rat');
 });
 
-test('armour of xp-1 makes a monster harmless', () => {
-  // A ghost rolls 0..2, so 2 armour clamps every hit to zero. Spec §5.
+test('armour soaks the blow whole, and is spent doing it', () => {
+  // Armour is a second bar, not damage reduction (spec §13.2). The blow is
+  // the same size either way; it just lands somewhere else first.
   const map = tinyMap(['#####', '#...#', '#####']);
-  let state = makeState({
-    map, playerPos: [2, 1],
-    inventory: [item('shield', [0, 0], { armour: 2 })],
+  const build = (armour) => makeState({
+    map, playerPos: [2, 1], combatSeed: 4242, armour,
     monsters: [dummy('ghost', [1, 1], { activation: 99 })],
   });
-  for (let i = 0; i < 200; i++) state = step(state, 'rest').state;
-  assertEq(state.player.hp, PLAYER_HP, 'armour did not absorb the hits');
+
+  const bare = step(build(0), 'rest').state;
+  const shielded = step(build(9), 'rest').state;
+
+  const blow = PLAYER_HP - bare.player.hp;
+  assertEq(shielded.player.hp, PLAYER_HP, 'hp took damage through armour');
+  assertEq(shielded.player.armour, 9 - blow, 'armour was not spent by the blow');
+});
+
+test('armour runs out and the overflow reaches hp', () => {
+  const map = tinyMap(['#####', '#...#', '#####']);
+  let state = makeState({
+    map, playerPos: [2, 1], armour: 2,
+    monsters: [dummy('t-rex', [1, 1], { activation: 99 })],
+  });
+  for (let i = 0; i < 40 && state.player.armour > 0; i++) {
+    state = step(state, 'rest').state;
+  }
+  assertEq(state.player.armour, 0, 'armour never emptied');
+  assert(state.player.hp < PLAYER_HP, 'hp was never touched after armour ran out');
+});
+
+test('picking up a shield refills armour and leaves max hp alone', () => {
+  const state = makeState({
+    map: ROOM_5x5, playerPos: [2, 2], hp: 4,
+    items: [item('shield', [1, 2], { armour: 3 })],
+  });
+  const after = step(state, 'left').state;
+  assertEq(after.player.armour, 3, 'armour');
+  assertEq(after.player.hpMax, PLAYER_HP, 'max hp moved');
+  assertEq(after.player.hp, 4, 'current hp changed');
 });
 
 test('there is no counter-attack', () => {
@@ -372,29 +400,21 @@ test('reaching the shrine ends the run', () => {
   assertEq(step(state, 'left').state.outcome, 'ascended');
 });
 
-// ***** regeneration, spec §13.1 ***** //
+// ***** healing, spec §13.1 ***** //
 
-test('passive regeneration stops at the cap', () => {
-  const cap = Math.ceil(REGEN_CAP_FRACTION * PLAYER_HP);
+test('waiting never heals — there is no passive regeneration', () => {
+  // Rogule healed +1 every 100 turns, which let a bot camp somewhere the
+  // monsters cannot reach and refill before every fight. Removed outright.
   let state = makeState({ map: ROOM_5x5, playerPos: [2, 2], hp: 1 });
+  for (let i = 0; i < 600; i++) state = step(state, 'rest').state;
+  assertEq(state.player.hp, 1, 'resting restored hp');
 
-  // Enough turns to regenerate far more than the cap allows.
-  for (let i = 0; i < REJUVINATION_RATE * (cap + 3); i++) state = step(state, 'rest').state;
-
-  assertEq(state.player.regenUsed, cap, 'the cap was not respected');
-  assertEq(state.player.hp, 1 + cap, 'healed past the cap');
-});
-
-test('regeneration is capped by hp gained, not by resting', () => {
-  // Pacing back and forth must not beat the cap — that is the whole reason
-  // the cap counts hp rather than rest actions. Spec §13.1.
-  const cap = Math.ceil(REGEN_CAP_FRACTION * PLAYER_HP);
-  let state = makeState({ map: ROOM_5x5, playerPos: [2, 2], hp: 1 });
-
-  for (let i = 0; i < REJUVINATION_RATE * (cap + 3); i++) {
-    state = step(state, i % 2 === 0 ? 'left' : 'right').state;
+  // Pacing back and forth must not do it either.
+  let pacing = makeState({ map: ROOM_5x5, playerPos: [2, 2], hp: 1 });
+  for (let i = 0; i < 600; i++) {
+    pacing = step(pacing, i % 2 === 0 ? 'left' : 'right').state;
   }
-  assertEq(state.player.hp, 1 + cap, 'walking in circles beat the cap');
+  assertEq(pacing.player.hp, 1, 'walking in circles restored hp');
 });
 
 // ***** monster behaviour, spec §7 ***** //

@@ -21,7 +21,7 @@
 //                    be brutally hard in practice.
 
 import {
-  KILLS_PER_XP, PLAYER_HP, PLAYER_XP, REGEN_CAP_FRACTION,
+  KILLS_PER_XP, PLAYER_HP, PLAYER_XP, POTION_HEAL,
 } from '../sim/balance.js';
 import { duelCost } from '../bot/duel.js';
 
@@ -49,7 +49,6 @@ export function analyseSeed(state) {
   const gear = loose.filter((item) => !item.heal);
   let potions = loose.filter((item) => item.heal).length;
 
-  const regenCap = Math.ceil(REGEN_CAP_FRACTION * PLAYER_HP);
 
   let xp = PLAYER_XP;
   let kills = 0;
@@ -83,8 +82,11 @@ export function analyseSeed(state) {
     }
   }
 
-  // Total hp available to spend across the run.
-  const budget = PLAYER_HP + potions * 3 + regenCap;
+  // Total damage the hero can absorb across the run. Shields count here
+  // rather than in the duel maths, because armour is a buffer that soaks
+  // blows whole (spec §13.2) — it never softens one.
+  const shieldHp = gear.reduce((sum, g) => sum + (g.armour || 0), 0);
+  const budget = PLAYER_HP + shieldHp + potions * POTION_HEAL;
   const margin = budget - spent;
 
   let verdict;

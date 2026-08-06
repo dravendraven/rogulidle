@@ -14,14 +14,6 @@ import { findPath, playerPassable, posKey, walkablePositions } from './mapgen.js
 
 // Items are drawn with weight 1/value, so a high value is a RARE item.
 //
-// Two scarcity dials, both dividing an item's pick weight.
-//
-//   gearScarcity    everything that helps in a fight, weapons and armour
-//   armourScarcity  armour only, applied on top
-//
-// Armour keeps its own dial because it does not merely help, it ELIMINATES:
-// subtracting flat with a floor of zero means armour A makes every monster
-// of xp <= A+1 completely harmless. Weapons only make fights shorter.
 // One scarcity dial per kind, and what they do not claim becomes EMPTY.
 //
 // Rogule filled that space with chestnuts and mushrooms — junk that existed
@@ -142,11 +134,12 @@ export function populate(state, map, counts = {}) {
     pos: playerPos,
     hp: PLAYER_HP,
     hpMax: PLAYER_HP,
+    // The second bar. Soaks damage before hp does, and is spent doing it —
+    // only a shield refills it (spec §13.2).
+    armour: 0,
     xp: PLAYER_XP,
     inventory: [],
     kills: [],
-    regenCounter: 0,
-    regenUsed: 0,
   };
 
   // 2. Path to the centre of every room, shortest first.

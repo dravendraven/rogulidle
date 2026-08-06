@@ -33,7 +33,9 @@ export function runCurve(options) {
       if (level.outcome !== 'ascended') f.deaths++;
 
       const hero = level.arrivedWith;
-      f.hp += hero.hp;
+      // Both bars: net challenge is measured against what the hero can
+      // actually absorb, not just the hp half of it.
+      f.hp += hero.hp + (hero.armour || 0);
       // Both must be told which xp rule is in force, or they credit the
       // hero with levelling up that cannot happen and read far too cheap.
       // Passing undefined falls through to the shipped rule, which is what

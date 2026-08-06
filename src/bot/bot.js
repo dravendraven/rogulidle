@@ -13,6 +13,7 @@ import {
   TACTICAL_OVERRIDE_MARGIN, TACTICAL_RANGE,
 } from '../sim/balance.js';
 import { scoreActions } from './tactics.js';
+import { effectiveHp } from '../sim/combat.js';
 import { duelCost } from './duel.js';
 import { expectedCoverValue, valueByItemName } from './loot.js';
 import { dangerField } from './threat.js';
@@ -61,7 +62,7 @@ function priceMonsters(belief, field, safetyMargin) {
       // Not `survivable`, which is break-even. Expected damage is an
       // average, so a duel that costs exactly all the hp there is loses
       // about half the time. The bot wants headroom before committing.
-      worthStarting: duel.hpLost <= belief.player.hp * safetyMargin,
+      worthStarting: duel.hpLost <= effectiveHp(belief.player) * safetyMargin,
       cost: duel.hpLost + approach,
     });
   }

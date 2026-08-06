@@ -4,7 +4,6 @@
 // with the observation that follows. No DOM, no Date.now(), no storage.
 // The map is never cloned — it is immutable once generated.
 
-import { REGEN_CAP_FRACTION, REJUVINATION_RATE } from './balance.js';
 import { isWalkable, samePos } from './mapgen.js';
 import { playerAttacks } from './combat.js';
 import { updateMonsters } from './monsters.js';
@@ -96,6 +95,10 @@ function resolveEncounters(state, pos) {
     } else {
       state.player.inventory.push(item);
       state.items.splice(state.items.indexOf(item), 1);
+
+      // A shield refills the armour bar (spec §13.2). Max hp never moves.
+      if (item.armour) state.player.armour += item.armour;
+
       state.log.push({ type: 'pickup', item: item.name, turn: state.turn });
     }
   }
@@ -131,28 +134,9 @@ function resolvePlayerAction(state, action) {
   return false;
 }
 
-// Passive regeneration, with our cap. Spec §13.1.
-//
-// The cap counts HP REGENERATED, not turns rested — the counter advances on
-// every turn that passes, so capping the rest action alone would just be
-// worked around by walking in circles.
-function restoreHealth(state) {
-  const player = state.player;
-
-  if (player.hp >= player.hpMax) {
-    player.regenCounter = 0;
-    return;
-  }
-  const cap = Math.ceil(REGEN_CAP_FRACTION * player.hpMax);
-  if (player.regenUsed >= cap) return;
-
-  player.regenCounter++;
-  if (player.regenCounter >= REJUVINATION_RATE) {
-    player.regenCounter = 0;
-    player.hp++;
-    player.regenUsed++;
-  }
-}
+// There is no passive regeneration. Waiting heals nothing, so hp only ever
+// comes back from a potion. See balance.js for why it was removed rather
+// than capped.
 
 export function step(state, action) {
   const next = cloneState(state);
@@ -162,7 +146,6 @@ export function step(state, action) {
 
   if (!next.outcome && turnPasses) {
     next.turn++;
-    restoreHealth(next);
     updateMonsters(next, next.map);
   }
 
