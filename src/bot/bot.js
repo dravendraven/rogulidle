@@ -427,6 +427,12 @@ export function makeBot(options = {}) {
     // plan when some other step is clearly safer. Left to pick freely it
     // walks in circles, because it can see three turns of danger but not
     // that the run has to end.
+    // Debug hook: lets the spectator draw what the bot was thinking. Off
+    // unless somebody asks — see run-tests / index.html debug mode.
+    if (settings.trace) {
+      settings.trace.push({ goal: { ...goal }, planned, turn: belief.turn });
+    }
+
     if (settings.tactical && monsterWithin(belief, field, TACTICAL_RANGE)) {
       // Steps only, NOT danger-priced. The simulation already shows the
       // damage by dropping hp at the leaf; pricing danger into the

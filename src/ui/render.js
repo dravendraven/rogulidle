@@ -76,10 +76,15 @@ function topmost(entries) {
   return best;
 }
 
-export function renderFrame(state, belief) {
+// `debug`, when given, is { danger, goal } and paints the bot's reasoning
+// over the map: how dangerous it believes each tile to be, and what it is
+// currently heading for. Phase 4 item 22 — you need this the moment the bot
+// does something that looks stupid, because usually it is not.
+export function renderFrame(state, belief, debug = null) {
   const player = state.player.pos;
   const truth = trueAt(state);
   const memory = believedAt(belief);
+  const goalKey = debug && debug.goal && debug.goal.pos ? posKey(debug.goal.pos) : null;
 
   for (let row = 0; row < VIEW; row++) {
     for (let column = 0; column < VIEW; column++) {
@@ -130,6 +135,21 @@ export function renderFrame(state, belief) {
       badge.textContent = sub;
       cell.style.opacity = opacity;
       cell.classList.toggle('remembered', !known && opacity > 0);
+
+      if (debug) {
+        // Redder means the bot expects to lose more hp per turn spent here.
+        // Scaled against a bite of about 2hp, which is a mid-table monster.
+        const menace = debug.danger.menace.get(key) || 0;
+        const heat = Math.min(1, menace / 2);
+        const crowded = (debug.danger.crowd.get(key) || 0) >= 2;
+        cell.style.background = menace > 0
+          ? `rgba(${crowded ? 255 : 200}, ${crowded ? 40 : 70}, 60, ${0.12 + 0.55 * heat})`
+          : '';
+        cell.classList.toggle('goal', key === goalKey);
+      } else if (cell.style.background) {
+        cell.style.background = '';
+        cell.classList.remove('goal');
+      }
     }
   }
 }

@@ -9,6 +9,7 @@
 import { playGame, replayGame } from '../sim/game.js';
 import { hashSeeds, seedFromString } from '../sim/rng.js';
 import { makeBot } from '../bot/bot.js';
+import { dangerField } from '../bot/threat.js';
 import { buildGrid, renderFrame, renderHud, renderLog } from './render.js';
 
 const MAX_TURNS = 900;
@@ -22,6 +23,7 @@ const session = {
   unfinished: 0,
   paused: false,
   speed: 1,
+  debug: false,
 };
 
 const el = {};
@@ -30,7 +32,7 @@ function grab() {
   for (const id of [
     'grid', 'hp', 'xp', 'steps', 'kills', 'inventory', 'remaining',
     'run', 'seed', 'tally', 'log', 'summary', 'summaryTitle', 'summaryBody',
-    'playPause', 'speed',
+    'playPause', 'speed', 'debug', 'goal',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -55,12 +57,27 @@ function watchableFrames(frames) {
   return out;
 }
 
-async function playFrames(frames) {
-  for (const frame of frames) {
+async function playFrames(frames, trace) {
+  for (let i = 0; i < frames.length; i++) {
+    const frame = frames[i];
     await waitWhilePaused();
-    renderFrame(frame.state, frame.belief);
+
+    // The danger map is recomputed for the frame on screen rather than
+    // stored for every turn of the run — one field costs a millisecond or
+    // two, and keeping hundreds of them would be pure memory.
+    const debug = session.debug
+      ? { danger: dangerField(frame.belief), goal: trace[i] ? trace[i].goal : null }
+      : null;
+
+    renderFrame(frame.state, frame.belief, debug);
     renderHud(el, frame.state, session);
     renderLog(el.log, frame.state);
+
+    if (el.goal) {
+      el.goal.textContent = session.debug && trace[i]
+        ? `${trace[i].goal.kind} → ${trace[i].planned}`
+        : '';
+    }
     await sleep(BASE_DELAY / session.speed);
   }
 }
@@ -118,10 +135,22 @@ async function runForever(sessionSeed) {
     session.runNumber++;
 
     const seed = hashSeeds(sessionSeed, session.runNumber);
-    const run = playGame(seed, makeBot(), { maxTurns: MAX_TURNS });
-    const frames = watchableFrames(replayGame(run.replay));
 
-    await playFrames(frames);
+    // The bot records what it was aiming at, one entry per decision, so
+    // debug mode can show the reasoning behind a move that looks odd.
+    const trace = [];
+    const run = playGame(seed, makeBot({ trace }), { maxTurns: MAX_TURNS });
+
+    // Frames and trace are both one-per-decision, but watchableFrames drops
+    // the wall bumps — so carry the matching trace entries with them.
+    const all = replayGame(run.replay);
+    const kept = watchableFrames(all).map((frame) => ({
+      frame, index: all.indexOf(frame),
+    }));
+    const frames = kept.map((k) => k.frame);
+    const alignedTrace = kept.map((k) => trace[Math.max(0, k.index)]);
+
+    await playFrames(frames, alignedTrace);
     tally(run);
     await showSummary(run);
   }
@@ -131,6 +160,11 @@ function wireControls() {
   el.playPause.addEventListener('click', () => {
     session.paused = !session.paused;
     el.playPause.textContent = session.paused ? '▶ play' : '⏸ pause';
+  });
+
+  el.debug.addEventListener('click', () => {
+    session.debug = !session.debug;
+    el.debug.textContent = session.debug ? '🔎 debug on' : '🔎 debug';
   });
 
   el.speed.addEventListener('click', () => {
