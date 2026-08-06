@@ -98,10 +98,10 @@ export function playDungeon(seed, makePolicy, options = {}) {
       covers: plan.covers,
       difficultyScale: plan.difficultyScale,
       dropChance: plan.dropChance,
-      // A fixed rate overrides the per-floor one. Worth being able to try:
-      // letting deeper floors hand over more gear rewards the descent, but
-      // it accelerates accumulation exactly where there is already too much.
-      gearScarcity: options.gearScarcity ?? plan.gearScarcity,
+      // A fixed rate overrides the per-floor one, for sweeping.
+      weaponScarcity: options.scarcity ?? plan.weaponScarcity,
+      armourScarcity: options.scarcity ?? plan.armourScarcity,
+      potionScarcity: options.scarcity ?? plan.potionScarcity,
       carry,
       // Rule variants apply to every floor of the descent.
       xpFromKills: options.xpFromKills,

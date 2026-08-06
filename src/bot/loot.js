@@ -16,11 +16,15 @@ import {
   COVER_LOOT_CHANCE, ITEM_TABLE, MONSTER_COUNT, POTION_HEAL,
   UNKNOWN_MONSTER_ESTIMATE,
 } from '../sim/balance.js';
+import { itemWeights } from '../sim/spawn.js';
 import { campaignCost } from './duel.js';
 
-// Pick weight is 1/value, same as the generator uses.
+// Borrowed from the generator rather than recomputed, so the bot's guess at
+// what a cover holds cannot drift away from what covers actually hold.
+// Includes the empty slot, so a cover full of nothing correctly drags the
+// expected value down instead of being invisible to the bot.
 const ITEM_MIX = (() => {
-  const weights = ITEM_TABLE.map((item) => [item, 1 / item.value]);
+  const weights = itemWeights();
   const total = weights.reduce((sum, [, w]) => sum + w, 0);
   return weights.map(([item, w]) => [item, w / total]);
 })();
@@ -72,6 +76,7 @@ export function valueByItemName(belief, total = MONSTER_COUNT) {
 export function expectedCoverValue(values) {
   let sum = 0;
   for (const [template, probability] of ITEM_MIX) {
+    if (!template) continue;                 // the empty slot is worth nothing
     sum += probability * (values.get(template.name) || 0);
   }
   return COVER_LOOT_CHANCE * sum;

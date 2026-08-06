@@ -22,14 +22,38 @@ import { findPath, playerPassable, posKey, walkablePositions } from './mapgen.js
 // Armour keeps its own dial because it does not merely help, it ELIMINATES:
 // subtracting flat with a floor of zero means armour A makes every monster
 // of xp <= A+1 completely harmless. Weapons only make fights shorter.
-function itemWeights(gearScarcity = 1, armourScarcity = 1) {
-  return ITEM_TABLE.map((item) => {
-    const isGear = item.dmg || item.armour;
-    const divisor = item.value
-      * (isGear ? gearScarcity : 1)
-      * (item.armour ? armourScarcity : 1);
-    return [item, 1 / divisor];
+// One scarcity dial per kind, and what they do not claim becomes EMPTY.
+//
+// Rogule filled that space with chestnuts and mushrooms — junk that existed
+// for the share card. Replacing it with nothing keeps the dilution, which
+// was doing real work, while making it a number you set rather than a side
+// effect of what is in the deck.
+//
+// At scarcity 1 a kind takes its full third and no cover comes up empty. At
+// 3 it takes a ninth, and two thirds of the pool is nothing.
+//
+// Returns [[item | null, weight], ...]; a null means the cover holds nothing.
+export function itemWeights(scarcity = {}) {
+  const perKind = {
+    weapon: 1 / (3 * (scarcity.weapon ?? 1)),
+    armour: 1 / (3 * (scarcity.armour ?? 1)),
+    potion: 1 / (3 * (scarcity.potion ?? 1)),
+  };
+
+  // Within a kind, split by 1/value so the stronger item stays rarer.
+  const kindTotals = new Map();
+  for (const item of ITEM_TABLE) {
+    kindTotals.set(item.kind, (kindTotals.get(item.kind) || 0) + 1 / item.value);
+  }
+
+  const entries = ITEM_TABLE.map((item) => {
+    const shareOfKind = (1 / item.value) / kindTotals.get(item.kind);
+    return [item, perKind[item.kind] * shareOfKind];
   });
+
+  const claimed = entries.reduce((sum, [, w]) => sum + w, 0);
+  entries.push([null, Math.max(0, 1 - claimed)]);
+  return entries;
 }
 
 function nextId(state) {
@@ -85,7 +109,11 @@ export function populate(state, map, counts = {}) {
   // crowding the floor arms the player as well as threatening them. Without
   // this the win rate bottoms out around 13% however many you add.
   const dropChance = counts.dropChance ?? MONSTER_DROP_CHANCE;
-  const weights = itemWeights(counts.gearScarcity ?? 1, counts.armourScarcity ?? 1);
+  const weights = itemWeights({
+    weapon: counts.weaponScarcity,
+    armour: counts.armourScarcity,
+    potion: counts.potionScarcity,
+  });
   const passable = playerPassable(map);
   const free = new Map();
   for (const pos of walkablePositions(map)) free.set(posKey(pos), pos);
@@ -163,7 +191,9 @@ export function populate(state, map, counts = {}) {
       name: cover.name,
       emoji: cover.emoji,
       pos,
-      drop: hasLoot ? makeItem(state, template, pos) : null,
+      // `template` is null when the scarcity dials sent this draw to the
+      // empty slot, which is the replacement for Rogule's junk collectibles.
+      drop: hasLoot && template ? makeItem(state, template, pos) : null,
     });
   }
 
@@ -193,7 +223,7 @@ export function populate(state, map, counts = {}) {
       xp: template.xp,
       activation: template.activation,
       dead: false,
-      drop: carries ? makeItem(state, dropTemplate, pos) : null,
+      drop: carries && dropTemplate ? makeItem(state, dropTemplate, pos) : null,
     });
   }
 

@@ -46,12 +46,25 @@
 // Floor one is meant to be clearable with nothing in hand: few weak
 // monsters, and gear as a bonus for what comes after rather than a
 // prerequisite for surviving the room you are in.
+// gearScarcity stays at 1 across the board on purpose: the owner wants
+// weapons, armour and potions equally scarce, and that dial would tilt the
+// first two against the third. How much loot exists is set by how many
+// covers there are and how often a corpse leaves something — both of which
+// hit all three kinds alike.
+//
+// The counts look small next to earlier versions because the junk is gone.
+// Chestnuts and mushrooms used to be 53% of the pool, so half of every
+// cover opened was wasted; now every one that pays, pays in something real.
+// One scarcity per kind, held equal for now by owner decision. What they do
+// not claim comes up as an empty cover, which is what replaced Rogule's junk
+// collectibles — so this dial sets both the mix AND how often opening a
+// cover pays at all.
 const CALIBRATION = [
-  { at: 0.0, monsters: 2, covers: 14, difficultyScale: 0.12, dropChance: 0.35, gearScarcity: 5.0 },
-  { at: 0.25, monsters: 5, covers: 15, difficultyScale: 0.40, dropChance: 0.45, gearScarcity: 3.0 },
-  { at: 0.5, monsters: 9, covers: 16, difficultyScale: 0.75, dropChance: 0.55, gearScarcity: 2.0 },
-  { at: 0.75, monsters: 14, covers: 17, difficultyScale: 0.90, dropChance: 0.65, gearScarcity: 1.4 },
-  { at: 1.0, monsters: 21, covers: 18, difficultyScale: 1.00, dropChance: 0.75, gearScarcity: 1.0 },
+  { at: 0.0, monsters: 2, covers: 14, difficultyScale: 0.12, dropChance: 0.5, scarcity: 3.0 },
+  { at: 0.25, monsters: 5, covers: 14, difficultyScale: 0.40, dropChance: 0.5, scarcity: 3.0 },
+  { at: 0.5, monsters: 9, covers: 15, difficultyScale: 0.75, dropChance: 0.5, scarcity: 3.0 },
+  { at: 0.75, monsters: 14, covers: 15, difficultyScale: 0.90, dropChance: 0.5, scarcity: 3.0 },
+  { at: 1.0, monsters: 21, covers: 16, difficultyScale: 1.00, dropChance: 0.5, scarcity: 3.0 },
 ];
 
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -78,7 +91,11 @@ export function difficultyToParams(dial) {
     covers: Math.round(lerp(lower.covers, upper.covers, t)),
     difficultyScale: +lerp(lower.difficultyScale, upper.difficultyScale, t).toFixed(3),
     dropChance: +lerp(lower.dropChance, upper.dropChance, t).toFixed(3),
-    gearScarcity: +lerp(lower.gearScarcity, upper.gearScarcity, t).toFixed(3),
+    // Held equal across the three kinds for now, but kept as three fields
+    // so they can be split without touching anything downstream.
+    weaponScarcity: +lerp(lower.scarcity, upper.scarcity, t).toFixed(3),
+    armourScarcity: +lerp(lower.scarcity, upper.scarcity, t).toFixed(3),
+    potionScarcity: +lerp(lower.scarcity, upper.scarcity, t).toFixed(3),
   };
 }
 

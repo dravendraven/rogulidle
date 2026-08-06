@@ -120,14 +120,21 @@ export const MONSTER_WEIGHTS = [
 
 // Pick weight is 1/value, so a HIGH value means a RARE item.
 // dmg / armour / heal are absent when the item has no effect.
+// DIVERGENCE: Rogule's chestnut, mushroom and gem-stone are gone.
+//
+// They do nothing mechanically — they exist in the original as the score on
+// the share card, which this game does not have. They were 53% of all loot,
+// so their only real effect here was DILUTION: half the covers you opened
+// gave nothing useful. Scarcity is now set deliberately by the dials rather
+// than as a side effect of junk in the pool.
+//
+// `kind` groups the three that matter. The pool is balanced so each kind is
+// equally likely overall, and within a kind the stronger item is rarer.
 export const ITEM_TABLE = [
-  { name: 'chestnut',  emoji: '🌰',  value: 1 },
-  { name: 'mushroom',  emoji: '🍄',  value: 2 },
-  { name: 'health',    emoji: '🥃',  value: 2, heal: 3 },   // FAITHFUL engine.cljs:209
-  { name: 'shield',    emoji: '🛡️', value: 3, armour: 1 },
-  { name: 'dagger',    emoji: '🗡️', value: 3, dmg: 1 },
-  { name: 'axe',       emoji: '🪓',  value: 4, dmg: 2 },
-  { name: 'gem-stone', emoji: '💎',  value: 8 },
+  { name: 'health', emoji: '🥃',  value: 2, heal: 3, kind: 'potion' },  // FAITHFUL engine.cljs:209
+  { name: 'shield', emoji: '🛡️', value: 3, armour: 1, kind: 'armour' },
+  { name: 'dagger', emoji: '🗡️', value: 3, dmg: 1, kind: 'weapon' },
+  { name: 'axe',    emoji: '🪓',  value: 4, dmg: 2, kind: 'weapon' },
 ];
 
 export const COVER_TABLE = [
