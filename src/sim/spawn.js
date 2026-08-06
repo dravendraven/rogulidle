@@ -32,24 +32,33 @@ import { findPath, playerPassable, posKey, walkablePositions } from './mapgen.js
 // At scarcity 1 a kind takes its full third and no cover comes up empty. At
 // 3 it takes a ninth, and two thirds of the pool is nothing.
 //
-// Returns [[item | null, weight], ...]; a null means the cover holds nothing.
-export function itemWeights(scarcity = {}) {
-  const perKind = {
-    weapon: 1 / (3 * (scarcity.weapon ?? 1)),
-    armour: 1 / (3 * (scarcity.armour ?? 1)),
-    potion: 1 / (3 * (scarcity.potion ?? 1)),
-  };
+// The two sources hold different things, by owner decision:
+//
+//   covers   weapons and armour — gear comes from exploring
+//   monsters health potions only — healing comes from killing
+//
+// Scarcity keeps the same meaning either way: 1 draw in S gives something,
+// the rest come up empty.
+//
+// Returns [[item | null, weight], ...]; null means this draw holds nothing.
+export function itemWeights(scarcity = {}, source = 'cover') {
+  const kinds = source === 'monster' ? ['potion'] : ['weapon', 'armour'];
+  const shareEach = 1 / kinds.length;
 
   // Within a kind, split by 1/value so the stronger item stays rarer.
   const kindTotals = new Map();
   for (const item of ITEM_TABLE) {
+    if (!kinds.includes(item.kind)) continue;
     kindTotals.set(item.kind, (kindTotals.get(item.kind) || 0) + 1 / item.value);
   }
 
-  const entries = ITEM_TABLE.map((item) => {
-    const shareOfKind = (1 / item.value) / kindTotals.get(item.kind);
-    return [item, perKind[item.kind] * shareOfKind];
-  });
+  const entries = ITEM_TABLE
+    .filter((item) => kinds.includes(item.kind))
+    .map((item) => {
+      const shareOfKind = (1 / item.value) / kindTotals.get(item.kind);
+      const mass = shareEach / (scarcity[item.kind] ?? 1);
+      return [item, mass * shareOfKind];
+    });
 
   const claimed = entries.reduce((sum, [, w]) => sum + w, 0);
   entries.push([null, Math.max(0, 1 - claimed)]);
@@ -109,11 +118,13 @@ export function populate(state, map, counts = {}) {
   // crowding the floor arms the player as well as threatening them. Without
   // this the win rate bottoms out around 13% however many you add.
   const dropChance = counts.dropChance ?? MONSTER_DROP_CHANCE;
-  const weights = itemWeights({
+  const scarcity = {
     weapon: counts.weaponScarcity,
     armour: counts.armourScarcity,
     potion: counts.potionScarcity,
-  });
+  };
+  const coverWeights = itemWeights(scarcity, 'cover');
+  const monsterWeights = itemWeights(scarcity, 'monster');
   const passable = playerPassable(map);
   const free = new Map();
   for (const pos of walkablePositions(map)) free.set(posKey(pos), pos);
@@ -183,7 +194,7 @@ export function populate(state, map, counts = {}) {
     // Sweeps 10%..100% across the map; the flag decides which end is rich.
     const emptiness = COVER_LOOT_RICHER_FAR ? 1 - depth : depth;
     const hasLoot = drawChance(state, 'spawn', 1 - COVER_DIFFICULTY_SCALE * emptiness);
-    const template = drawWeighted(state, 'spawn', weights);
+    const template = drawWeighted(state, 'spawn', coverWeights);
 
     const cover = drawPick(state, 'spawn', COVER_TABLE);
     state.covers.push({
@@ -211,7 +222,7 @@ export function populate(state, map, counts = {}) {
     const template = MONSTER_TABLE[slot];
 
     const carries = drawChance(state, 'spawn', dropChance);
-    const dropTemplate = drawWeighted(state, 'spawn', weights);
+    const dropTemplate = drawWeighted(state, 'spawn', monsterWeights);
 
     state.monsters.push({
       id: nextId(state),

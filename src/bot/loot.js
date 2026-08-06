@@ -21,10 +21,11 @@ import { campaignCost } from './duel.js';
 
 // Borrowed from the generator rather than recomputed, so the bot's guess at
 // what a cover holds cannot drift away from what covers actually hold.
-// Includes the empty slot, so a cover full of nothing correctly drags the
-// expected value down instead of being invisible to the bot.
+// The COVER pool specifically — weapons and armour, no potions, since
+// potions now only fall off monsters. Includes the empty slot, so a cover
+// full of nothing drags the expected value down instead of being invisible.
 const ITEM_MIX = (() => {
-  const weights = itemWeights();
+  const weights = itemWeights({}, 'cover');
   const total = weights.reduce((sum, [, w]) => sum + w, 0);
   return weights.map(([item, w]) => [item, w / total]);
 })();
