@@ -22,7 +22,7 @@
 
 import { newGame, playGame } from '../sim/game.js';
 import { makeBot } from '../bot/bot.js';
-import { floorPlan } from '../sim/dungeon.js';
+import { floorPlan, playDungeon } from '../sim/dungeon.js';
 import { PLAYER_HP, PLAYER_XP } from '../sim/balance.js';
 
 // A yardstick, not a realistic hero. Fixed so that a number measured today
@@ -87,6 +87,52 @@ export function floorHardness(level, options = {}) {
 // The whole ladder, one reference hero throughout.
 export function hardnessCurve(levels, options = {}) {
   return levels.map((level) => floorHardness(level, options));
+}
+
+// The OTHER half, and the one the owner actually asked about: the same
+// curve for a REAL hero, who arrives at floor 8 carrying everything floors
+// 1 to 7 gave them.
+//
+// This is the requirement — floor 10 must be the hardest DESPITE the gear —
+// so it has to be measured against the hero who is really there, not
+// against a yardstick. Net challenge is the floor's cost over what the hero
+// walked in with; above 1.00 the floor demands more than they brought.
+//
+// Survivor bias is real here and is NOT a flaw: deep floors are measured
+// only on heroes who got that far, because those are the only heroes who
+// ever meet them. The `reached` column is the honest sample size — a 0.40
+// off two runs means much less than a 0.40 off thirty.
+export function descentCurve(options = {}) {
+  const { runs = 30, firstSeed = 90000, maxTurns = 1500 } = options;
+  const floors = [];
+
+  for (let i = 0; i < runs; i++) {
+    const dungeon = playDungeon(firstSeed + i,
+      (floor) => makeBot({ monsterCount: floor.monsterCount }), { maxTurns });
+
+    for (const lvl of dungeon.levels) {
+      const row = floors[lvl.level - 1] || (floors[lvl.level - 1] = {
+        level: lvl.level, monsters: lvl.monsters,
+        reached: 0, died: 0, damage: 0, capacity: 0,
+      });
+      row.reached++;
+      if (lvl.outcome === 'died') row.died++;
+      row.damage += lvl.damage;
+      row.capacity += lvl.arrivedWith.hp + (lvl.arrivedWith.armour || 0);
+    }
+  }
+
+  return floors.map((row) => ({
+    level: row.level,
+    monsters: row.monsters,
+    reached: row.reached,
+    survivalPct: +((100 * (row.reached - row.died)) / row.reached).toFixed(0),
+    // Mean capacity the hero brought down the stairs. If this climbs faster
+    // than damage does, the descent gets easier and the requirement fails.
+    capacity: +(row.capacity / row.reached).toFixed(1),
+    damagePerRun: +(row.damage / row.reached).toFixed(1),
+    netChallenge: +(row.damage / row.capacity).toFixed(2),
+  }));
 }
 
 // Sanity check that a floor was generated near what was asked for.

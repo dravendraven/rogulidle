@@ -4,44 +4,41 @@
 // ten of them together, and the shrine becomes a staircase for the first
 // nine. What the hero IS carries down; where they stood does not.
 //
-// MEASURED, 20 dungeons: the descent gets EASIER, not harder.
+// THE REQUIREMENT: floor 1 is the gentlest and floor 10 the hardest, for
+// the REAL hero — the one who arrives at floor 10 carrying everything the
+// nine floors above handed over. Not for a yardstick hero.
 //
-//   floor          1     3     5     7     10
-//   xp at exit    4.8   9.8  15.6  23.1   42.3
-//   gear at exit  2.9   6.7   9.8  12.8   14.9
-//   hp at exit    8.5   9.3   9.8   9.7    9.6
+// MET. Measured over 24 descents (src/analysis/hardness.js, descentCurve):
 //
-//   16 of 20 dungeons cleared all ten floors, and the deadliest floor by
-//   far is the FIRST — two of the four failures happened there.
+//   floor        1     3     5     7     9    10
+//   capacity   10.0   8.7  11.2   9.8   9.2   6.5
+//   damage      2.7   5.0   4.1   5.8   8.0   6.5
+//   net        0.27  0.58  0.37  0.59  0.87  1.00
 //
-// The dial is not at fault; it describes the floor and does that correctly.
-// The hero simply outgrows it. Damage is drawn from 0..xp-1, so xp 42 means
-// about 17 damage a blow, and the toughest monster in the game has 15 hit
-// points — one swing. A dial that runs 0.2 to 0.9 cannot express a range
-// wide enough to keep up with that.
+// Net challenge is the floor's cost over what the hero walked in with. It
+// climbs 0.27 to 1.00, and 1.00 means floor ten demands everything the hero
+// still has.
 //
-// THREE FIXES TRIED AND MEASURED, none of which changed the shape:
+// The load-bearing column is CAPACITY, and it falls: 10.0 down to 6.5. The
+// hero reaches the bottom weaker than they started. That is what closed the
+// old problem, where the descent got easier because power ran away from the
+// floors faster than the floors grew.
 //
-//   freeze xp (XP_FROM_KILLS)        8/10 cleared -> 7/10
-//   halve weapons (WEAPONS_WIDEN_ROLL) 8/10 -> 8/10
-//   make armour scarce (armourScarcity 4)  5/10 -> 4/10, hp at floor 10
-//                                          8.3 -> 7.2
+// Three things did it, and none of them was the dial:
 //
-// The first two aimed at damage OUTPUT, which was never the constraint —
-// the hero finishes floor ten on 10 hp out of 10. Scarcity does bite at
-// depth, but the outcome distribution stays stubbornly bimodal:
+//   - armour became a second bar that is SPENT, not permanent mitigation
+//   - passive regeneration removed, so damage taken is damage kept
+//   - xp frozen, so kills stop compounding into output
 //
-//   depths reached, ten dungeons:  1, 1, 1, 3, 10, 10, 10, 10, 10, 10
+// Earlier attempts that failed are worth remembering, because they all
+// share one shape: freezing xp, halving weapon value and making armour
+// scarce each slowed the RATE of accumulation, and none of them capped it.
+// Only spending the resource did.
 //
-// The dungeon is decided in its first three floors. Survive the opening,
-// where the hero has nothing, and the accumulation carries the rest.
-//
-// That is a curve problem, not a mechanic problem. Floor difficulty climbs
-// from dial 0.2 to 0.9 while the hero's power multiplies several times
-// over, and 1.0 is as far as the dial goes. Closing it needs one of:
-// a difficulty range that runs past what a single floor can express, a
-// hard cap on accumulation (equipment slots), or progress surrendered on
-// the stairs.
+// WHAT IS STILL WRONG: attrition is front-loaded. Of 24 heroes, 24 saw
+// floor 2 and 2 saw floor 10 — half are dead by floor 5, so the hardest
+// floors are the ones almost nobody meets. The curve has the right shape
+// and the wrong survival budget.
 
 import { PLAYER_HP, PLAYER_XP } from './balance.js';
 import { hashSeeds } from './rng.js';
@@ -98,14 +95,17 @@ export function playDungeon(seed, makePolicy, options = {}) {
       dropChance: plan.dropChance,
       // A fixed rate overrides the per-floor one, for sweeping.
       weaponScarcity: options.scarcity ?? plan.weaponScarcity,
-      armourScarcity: options.scarcity ?? plan.armourScarcity,
+      // options.armourScarcity is the narrow dial, options.scarcity the
+      // blunt one. This key used to appear TWICE in this object, and the
+      // second copy — a bare `options.armourScarcity`, undefined in every
+      // normal run — silently won.
+      armourScarcity: options.armourScarcity ?? options.scarcity ?? plan.armourScarcity,
       potionScarcity: options.scarcity ?? plan.potionScarcity,
       carry,
       // Rule variants apply to every floor of the descent.
       xpFromKills: options.xpFromKills,
       attackWhenAdjacent: options.attackWhenAdjacent,
       weaponsWidenRoll: options.weaponsWidenRoll,
-      armourScarcity: options.armourScarcity,
     };
 
     const run = playGame(
@@ -127,6 +127,13 @@ export function playDungeon(seed, makePolicy, options = {}) {
     // from the finished state without regenerating the floor.
     const roster = run.state.monsters.map((m) => ({ xp: m.xp, hp: m.hpMax }));
 
+    // What the floor actually took out of the hero. Read from the log
+    // rather than from hp before/after, because potions and shields picked
+    // up mid-floor would otherwise hide the cost.
+    const damage = run.state.log
+      .filter((e) => e.type === 'attack' && e.target === 'player')
+      .reduce((sum, e) => sum + e.damage, 0);
+
     const player = run.state.player;
     levels.push({
       level,
@@ -135,7 +142,9 @@ export function playDungeon(seed, makePolicy, options = {}) {
       outcome: run.outcome || 'timeout',
       turns: run.turns,
       kills: player.kills.length,
+      damage,
       hp: player.hp,
+      armour: player.armour,
       xp: player.xp,
       gear: player.inventory.filter((i) => i.dmg || i.armour).length,
       arrivedWith,
