@@ -52,6 +52,19 @@ button {
 }
 button:hover { border-color: #3a4150; }
 
+.dial {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  margin-bottom: .8rem;
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #5b6472;
+}
+.dial input[type="range"] { flex: 0 1 220px; accent-color: #8ce99a; cursor: pointer; }
+.dial #dialValue { text-transform: none; letter-spacing: 0; color: var(--dim); font-size: 12px; }
+
 .banner {
   display: flex;
   gap: .4rem;

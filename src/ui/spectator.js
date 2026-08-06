@@ -8,7 +8,7 @@
 
 import { playGame, replayGame } from '../sim/game.js';
 import { hashSeeds, seedFromString } from '../sim/rng.js';
-import { difficultyToParams } from '../sim/difficulty.js';
+import { difficultyToParams, expectedWinRate } from '../sim/difficulty.js';
 import { makeBot } from '../bot/bot.js';
 import { dangerField } from '../bot/threat.js';
 import { buildGrid, renderFrame, renderHud, renderLog } from './render.js';
@@ -33,7 +33,7 @@ function grab() {
   for (const id of [
     'grid', 'hp', 'xp', 'steps', 'kills', 'inventory', 'remaining',
     'run', 'seed', 'tally', 'log', 'summary', 'summaryTitle', 'summaryBody',
-    'playPause', 'speed', 'debug', 'goal',
+    'playPause', 'speed', 'debug', 'goal', 'difficulty', 'dialValue',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -135,6 +135,13 @@ async function runForever(sessionSeed) {
   while (true) {
     session.runNumber++;
 
+    // Pick up a dial change made while the previous run was playing.
+    if (session.pendingDial !== session.dial) {
+      session.dial = session.pendingDial;
+      session.floor = difficultyToParams(session.dial);
+      if (session.showDial) session.showDial();
+    }
+
     const seed = hashSeeds(sessionSeed, session.runNumber);
 
     // The bot records what it was aiming at, one entry per decision, so
@@ -164,6 +171,25 @@ function wireControls() {
     el.playPause.textContent = session.paused ? '▶ play' : '⏸ pause';
   });
 
+  // Takes effect on the NEXT run, not this one: a run is computed whole
+  // before it is shown, so changing the floor mid-playback would mean
+  // watching a map that no longer matches the numbers.
+  const showDial = () => {
+    const dial = Number(el.difficulty.value);
+    const expected = Math.round(100 * expectedWinRate(dial));
+    const floor = difficultyToParams(dial);
+    el.dialValue.textContent =
+      `${dial.toFixed(2)} · ~${expected}% wins · ${floor.monsters} monsters, ${floor.covers} covers`
+      + (dial === session.dial ? '' : ' — from next run');
+  };
+
+  el.difficulty.addEventListener('input', () => {
+    session.pendingDial = Number(el.difficulty.value);
+    showDial();
+  });
+
+  session.showDial = showDial;
+
   el.debug.addEventListener('click', () => {
     session.debug = !session.debug;
     el.debug.textContent = session.debug ? '🔎 debug on' : '🔎 debug';
@@ -192,8 +218,12 @@ export function start() {
   // ?difficulty=0..1 sets how hard the floors are, without touching the bot.
   // 0 is a walkover, 1 the bot never wins — see src/sim/difficulty.js for
   // the measured curve.
-  const dial = params.get('difficulty');
-  session.floor = difficultyToParams(dial === null ? 0.5 : Number(dial));
+  const requestedDial = params.get('difficulty');
+  session.dial = requestedDial === null ? 0.5 : Number(requestedDial);
+  session.pendingDial = session.dial;
+  session.floor = difficultyToParams(session.dial);
+  el.difficulty.value = String(session.dial);
+  session.showDial();
 
   runForever(sessionSeed);
 }

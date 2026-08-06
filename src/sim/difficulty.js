@@ -72,6 +72,21 @@ export function difficultyToParams(dial) {
   };
 }
 
+// Measured win rate at each anchor, for showing alongside the dial. Same
+// batch that produced CALIBRATION.
+const MEASURED_WIN_RATE = [0.95, 0.70, 0.45, 0.17, 0.0];
+
+// Roughly what share of runs the bot is expected to win at this setting.
+// Interpolated between measured points — a long-run rate, never a promise
+// about any single run.
+export function expectedWinRate(dial) {
+  const d = Math.max(0, Math.min(1, dial));
+  const span = 1 / (MEASURED_WIN_RATE.length - 1);
+  const i = Math.min(MEASURED_WIN_RATE.length - 2, Math.floor(d / span));
+  const t = (d - i * span) / span;
+  return lerp(MEASURED_WIN_RATE[i], MEASURED_WIN_RATE[i + 1], t);
+}
+
 // Describes a map that already exists, on the same 0..1 scale. Not the
 // inverse of the dial — it reads a generated floor rather than setting one —
 // but useful for spotting a seed that came out far from what was asked.
