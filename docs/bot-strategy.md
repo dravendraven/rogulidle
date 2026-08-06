@@ -10,23 +10,42 @@ Premissa fixada em §10.1 da spec: **fog of war real com memória**. O bot lê
 
 ---
 
-## 0. O fato que domina tudo: turnos são quase de graça
+## 0. O objetivo: limpar o andar no menor número de passos
 
-Três coisas medidas no original se combinam:
+Regra fixada pelo dono: **matar todos os monstros antes de tocar o santuário
+é obrigatório**, não um peso. Vem da regra de casa que ele jogava com
+amigos — o placar era quem completava o desafio do dia em menos passos, e
+limpar o andar inteiro aumentava a chance de fracasso, que era justamente o
+que tornava a coisa divertida.
 
-1. **Não há limite de turnos** nem relógio dentro da run (spec §8).
-2. **Regenerar custa só tempo**: +1 HP a cada 100 turnos, e só quando o HP
-   não está cheio (spec §5).
-3. **Monstros são estritamente estáticos fora do `activation` deles**
-   (spec §7). Não patrulham, não vagam, não procuram.
+```
+minimizar  passos
+sujeito a  todos os monstros mortos  ∧  santuário alcançado
+falha      morte do jogador
+```
 
-Consequência: gastar turnos não é neutro, é **levemente positivo**, contanto
-que o bot fique fora dos raios de perseguição. Não existe pressão de tempo
-empurrando para o combate.
+O santuário **não é alvo válido** enquanto restar monstro vivo. Não existe
+saída de emergência: se o bot está com 2 HP e sobrou um dragon, ele luta.
 
-Isso é o que dá respaldo mecânico à regra 1. A pergunta "vale a pena andar
-mais 20 tiles para pegar aquele loot?" quase sempre tem resposta sim — o
-custo não é o tempo, é só a exposição no caminho.
+### Três consequências
+
+**1. Passos são o placar, então turnos deixam de ser de graça.** O jogo não
+tem relógio (spec §8) e regenerar só custa tempo (spec §5), então nada mata
+o bot por demorar — mas cada passo piora a nota. A pergunta "vale a pena
+andar 20 tiles por aquele loot?" passa a ter resposta de verdade, em vez de
+ser sempre sim. Todo desvio precisa se pagar em sobrevivência.
+
+**2. Descansar custa um passo, e é isso que impede a degeneração.** Sem essa
+propriedade, a jogada ótima sob "matar todos" seria recuar para a zona fria,
+descansar até encher o HP e voltar — regeneração infinita, HP irrelevante,
+e horrível de assistir. Como `move-to` com direção nula incrementa `:moves`
+(spec §6), curar 1 HP custa 100 passos no placar. O metrificador se corrige
+sozinho, e isso o torna **load-bearing**: se a Fase 4 mexer no placar, esse
+buraco reabre.
+
+**3. Morrer é um desfecho aceito.** O bot não deve jogar com segurança
+máxima — a chance de fracasso é o produto, não o defeito. Isso proíbe
+qualquer heurística de auto-preservação que faça o bot desistir de um alvo.
 
 ---
 
@@ -47,13 +66,19 @@ mudam porque as posições não mudam.
 
 Então a regra 1 vira uma instrução exata:
 
-> **Colher exaustivamente todo o loot da zona fria antes de pisar em
-> qualquer tile quente.**
+> **Todo loot da zona fria que se pague em passos deve ser colhido antes de
+> pisar em qualquer tile quente.**
 
-Dentro da zona fria não há decisão de risco a tomar — vira um problema de
-roteamento (ordem de visita que minimiza passos), não de estratégia. É o
-caso que você descreveu: a sala só com loot é colhida inteira antes de
-encostar na sala com monstro.
+Dentro da zona fria não há decisão de *risco* a tomar — só de custo. Vira um
+problema de roteamento: qual subconjunto do loot frio visitar, e em que
+ordem, dado que cada desvio custa passos no placar. É o caso que você
+descreveu: a sala só com loot é resolvida inteira antes de encostar na sala
+com monstro.
+
+O "que se pague" é o que mudou com o placar de passos (§0). Uma cobertura a
+30 tiles de distância, isolada, provavelmente não vale o desvio; a mesma
+cobertura no caminho, sim. O bot resolve isso com o valor de sobrevivência
+esperado do item contra o custo em passos do desvio — não com um raio fixo.
 
 ### O que o fog muda
 
@@ -180,12 +205,38 @@ E armas cortam o outro lado: um machado (+2) leva o dano do jogador de 0.833
 para 2.5, triplicando a velocidade de kill e reduzindo o HP perdido na mesma
 proporção em *todos* os duelos.
 
+### Sob "matar todos", a regra 3 deixa de ser sobre evitar risco
+
+Se nenhum monstro pode ser pulado, "enfrentar os fracos primeiro" não é mais
+uma forma de evitar perigo — é **construção de bola de neve**, e essa é a
+justificativa forte.
+
+O jogador ganha +1 xp a cada 2 kills (spec §5). Com 5 monstros no mapa,
+matar os 4 mais baratos primeiro leva o xp de 3 para 5 antes do confronto
+final. Dano esperado do jogador vai de `0.833` para `(5/6) × E[U{0..4}] =
+1.667` — **exatamente o dobro**, o que corta pela metade o custo do duelo
+mais caro da run.
+
+Somando o equipamento colhido no caminho, o monstro terminal deixa de ser
+inviável. Um dragon (xp 8, 15 hp) enfrentado por último, com xp 5, um
+machado e dois escudos:
+
+```
+dano do jogador  = (5/6) × E[U{0..4} + 2] = 3.33  → 4.5 turnos para matar
+dano do dragon   = (5/6) × E[max(0, U{0..7} − 2)] = 1.56
+HP perdido       ≈ 0.9 × 3.5 × 1.56 ≈ 4.9
+```
+
+Contra os 44.6 da tabela de mãos vazias. **A ordem de execução vale mais que
+qualquer item isolado** — e é por isso que a regra obrigatória é jogável em
+vez de suicida.
+
 ### Reformulação da regra 3
 
 > Ordenar alvos por **HP esperado perdido contra o equipamento atual**, não
-> por xp. Reavaliar a ordem inteira sempre que o inventário mudar — um único
-> escudo pode mover um monstro de "letal" para "grátis", e isso reordena o
-> plano todo.
+> por xp. Reavaliar a ordem inteira sempre que o inventário ou o xp mudarem —
+> um único escudo pode mover um monstro de "letal" para "grátis", e cada
+> segundo kill reordena o resto do plano.
 
 A sua intuição (sala com xp 1 antes de sala com xp 3) continua correta; o
 cálculo só a estende para os casos onde o rótulo engana.
@@ -194,29 +245,58 @@ cálculo só a estende para os casos onde o rótulo engana.
 
 ## 4. Como as três regras se compõem
 
-Não são uma cadeia de prioridade — são termos de uma única pontuação de
-alvo. Esboço para a Fase 3:
+Duas são restrições duras, uma é pontuação.
+
+**Restrições (o bot nunca as viola):**
 
 ```
-score(alvo) = valor(alvo)
+R0  santuário só é alvo válido quando kills == total_de_monstros
+R2  nunca escolher ação que resulte em ameaça ≥ 2
+```
+
+**Pontuação (escolhe entre os alvos legais):**
+
+```
+score(alvo) = valor_de_sobrevivência(alvo)
+            − custo_em_passos(alvo)          ; §0, o placar
             − custo_HP_do_caminho(alvo)      ; regra 1, via zonas frio/quente
-            − custo_HP_do_duelo(alvo)        ; regra 3, com equipamento atual
-            − penalidade_multi_ameaça        ; regra 2, restrição dura
+            − custo_HP_do_duelo(alvo)        ; regra 3, com xp e equipamento atuais
             − prêmio_de_incerteza            ; fog: alvo em região inexplorada
 ```
 
-Com quatro tipos de alvo: **item revelado**, **cobertura fechada**,
-**monstro**, **fronteira** (exploração). O santuário ⛩ é um quinto, com
-valor que sobe conforme o HP cai — é a saída de emergência.
+Cinco tipos de alvo: **item revelado**, **cobertura fechada**, **monstro**,
+**fronteira** (exploração) e **santuário** — este último trivial, porque
+quando R0 libera não sobrou mais nada a fazer.
 
-Ordem natural que deve emergir sem ser codificada: colher tudo o que é frio
-→ explorar fronteira fria → matar o monstro mais barato alcançável → colher
-o que ficou frio depois da morte dele → repetir → santuário quando não sobrar
-alvo positivo.
+Ordem que deve emergir sem ser codificada: colher o loot frio que se paga →
+explorar fronteira fria → matar o monstro mais barato alcançável → recolher
+o que ficou frio depois da morte dele → repetir, com o custo dos duelos
+caindo a cada 2 kills → santuário.
 
-**Ponto a validar na Fase 4:** a meta "eliminar todas as criaturas antes do
-portal" pode não ser ótima nem alcançável. Com 5 monstros sorteados por
-dificuldade posicional, uma run pode conter um dragon perto do santuário que
-nenhum equipamento razoável derruba. O bot precisa poder desistir de um alvo
-e ascender — e "sempre limpar a sala" deve ser um peso alto, não uma regra
-absoluta, senão o bot se mata contra um t-rex por teimosia.
+### 4.1 O bot precisa saber quantos monstros existem
+
+R0 exige comparar `kills` com o total, e sob fog o bot não descobre esse
+total sozinho. Duas saídas:
+
+- **Bot conhece a contagem** (5) como constante de jogo. Ele sabe quando
+  terminou, mas ainda precisa explorar para *achar* os que faltam.
+- **Bot não conhece.** Aí R0 só é satisfeita após varredura completa do
+  mapa, e toda run termina com uma exploração exaustiva e chata.
+
+**Recomendação: o bot conhece a contagem.** É coerente com a premissa que
+você já fixou (o bot conhece o comportamento das criaturas), e evita a
+varredura obrigatória. A tensão de "falta um, onde está?" continua existindo,
+que é a parte boa.
+
+### 4.2 O que retirei da versão anterior
+
+Este documento antes sugeria que "limpar a sala" fosse peso alto e não regra
+absoluta, com medo de o bot se matar por teimosia contra um t-rex. **Isso
+está descartado por decisão do dono**, e a análise da bola de neve (§3)
+mostra que o medo era exagerado: com a ordem de execução correta, o monstro
+terminal é enfrentado com o dobro do dano base e o equipamento acumulado da
+run inteira.
+
+Fica como item de Fase 4 medir a taxa de morte real. Se ela vier alta demais
+para ser divertida, o ajuste correto é o **balanceamento** (contagem de
+monstros, densidade de loot, §10.2 da spec) — não relaxar R0.
