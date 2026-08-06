@@ -8,6 +8,7 @@
 
 import { playGame, replayGame } from '../sim/game.js';
 import { hashSeeds, seedFromString } from '../sim/rng.js';
+import { difficultyToParams } from '../sim/difficulty.js';
 import { makeBot } from '../bot/bot.js';
 import { dangerField } from '../bot/threat.js';
 import { buildGrid, renderFrame, renderHud, renderLog } from './render.js';
@@ -139,7 +140,8 @@ async function runForever(sessionSeed) {
     // The bot records what it was aiming at, one entry per decision, so
     // debug mode can show the reasoning behind a move that looks odd.
     const trace = [];
-    const run = playGame(seed, makeBot({ trace }), { maxTurns: MAX_TURNS });
+    const run = playGame(seed, makeBot({ trace, monsterCount: session.floor.monsters }),
+      { maxTurns: MAX_TURNS, counts: session.floor });
 
     // Frames and trace are both one-per-decision, but watchableFrames drops
     // the wall bumps — so carry the matching trace entries with them.
@@ -181,10 +183,17 @@ export function start() {
 
   // ?seed=whatever makes a whole session reproducible, which is how you go
   // back and look at a run the bot played badly.
-  const requested = new URL(location.href).searchParams.get('seed');
+  const params = new URL(location.href).searchParams;
+  const requested = params.get('seed');
   const sessionSeed = requested
     ? seedFromString(requested)
     : (Date.now() >>> 0);
+
+  // ?difficulty=0..1 sets how hard the floors are, without touching the bot.
+  // 0 is a walkover, 1 the bot never wins — see src/sim/difficulty.js for
+  // the measured curve.
+  const dial = params.get('difficulty');
+  session.floor = difficultyToParams(dial === null ? 0.5 : Number(dial));
 
   runForever(sessionSeed);
 }

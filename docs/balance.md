@@ -1,5 +1,40 @@
 # Balance — single source of truth for every tunable number
 
+## The difficulty dial
+
+One number, 0 to 1, sets how hard the floors are without touching the bot.
+`src/sim/difficulty.js`; `index.html?difficulty=0.7` to watch it.
+
+| dial | 0.00 | 0.25 | 0.50 | 0.75 | 1.00 |
+|---|---|---|---|---|---|
+| **win rate** | 95% | 70% | 45% | 17% | 0% |
+| monsters | 3 | 5 | 6 | 9 | 22 |
+| covers | 22 | 17 | 14 | 10 | 2 |
+| difficulty scale | 0.35 | 0.6 | 0.75 | 0.9 | 1.0 |
+| drop chance | 0.8 | 0.65 | 0.5 | 0.3 | 0.0 |
+
+Measured over 30–40 held-out floors per point against bot v5. **Recalibrate
+after any material change to the bot** — difficulty here is defined against
+an opponent, not in the abstract.
+
+Three things worth knowing before turning it:
+
+- **Drop chance has to move too.** Piling on monsters also piles on their
+  drops, so crowding the floor arms the player as well. Holding drops at 0.5
+  the win rate bottomed out near 13% no matter how many monsters were added.
+- **Roughly half of a run's outcome is combat dice, not the floor.** Playing
+  the same map with nine different dice streams: 46.5% of the outcome
+  variance came from the map, 53.5% from the rolls. Six maps out of 21 always
+  gave the same result; seven were close to coin flips. So the dial sets a
+  long-run rate, never a verdict on one run.
+- **No formula from map features predicts much.** Correlations with winning
+  top out around 0.3 (`optimalCost` −0.32, `gearPerThreat` +0.31, `sumXp`
+  −0.30), and a fitted model reaches 64% accuracy against a 59% base rate.
+  That is the dice ceiling above, not a modelling failure. Controlling
+  generation works; predicting from it does not. `pressureOf()` in
+  difficulty.js is the best single descriptive index if you want one.
+
+
 Mirrored in `src/sim/balance.js`. Change here first, then there. Nothing in
 `src/sim/*.js` may hardcode a number that belongs on this page.
 

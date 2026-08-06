@@ -156,6 +156,20 @@ test('a replay reproduces the recorded run exactly', () => {
   assertEq(JSON.stringify(last.player.pos), JSON.stringify(run.state.player.pos), 'position');
 });
 
+test('a replay of a non-default floor rebuilds the same floor', () => {
+  // The replay regenerates the map from the seed, so it has to remember how
+  // the floor was generated. Without that it silently played back a
+  // different dungeon whenever generation was off its defaults.
+  const counts = { monsters: 11, covers: 4 };
+  const run = playGame(4321, makeWanderPolicy(4321), { maxTurns: 120, counts });
+  const frames = replayGame(run.replay);
+  const last = frames[frames.length - 1].state;
+
+  assertEq(last.monsters.length, 11, 'monster count');
+  assertEq(JSON.stringify(last.player.pos), JSON.stringify(run.state.player.pos), 'position');
+  assertEq(last.player.hp, run.state.player.hp, 'hp');
+});
+
 test('step does not mutate the state it was given', () => {
   const state = newGame(55);
   const before = JSON.stringify({ ...state, map: null });

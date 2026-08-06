@@ -73,9 +73,11 @@ export function playGame(seed, policy, options = {}) {
     belief,
     outcome: state.outcome,
     turns: state.turn,
-    // The engine is deterministic, so a seed plus the action list is a
-    // complete replay. That is all P2 needs to play a run back.
-    replay: { seed: state.seed, actions },
+    // The engine is deterministic, so a seed plus the action list replays a
+    // run exactly — as long as the floor is generated the same way, which
+    // is why the counts travel with it. Leaving them out silently replayed
+    // a DIFFERENT map whenever generation was not on its defaults.
+    replay: { seed: state.seed, actions, counts: options.counts },
   };
 }
 
@@ -84,7 +86,7 @@ export function playGame(seed, policy, options = {}) {
 // belief is what lets a viewer see what the bot knows and what it is only
 // remembering. Nothing here needs the policy again.
 export function replayGame(replay) {
-  let state = newGame(replay.seed);
+  let state = newGame(replay.seed, replay.counts);
   let observation = observe(state);
   let belief = foldBelief(emptyBelief(), observation);
 

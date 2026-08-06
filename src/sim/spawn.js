@@ -61,6 +61,13 @@ function makeItem(state, template, pos) {
 export function populate(state, map, counts = {}) {
   const monsterCount = counts.monsters ?? MONSTER_COUNT;
   const coverCount = counts.covers ?? COVER_COUNT;
+  // How far up the monster table the deepest tiles reach. The third dial of
+  // difficulty, alongside how many monsters and how much loot.
+  const difficultyScale = counts.difficultyScale ?? MONSTER_DIFFICULTY_SCALE;
+  // Needed as its own dial: piling on monsters also piles on their drops, so
+  // crowding the floor arms the player as well as threatening them. Without
+  // this the win rate bottoms out around 13% however many you add.
+  const dropChance = counts.dropChance ?? MONSTER_DROP_CHANCE;
   const passable = playerPassable(map);
   const free = new Map();
   for (const pos of walkablePositions(map)) free.set(posKey(pos), pos);
@@ -150,12 +157,12 @@ export function populate(state, map, counts = {}) {
     takeFree(pos);
 
     const depth = posToDifficulty(pos, playerPos, passable, furthestLength);
-    const difficulty = Math.min(1, depth * MONSTER_DIFFICULTY_SCALE);
+    const difficulty = Math.min(1, depth * difficultyScale);
     const index = Math.floor(difficulty * (MONSTER_TABLE.length - 1));
     const slot = drawWeighted(state, 'spawn', monsterWeightsAround(index));
     const template = MONSTER_TABLE[slot];
 
-    const carries = drawChance(state, 'spawn', MONSTER_DROP_CHANCE);
+    const carries = drawChance(state, 'spawn', dropChance);
     const dropTemplate = drawWeighted(state, 'spawn', ITEM_WEIGHTS);
 
     state.monsters.push({

@@ -1,0 +1,95 @@
+// One knob for how hard a floor is.
+//
+//   difficulty 0   -> the bot wins nearly always
+//   difficulty 1   -> the bot wins nearly never
+//
+// The idea is that generation gets a dial and the bot is left alone. You do
+// not tune the bot to hit a win rate; you tune the floor.
+//
+// Four generation parameters move together along the dial, because moving
+// one alone runs out of room long before the extremes:
+//
+//   monsters         how many there are to kill
+//   covers           how much the map arms you
+//   difficultyScale  how far up the monster table the deepest tiles reach
+//   dropChance       how often a corpse leaves something behind
+//
+// The last one is not obvious and was found by measurement: piling on
+// monsters also piles on their drops, so crowding the floor arms the player
+// too. Without a separate drop dial the win rate bottoms out near 13% no
+// matter how many monsters are added.
+//
+// The numbers in CALIBRATION are MEASURED, not derived. Win rate over 30–40
+// held-out floors per point, bot v5:
+//
+//   dial   0.00  0.25  0.50  0.75  1.00
+//   wins    95%   70%   45%   17%    0%
+//
+// They are only valid for the bot they were measured against; a materially
+// better bot needs recalibrating. That is the honest price of defining
+// difficulty against an opponent rather than in the abstract — and the
+// reason the dial is stored as measured anchors rather than a formula
+// pretending to be a law.
+//
+// Note the ceiling is not 100%: about half of a run's outcome is combat
+// dice rather than the floor (measured — see docs/balance.md), so even a
+// generous floor loses sometimes and no generation setting can prevent it.
+
+// Anchor points: dial position -> generation parameters.
+// Interpolated between, clamped outside.
+const CALIBRATION = [
+  { at: 0.0, monsters: 3, covers: 22, difficultyScale: 0.35, dropChance: 0.8 },
+  { at: 0.25, monsters: 5, covers: 17, difficultyScale: 0.6, dropChance: 0.65 },
+  { at: 0.5, monsters: 6, covers: 14, difficultyScale: 0.75, dropChance: 0.5 },
+  { at: 0.75, monsters: 9, covers: 10, difficultyScale: 0.9, dropChance: 0.3 },
+  { at: 1.0, monsters: 22, covers: 2, difficultyScale: 1.0, dropChance: 0.0 },
+];
+
+const lerp = (a, b, t) => a + (b - a) * t;
+
+// Generation parameters for a dial position in [0, 1].
+export function difficultyToParams(dial) {
+  const d = Math.max(0, Math.min(1, dial));
+
+  let lower = CALIBRATION[0];
+  let upper = CALIBRATION[CALIBRATION.length - 1];
+  for (let i = 0; i < CALIBRATION.length - 1; i++) {
+    if (d >= CALIBRATION[i].at && d <= CALIBRATION[i + 1].at) {
+      lower = CALIBRATION[i];
+      upper = CALIBRATION[i + 1];
+      break;
+    }
+  }
+
+  const span = upper.at - lower.at;
+  const t = span === 0 ? 0 : (d - lower.at) / span;
+
+  return {
+    monsters: Math.round(lerp(lower.monsters, upper.monsters, t)),
+    covers: Math.round(lerp(lower.covers, upper.covers, t)),
+    difficultyScale: +lerp(lower.difficultyScale, upper.difficultyScale, t).toFixed(3),
+    dropChance: +lerp(lower.dropChance, upper.dropChance, t).toFixed(3),
+  };
+}
+
+// Describes a map that already exists, on the same 0..1 scale. Not the
+// inverse of the dial — it reads a generated floor rather than setting one —
+// but useful for spotting a seed that came out far from what was asked.
+//
+// Threat weighed against what the map hands over. Measured win rates by
+// band, over 270 floors at the shipped settings:
+//   under 1.5 -> 100%   under 2.5 -> 77%   under 3.5 -> 75%
+//   under 5   ->  56%   under 7   -> 50%   above    -> 29%
+export function pressureOf(state) {
+  const live = state.monsters.filter((m) => !m.dead);
+  const threat = live.reduce((sum, m) => sum + m.xp, 0);
+
+  const loot = [
+    ...state.items,
+    ...state.covers.map((c) => c.drop).filter(Boolean),
+    ...state.monsters.map((m) => m.drop).filter(Boolean),
+  ];
+  const gear = loot.reduce((sum, i) => sum + (i.dmg || 0) + (i.armour || 0), 0);
+
+  return threat / (1 + gear);
+}
