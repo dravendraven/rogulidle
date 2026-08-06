@@ -109,6 +109,18 @@ export function playDungeon(seed, makePolicy, options = {}) {
       { maxTurns, counts },
     );
 
+    // What the hero brought DOWN THE STAIRS, and what this floor actually
+    // held. Both are needed to read net challenge: the floor's cost is only
+    // meaningful against the hero who walked into it.
+    const arrivedWith = carry
+      ? { hp: carry.hp, hpMax: carry.hpMax, xp: carry.xp,
+        inventory: carry.inventory.map((i) => ({ ...i })), kills: carry.kills.slice() }
+      : { hp: 10, hpMax: 10, xp: 3, inventory: [], kills: [] };
+
+    // hpMax and xp survive a monster's death, so the roster can be read back
+    // from the finished state without regenerating the floor.
+    const roster = run.state.monsters.map((m) => ({ xp: m.xp, hp: m.hpMax }));
+
     const player = run.state.player;
     levels.push({
       level,
@@ -120,6 +132,8 @@ export function playDungeon(seed, makePolicy, options = {}) {
       hp: player.hp,
       xp: player.xp,
       gear: player.inventory.filter((i) => i.dmg || i.armour).length,
+      arrivedWith,
+      roster,
       replay: run.replay,
     });
 

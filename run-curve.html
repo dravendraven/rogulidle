@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rogulidle — difficulty curve</title>
+<style>
+  :root { --bg:#101216; --panel:#171a21; --line:#262b35; --text:#d8dee9; --dim:#7a8595;
+          --good:#8ce99a; --warn:#ffd8a8; --bad:#ff8787; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:1.5rem 1rem 3rem; background:var(--bg); color:var(--text);
+         font:13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .app { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size:.95rem; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); margin:0 0 .4rem; }
+  .lede { color:#5b6472; max-width:78ch; margin:0 0 1.2rem; }
+  fieldset { border:1px solid var(--line); border-radius:8px; background:var(--panel);
+             margin:0 0 1rem; padding:.8rem 1rem 1rem; }
+  legend { color:var(--dim); font-size:11px; letter-spacing:.1em; text-transform:uppercase; padding:0 .4rem; }
+  label { display:block; color:var(--dim); font-size:11px; margin:.5rem 0 .2rem; }
+  input, textarea { font:inherit; color:var(--text); background:#12151b; border:1px solid var(--line);
+    border-radius:5px; padding:.35rem .5rem; width:100%; }
+  .row { display:flex; gap:1rem; flex-wrap:wrap; }
+  .row > div { flex:1 1 130px; }
+  button { font:inherit; color:var(--text); background:#20242d; border:1px solid var(--line);
+    border-radius:6px; padding:.4rem .9rem; cursor:pointer; margin-right:.5rem; }
+  button[disabled] { opacity:.45; cursor:default; }
+  #status { color:var(--dim); margin:.6rem 0 1rem; }
+  table { border-collapse:collapse; width:100%; font-size:12px; }
+  th, td { text-align:right; padding:.32rem .5rem; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:var(--dim); font-weight:600; }
+  .bar { display:inline-block; height:9px; background:var(--good); border-radius:2px; vertical-align:middle; }
+  .bar.mid { background:var(--warn); }
+  .bar.hot { background:var(--bad); }
+  .note { color:#5b6472; font-size:11.5px; max-width:78ch; margin:.8rem 0 0; }
+</style>
+</head>
+<body>
+<div class="app">
+<h1>Difficulty curve</h1>
+<p class="lede">What each floor asks of the hero who walks into it, in hp.
+A gauge, not a controller — nothing here adjusts itself. Tune generation on
+one side and hero accumulation on the other, and watch what the combination
+does to <b>net challenge</b>.</p>
+
+<fieldset>
+  <legend>generation</legend>
+  <div class="row">
+    <div><label>dungeons</label><input id="count" type="number" value="12" min="1"></div>
+    <div><label>first seed</label><input id="firstSeed" type="number" value="9800"></div>
+    <div><label>armour scarcity (×)</label><input id="armourScarcity" type="number" value="1" step="0.5" min="0.1"></div>
+    <div><label>max turns / floor</label><input id="maxTurns" type="number" value="1200"></div>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>hero rules</legend>
+  <div class="row">
+    <div><label>xp grows on kills</label><input id="xpFromKills" type="text" value="true"></div>
+    <div><label>weapons widen the roll</label><input id="weaponsWidenRoll" type="text" value="false"></div>
+  </div>
+  <label>bot options (JSON)</label>
+  <textarea id="botOptions" rows="2">{}</textarea>
+</fieldset>
+
+<button id="run">Measure curve</button>
+<button id="stop" disabled>Stop</button>
+<p id="status">idle</p>
+<div id="out"></div>
+
+<p class="note"><b>net challenge</b> is the hp this floor is expected to cost,
+divided by the hp the hero arrived with. Above 1.00 the floor asks for more
+than the hero has. A healthy dungeon has this rising with depth; the shipped
+one falls, which is the whole problem.</p>
+</div>
+
+<script type="module">
+import { runCurve } from './src/analysis/curve.js';
+import { makeBot } from './src/bot/bot.js';
+
+const $ = (id) => document.getElementById(id);
+let stopping = false;
+const bool = (v) => String(v).trim() === 'true';
+
+function render(result) {
+  const rows = result.rows.filter((r) => r.arrivals);
+  const worst = Math.max(1, ...rows.map((r) => r.netChallenge));
+
+  const head = ['floor','reached','died','survive','hp in','gear','xp',
+    'hero cost','floor cost','net challenge'];
+  const table = document.createElement('table');
+  table.innerHTML = `<thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead>`;
+  const body = document.createElement('tbody');
+
+  for (const r of rows) {
+    const width = Math.round((r.netChallenge / worst) * 120);
+    const cls = r.netChallenge >= 1 ? 'hot' : (r.netChallenge >= 0.5 ? 'mid' : '');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.floor}</td><td>${r.arrivals}</td><td>${r.deaths}</td>`
+      + `<td>${r.survivalPct}%</td><td>${r.hpOnArrival}</td><td>${r.gearOnArrival}</td>`
+      + `<td>${r.xpOnArrival}</td><td>${r.heroCost}</td><td>${r.floorCost}</td>`
+      + `<td>${r.netChallenge} <span class="bar ${cls}" style="width:${width}px"></span></td>`;
+    body.append(tr);
+  }
+  table.append(body);
+
+  const summary = document.createElement('p');
+  summary.className = 'note';
+  summary.innerHTML = `<b>${result.cleared}/${result.runs}</b> dungeons cleared, `
+    + `average depth ${result.avgDepth}. Depths: ${result.depths.join(', ')}.`;
+
+  $('out').innerHTML = '';
+  $('out').append(table, summary);
+}
+
+$('stop').addEventListener('click', () => { stopping = true; $('status').textContent = 'stopping…'; });
+
+$('run').addEventListener('click', async () => {
+  stopping = false;
+  $('run').disabled = true; $('stop').disabled = false; $('out').innerHTML = '';
+
+  let botOptions;
+  try { botOptions = JSON.parse($('botOptions').value || '{}'); }
+  catch (error) {
+    $('status').textContent = 'bot options are not valid JSON: ' + error.message;
+    $('run').disabled = false; $('stop').disabled = true; return;
+  }
+
+  const count = Number($('count').value);
+  const dungeonOptions = {
+    maxTurns: Number($('maxTurns').value),
+    armourScarcity: Number($('armourScarcity').value),
+    xpFromKills: bool($('xpFromKills').value),
+    weaponsWidenRoll: bool($('weaponsWidenRoll').value),
+  };
+
+  // One dungeon at a time, yielding between, so the page stays alive and
+  // Stop works. A straight loop locks the tab for minutes.
+  const collected = [];
+  const started = performance.now();
+  try {
+    for (let i = 0; i < count && !stopping; i++) {
+      $('status').textContent = `dungeon ${i + 1}/${count}`;
+      collected.push(runCurve({
+        count: 1, firstSeed: Number($('firstSeed').value) + i,
+        makePolicy: (floor) => makeBot({ monsterCount: floor.monsterCount, ...botOptions }),
+        dungeonOptions,
+      }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    // Merge the per-dungeon results into one curve.
+    const merged = { runs: 0, cleared: 0, depths: [], rows: [] };
+    const acc = new Map();
+    for (const part of collected) {
+      merged.runs += part.runs; merged.cleared += part.cleared;
+      merged.depths.push(...part.depths);
+      for (const r of part.rows) {
+        if (!r.arrivals) continue;
+        const cur = acc.get(r.floor) || { floor: r.floor, arrivals: 0, deaths: 0,
+          hp: 0, gear: 0, xp: 0, heroCost: 0, floorCost: 0, net: 0 };
+        cur.arrivals += r.arrivals; cur.deaths += r.deaths;
+        cur.hp += r.hpOnArrival; cur.gear += r.gearOnArrival; cur.xp += r.xpOnArrival;
+        cur.heroCost += r.heroCost; cur.floorCost += r.floorCost; cur.net += r.netChallenge;
+        cur.samples = (cur.samples || 0) + 1;
+        acc.set(r.floor, cur);
+      }
+    }
+    merged.avgDepth = +(merged.depths.reduce((a,b)=>a+b,0) / merged.depths.length).toFixed(1);
+    merged.depths.sort((a,b)=>a-b);
+    merged.rows = [...acc.values()].sort((a,b)=>a.floor-b.floor).map((c) => ({
+      floor: c.floor, arrivals: c.arrivals, deaths: c.deaths,
+      survivalPct: +(100*(1 - c.deaths/c.arrivals)).toFixed(0),
+      hpOnArrival: +(c.hp/c.samples).toFixed(1),
+      gearOnArrival: +(c.gear/c.samples).toFixed(1),
+      xpOnArrival: +(c.xp/c.samples).toFixed(1),
+      heroCost: +(c.heroCost/c.samples).toFixed(2),
+      floorCost: +(c.floorCost/c.samples).toFixed(2),
+      netChallenge: +(c.net/c.samples).toFixed(2),
+    }));
+
+    render(merged);
+    const seconds = ((performance.now() - started) / 1000).toFixed(1);
+    $('status').textContent = (stopping ? 'stopped' : 'done') + ` in ${seconds}s`;
+  } catch (error) {
+    $('status').textContent = 'failed: ' + error.message;
+    console.error(error);
+  } finally {
+    $('run').disabled = false; $('stop').disabled = true;
+  }
+});
+</script>
+</body>
+</html>
