@@ -83,11 +83,15 @@ function carryFrom(player) {
 // ten is cleared.
 export function playDungeon(seed, makePolicy, options = {}) {
   const maxTurns = options.maxTurns ?? 1500;
+  // Both overridable so a tuning page can ask "what if" without editing
+  // the shipped model. Defaults ARE the shipped model.
+  const depth = options.levels ?? LEVELS;
+  const planFor = options.floorPlan ?? floorPlan;
   const levels = [];
   let carry = null;
 
-  for (let level = 1; level <= LEVELS; level++) {
-    const plan = floorPlan(level);
+  for (let level = 1; level <= depth; level++) {
+    const plan = planFor(level);
     const counts = {
       monsters: plan.monsters,
       covers: plan.covers,
@@ -159,5 +163,5 @@ export function playDungeon(seed, makePolicy, options = {}) {
     carry = carryFrom(player);
   }
 
-  return { seed, cleared: true, depth: LEVELS, levels, killedBy: null };
+  return { seed, cleared: true, depth, levels, killedBy: null };
 }

@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rogulidle — laboratory</title>
+<style>
+  :root { --bg:#101216; --panel:#171a21; --line:#262b35; --text:#d8dee9; --dim:#7a8595;
+          --faint:#5b6472; --good:#8ce99a; --warn:#ffd8a8; --bad:#ff8787; --accent:#74c0fc; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:1.5rem 1rem 4rem; background:var(--bg); color:var(--text);
+         font:13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .app { max-width: 1140px; margin: 0 auto; }
+  h1 { font-size:1rem; letter-spacing:.08em; text-transform:uppercase; color:var(--text); margin:0 0 .3rem; }
+  h2 { font-size:.8rem; letter-spacing:.1em; text-transform:uppercase; color:var(--accent);
+       margin:2rem 0 .6rem; padding-bottom:.3rem; border-bottom:1px solid var(--line); }
+  h3 { font-size:12px; color:var(--dim); margin:1.2rem 0 .4rem; letter-spacing:.04em; }
+  p { max-width:82ch; }
+  .lede { color:var(--faint); margin:0 0 1.4rem; }
+  .note { color:var(--faint); font-size:11.5px; max-width:82ch; }
+  fieldset { border:1px solid var(--line); border-radius:8px; background:var(--panel);
+             margin:0 0 .9rem; padding:.7rem 1rem 1rem; }
+  legend { color:var(--dim); font-size:11px; letter-spacing:.1em; text-transform:uppercase; padding:0 .4rem; }
+  label { display:block; color:var(--dim); font-size:11px; margin:.5rem 0 .2rem; }
+  label small { color:var(--faint); }
+  input, textarea, select { font:inherit; color:var(--text); background:#12151b;
+    border:1px solid var(--line); border-radius:5px; padding:.35rem .5rem; width:100%; }
+  .row { display:flex; gap:.9rem; flex-wrap:wrap; }
+  .row > div { flex:1 1 120px; }
+  button { font:inherit; color:var(--text); background:#20242d; border:1px solid var(--line);
+    border-radius:6px; padding:.45rem 1rem; cursor:pointer; margin-right:.5rem; }
+  button.primary { background:#25333f; border-color:#33495c; color:#cfe6ff; }
+  button[disabled] { opacity:.45; cursor:default; }
+  #status { color:var(--dim); margin:.7rem 0 1rem; }
+  table { border-collapse:collapse; width:100%; font-size:12px; margin:.3rem 0 .6rem; }
+  th, td { text-align:right; padding:.3rem .5rem; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:var(--dim); font-weight:600; }
+  td.thin { color:var(--faint); }
+  .bar { display:inline-block; height:9px; background:var(--good); border-radius:2px; vertical-align:middle; }
+  .bar.mid { background:var(--warn); }
+  .bar.hot { background:var(--bad); }
+  .formula { background:#0c0e12; border:1px solid var(--line); border-left:2px solid var(--accent);
+    border-radius:0 5px 5px 0; padding:.55rem .8rem; margin:.5rem 0; color:#cfe6ff;
+    white-space:pre-wrap; font-size:12px; overflow-x:auto; }
+  details { border:1px solid var(--line); border-radius:8px; background:var(--panel);
+    padding:.6rem 1rem; margin:0 0 1rem; }
+  details > summary { cursor:pointer; color:var(--dim); font-size:11px;
+    letter-spacing:.1em; text-transform:uppercase; }
+  details[open] > summary { margin-bottom:.6rem; }
+  .verdict { border:1px solid var(--line); border-radius:8px; background:var(--panel);
+    padding:.7rem 1rem; margin:.6rem 0 1rem; }
+  .verdict b { font-size:15px; }
+  .ok { color:var(--good); } .no { color:var(--bad); } .meh { color:var(--warn); }
+</style>
+</head>
+<body>
+<div class="app">
+
+<h1>Rogulidle laboratory</h1>
+<p class="lede">Every dial in one place, with the formulas they feed. The
+reference below is read out of <code>src/sim/balance.js</code> at load, so it
+cannot drift from what the game runs.</p>
+
+<!-- ========================== REFERENCE ========================== -->
+
+<details open>
+<summary>Reference — how the game works</summary>
+
+<h2>Combat</h2>
+<p class="note">A blow always goes attacker → defender and there is
+<b>no counter-attack</b>: only whoever moved gets to strike. A duel is
+therefore strictly alternating, and the one who lands the first blow has a
+real edge.</p>
+<div class="formula" id="fCombat"></div>
+<p class="note">The defender never enters the damage formula. Armour is a
+second bar rather than damage reduction, so how tough a target is changes
+<i>how many blows they survive</i>, never how hard a blow lands.</p>
+<div class="formula" id="fArmour"></div>
+<p class="note">Monsters get <b>no weapon bonus</b> from what they carry —
+their loot lives in a <code>drop</code> field, not an inventory, so a dragon
+holding an axe still swings for its own xp.</p>
+
+<h3>Creature table</h3>
+<p class="note"><code>xp</code> is both the damage stat and the number drawn
+above the head. <code>activation</code> is how close the hero must be before
+it wakes and gives chase. The last column is what actually predicts the cost
+of killing it.</p>
+<table id="tMonsters"></table>
+
+<h3>Which roster is harder</h3>
+<p class="note">Summing xp predicts nothing — six rats and one genie both
+total 6, and one costs nothing while the other costs twenty hp. A strong
+creature hits harder <i>and</i> lasts longer, and those multiply, so
+individual strength scales cost quadratically while <b>count scales it
+linearly</b>. That is why creature count is the dial.</p>
+<div class="formula" id="fMass"></div>
+
+<h2>Map generation</h2>
+<p class="note">A 32×32 grid dug by ROT.js, then populated in a fixed order.
+The order matters: each step removes the tile it used from the free pool, so
+shuffling it changes every map.</p>
+<div class="formula" id="fMap"></div>
+<p class="note"><b>Depth</b> is the spine of generation. It is path distance,
+not straight-line distance, so a room two tiles away through a long corridor
+counts as far. Everything placed on the map is then scaled by it.</p>
+<div class="formula" id="fDepth"></div>
+
+<h3>Creature placement</h3>
+<div class="formula" id="fMonsterPick"></div>
+<p class="note"><b>Strength</b> is that <code>strength</code> term, and it is
+the one input whose name says least about it. It does not make creatures
+tougher; it decides <i>how far up the table the deepest corner of the map can
+reach</i>. At 0.35 the far end of a floor tops out around index 3 (boar), so
+even a twenty-creature floor is made of small things. At 1.0 the far corner
+reaches the t-rex. Strength is fixed across floors on purpose — floors differ
+by how many creatures they hold, not by what kind.</p>
+
+<h3>Cover loot</h3>
+<div class="formula" id="fCover"></div>
+<p class="note">This inverts Rogule's original, which made distant covers
+<i>less</i> likely to hold anything (spec quirk §9.3). Either way the
+probability sweeps 10%→100%; we point it so that walking deeper pays.</p>
+
+<h2>Loot and scarcity</h2>
+<p class="note">The two sources hold different things, by design: <b>covers
+give weapons and armour</b> — gear comes from exploring — and <b>corpses give
+health potions only</b> — healing comes from killing. Both use the same
+scarcity rule.</p>
+<div class="formula" id="fScarcity"></div>
+<table id="tItems"></table>
+<p class="note">Rogule filled the leftover space with chestnuts, mushrooms and
+gems: junk that existed only for the share card, and 53% of all loot. They are
+gone. The dilution they caused was doing real work, so it stayed — as an
+<b>empty</b> slot you set deliberately instead of a side effect of what was in
+the deck.</p>
+
+<h2>The difficulty model</h2>
+<div class="formula" id="fModel"></div>
+<p class="note">Covers are <b>flat</b> by default, and that is the load-bearing
+choice. Tie them to the creature count and loot grows exactly as fast as
+threat — but the hero <i>accumulates</i> while each floor's threat is spent
+once, so the hero wins. Measured that way, floor ten handed over 64 items and
+capacity reached 118 against a starting 10. Set <code>covers per creature</code>
+above 0 below to watch it happen.</p>
+
+<h2>Reading the results</h2>
+<p class="note"><b>net challenge</b> = damage the floor dealt ÷ capacity the
+hero walked in with. At 1.00 the floor costs exactly everything they had. This
+is measured, not modelled: it counts what actually happened, so being swarmed,
+cornered or hit while crossing a room is all in there. The earlier modelled
+version priced clean one-on-one duels and read 0.23 on a floor that killed four
+heroes out of seven.</p>
+<p class="note"><b>capacity</b> is the column to watch. If it climbs faster than
+damage does, the hero is outgrowing the dungeon and the descent gets easier no
+matter what the floors do. It should fall.</p>
+<p class="note"><b>reached</b> is the honest sample size. Deep floors are
+measured only on heroes who got that far, because those are the only heroes who
+ever meet them — a net challenge off two runs means much less than one off
+thirty. This survivor bias is not a flaw here; it is the player's real
+experience. For a floor measured in isolation, use <code>floorHardness</code>,
+which drops a fixed reference hero straight into it.</p>
+</details>
+
+<!-- ========================== CONTROLS ========================== -->
+
+<h2>Simulation</h2>
+
+<fieldset>
+  <legend>floor model</legend>
+  <div class="row">
+    <div><label>creatures, floor 1 <small>(base)</small></label><input id="monstersBase" type="number" step="1" min="0"></div>
+    <div><label>creatures added per floor</label><input id="monstersPerLevel" type="number" step="1"></div>
+    <div><label>covers per floor <small>(flat)</small></label><input id="covers" type="number" step="1" min="0"></div>
+    <div><label>covers per creature <small>(extra)</small></label><input id="coversPerMonster" type="number" step="0.5" min="0"></div>
+    <div><label>strength <small>(0–1, table reach)</small></label><input id="strength" type="number" step="0.05" min="0" max="1"></div>
+    <div><label>floors</label><input id="levels" type="number" step="1" min="1" max="40"></div>
+  </div>
+  <div class="row">
+    <div><label>weapon scarcity <small>(1 in N)</small></label><input id="weaponScarcity" type="number" step="0.5" min="1"></div>
+    <div><label>armour scarcity</label><input id="armourScarcity" type="number" step="0.5" min="1"></div>
+    <div><label>potion scarcity</label><input id="potionScarcity" type="number" step="0.5" min="1"></div>
+    <div><label>corpse drop chance <small>(0–1)</small></label><input id="dropChance" type="number" step="0.05" min="0" max="1"></div>
+  </div>
+  <p class="note" id="preview"></p>
+</fieldset>
+
+<fieldset>
+  <legend>run</legend>
+  <div class="row">
+    <div><label>dungeons</label><input id="runs" type="number" value="24" min="1"></div>
+    <div><label>first seed</label><input id="firstSeed" type="number" value="90000"></div>
+    <div><label>max turns / floor</label><input id="maxTurns" type="number" value="1500"></div>
+    <div><label>bot options <small>(JSON)</small></label><input id="botOptions" type="text" value="{}"></div>
+  </div>
+</fieldset>
+
+<button id="run" class="primary">Run simulation</button>
+<button id="stop" disabled>Stop</button>
+<button id="reset">Reset to shipped</button>
+<p id="status">idle</p>
+
+<div id="verdict"></div>
+<div id="out"></div>
+
+<script type="module">
+import {
+  COVER_DIFFICULTY_SCALE, HIT_CHANCE, ITEM_TABLE, MAP_SIZE, MONSTER_SKIP_CHANCE,
+  MONSTER_TABLE, MONSTER_WEIGHTS, PLAYER_HP, PLAYER_XP, POTION_HEAL,
+  WEAPONS_WIDEN_ROLL, XP_FROM_KILLS, CORRIDOR_LENGTH,
+} from './src/sim/balance.js';
+import { DEFAULT_MODEL, makeFloorPlan } from './src/sim/difficulty.js';
+import { itemWeights } from './src/sim/spawn.js';
+import { descentCurve } from './src/analysis/hardness.js';
+
+const $ = (id) => document.getElementById(id);
+
+/* ---------------------- reference, rendered from source ---------------------- */
+
+const pct = (x) => (100 * x).toFixed(0) + '%';
+
+$('fCombat').textContent = WEAPONS_WIDEN_ROLL
+  ? `sides  = attacker.xp + weapons          weapons WIDEN the die
+roll   = uniform integer in 0 .. sides-1
+hit    = true with probability ${HIT_CHANCE.toFixed(3)}  (5/6)
+damage = roll x hit
+
+expected damage = ${HIT_CHANCE.toFixed(3)} x (sides - 1) / 2
+
+The floor stays at ZERO however well armed, so a good hero still whiffs,
+and each point of weapon is worth HALF a point of expected damage.`
+  : `roll   = uniform integer in 0 .. attacker.xp-1
+damage = (roll + weapons) x hit        weapons raise the FLOOR`;
+
+$('fArmour').textContent = `effectiveHp = hp + armour
+
+applyDamage(blow):
+    soaked  = min(armour, blow)         armour absorbs first
+    armour -= soaked
+    hp     -= blow - soaked             the overflow reaches hp
+
+Armour is SPENT, never regenerated. Only picking up a shield refills it,
+and hpMax never moves. There is no passive regeneration of any kind:
+hp is non-renewable except by drinking a potion (+${POTION_HEAL}).`;
+
+const monsterRows = MONSTER_TABLE.map((m, i) => {
+  const mass = m.hp * Math.max(0, m.xp - 1);
+  return `<tr><td>${i}</td><td>${m.emoji} ${m.name}</td><td>${m.xp}</td>`
+    + `<td>${m.hp}</td><td>${m.activation}</td>`
+    + `<td>${(HIT_CHANCE * (m.xp - 1) / 2).toFixed(2)}</td><td>${mass}</td></tr>`;
+}).join('');
+$('tMonsters').innerHTML =
+  `<thead><tr><th>idx</th><th>creature</th><th>xp</th><th>hp</th>`
+  + `<th>wakes at</th><th>dmg/blow</th><th>hp x (xp-1)</th></tr></thead>`
+  + `<tbody>${monsterRows}</tbody>`;
+
+$('fMass').textContent = `threat mass = SUM over living creatures of  hp x (xp - 1)
+
+  3 ghosts (xp 3)   sum xp 9    mass 18     real cost  5.85 hp
+  6 rats   (xp 1)   sum xp 6    mass  0     real cost  0.00 hp
+  1 genie  (xp 6)   sum xp 6    mass 50     real cost 20.63 hp
+  1 dragon (xp 8)   sum xp 8    mass 105    real cost 44.63 hp
+
+So 3 creatures of xp 3 are NOT equivalent to one of xp 9.`;
+
+$('fMap').textContent = `grid            ${MAP_SIZE} x ${MAP_SIZE}, ROT.js Digger
+corridors       ${CORRIDOR_LENGTH[0]}..${CORRIDOR_LENGTH[1]} tiles
+creature turn   skipped ${pct(MONSTER_SKIP_CHANCE)} of the time
+
+populate order (each step removes the tile it used):
+  1. hero        a uniformly random free tile
+  2. shrine      centre of the FURTHEST room by path length
+  3. covers      rooms only, never corridors
+  4. creatures   anywhere still free`;
+
+$('fDepth').textContent = `depth(tile) = pathLength(hero -> tile) / pathLength(hero -> furthest room)
+
+  0.0 = where the hero starts        1.0 = the shrine`;
+
+$('fMonsterPick').textContent = `difficulty = min(1, depth x strength)
+index      = floor(difficulty x ${MONSTER_TABLE.length - 1})
+creature   = weighted pick around that index:
+
+     offset ${MONSTER_WEIGHTS.map(([o]) => String(o).padStart(4)).join('')}
+     weight ${MONSTER_WEIGHTS.map(([, w]) => String(w).padStart(4)).join('')}
+
+Offsets clamped past either end of the table have their weights SUMMED.
+Rogule overwrites instead, which makes the intended creature rarer than
+its neighbour at the ends (spec quirk 9.2).
+
+carries loot = true with probability `
+  + `dropChance, drawn from the POTION pool only`;
+
+$('fCover').textContent = `emptiness  = 1 - depth(tile)           covers are richer FAR from the hero
+P(loot)    = 1 - ${COVER_DIFFICULTY_SCALE} x emptiness
+
+  at the hero's feet   P = ${(1 - COVER_DIFFICULTY_SCALE).toFixed(2)}
+  at the shrine        P = 1.00
+
+Then the scarcity draw runs; it can still come up EMPTY.
+A cover costs 2 turns: one to open, one to step onto the loot.`;
+
+$('fScarcity').textContent = `Each source splits its mass evenly between the kinds it can hold
+(covers: weapon + armour, so 1/2 each; corpses: potion, so 1/1).
+Within a kind, items split by 1/value, so the stronger one stays rarer.
+
+    mass(item) = (1 / kinds) / scarcity[kind] x shareOfKind
+    P(empty)   = 1 - sum of all mass
+
+  scarcity 1  a kind takes its full share and nothing comes up empty
+  scarcity 3  it takes a third of that, and the rest is empty`;
+
+const itemRows = ITEM_TABLE.map((it) => {
+  const effect = it.heal ? `heals ${it.heal}`
+    : it.armour ? `+${it.armour} armour bar`
+    : `+${it.dmg} to the die`;
+  return `<tr><td>${it.emoji} ${it.name}</td><td>${it.kind}</td>`
+    + `<td>${effect}</td><td>${it.value}</td>`
+    + `<td class="thin">${it.kind === 'potion' ? 'corpses' : 'covers'}</td></tr>`;
+}).join('');
+$('tItems').innerHTML =
+  `<thead><tr><th>item</th><th>kind</th><th>effect</th>`
+  + `<th>value <small>(higher = rarer)</small></th><th>source</th></tr></thead>`
+  + `<tbody>${itemRows}</tbody>`;
+
+$('fModel').textContent = `creatures(N) = base + (N - 1) x perLevel
+covers(N)    = flat + perCreature x creatures(N)
+strength     = fixed for every floor
+
+hero starts   hp ${PLAYER_HP}, xp ${PLAYER_XP}, armour 0, empty handed
+xp from kills ${XP_FROM_KILLS ? 'ON' : 'OFF — gear and potions are the only progression'}`;
+
+/* ---------------------- inputs ---------------------- */
+
+const FIELDS = ['monstersBase','monstersPerLevel','covers','coversPerMonster',
+  'strength','levels','weaponScarcity','armourScarcity','potionScarcity','dropChance'];
+
+function loadDefaults() {
+  for (const f of FIELDS) $(f).value = String(DEFAULT_MODEL[f]);
+  showPreview();
+}
+
+function readModel() {
+  const model = {};
+  for (const f of FIELDS) model[f] = Number($(f).value);
+  return model;
+}
+
+// What the model asks for, before a single game is played. Catches a
+// nonsense setting in a second instead of after a two-minute run.
+function showPreview() {
+  const model = readModel();
+  const plan = makeFloorPlan(model);
+  const empty = (kind, source) => {
+    const w = itemWeights({ weapon: model.weaponScarcity, armour: model.armourScarcity,
+      potion: model.potionScarcity }, source);
+    const none = w.find(([item]) => item === null);
+    return pct(none ? none[1] : 0);
+  };
+  const parts = [];
+  for (const lvl of [1, Math.ceil(model.levels / 2), model.levels]) {
+    const p = plan(lvl);
+    parts.push(`floor ${lvl}: ${p.monsters} creatures, ${p.covers} covers`);
+  }
+  $('preview').innerHTML = parts.join(' · ')
+    + `<br>a cover comes up empty ${empty('weapon','cover')} of the time, `
+    + `a corpse ${empty('potion','monster')} — before the depth roll.`;
+}
+
+for (const f of FIELDS) $(f).addEventListener('input', showPreview);
+$('reset').addEventListener('click', loadDefaults);
+loadDefaults();
+
+/* ---------------------- results ---------------------- */
+
+function render(result) {
+  const worst = Math.max(1, ...result.rows.map((r) => r.netChallenge));
+
+  const head = ['floor','creatures','covers','threat mass','reached','survived',
+    'stalled','capacity in','gear in','damage','kills','turns','net challenge'];
+  const table = document.createElement('table');
+  table.innerHTML = `<thead><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr></thead>`;
+  const body = document.createElement('tbody');
+
+  for (const r of result.rows) {
+    const width = Math.round((r.netChallenge / worst) * 110);
+    const cls = r.netChallenge >= 1 ? 'hot' : (r.netChallenge >= 0.6 ? 'mid' : '');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.level}</td><td>${r.monsters}</td>`
+      + `<td class="thin">${r.covers}</td><td class="thin">${r.threatMass}</td>`
+      + `<td>${r.reached}</td><td>${r.survivalPct}%</td>`
+      + `<td class="thin">${r.stalled || ''}</td>`
+      + `<td>${r.capacity}</td><td class="thin">${r.gear}</td>`
+      + `<td>${r.damagePerRun}</td><td class="thin">${r.kills}</td>`
+      + `<td class="thin">${r.turns}</td>`
+      + `<td>${r.netChallenge.toFixed(2)} <span class="bar ${cls}" style="width:${width}px"></span></td>`;
+    body.append(tr);
+  }
+  table.append(body);
+
+  // The requirement, stated as a pass or a fail rather than left for the
+  // reader to squint at: floor 1 easiest, last floor hardest.
+  //
+  // Judged on the DEEPEST FLOOR WITH A REAL SAMPLE, not simply the last row.
+  // Deep rows routinely rest on one or two heroes, and a verdict drawn off a
+  // single run is worse than no verdict — it looks authoritative and moves
+  // every time the seed does.
+  const MIN_SAMPLE = Math.max(3, Math.ceil(result.runs * 0.2));
+  const solid = result.rows.filter((r) => r.reached >= MIN_SAMPLE);
+  const first = result.rows[0];
+  const last = solid.length > 1 ? solid[solid.length - 1] : result.rows[result.rows.length - 1];
+  const rise = +(last.netChallenge - first.netChallenge).toFixed(2);
+  const rises = rise > 0.15;
+
+  const capIn = first.capacity, capOut = last.capacity;
+  const capUp = capOut > capIn + 0.5;
+  const capFlat = Math.abs(capOut - capIn) <= 0.5;
+
+  const verdict = document.createElement('div');
+  verdict.className = 'verdict';
+  verdict.innerHTML =
+    `<b class="${rises ? 'ok' : 'no'}">${rises ? 'RISES' : 'DOES NOT RISE'}</b> — `
+    + `net challenge ${first.netChallenge.toFixed(2)} on floor ${first.level} `
+    + `to ${last.netChallenge.toFixed(2)} on floor ${last.level} `
+    + `(${rise >= 0 ? '+' : ''}${rise.toFixed(2)}).`
+    + (last.level < result.levels
+      ? ` <span class="thin">Floor ${result.levels} is shown in the table but not
+         judged on — only ${result.rows[result.rows.length - 1].reached} hero(es)
+         reached it, against the ${MIN_SAMPLE} this verdict requires.</span>`
+      : '')
+    + `<br><span class="${capUp ? 'no' : 'ok'}">capacity ${capIn} → ${capOut}</span> — `
+    + (capUp
+      ? 'the hero is OUTGROWING the dungeon; deeper floors get easier no matter how many creatures they hold.'
+      : capFlat
+        ? 'the hero holds level, so the floors gain on them only as fast as they grow.'
+        : 'the hero reaches the bottom weaker than they started, which is what keeps the floors ahead of them.')
+    + `<br><span class="thin">${result.cleared}/${result.runs} dungeons cleared, `
+    + `average depth ${result.avgDepth} of ${result.levels}. `
+    + `Depths: ${result.depths.join(', ')}.</span>`;
+
+  $('verdict').innerHTML = '';
+  $('verdict').append(verdict);
+  $('out').innerHTML = '';
+  $('out').append(table);
+
+  const note = document.createElement('p');
+  note.className = 'note';
+  note.textContent = 'Columns marked faint are context, not outcomes. '
+    + '"stalled" counts floors that hit the turn limit without a death or a '
+    + 'shrine — a handful is the bot dithering, a lot means the turn budget '
+    + 'is too tight for floors this size.';
+  $('out').append(note);
+}
+
+let stopping = false;
+$('stop').addEventListener('click', () => {
+  stopping = true; $('status').textContent = 'stopping…';
+});
+
+$('run').addEventListener('click', async () => {
+  stopping = false;
+  $('run').disabled = true; $('stop').disabled = false;
+  $('out').innerHTML = ''; $('verdict').innerHTML = '';
+
+  let botOptions;
+  try { botOptions = JSON.parse($('botOptions').value || '{}'); }
+  catch (error) {
+    $('status').textContent = 'bot options are not valid JSON: ' + error.message;
+    $('run').disabled = false; $('stop').disabled = true; return;
+  }
+
+  const model = readModel();
+  const runs = Number($('runs').value);
+  const firstSeed = Number($('firstSeed').value);
+  const maxTurns = Number($('maxTurns').value);
+  const started = performance.now();
+
+  // One dungeon per slice, yielding between, so Stop works and the tab
+  // stays alive. A straight loop locks it for minutes.
+  const parts = [];
+  try {
+    for (let i = 0; i < runs && !stopping; i++) {
+      $('status').textContent = `dungeon ${i + 1}/${runs}`;
+      parts.push(descentCurve({
+        runs: 1, firstSeed: firstSeed + i, maxTurns, model, botOptions,
+      }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    if (!parts.length) { $('status').textContent = 'stopped before anything ran'; return; }
+
+    render(mergeParts(parts, model));
+    const seconds = ((performance.now() - started) / 1000).toFixed(1);
+    $('status').textContent = (stopping ? 'stopped' : 'done')
+      + ` — ${parts.length} dungeons in ${seconds}s`;
+  } catch (error) {
+    $('status').textContent = 'failed: ' + error.message;
+    console.error(error);
+  } finally {
+    $('run').disabled = false; $('stop').disabled = true;
+  }
+});
+
+// Each slice measured one dungeon, so the per-floor figures have to be
+// re-averaged over their true weights rather than averaged again.
+function mergeParts(parts, model) {
+  const acc = new Map();
+  const depths = [];
+  let cleared = 0;
+
+  for (const part of parts) {
+    cleared += part.cleared;
+    depths.push(...part.depths);
+    for (const r of part.rows) {
+      const cur = acc.get(r.level) || { level: r.level, monsters: r.monsters,
+        covers: r.covers, reached: 0, survived: 0, stalled: 0,
+        capacity: 0, gear: 0, mass: 0, damage: 0, kills: 0, turns: 0 };
+      cur.reached += r.reached;
+      cur.survived += Math.round(r.reached * r.survivalPct / 100);
+      cur.stalled += r.stalled;
+      // These arrive as per-run means over `reached` runs; weight them back.
+      cur.capacity += r.capacity * r.reached;
+      cur.gear += r.gear * r.reached;
+      cur.mass += r.threatMass * r.reached;
+      cur.damage += r.damagePerRun * r.reached;
+      cur.kills += r.kills * r.reached;
+      cur.turns += r.turns * r.reached;
+      acc.set(r.level, cur);
+    }
+  }
+
+  const rows = [...acc.values()].sort((a, b) => a.level - b.level).map((c) => ({
+    level: c.level, monsters: c.monsters, covers: c.covers,
+    reached: c.reached, stalled: c.stalled,
+    survivalPct: +((100 * c.survived) / c.reached).toFixed(0),
+    capacity: +(c.capacity / c.reached).toFixed(1),
+    gear: +(c.gear / c.reached).toFixed(1),
+    threatMass: +(c.mass / c.reached).toFixed(0),
+    damagePerRun: +(c.damage / c.reached).toFixed(1),
+    kills: +(c.kills / c.reached).toFixed(1),
+    turns: +(c.turns / c.reached).toFixed(0),
+    netChallenge: +(c.damage / c.capacity).toFixed(2),
+  }));
+
+  return {
+    rows, runs: parts.length, cleared, levels: model.levels,
+    depths: depths.slice().sort((a, b) => a - b),
+    avgDepth: +(depths.reduce((a, b) => a + b, 0) / depths.length).toFixed(1),
+    rise: rows.length > 1
+      ? +(rows[rows.length - 1].netChallenge - rows[0].netChallenge).toFixed(2)
+      : 0,
+  };
+}
+</script>
+</div>
+</body>
+</html>

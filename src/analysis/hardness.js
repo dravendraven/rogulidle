@@ -23,6 +23,7 @@
 import { newGame, playGame } from '../sim/game.js';
 import { makeBot } from '../bot/bot.js';
 import { floorPlan, playDungeon } from '../sim/dungeon.js';
+import { DEFAULT_MODEL, makeFloorPlan } from '../sim/difficulty.js';
 import { PLAYER_HP, PLAYER_XP } from '../sim/balance.js';
 
 // A yardstick, not a realistic hero. Fixed so that a number measured today
@@ -42,8 +43,11 @@ function heroCopy(hero) {
 
 // Survival rate of the reference hero on one floor.
 export function floorHardness(level, options = {}) {
-  const { runs = 20, firstSeed = 70000, maxTurns = 1200, hero = REFERENCE_HERO } = options;
-  const plan = floorPlan(level);
+  const {
+    runs = 20, firstSeed = 70000, maxTurns = 1200,
+    hero = REFERENCE_HERO, model,
+  } = options;
+  const plan = model ? makeFloorPlan(model)(level) : floorPlan(level);
 
   let survived = 0;
   let cleared = 0;
@@ -103,36 +107,78 @@ export function hardnessCurve(levels, options = {}) {
 // ever meet them. The `reached` column is the honest sample size — a 0.40
 // off two runs means much less than a 0.40 off thirty.
 export function descentCurve(options = {}) {
-  const { runs = 30, firstSeed = 90000, maxTurns = 1500 } = options;
+  const {
+    runs = 30, firstSeed = 90000, maxTurns = 1500,
+    model = {}, botOptions = {}, onProgress,
+  } = options;
+
+  const planFor = makeFloorPlan(model);
+  const levels = model.levels ?? DEFAULT_MODEL.levels;
   const floors = [];
+  const depths = [];
+  let cleared = 0;
 
   for (let i = 0; i < runs; i++) {
     const dungeon = playDungeon(firstSeed + i,
-      (floor) => makeBot({ monsterCount: floor.monsterCount }), { maxTurns });
+      (floor) => makeBot({ monsterCount: floor.monsterCount, ...botOptions }),
+      { maxTurns, levels, floorPlan: planFor });
+
+    depths.push(dungeon.depth);
+    if (dungeon.cleared) cleared++;
 
     for (const lvl of dungeon.levels) {
       const row = floors[lvl.level - 1] || (floors[lvl.level - 1] = {
-        level: lvl.level, monsters: lvl.monsters,
-        reached: 0, died: 0, damage: 0, capacity: 0,
+        level: lvl.level, monsters: lvl.monsters, covers: planFor(lvl.level).covers,
+        reached: 0, died: 0, stalled: 0, damage: 0, capacity: 0,
+        turns: 0, kills: 0, gear: 0, mass: 0,
       });
       row.reached++;
       if (lvl.outcome === 'died') row.died++;
+      else if (lvl.outcome !== 'ascended') row.stalled++;
       row.damage += lvl.damage;
       row.capacity += lvl.arrivedWith.hp + (lvl.arrivedWith.armour || 0);
+      row.turns += lvl.turns;
+      // `lvl.kills` is the hero's LIFETIME count — the kills list rides the
+      // stairs down. Subtract what they arrived with to get this floor's.
+      row.kills += lvl.kills - lvl.arrivedWith.kills.length;
+      row.gear += lvl.arrivedWith.inventory.filter((it) => it.dmg || it.armour).length;
+      // What the floor was actually built out of, in the currency that
+      // predicts duel cost. Lets a floor that came out soft be told apart
+      // from a bot that played it well.
+      row.mass += lvl.roster.reduce((sum, m) => sum + m.hp * Math.max(0, m.xp - 1), 0);
     }
+
+    if (onProgress) onProgress(i + 1, runs);
   }
 
-  return floors.map((row) => ({
+  const rows = floors.map((row) => ({
     level: row.level,
     monsters: row.monsters,
+    covers: row.covers,
     reached: row.reached,
     survivalPct: +((100 * (row.reached - row.died)) / row.reached).toFixed(0),
+    stalled: row.stalled,
     // Mean capacity the hero brought down the stairs. If this climbs faster
     // than damage does, the descent gets easier and the requirement fails.
     capacity: +(row.capacity / row.reached).toFixed(1),
+    gear: +(row.gear / row.reached).toFixed(1),
+    threatMass: +(row.mass / row.reached).toFixed(0),
     damagePerRun: +(row.damage / row.reached).toFixed(1),
+    turns: +(row.turns / row.reached).toFixed(0),
+    kills: +(row.kills / row.reached).toFixed(1),
     netChallenge: +(row.damage / row.capacity).toFixed(2),
   }));
+
+  return {
+    rows, runs, cleared, levels,
+    depths: depths.slice().sort((a, b) => a - b),
+    avgDepth: +(depths.reduce((a, b) => a + b, 0) / depths.length).toFixed(1),
+    // Does the curve actually rise? The whole requirement in one number:
+    // net challenge of the last floor minus the first.
+    rise: rows.length > 1
+      ? +(rows[rows.length - 1].netChallenge - rows[0].netChallenge).toFixed(2)
+      : 0,
+  };
 }
 
 // Sanity check that a floor was generated near what was asked for.

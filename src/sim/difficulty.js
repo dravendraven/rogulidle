@@ -68,6 +68,47 @@ export function floorParams(level) {
   };
 }
 
+// The same model with every constant turned into a field, so a page can
+// vary it without editing this file. `floorParams` above is this with the
+// shipped defaults — that stays the single source of truth for what the
+// game actually runs; this is for asking "what if".
+export const DEFAULT_MODEL = {
+  monstersBase: MONSTERS_BASE,
+  monstersPerLevel: MONSTERS_PER_LEVEL,
+  covers: COVERS_PER_FLOOR,
+  // Covers tied to the creature count. Zero by default, and deliberately:
+  // at 2 per monster loot grows exactly as fast as threat, and since the
+  // hero accumulates while each floor's threat is spent once, the hero
+  // runs away with it. Exposed so that result stays re-checkable.
+  coversPerMonster: 0,
+  strength: MONSTER_STRENGTH,
+  dropChance: DROP_CHANCE,
+  weaponScarcity: SCARCITY,
+  armourScarcity: SCARCITY,
+  potionScarcity: SCARCITY,
+  levels: 10,
+};
+
+// Turns a model into the `floorPlan(level)` function the dungeon wants.
+// Level is 1-based here, matching dungeon.js rather than floorParams.
+export function makeFloorPlan(model = {}) {
+  const m = { ...DEFAULT_MODEL, ...model };
+  return (level) => {
+    const monsters = Math.max(0,
+      Math.round(m.monstersBase + Math.max(0, level - 1) * m.monstersPerLevel));
+    return {
+      level,
+      monsters,
+      covers: Math.max(0, Math.round(m.covers + m.coversPerMonster * monsters)),
+      difficultyScale: m.strength,
+      dropChance: m.dropChance,
+      weaponScarcity: m.weaponScarcity,
+      armourScarcity: m.armourScarcity,
+      potionScarcity: m.potionScarcity,
+    };
+  };
+}
+
 // For the single-floor spectator, which still thinks in a 0..1 slider.
 // Maps the slider onto the same ladder the dungeon walks.
 export const DIAL_MAX_LEVEL = 9;
