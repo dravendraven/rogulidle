@@ -38,6 +38,18 @@ export function expectedDamage(attackerXp, weapons, armour) {
 // Both dice are always drawn, even on a miss, so that the stream advances
 // the same way the original's does (engine.cljs:257-258).
 export function resolveAttack(state, attacker, defender) {
+  // `state.sim` marks a hypothetical world the bot is thinking inside, never
+  // the real game (test/tests.js guards that). There, blows land for their
+  // average instead of being rolled: the search stays deterministic, no
+  // branch on luck, and no lucky streak fools the bot into a bad plan.
+  if (state.sim) {
+    const damage = expectedDamage(
+      attacker.xp, weaponDamage(attacker), armourValue(defender),
+    );
+    defender.hp = Math.max(0, defender.hp - damage);
+    return { damage, killed: defender.hp <= 0, hit: true };
+  }
+
   const hit = drawChance(state, 'combat', HIT_CHANCE) ? 1 : 0;
   const roll = drawInt(state, 'combat', 0, Math.max(0, attacker.xp - 1));
   const weapons = weaponDamage(attacker);

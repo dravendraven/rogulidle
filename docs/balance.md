@@ -136,6 +136,33 @@ of `MONSTER_TABLE`, which happens to be the ogre.
 a cover is worth the two turns it costs. Measured, not guessed, but it will
 move if `COVER_LOOT_RICHER_FAR` or the cover count changes.
 
+### Danger and fighting
+
+| Name | Value | Status |
+|---|---|---|
+| `DANGER_FALLOFF` | 0.5 | **INITIAL GUESS** |
+| `CROWD_PENALTY` | 6 | **INITIAL GUESS** |
+| `DUEL_SAFETY_MARGIN` | 0.7 | **INITIAL GUESS** |
+
+`DANGER_FALLOFF` is how fast a monster's menace fades per tile. Lower makes
+the bot bolder about squeezing past; higher makes it give a wide berth.
+It is the single biggest lever on routing behaviour.
+
+`CROWD_PENALTY` prices rule R2 — being reachable by two monsters at once.
+It is a price rather than a ban because a ban can leave a goal unreachable.
+
+### Tactical search (off by default)
+
+| Name | Value | Status |
+|---|---|---|
+| `TACTICAL_DEPTH` | 3 | **INITIAL GUESS** |
+| `TACTICAL_RANGE` | 4 | **INITIAL GUESS** |
+| `TACTICAL_OVERRIDE_MARGIN` | 0.5 | **INITIAL GUESS** |
+
+These only matter with `tactical: true`, which is **off** — the search was
+built, measured, and did not pay for itself. See bot-strategy §4.4 before
+switching it on.
+
 `STEP_COST_IN_HP` is the practical form of the λ dial from bot-strategy §0.
 At 0.01 the bot walks 100 extra steps to save 1 hp. Raise it and it gets
 hasty and reckless; lower it and it gets patient and slow. This is the

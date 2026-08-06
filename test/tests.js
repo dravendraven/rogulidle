@@ -166,6 +166,34 @@ test('step does not mutate the state it was given', () => {
   assertEq(JSON.stringify(state.map), mapBefore, 'map changed');
 });
 
+test('the simulation flag never leaks into a real game', () => {
+  // `sim` makes the engine stop rolling dice — averages instead of hits,
+  // monsters that never skip. It exists only for the bot's lookahead, and
+  // a real run that switched it on would be silently deterministic.
+  const fresh = newGame(7);
+  assert(!fresh.sim, 'newGame produced a sim state');
+  assert(!step(fresh, 'rest').state.sim, 'step turned the flag on');
+
+  const run = playGame(7, makeWanderPolicy(7), { maxTurns: 150 });
+  assert(!run.state.sim, 'a played run ended with the flag set');
+});
+
+test('the simulation flag makes combat deterministic', () => {
+  // Same state stepped twice must give the same hp once dice are off.
+  const map = tinyMap(['#####', '#...#', '#####']);
+  const base = makeState({
+    map, playerPos: [2, 1], monsters: [dummy('ghost', [1, 1], { activation: 99 })],
+  });
+  const rolled = [step(base, 'rest').state.player.hp, step({ ...base, rng: { ...base.rng, combat: 999 } }, 'rest').state.player.hp];
+
+  const simmed = { ...base, sim: true };
+  const a = step(simmed, 'rest').state.player.hp;
+  const b = step({ ...simmed, rng: { ...simmed.rng, combat: 999 } }, 'rest').state.player.hp;
+  assertEq(a, b, 'sim combat still depended on the dice');
+  assert(a < PLAYER_HP, 'sim combat dealt no damage at all');
+  assert(rolled.length === 2, 'sanity');
+});
+
 // ***** combat, spec §5 ***** //
 
 test('a rat can never deal damage', () => {

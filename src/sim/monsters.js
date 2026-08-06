@@ -40,7 +40,10 @@ export function updateMonsters(state, map) {
     // die is never rolled. Drawing it anyway would desync every later roll,
     // so the order here is load-bearing. FAITHFUL engine.cljs:350.
     if (path.length >= monster.activation) continue;
-    if (drawChance(state, 'combat', MONSTER_SKIP_CHANCE)) continue;
+    // Inside a hypothetical world the bot assumes monsters never skip a
+    // turn: pessimistic in both directions, and it keeps the search free of
+    // chance branches (docs/bot-strategy.md §4.3).
+    if (!state.sim && drawChance(state, 'combat', MONSTER_SKIP_CHANCE)) continue;
 
     // path[0] is the monster itself, so path[1] is the step it wants. With
     // no route at all the path is empty and it simply rests.

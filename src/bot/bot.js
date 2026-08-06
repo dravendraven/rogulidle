@@ -9,7 +9,9 @@
 
 import {
   DUEL_SAFETY_MARGIN, GOAL_STICKINESS, MONSTER_COUNT, STEP_COST_IN_HP,
+  TACTICAL_OVERRIDE_MARGIN, TACTICAL_RANGE,
 } from '../sim/balance.js';
+import { scoreActions } from './tactics.js';
 import { duelCost } from './duel.js';
 import { expectedCoverValue, valueByItemName } from './loot.js';
 import { dangerField } from './threat.js';
@@ -80,6 +82,14 @@ function cheapestOf(field, candidates) {
 
 function frontierGoals(belief) {
   return frontiers(belief).map((pos) => ({ kind: 'frontier', pos }));
+}
+
+function monsterWithin(belief, field, steps) {
+  for (const monster of liveMonsters(belief)) {
+    const away = field.steps.get(key(monster.pos));
+    if (away !== undefined && away <= steps) return true;
+  }
+  return false;
 }
 
 // Loot worth collecting, priced in hp and net of the walk to reach it.
@@ -231,6 +241,11 @@ export function makeBot(options = {}) {
     loot: true,
     refuseLostFights: true,
     threat: true,
+    // OFF by default. Built, works, and does not pay: it fights visibly
+    // better (kills 2.83 -> 3.33) but wins no more often, at about ten
+    // times the cost per run. See docs/bot-strategy.md §4.4.
+    tactical: false,
+    overrideMargin: TACTICAL_OVERRIDE_MARGIN,
     ...options,
   };
   let goal = null;
@@ -244,7 +259,10 @@ export function makeBot(options = {}) {
     //
     // Live monsters stay passable so they can be targeted at all; the bot
     // chooses among them by cost anyway.
-    const danger = options.threat
+    // `settings`, not `options` — reading the raw argument here meant a
+    // plain makeBot() silently ran with danger pricing switched off, and
+    // only the measurements that passed the flag explicitly ever saw it.
+    const danger = settings.threat
       ? dangerField(belief)
       : { menace: new Map(), crowd: new Map(), priceAt: () => 0 };
 
@@ -266,6 +284,40 @@ export function makeBot(options = {}) {
       goal = null;
       return 'rest';
     }
-    return actionToward(belief.player.pos, route[1]);
+
+    const planned = actionToward(belief.player.pos, route[1]);
+
+    // Two timescales (docs/bot-strategy.md §4.3). Out in the open the route
+    // already is the answer and simulating would be wasted work; with
+    // something close by, the next few turns decide who lands the first
+    // blow and whether the bot reaches the corridor before being cut off.
+    //
+    // The search VETOES rather than chooses: it only gets to overrule the
+    // plan when some other step is clearly safer. Left to pick freely it
+    // walks in circles, because it can see three turns of danger but not
+    // that the run has to end.
+    if (settings.tactical && monsterWithin(belief, field, TACTICAL_RANGE)) {
+      // Steps only, NOT danger-priced. The simulation already shows the
+      // damage by dropping hp at the leaf; pricing danger into the
+      // remaining distance as well would count it twice — and worse, it
+      // made the tiles around a target monster expensive, so closing in on
+      // the thing the bot had decided to kill scored as moving away.
+      const costToGoal = dijkstra(goal.pos, passable,
+        () => STEP_COST_IN_HP).cost;
+
+      const scores = scoreActions(belief, costToGoal, settings.depth);
+      const plannedScore = scores.get(planned);
+
+      if (plannedScore !== undefined) {
+        let bestAction = planned;
+        let bestScore = plannedScore + settings.overrideMargin;
+        for (const [action, score] of scores) {
+          if (score > bestScore) { bestScore = score; bestAction = action; }
+        }
+        return bestAction;
+      }
+    }
+
+    return planned;
   };
 }

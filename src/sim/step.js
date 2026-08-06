@@ -28,6 +28,9 @@ function cloneState(state) {
     outcome: state.outcome,
     killedBy: state.killedBy,
     nextId: state.nextId,
+    // Carried through, or a hypothetical world would turn back into a real
+    // one after a single step.
+    sim: state.sim,
     map: state.map,
     rng: { ...state.rng },
     player: {

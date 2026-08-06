@@ -126,6 +126,22 @@ export const DANGER_FALLOFF = 0.5;
 // time, with the tactical search.
 export const CROWD_PENALTY = 6;
 
+// GUESS — how many turns ahead the tactical search simulates, and how close
+// a monster has to be before it bothers. Away from monsters the route is
+// already the answer and searching is wasted work; nearby it decides who
+// lands the first blow and whether the bot reaches the corridor in time.
+// Range is deliberately tight: the search costs about 5ms a turn and only
+// earns it in contact. Beyond a few tiles the danger-priced route already
+// gives the same answer for a fraction of the price.
+export const TACTICAL_DEPTH = 3;
+export const TACTICAL_RANGE = 4;
+
+// GUESS — how much better, in hp, an alternative must look before the bot
+// abandons the step its plan wanted. The tactical search only holds a veto
+// (see src/bot/tactics.js); given a free choice it dithers forever, because
+// backing away always beats walking into a fight it is required to have.
+export const TACTICAL_OVERRIDE_MARGIN = 0.5;
+
 // GUESS — a fight is worth starting only while its EXPECTED cost stays
 // under this share of current hp. Expected is an average: a duel costing
 // exactly all the hp there is loses about half the time, so the bot needs

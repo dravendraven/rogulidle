@@ -454,6 +454,45 @@ algo ao alcance, então a média fica bem abaixo disso.
 Como a run é calculada inteira antes de ser exibida (P2), esse custo é
 invisível para quem assiste.
 
+### 4.4 A busca tática foi construída e NÃO se pagou
+
+Resultado negativo, registrado para não ser refeito por engano. Está em
+`src/bot/tactics.js` e `src/bot/hypothetical.js`, atrás da opção
+`tactical`, **desligada por padrão**.
+
+Medido em 12 seeds, profundidade 3:
+
+|  | vitórias | kills | turnos | ms/run |
+|---|---|---|---|---|
+| desligada | 5 | 2,83 | 97 | 78 |
+| ligada | 4 | 3,33 | 157 | 740 |
+
+Luta visivelmente melhor e não ganha mais. Dez vezes o custo.
+
+Três armadilhas encontradas no caminho, todas de avaliação e nenhuma de
+simulação — o motor como previsor funcionou exatamente como projetado:
+
+1. **Escolher em vez de vetar.** Com passo valendo 0,01 HP e um golpe 0,83,
+   recuar sempre pontua melhor que avançar. Solta, a busca anda em círculos:
+   turnos 128 → 513, vitórias 3/6 → 0/6. Ela precisa de poder de veto sobre
+   o plano estratégico, nunca de escolha livre.
+2. **Perigo contado duas vezes.** O `costToGoal` estava ponderado por
+   perigo, então os tiles em volta do alvo ficavam caros e *aproximar-se do
+   monstro que ela decidiu matar* pontuava como afastar-se. A simulação já
+   mostra o dano no HP; a distância restante deve ser só passos.
+3. **Dano causado era invisível.** HP perdido era custo puro e HP tirado do
+   monstro não valia nada, então nenhuma luta se justificava. Creditar o
+   dano causado ao par com o recebido consertou o dithering (turnos 364 →
+   157, travamentos 4 → 1). Faz sentido: sob R0 todo monstro precisa morrer,
+   então HP tirado de um vale quase o mesmo que HP guardado.
+
+O que provavelmente falta, para quem retomar: o horizonte de 3 turnos é
+curto demais para as decisões que justificariam a busca — recuar até um
+corredor, escolher onde aceitar o encontro. Essas levam de 5 a 10 turnos e
+o custo cresce rápido. Vale mais atacar o problema de raio longo (genie,
+vampiro) na camada estratégica, decidindo *onde* travar a luta, do que
+simular fundo.
+
 ### A incerteza que sobra, e como medi-la
 
 Duas fontes, nenhuma precisando de constante mágica:
