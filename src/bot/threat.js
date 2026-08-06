@@ -9,9 +9,9 @@
 //   - menace, the damage a monster is expected to deal, faded by distance
 //   - crowding, rule R2: being reachable by two at once (bot-strategy §2)
 
-import { CROWD_PENALTY, DANGER_FALLOFF } from '../sim/balance.js';
+import { CROWD_PENALTY, DANGER_FALLOFF, EXPOSURE_WEIGHT } from '../sim/balance.js';
 import { armourValue, expectedDamage } from '../sim/combat.js';
-import { believedWalkable, flood, key } from './nav.js';
+import { believedWalkable, exposure, flood, key } from './nav.js';
 
 // A monster is awake with respect to a tile when standing there would put
 // the player inside its chase radius. Outside it, the monster is provably
@@ -23,13 +23,15 @@ function isAwakeAt(monster, distance) {
   return distance + 1 < monster.activation;
 }
 
-export function dangerField(belief) {
+export function dangerField(belief, useExposure = false) {
   const player = belief.player;
   const armour = armourValue(player);
   const passable = believedWalkable(belief);
 
-  const menace = new Map();     // tile -> expected hp lost per turn there
-  const crowd = new Map();      // tile -> how many could reach it at once
+  const menace = new Map();       // tile -> expected hp lost per turn there
+  const crowd = new Map();        // tile -> how many could reach it at once
+  const exposedTiles = new Map(); // tile -> ways in, worked out on demand
+  const reach = new Map();        // monster id -> its step count to each tile
 
   for (const monster of belief.monsters.values()) {
     if (monster.dead) continue;
@@ -40,9 +42,10 @@ export function dangerField(belief) {
     // Flooding from the monster gives its distance to every tile at once.
     // Stop at the chase radius: past it the monster is provably motionless
     // and contributes nothing, so there is no reason to keep walking.
-    const reach = flood(monster.pos, passable, monster.activation);
+    const spread = flood(monster.pos, passable, monster.activation);
+    reach.set(monster.id, spread.dist);
 
-    for (const [tile, distance] of reach.dist) {
+    for (const [tile, distance] of spread.dist) {
       if (!isAwakeAt(monster, distance)) continue;
 
       menace.set(tile, (menace.get(tile) || 0) + bite * DANGER_FALLOFF ** distance);
@@ -53,10 +56,31 @@ export function dangerField(belief) {
   return {
     menace,
     crowd,
+    // Per-monster step counts, so the bot can work out whether it would
+    // reach a chokepoint before its pursuer does.
+    reach,
     // Price of spending one turn on a tile.
     priceAt(x, y) {
       const tile = x + ',' + y;
-      let price = menace.get(tile) || 0;
+      const bite = menace.get(tile) || 0;
+      // Nothing awake here: a cold tile is free whatever its shape, so the
+      // bot has no reason to hug walls when there is nothing to hide from.
+      if (bite === 0) return 0;
+
+      // Optional: charge more for danger in the open, on the theory that
+      // four ways in means four monsters can reach you.
+      //
+      // Measured and it LOSES — about eleven points of win rate. It makes
+      // the bot so shy of open ground that it takes long way rounds and
+      // ends up spending more turns exposed than the shortcut would have
+      // cost. Kept behind the flag so the finding is reproducible.
+      let price = bite;
+      if (useExposure) {
+        const ways = exposedTiles.has(tile)
+          ? exposedTiles.get(tile)
+          : exposedTiles.set(tile, exposure(belief, [x, y])).get(tile);
+        price = bite * (1 + EXPOSURE_WEIGHT * (ways - 1));
+      }
       if ((crowd.get(tile) || 0) >= 2) price += CROWD_PENALTY;
       return price;
     },

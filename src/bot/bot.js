@@ -9,14 +9,15 @@
 
 import {
   DUEL_SAFETY_MARGIN, GOAL_STICKINESS, MONSTER_COUNT, STEP_COST_IN_HP,
-  TACTICAL_OVERRIDE_MARGIN, TACTICAL_RANGE,
+  HOLD_RANGE, TACTICAL_OVERRIDE_MARGIN, TACTICAL_RANGE,
 } from '../sim/balance.js';
 import { scoreActions } from './tactics.js';
 import { duelCost } from './duel.js';
 import { expectedCoverValue, valueByItemName } from './loot.js';
 import { dangerField } from './threat.js';
 import {
-  actionToward, believedWalkable, dijkstra, flood, frontiers, key, routeTo,
+  actionToward, believedWalkable, dijkstra, exposure, frontiers, key, routeTo,
+  unkey,
 } from './nav.js';
 
 // Hp it costs to walk to a tile, danger included. Infinity when unreachable.
@@ -82,6 +83,49 @@ function cheapestOf(field, candidates) {
 
 function frontierGoals(belief) {
   return frontiers(belief).map((pos) => ({ kind: 'frontier', pos }));
+}
+
+// Where to receive the attack.
+//
+// bot-strategy §2: a corridor is not a trap, it is the tool that forces the
+// duel to be one against one, and the bot should SEEK one when hunted. In a
+// room every tile has three or four ways in, so refusing to advance is not
+// enough — it has to walk to the chokepoint on purpose.
+//
+// A tile only qualifies if the bot gets there first, with a tile to spare;
+// arriving level with the pursuer means being caught in the doorway rather
+// than standing in it.
+function standoffTile(belief, field, danger, hunters, radius) {
+  const here = belief.player.pos;
+  const hereWays = exposure(belief, here);
+
+  let best = null;
+  let bestWays = hereWays;
+  let bestSteps = Infinity;
+
+  for (const [tile, mine] of field.steps) {
+    if (mine > radius) continue;
+
+    const pos = unkey(tile);
+    const ways = exposure(belief, pos);
+    if (ways >= bestWays) continue;          // no better than where it stands
+
+    // Must beat every pursuer to it, with a turn in hand.
+    let reachableFirst = true;
+    for (const hunter of hunters) {
+      const theirs = danger.reach.get(hunter.id);
+      const gap = theirs ? theirs.get(tile) : undefined;
+      if (gap !== undefined && mine + 1 >= gap) { reachableFirst = false; break; }
+    }
+    if (!reachableFirst) continue;
+
+    if (ways < bestWays || (ways === bestWays && mine < bestSteps)) {
+      best = pos;
+      bestWays = ways;
+      bestSteps = mine;
+    }
+  }
+  return best;
 }
 
 function monsterWithin(belief, field, steps) {
@@ -234,6 +278,8 @@ function stillValid(goal, belief, field) {
   return distance > 0;                            // standing on it means done
 }
 
+const samePosition = (a, b) => a[0] === b[0] && a[1] === b[1];
+
 export function makeBot(options = {}) {
   const settings = {
     pick: 'cheapest',
@@ -241,6 +287,11 @@ export function makeBot(options = {}) {
     loot: true,
     refuseLostFights: true,
     threat: true,
+    // Both OFF. Corridor-seeking is the one rule from bot-strategy §2 that
+    // measurement refused to support, across four variants. See §2.1 there
+    // before switching either on.
+    chokepoint: false,
+    exposurePricing: false,
     // OFF by default. Built, works, and does not pay: it fights visibly
     // better (kills 2.83 -> 3.33) but wins no more often, at about ten
     // times the cost per run. See docs/bot-strategy.md §4.4.
@@ -249,8 +300,12 @@ export function makeBot(options = {}) {
     ...options,
   };
   let goal = null;
+  let standoff = null;
 
   return function decide(belief) {
+    // Forget the chosen ground as soon as nothing is hunting: it is only
+    // meaningful while someone is coming.
+    if (!liveMonsters(belief).length) standoff = null;
     const passable = believedWalkable(belief);
 
     // Price the board, then price every route across it. The field holds
@@ -263,8 +318,8 @@ export function makeBot(options = {}) {
     // plain makeBot() silently ran with danger pricing switched off, and
     // only the measurements that passed the flag explicitly ever saw it.
     const danger = settings.threat
-      ? dangerField(belief)
-      : { menace: new Map(), crowd: new Map(), priceAt: () => 0 };
+      ? dangerField(belief, settings.exposurePricing)
+      : { menace: new Map(), crowd: new Map(), reach: new Map(), priceAt: () => 0 };
 
     const field = dijkstra(belief.player.pos, passable,
       (x, y) => STEP_COST_IN_HP + danger.priceAt(x, y));
@@ -286,6 +341,57 @@ export function makeBot(options = {}) {
     }
 
     const planned = actionToward(belief.player.pos, route[1]);
+
+    // Let it come to you. bot-strategy §2: a corridor is not a trap, it is
+    // the tool that forces the duel to be one against one — so when
+    // something is hunting the bot, walking out into the open to meet it
+    // gives away the only positional advantage the game offers.
+    //
+    // It costs no tempo either. Monsters act after the player, so whoever
+    // closes the final tile, the player still lands the first blow.
+    //
+    // Only while the hunter is still two or more tiles off: once it is
+    // adjacent, resting would just be standing there being hit.
+    if (settings.chokepoint && goal.kind === 'monster') {
+      const hunters = liveMonsters(belief).filter((m) => {
+        const away = field.steps.get(key(m.pos));
+        return away !== undefined && away <= HOLD_RANGE && away + 1 < m.activation;
+      });
+
+      // Only when genuinely outnumbered. A corridor buys exactly one thing:
+      // it stops a second attacker reaching the bot. Against a lone pursuer
+      // it buys nothing, while the walk over there is paid in blows taken
+      // on the way — and measurement said two-or-more is only about a
+      // quarter of deaths, so charging every approach for it loses money.
+      if (hunters.length >= 2) {
+        // Pick a spot ONCE and commit to it. Recomputing every turn makes
+        // the bot reposition forever: the pursuer moves, a marginally
+        // better tile appears, and it never gets round to fighting.
+        // Measured that way — turns 138 -> 281, six runs out of sixty
+        // ran out of turns entirely, win rate 55% -> 45%.
+        if (standoff && !field.steps.has(key(standoff))) standoff = null;
+        if (standoff && samePosition(standoff, belief.player.pos)) standoff = null;
+        if (!standoff) {
+          standoff = standoffTile(belief, field, danger, hunters, HOLD_RANGE);
+        }
+
+        if (standoff) {
+          const toStand = routeTo(field, standoff);
+          if (toStand.length >= 2) {
+            return actionToward(belief.player.pos, toStand[1]);
+          }
+        }
+
+        // Already on the best ground: hold it and let them come. Only while
+        // they are still two or more tiles off — once adjacent, resting is
+        // just standing there being hit.
+        const nearest = Math.min(...hunters.map((m) => field.steps.get(key(m.pos))));
+        if (nearest >= 2
+          && exposure(belief, belief.player.pos) <= exposure(belief, route[1])) {
+          return 'rest';
+        }
+      }
+    }
 
     // Two timescales (docs/bot-strategy.md §4.3). Out in the open the route
     // already is the answer and simulating would be wasted work; with

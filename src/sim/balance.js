@@ -118,6 +118,17 @@ export const COVER_LOOT_CHANCE = 0.60;
 // bolder about squeezing past; higher makes it give monsters a wide berth.
 export const DANGER_FALLOFF = 0.5;
 
+// GUESS — how much an open tile multiplies the danger already on it. A tile
+// with four ways in is charged (1 + 3 * this) times its menace; a dead end
+// is charged plain. This is what makes the bot SEEK corridors when hunted
+// rather than merely tolerate them (bot-strategy §2).
+export const EXPOSURE_WEIGHT = 0.5;
+
+// GUESS — how close a hunter must be before the bot stops walking out to
+// meet it and lets it come. Waiting costs no tempo: monsters move after the
+// player, so whoever closes the last tile, the player still strikes first.
+export const HOLD_RANGE = 5;
+
 // GUESS — extra hp charged for standing where two or more awake monsters
 // could reach the bot at once. This is rule R2 (bot-strategy §2) as a
 // strong price rather than a ban: a ban can leave a goal unreachable and

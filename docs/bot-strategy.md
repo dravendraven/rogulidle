@@ -154,6 +154,42 @@ inexplorado carrega risco de surpresa.
 
 Duas correções ao que estava escrito acima, ambas por medição.
 
+### 2.1 Procurar corredor foi medido e NÃO se paga
+
+A metade desta regra que dizia "o bot deve *procurar* corredores quando puxa
+aggro de mais de um monstro" foi construída em quatro variantes. Nenhuma
+sobreviveu à medição. Está em `src/bot/bot.js` atrás de `chokepoint` e
+`exposurePricing`, **ambas desligadas**.
+
+Medido em 60–100 seeds, contra uma linha de base de 55–57%:
+
+| Variante | Vitórias | Turnos | Travadas |
+|---|---|---|---|
+| linha de base | 55–57% | 136 | 0 |
+| só segurar posição | 56,7% | 141 | 0 |
+| procurar gargalo sempre | **45,0%** | 281 | 6 |
+| procurar + comprometer | **41,7%** | 306 | 7 |
+| procurar só quando cercado | 56,0% | 137 | 0 |
+| preço por exposição no tile | **46,0%** | 135 | 0 |
+
+Por que falha, e a lição vale mais que a feature:
+
+**Um corredor compra exatamente uma coisa** — impedir que um segundo
+atacante alcance o bot. Contra um perseguidor sozinho ele não compra nada,
+e a caminhada até lá é paga em golpes levados no caminho. Como estar
+cercado por dois é só ~27% das mortes, cobrar o reposicionamento em toda
+aproximação perde dinheiro. Mirar só no caso de dois zera o prejuízo e não
+gera lucro: o ganho posicional aparece tarde demais para mudar o desfecho.
+
+**O preço por exposição foi o pior de todos** e por um motivo não óbvio:
+tornar o bot avesso a terreno aberto o faz dar voltas longas, e ele acaba
+passando *mais* turnos exposto do que o atalho custaria. Evitar perigo por
+tile não é o mesmo que evitar perigo por run.
+
+O texto acima — "estrangulamento é bom quando você está do lado certo dele"
+— continua verdadeiro como física do jogo. Só não compensa o custo de
+chegar lá.
+
 **A regra R2 virou preço, não proibição.** Uma proibição pode deixar o alvo
 inalcançável e exige maquinário de fallback; um preço alto (`CROWD_PENALTY`)
 é evitado sempre que existe alternativa e degrada sozinho quando não existe.
