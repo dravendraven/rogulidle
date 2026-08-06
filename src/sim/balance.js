@@ -86,6 +86,17 @@ export const COVER_DIFFICULTY_SCALE = 0.9;  // FAITHFUL generator.cljs:238
 // directions: from 10% at one end to 100% at the other.
 export const COVER_LOOT_RICHER_FAR = true;
 
-// ***** bot (unused until P3) ***** //
+// ***** bot ***** //
 
 export const BOT_KNOWS_MONSTER_COUNT = true;  // bot-strategy 4.1
+
+// GUESS — how much hp one step of walking is worth, which is the practical
+// form of the lambda dial in bot-strategy 0. At 0.01 the bot will walk 100
+// extra steps to save 1 hp. Raise it for a hasty bot, lower it for a
+// patient one.
+export const STEP_COST_IN_HP = 0.01;
+
+// GUESS — a new target must beat the current one by this factor before the
+// bot switches. Without it, two near-equal targets make it dither on the
+// spot instead of committing to either.
+export const GOAL_STICKINESS = 1.15;

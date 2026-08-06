@@ -59,6 +59,13 @@ Do not rewrite text files with PowerShell `Get-Content` / `Set-Content`:
 it reads UTF-8 as ANSI and turns every em dash into mojibake. Use the
 editing tools.
 
+## Measuring note
+Dynamic `import()` caches modules per page load. Re-importing after an edit
+in the same page silently returns the OLD module, so a batch measured that
+way is testing code you are not running. Always reload the page between an
+edit and a measurement. This has already produced one round of confidently
+wrong numbers.
+
 ## Workflow
 - Small commits with clear messages after each working change.
 - After building something, briefly explain what was created and where, in

@@ -18,6 +18,21 @@ export function armourValue(entity) {
   return entity.inventory.reduce((sum, item) => sum + (item.armour || 0), 0);
 }
 
+// Average damage of one blow, without rolling for it. The bot plans with
+// this (docs/bot-strategy.md §3) and it must stay in step with the roll
+// below — one formula, one place.
+//
+// The roll is uniform over 0 .. xp-1, armour is subtracted before the
+// clamp, and the whole thing only lands `HIT_CHANCE` of the time.
+export function expectedDamage(attackerXp, weapons, armour) {
+  const sides = Math.max(1, attackerXp);
+  let total = 0;
+  for (let roll = 0; roll < sides; roll++) {
+    total += Math.max(0, roll + weapons - armour);
+  }
+  return HIT_CHANCE * (total / sides);
+}
+
 // One blow. Mutates `defender.hp` and returns what happened.
 //
 // Both dice are always drawn, even on a miss, so that the stream advances

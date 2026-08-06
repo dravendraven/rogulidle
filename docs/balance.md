@@ -120,9 +120,14 @@ Not used until P3. Listed here so there is one place to look.
 
 | Name | Value | Status |
 |---|---|---|
-| `LAMBDA_RISK` | steps the bot pays per +1pp win chance | **INITIAL GUESS**, unset |
 | `BOT_KNOWS_MONSTER_COUNT` | `true` | decided — see bot-strategy §4.1 |
+| `STEP_COST_IN_HP` | 0.01 | **INITIAL GUESS** |
+| `GOAL_STICKINESS` | 1.15 | **INITIAL GUESS** |
 
-`LAMBDA_RISK` is deliberately unset until there is a bot to measure. See
-bot-strategy §0: it is the risk-aversion dial and doubles as visible
-personality.
+`STEP_COST_IN_HP` is the practical form of the λ dial from bot-strategy §0.
+At 0.01 the bot walks 100 extra steps to save 1 hp. Raise it and it gets
+hasty and reckless; lower it and it gets patient and slow. This is the
+knob that shows up as personality on screen, and the main thing P4 sweeps.
+
+`GOAL_STICKINESS` stops the bot dithering between two near-equal targets:
+a new one has to be 15% better before it switches.
