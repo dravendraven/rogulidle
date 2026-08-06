@@ -31,6 +31,7 @@ function cloneState(state) {
     // Carried through, or a hypothetical world would turn back into a real
     // one after a single step.
     sim: state.sim,
+    attackWhenAdjacent: state.attackWhenAdjacent,
     map: state.map,
     rng: { ...state.rng },
     player: {

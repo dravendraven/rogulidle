@@ -49,6 +49,8 @@ export function observe(state) {
   return {
     turn: state.turn,
     outcome: state.outcome,
+    // The rules in force are known to the player, not discovered.
+    attackWhenAdjacent: state.attackWhenAdjacent,
     // You always know your own hp, xp, inventory and step count.
     player: copyEntity(state.player),
     visible,
@@ -109,6 +111,7 @@ export function foldBelief(belief, obs) {
   b.turn = obs.turn;
   b.outcome = obs.outcome;
   b.player = obs.player;
+  b.attackWhenAdjacent = obs.attackWhenAdjacent;
 
   // Terrain never changes, so once seen it is known for good.
   for (const [key, kind] of obs.tiles) {

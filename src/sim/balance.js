@@ -46,6 +46,21 @@ export const MONSTER_TABLE = [
 ];
 
 export const MONSTER_SKIP_CHANCE = 0.10;       // FAITHFUL engine.cljs:353
+
+// Divergence, off by default. In Rogule a monster attacks by MOVING into
+// the player, so standing beside one is only dangerous when it chooses to
+// step in — and a monster with no route (blocked, or a pathfinding quirk)
+// stands there harmlessly while adjacent.
+//
+// With this on, adjacency alone means being hit.
+//
+// MEASURED: it changes almost nothing. Over 50 floors the two rules gave
+// byte-identical results. An adjacent monster is two path steps from the
+// player, which is under every activation in the table (the smallest is 3),
+// so under the faithful rule it already walks into the player every turn.
+// Adjacency ALREADY means being attacked. Kept as a switch because the
+// equivalence is worth being able to re-check, not because it does anything.
+export const MONSTERS_ATTACK_WHEN_ADJACENT = false;
 export const MONSTER_DROP_CHANCE = 0.50;       // FAITHFUL generator.cljs:275
 export const MONSTER_DIFFICULTY_SCALE = 0.75;  // FAITHFUL generator.cljs:262
 
@@ -157,6 +172,19 @@ export const TACTICAL_RANGE = 4;
 // (see src/bot/tactics.js); given a free choice it dithers forever, because
 // backing away always beats walking into a fight it is required to have.
 export const TACTICAL_OVERRIDE_MARGIN = 0.5;
+
+// GUESS — hp charged for undoing the step just taken.
+//
+// Without it the veto has no memory and two-cycles forever: the plan says
+// "attack", the veto refuses and steps aside, next turn the plan says
+// "go back", the veto agrees, and the bot ping-pongs between two tiles
+// until the turn limit. Seen in about one run in nine.
+//
+// DEFAULT 0 — it does NOT fix it. Sweeping 0 / 1.5 / 6 moved the reversal
+// rate only 0.238 -> 0.205 and cost a few points of win rate. The two-cycle
+// is a symptom and the cause is still unidentified; left as a dial so the
+// next attempt starts from measured ground rather than from a hunch.
+export const REVERSAL_PENALTY = 0;
 
 // GUESS — a fight is worth starting only while its EXPECTED cost stays
 // under this share of current hp. Expected is an average: a duel costing

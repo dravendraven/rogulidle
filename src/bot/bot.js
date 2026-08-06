@@ -9,8 +9,8 @@
 
 import {
   CROWD_PENALTY, DANGER_FALLOFF, DUEL_SAFETY_MARGIN, GOAL_STICKINESS,
-  HOLD_RANGE, MONSTER_COUNT, STEP_COST_IN_HP, TACTICAL_OVERRIDE_MARGIN,
-  TACTICAL_RANGE,
+  HOLD_RANGE, MONSTER_COUNT, REVERSAL_PENALTY, STEP_COST_IN_HP,
+  TACTICAL_OVERRIDE_MARGIN, TACTICAL_RANGE,
 } from '../sim/balance.js';
 import { scoreActions } from './tactics.js';
 import { duelCost } from './duel.js';
@@ -286,6 +286,8 @@ function stillValid(goal, belief, field, total) {
 
 const samePosition = (a, b) => a[0] === b[0] && a[1] === b[1];
 
+const OPPOSITE = { up: 'down', down: 'up', left: 'right', right: 'left' };
+
 export function makeBot(options = {}) {
   const settings = {
     // How many monsters the floor holds. The bot is told (bot-strategy
@@ -318,10 +320,12 @@ export function makeBot(options = {}) {
     // docs/bot-strategy.md §4.4.
     tactical: true,
     overrideMargin: TACTICAL_OVERRIDE_MARGIN,
+    reversalPenalty: REVERSAL_PENALTY,
     ...options,
   };
   let goal = null;
   let standoff = null;
+  let lastAction = null;
 
   return function decide(belief) {
     // Forget the chosen ground as soon as nothing is hunting: it is only
@@ -449,12 +453,22 @@ export function makeBot(options = {}) {
         let bestAction = planned;
         let bestScore = plannedScore + settings.overrideMargin;
         for (const [action, score] of scores) {
-          if (score > bestScore) { bestScore = score; bestAction = action; }
+          // Undoing the last step has to be clearly worth it. The veto has
+          // no memory of its own, so without this it two-cycles: the plan
+          // says attack, the veto steps aside, the plan says go back, the
+          // veto agrees, forever.
+          const penalty = action === OPPOSITE[lastAction] ? settings.reversalPenalty : 0;
+          if (score - penalty > bestScore) {
+            bestScore = score - penalty;
+            bestAction = action;
+          }
         }
+        lastAction = bestAction;
         return bestAction;
       }
     }
 
+    lastAction = planned;
     return planned;
   };
 }

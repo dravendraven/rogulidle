@@ -36,6 +36,8 @@ export function beliefToState(belief) {
 
   return {
     sim: true,
+    // The bot has to imagine the same rules it is playing under.
+    attackWhenAdjacent: belief.attackWhenAdjacent,
     seed: 0,
     turn: belief.turn,
     outcome: null,
