@@ -15,11 +15,11 @@ Read, in this order:
 Design questions get answered from those docs or by asking the owner, never
 by inventing defaults.
 
-**Current phase: P1** (update this line manually as phases complete)
+**Current phase: P2** (update this line manually as phases complete)
 
 - **P0** — rules spec. Done.
 - **P1** — headless deterministic engine. `step()` and the belief model,
-  no rendering.
+  no rendering. Done.
 - **P2** — renderer and replay player: emoji grid, spectator controls,
   continuous run loop.
 - **P3** — the bot.
@@ -46,11 +46,18 @@ Only build what the current phase requires.
   P4 can measure what relaxing them would cost.
 
 ## Running it
-`python tools/dev-server.py` then open <http://localhost:8141/run-tests.html>.
+`python tools/dev-server.py` then open <http://localhost:8141/index.html>
+to watch, or `/run-tests.html` to check the rules.
 Port 8141, because the sibling roguidle project already uses 8137 and 8138.
-That server disables browser caching, so edits to `src/sim/*.js` actually
-take effect. Opening the file directly will not work — ES modules need
-`http://`.
+That server disables browser caching, so edits to `src/*.js` actually take
+effect. Opening the file directly will not work — ES modules need `http://`.
+
+`?seed=anything` on either page makes the whole session reproducible.
+
+## Editing note
+Do not rewrite text files with PowerShell `Get-Content` / `Set-Content`:
+it reads UTF-8 as ANSI and turns every em dash into mojibake. Use the
+editing tools.
 
 ## Workflow
 - Small commits with clear messages after each working change.

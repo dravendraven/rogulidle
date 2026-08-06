@@ -78,15 +78,23 @@ export function playGame(seed, policy, options = {}) {
   };
 }
 
-// Replays a recorded run, returning every state along the way. P2 renders
-// from this; nothing here needs the policy again.
+// Replays a recorded run, returning every state along the way, each with the
+// belief the bot held at that moment. P2 renders from this — showing the
+// belief is what lets a viewer see what the bot knows and what it is only
+// remembering. Nothing here needs the policy again.
 export function replayGame(replay) {
   let state = newGame(replay.seed);
-  const frames = [{ state, action: null }];
+  let observation = observe(state);
+  let belief = foldBelief(emptyBelief(), observation);
+
+  const frames = [{ state, belief, action: null }];
 
   for (const action of replay.actions) {
-    state = step(state, action).state;
-    frames.push({ state, action });
+    const result = step(state, action);
+    state = result.state;
+    observation = result.observation;
+    belief = foldBelief(belief, observation);
+    frames.push({ state, belief, action });
   }
   return frames;
 }

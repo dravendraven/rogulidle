@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rogulidle</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1>Rogulidle</h1>
+    <div class="controls">
+      <button id="playPause" type="button">⏸ pause</button>
+      <button id="speed" type="button">1×</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="stage">
+      <div id="grid" class="grid"></div>
+      <div id="summary" class="summary">
+        <div id="summaryTitle" class="summary-title"></div>
+        <div id="summaryBody"></div>
+      </div>
+    </div>
+
+    <aside class="panel">
+      <div id="hp" class="hp"></div>
+
+      <div class="chips">
+        <span id="xp"></span>
+        <span id="steps"></span>
+        <span id="kills"></span>
+      </div>
+
+      <div class="field">
+        <label>carrying</label>
+        <div id="inventory" class="inventory"></div>
+      </div>
+
+      <div class="field">
+        <label>monsters</label>
+        <div id="remaining"></div>
+      </div>
+
+      <div class="field grow">
+        <label>chronicle</label>
+        <div id="log" class="log"></div>
+      </div>
+
+      <footer>
+        <span id="run"></span>
+        <span id="tally"></span>
+        <span id="seed" class="seed"></span>
+      </footer>
+    </aside>
+  </main>
+
+  <p class="note">
+    Dimmed tiles are what the bot <em>remembers</em>, not what it can see —
+    monsters there may have moved.
+    The bot itself is a placeholder that wanders at random; the real one is P3.
+  </p>
+
+</div>
+
+<script type="module">
+  import { start } from './src/ui/spectator.js';
+  start();
+</script>
+</body>
+</html>

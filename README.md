@@ -6,23 +6,30 @@ starts the moment the last one ends.
 
 ## Status
 
-**P1 — headless engine.** The rules run and are tested; there is nothing to
-look at yet.
+**P2 — watchable.** Runs play out on screen, one after another. The thing
+playing them is still a placeholder that wanders at random; the real bot is
+P3.
 
 - [x] **P0** rules spec, reverse-engineered from the original
 - [x] **P1** deterministic headless engine + fog-of-war belief model
-- [ ] **P2** renderer, replay player, continuous run loop
+- [x] **P2** renderer, replay player, continuous run loop
 - [ ] **P3** the bot
 - [ ] **P4** batch tuning
 
-## Running the tests
+## Running it
 
 ```
 python tools/dev-server.py
 ```
 
-Then open <http://localhost:8141/run-tests.html>. Opening the HTML file
-directly will not work — ES modules need `http://`.
+Then open <http://localhost:8141/index.html> to watch, or
+<http://localhost:8141/run-tests.html> to check the rules. Opening the HTML
+files directly will not work — ES modules need `http://`.
+
+Add `?seed=anything` to make a whole session reproducible.
+
+Dimmed tiles on screen are what the bot *remembers* rather than what it can
+currently see — monsters shown there may already have moved.
 
 ## Layout
 
