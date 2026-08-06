@@ -37,12 +37,21 @@
 
 // Anchor points: dial position -> generation parameters.
 // Interpolated between, clamped outside.
+// Threat climbs steeply; gear opens up slowly. That gap is deliberate — it
+// is what stops a ten-floor descent from being decided on floor one.
+//
+//   monsters  x7 across the dial, and they get stronger with it
+//   gear      scarcity only x5 the other way, and covers barely move
+//
+// Floor one is meant to be clearable with nothing in hand: few weak
+// monsters, and gear as a bonus for what comes after rather than a
+// prerequisite for surviving the room you are in.
 const CALIBRATION = [
-  { at: 0.0, monsters: 3, covers: 22, difficultyScale: 0.35, dropChance: 0.8 },
-  { at: 0.25, monsters: 5, covers: 17, difficultyScale: 0.6, dropChance: 0.65 },
-  { at: 0.5, monsters: 6, covers: 14, difficultyScale: 0.75, dropChance: 0.5 },
-  { at: 0.75, monsters: 9, covers: 10, difficultyScale: 0.9, dropChance: 0.3 },
-  { at: 1.0, monsters: 22, covers: 2, difficultyScale: 1.0, dropChance: 0.0 },
+  { at: 0.0, monsters: 3, covers: 14, difficultyScale: 0.30, dropChance: 0.35, gearScarcity: 5.0 },
+  { at: 0.25, monsters: 6, covers: 15, difficultyScale: 0.55, dropChance: 0.45, gearScarcity: 3.0 },
+  { at: 0.5, monsters: 9, covers: 16, difficultyScale: 0.75, dropChance: 0.55, gearScarcity: 2.0 },
+  { at: 0.75, monsters: 14, covers: 17, difficultyScale: 0.90, dropChance: 0.65, gearScarcity: 1.4 },
+  { at: 1.0, monsters: 21, covers: 18, difficultyScale: 1.00, dropChance: 0.75, gearScarcity: 1.0 },
 ];
 
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -69,6 +78,7 @@ export function difficultyToParams(dial) {
     covers: Math.round(lerp(lower.covers, upper.covers, t)),
     difficultyScale: +lerp(lower.difficultyScale, upper.difficultyScale, t).toFixed(3),
     dropChance: +lerp(lower.dropChance, upper.dropChance, t).toFixed(3),
+    gearScarcity: +lerp(lower.gearScarcity, upper.gearScarcity, t).toFixed(3),
   };
 }
 

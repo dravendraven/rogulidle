@@ -14,17 +14,22 @@ import { findPath, playerPassable, posKey, walkablePositions } from './mapgen.js
 
 // Items are drawn with weight 1/value, so a high value is a RARE item.
 //
-// `armourScarcity` divides the pick weight of anything that grants armour.
-// It exists because armour is the one item that does not merely help, it
-// ELIMINATES: subtracting flat with a floor of zero means armour A makes
-// every monster of xp <= A+1 completely harmless. Over a ten-floor descent
-// the hero accumulates enough shields to be untouchable by floor three, so
-// how often a shield appears is a difficulty lever of its own.
-function itemWeights(armourScarcity = 1) {
-  return ITEM_TABLE.map((item) => [
-    item,
-    1 / (item.value * (item.armour ? armourScarcity : 1)),
-  ]);
+// Two scarcity dials, both dividing an item's pick weight.
+//
+//   gearScarcity    everything that helps in a fight, weapons and armour
+//   armourScarcity  armour only, applied on top
+//
+// Armour keeps its own dial because it does not merely help, it ELIMINATES:
+// subtracting flat with a floor of zero means armour A makes every monster
+// of xp <= A+1 completely harmless. Weapons only make fights shorter.
+function itemWeights(gearScarcity = 1, armourScarcity = 1) {
+  return ITEM_TABLE.map((item) => {
+    const isGear = item.dmg || item.armour;
+    const divisor = item.value
+      * (isGear ? gearScarcity : 1)
+      * (item.armour ? armourScarcity : 1);
+    return [item, 1 / divisor];
+  });
 }
 
 function nextId(state) {
@@ -80,7 +85,7 @@ export function populate(state, map, counts = {}) {
   // crowding the floor arms the player as well as threatening them. Without
   // this the win rate bottoms out around 13% however many you add.
   const dropChance = counts.dropChance ?? MONSTER_DROP_CHANCE;
-  const weights = itemWeights(counts.armourScarcity ?? 1);
+  const weights = itemWeights(counts.gearScarcity ?? 1, counts.armourScarcity ?? 1);
   const passable = playerPassable(map);
   const free = new Map();
   for (const pos of walkablePositions(map)) free.set(posKey(pos), pos);

@@ -57,6 +57,7 @@ function makeState(options) {
     killedBy: null,
     nextId: 100,
     rng: { map: 1, spawn: 2, combat: options.combatSeed ?? 3 },
+    xpFromKills: options.xpFromKills,
     log: [],
     map: options.map,
     player: {
@@ -249,9 +250,11 @@ test('monsters get no weapon bonus from what they carry', () => {
   assertEq(armourValue(monster), 0, 'a carried item added armour');
 });
 
-test('the player gains 1 xp every second kill', () => {
+test('the player gains 1 xp every second kill, when xp growth is on', () => {
+  // The shipped default freezes xp (balance.js), so the faithful rule has to
+  // be asked for explicitly here — see the test below for the default.
   let state = makeState({
-    map: ROOM_5x5, playerPos: [2, 2],
+    map: ROOM_5x5, playerPos: [2, 2], xpFromKills: true,
     monsters: [dummy('rat', [1, 2]), dummy('rat', [3, 2])],
   });
   const startXp = state.player.xp;
@@ -263,6 +266,23 @@ test('the player gains 1 xp every second kill', () => {
   for (let i = 0; i < 60 && !state.monsters[1].dead; i++) state = step(state, 'right').state;
   assert(state.monsters[1].dead, 'second rat never died');
   assertEq(state.player.xp, startXp + 1, 'xp did not rise on the second kill');
+});
+
+test('by default killing does not raise xp at all', () => {
+  // Owner decision: the hero's power comes from gear and potions only, so
+  // the damage die never grows. Guards the shipped default, since the rule
+  // above can pass while this one silently flips.
+  let state = makeState({
+    map: ROOM_5x5, playerPos: [2, 2],
+    monsters: [dummy('rat', [1, 2]), dummy('rat', [3, 2])],
+  });
+  const startXp = state.player.xp;
+
+  for (let i = 0; i < 60 && !state.monsters[0].dead; i++) state = step(state, 'left').state;
+  for (let i = 0; i < 60 && !state.monsters[1].dead; i++) state = step(state, 'right').state;
+
+  assert(state.monsters[0].dead && state.monsters[1].dead, 'the rats did not die');
+  assertEq(state.player.xp, startXp, 'xp grew despite the default being off');
 });
 
 test('a dead monster drops what it carried', () => {

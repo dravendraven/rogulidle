@@ -39,7 +39,10 @@ export const KILLS_PER_XP = 2;           // FAITHFUL engine.cljs:272
 // It also kills the snowball that bot-strategy §3 leans on: cheap kills
 // first stop making later fights cheaper, so kill order matters only
 // through drops.
-export const XP_FROM_KILLS = true;
+// OFF by owner decision: the hero's power comes from GEAR and health
+// potions, nothing else. xp stays at its starting value all run, so the
+// damage die never grows and the only ladder is what the map hands over.
+export const XP_FROM_KILLS = false;
 
 // ***** regeneration ***** //
 

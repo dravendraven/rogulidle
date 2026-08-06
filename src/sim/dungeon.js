@@ -95,6 +95,7 @@ export function playDungeon(seed, makePolicy, options = {}) {
       covers: plan.covers,
       difficultyScale: plan.difficultyScale,
       dropChance: plan.dropChance,
+      gearScarcity: plan.gearScarcity,
       carry,
       // Rule variants apply to every floor of the descent.
       xpFromKills: options.xpFromKills,
