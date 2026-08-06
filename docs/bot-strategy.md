@@ -339,6 +339,112 @@ monstros, densidade de loot, §10.2 da spec) — não relaxar R0.
 
 ---
 
+## 4.3 Previsão: o bot não adivinha, ele simula
+
+O movimento das criaturas é **determinístico**. A regra inteira (spec §7) é:
+traça rota até o jogador, anda um passo, a menos que a rota seja mais longa
+que o `activation`, a menos que caia o dado de 10% de pular o turno. Sem
+estado escondido, sem intenção, sem memória própria.
+
+Logo o bot não precisa de um *modelo* de previsão. Ele roda o jogo para a
+frente e olha.
+
+### O previsor é o próprio motor
+
+O bot monta um `GameState` hipotético a partir da sua `Belief` e chama o
+mesmo `step()` que o jogo de verdade usa.
+
+Escrever um previsor separado seria o erro clássico: ele discordaria do
+motor em algum caso de borda — a ordem em que as criaturas agem, o
+bloqueio mútuo, o encontro que não deixa o jogador entrar no tile — e esse
+desacordo produz bugs caríssimos de achar. Uma regra, uma implementação.
+
+**Como o desconhecido entra no estado hipotético:**
+
+| No `Belief` | No estado hipotético | Por quê |
+|---|---|---|
+| tile conhecido | como está | é fato |
+| tile nunca visto | **andável e vazio** | deixa a rota planejar para dentro do escuro, que é como se explora |
+| criatura lembrada fria | onde está | provadamente parada, ver abaixo |
+| criatura lembrada quente | onde estava | hipótese; envelhece |
+
+Tratar o inexplorado como vazio é otimista de propósito: a compensação não
+vem de fingir perigo no mapa, vem do **prêmio de incerteza** na pontuação
+de alvo (§4). Misturar as duas coisas — inventar monstros imaginários no
+escuro *e* penalizar o escuro — contaria o mesmo risco duas vezes.
+
+### Por que isso é busca, e não previsão
+
+As criaturas perseguem a posição **atual** do jogador. Então "onde o lobo
+estará em 3 turnos" não é uma pergunta bem formada — só existe "onde o lobo
+estará em 3 turnos **se eu andar por aqui**".
+
+Previsão e planejamento são o mesmo problema. Por isso a estrutura é uma
+busca sobre as próprias sequências de ação, com as criaturas resolvidas por
+simulação dentro de cada ramo. De brinde, a simulação acerta o acoplamento
+entre elas: como criaturas se bloqueiam mutuamente, a posição de uma depende
+da outra, coisa que um previsor artesanal erraria.
+
+### O dado de 10%: assumir que nunca cai
+
+Planejar como se as criaturas **sempre** agissem. É pessimista nos dois
+sentidos — elas fecham a distância o mais rápido possível e sempre dão o
+golpe delas — e mantém a busca determinística, sem ramificar em sorte.
+
+O bot então nunca é surpreendido por uma criatura chegando *antes* do
+previsto. O 10% só pode beneficiá-lo.
+
+### Duas escalas de tempo
+
+Busca profunda só cabe onde é barata:
+
+- **Estratégica — qual objetivo.** Qual criatura, qual loot, para onde
+  explorar. Distâncias e custo de duelo, sem simular turno a turno, horizonte
+  longo. Recalcula quando a situação muda.
+- **Tática — qual ação neste turno.** Dado o objetivo, simula 3 a 5 turnos à
+  frente com o motor. É onde se responde "chego no corredor antes de ele
+  cortar o caminho?" e "atacar agora ou esperar, quem dá o primeiro golpe?".
+
+### Orçamento medido
+
+Um turno simulado custa **0,029 ms** (medido em 2026-08-05, mapa com 5
+criaturas vivas). Árvore completa por decisão:
+
+| Profundidade | Largura 5 | Largura 3 (podada) |
+|---|---|---|
+| 3 | 4,4 ms | 1,1 ms |
+| 4 | 22 ms | 3,4 ms |
+| 5 | 112 ms | 10 ms |
+| 6 | 560 ms | 31 ms |
+
+A poda de 5 para ~3 tira: ações que batem em parede conhecida, ações que
+violam R2, e ações que nem avançam para o objetivo nem recuam.
+
+**Alvo: profundidade 5 podada, ~10 ms por decisão**, o que dá alguns
+segundos por run inteira. E na maioria dos turnos não há ninguém no raio —
+aí basta profundidade 1, que é o mapa de ameaça. A busca funda só liga com
+algo ao alcance, então a média fica bem abaixo disso.
+
+Como a run é calculada inteira antes de ser exibida (P2), esse custo é
+invisível para quem assiste.
+
+### A incerteza que sobra, e como medi-la
+
+Duas fontes, nenhuma precisando de constante mágica:
+
+**Criatura lembrada.** Uma que estava **fria** quando vista pela última vez
+está provadamente no mesmo lugar — criaturas fora do `activation` não se
+movem nunca (spec §7). Memória fria é fato; memória quente é hipótese que
+envelhece ~1 tile por turno. O bot marca a diferença em vez de tratar toda
+memória como igualmente duvidosa.
+
+**Espaço inexplorado.** Como o bot conhece o total de criaturas (§4.1), ele
+sabe exatamente quantas ainda não localizou. O prêmio de incerteza é função
+desse número: com 4 mortas e 1 sumida, o escuro assusta muito mais do que
+com todas as 5 já avistadas.
+
+---
+
 ## 5. Teto de regeneração
 
 O original permite curar indefinidamente parado em zona fria. Como o bot
