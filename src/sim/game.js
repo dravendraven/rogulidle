@@ -34,6 +34,7 @@ export function newGame(seed, counts = {}) {
     // same options bag so it travels into replays too.
     attackWhenAdjacent: counts.attackWhenAdjacent,
     xpFromKills: counts.xpFromKills,
+    weaponsWidenRoll: counts.weaponsWidenRoll,
   };
 
   state.map = generateMap(state.rng.map);

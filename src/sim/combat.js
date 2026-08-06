@@ -3,7 +3,9 @@
 // The blow always goes attacker -> defender and there is NO counter-attack:
 // only whoever moved gets to hit. A duel is therefore strictly alternating.
 
-import { HIT_CHANCE, KILLS_PER_XP, XP_FROM_KILLS } from './balance.js';
+import {
+  HIT_CHANCE, KILLS_PER_XP, WEAPONS_WIDEN_ROLL, XP_FROM_KILLS,
+} from './balance.js';
 import { drawChance, drawInt } from './rng.js';
 
 // Monsters have no inventory at all, so they never get a weapon bonus — the
@@ -24,11 +26,22 @@ export function armourValue(entity) {
 //
 // The roll is uniform over 0 .. xp-1, armour is subtracted before the
 // clamp, and the whole thing only lands `HIT_CHANCE` of the time.
-export function expectedDamage(attackerXp, weapons, armour) {
-  const sides = Math.max(1, attackerXp);
+export function expectedDamage(attackerXp, weapons, armour, widen = WEAPONS_WIDEN_ROLL) {
+  // Two ways a weapon can help, and they behave very differently.
+  //
+  // FLAT (faithful): the roll is 0..xp-1 and the weapon is added after, so
+  // it raises the FLOOR — an armed hero can no longer roll low. Each point
+  // of weapon is worth a full point of expected damage.
+  //
+  // WIDENED: the weapon enlarges the die instead, 0..xp-1+weapons. The floor
+  // stays at zero, so even a well-armed hero still whiffs, and each point is
+  // worth only half a point of expected damage.
+  const sides = Math.max(1, widen ? attackerXp + weapons : attackerXp);
+  const bonus = widen ? 0 : weapons;
+
   let total = 0;
   for (let roll = 0; roll < sides; roll++) {
-    total += Math.max(0, roll + weapons - armour);
+    total += Math.max(0, roll + bonus - armour);
   }
   return HIT_CHANCE * (total / sides);
 }
@@ -38,24 +51,26 @@ export function expectedDamage(attackerXp, weapons, armour) {
 // Both dice are always drawn, even on a miss, so that the stream advances
 // the same way the original's does (engine.cljs:257-258).
 export function resolveAttack(state, attacker, defender) {
+  const weapons = weaponDamage(attacker);
+  const armour = armourValue(defender);
+  const widen = state.weaponsWidenRoll ?? WEAPONS_WIDEN_ROLL;
+
   // `state.sim` marks a hypothetical world the bot is thinking inside, never
   // the real game (test/tests.js guards that). There, blows land for their
   // average instead of being rolled: the search stays deterministic, no
   // branch on luck, and no lucky streak fools the bot into a bad plan.
   if (state.sim) {
-    const damage = expectedDamage(
-      attacker.xp, weaponDamage(attacker), armourValue(defender),
-    );
+    const damage = expectedDamage(attacker.xp, weapons, armour, widen);
     defender.hp = Math.max(0, defender.hp - damage);
     return { damage, killed: defender.hp <= 0, hit: true };
   }
 
   const hit = drawChance(state, 'combat', HIT_CHANCE) ? 1 : 0;
-  const roll = drawInt(state, 'combat', 0, Math.max(0, attacker.xp - 1));
-  const weapons = weaponDamage(attacker);
-  const armour = armourValue(defender);
 
-  const damage = Math.max(0, (roll + weapons - armour) * hit);
+  const roll = drawInt(state, 'combat', 0,
+    Math.max(0, (widen ? attacker.xp + weapons : attacker.xp) - 1));
+
+  const damage = Math.max(0, (roll + (widen ? 0 : weapons) - armour) * hit);
   defender.hp = Math.max(0, defender.hp - damage);
 
   return { damage, killed: defender.hp === 0, hit: hit === 1 };

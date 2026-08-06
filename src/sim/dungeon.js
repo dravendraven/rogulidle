@@ -81,6 +81,7 @@ export function playDungeon(seed, makePolicy, options = {}) {
       // Rule variants apply to every floor of the descent.
       xpFromKills: options.xpFromKills,
       attackWhenAdjacent: options.attackWhenAdjacent,
+      weaponsWidenRoll: options.weaponsWidenRoll,
     };
 
     const run = playGame(

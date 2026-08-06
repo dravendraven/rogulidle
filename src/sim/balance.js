@@ -50,6 +50,22 @@ export const REGEN_CAP_FRACTION = 0.20;  // GUESS — our divergence, spec 13.1
 
 export const HIT_CHANCE = 5 / 6;         // FAITHFUL engine.cljs:257
 
+// Divergence, off by default. How a weapon helps.
+//
+//   false (faithful)  roll is 0..xp-1 and the weapon is added afterwards,
+//                     so it raises the FLOOR. Each point of weapon is worth
+//                     a full point of expected damage, and an armed hero
+//                     stops being able to roll low at all.
+//   true              the weapon enlarges the die, 0..xp-1+weapons. The
+//                     floor stays at zero, so even a well-armed hero still
+//                     whiffs, and each point is worth HALF a point of
+//                     expected damage.
+//
+// The halving is the point: gear is the resource that runs away over a
+// ten-floor descent, and this is the cheapest way to blunt it without
+// capping what can be carried.
+export const WEAPONS_WIDEN_ROLL = false;
+
 // ***** monsters ***** //
 
 // xp is both the damage stat and the number drawn above the head.
