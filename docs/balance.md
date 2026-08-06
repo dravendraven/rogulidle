@@ -4,7 +4,41 @@
 > (spec §13.2) and needs re-measuring. The dungeon curve is current — see
 > "the dungeon" immediately below.
 
-## The dungeon curve
+## The whole difficulty model, in three constants
+
+There is no calibration table any more. A floor is described by how many
+creatures it holds, and everything else is a constant:
+
+```
+monsters(N) = 2 + N × 2        floor 1 gets 2, floor 10 gets 20
+covers      = 6                flat, every floor
+strength    = 0.35             how far up the monster table a floor reaches
+```
+
+**Why count and not strength.** Clearing cost tracks `Σ hp × (xp − 1)`, so
+individual strength scales cost quadratically — a strong monster hits harder
+AND lasts longer, and those multiply — while count scales it linearly.
+Linear is what a dial should be. Summing xp predicts nothing: six rats and
+one genie both total 6, and one costs zero while the other costs 20.6.
+
+**Why covers are flat.** Tying them to the creature count was tried and
+fails: loot then grows at the same rate as threat, and since the hero
+accumulates while each floor's threat is spent once, the hero wins. Measured
+with `covers = monsters × 2`, floor ten handed over 64 items and capacity
+reached 118 against a starting 10. Flat covers are what makes threat outpace
+supply.
+
+**Why strength is low.** At Rogule's 0.75 a floor with only two creatures
+can still roll an ogre, and floor one killed 7 of 12 heroes. Strength still
+varies WITHIN a map by distance from the entrance; what is fixed is the
+ceiling.
+
+Measured with these, 12 dungeons: 4 cleared, depths 2, 2, 2, 4, 5, 7, 7, 8,
+10, 10, 10, 10. Capacity rises to 20.7 by floor 6 then grinds down to 10.8 by
+floor 10 — the hero builds up and is worn away, which is the arc worth
+having.
+
+## The dungeon curve (previous, hand-tuned table)
 
 Measured over 12 dungeons after armour became a spent second bar and passive
 regeneration was removed. Net challenge is what the floor is expected to

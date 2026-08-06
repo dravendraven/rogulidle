@@ -45,32 +45,25 @@
 
 import { PLAYER_HP, PLAYER_XP } from './balance.js';
 import { hashSeeds } from './rng.js';
-import { difficultyToParams } from './difficulty.js';
+import { floorParams, MONSTERS_BASE, MONSTERS_PER_LEVEL } from './difficulty.js';
 import { playGame } from './game.js';
 
 export const LEVELS = 10;
 
-// Floor 1 is gentle, floor 10 is nearly the hardest the dial goes. Linear
-// between, which is the simplest thing that could work and therefore the
-// right thing to measure before reaching for a curve.
-// Gentle on purpose. With xp frozen and weapons only widening the roll, a
-// bare hero deals 0.83 a blow — floor one has to be clearable with nothing
-// in hand, and gear is a bonus for what comes after.
-export const FIRST_LEVEL_DIFFICULTY = 0.05;
-// The top of the dial is deliberately well short of 1.0. Now that armour is
-// spent rather than stockpiled, floor cost genuinely climbs, and 0.9 put the
-// net challenge over 1.0 by floor five — nobody reached the bottom.
-export const LAST_LEVEL_DIFFICULTY = 0.5;
-
-export function difficultyForLevel(level) {
-  const t = (level - 1) / (LEVELS - 1);
-  return FIRST_LEVEL_DIFFICULTY
-    + t * (LAST_LEVEL_DIFFICULTY - FIRST_LEVEL_DIFFICULTY);
+// Floor N holds `MONSTERS_BASE + (N-1) × MONSTERS_PER_LEVEL` creatures, and
+// everything else on the floor follows from that count. Floor 1 gets two,
+// floor 10 gets twenty.
+//
+// No interpolation, no anchors, no calibration table. Difficulty is the
+// creature count, and creature count is a straight line — which is the
+// right shape, because clearing cost scales linearly with how many there
+// are (see difficulty.js for why individual strength does not).
+export function floorPlan(level) {
+  return { ...floorParams(level - 1), level };
 }
 
-export function floorPlan(level) {
-  const dial = difficultyForLevel(level);
-  return { level, dial: +dial.toFixed(3), ...difficultyToParams(dial) };
+export function monstersOnFloor(level) {
+  return MONSTERS_BASE + (level - 1) * MONSTERS_PER_LEVEL;
 }
 
 // What survives the stairs.

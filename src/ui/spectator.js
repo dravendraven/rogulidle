@@ -8,7 +8,7 @@
 
 import { playGame, replayGame } from '../sim/game.js';
 import { hashSeeds, seedFromString } from '../sim/rng.js';
-import { difficultyToParams, expectedWinRate } from '../sim/difficulty.js';
+import { difficultyToParams } from '../sim/difficulty.js';
 import { makeBot } from '../bot/bot.js';
 import { dangerField } from '../bot/threat.js';
 import { buildGrid, renderFrame, renderHud, renderLog } from './render.js';
@@ -176,10 +176,12 @@ function wireControls() {
   // watching a map that no longer matches the numbers.
   const showDial = () => {
     const dial = Number(el.difficulty.value);
-    const expected = Math.round(100 * expectedWinRate(dial));
     const floor = difficultyToParams(dial);
+    // Shows what the floor WILL HOLD, not a predicted win rate. The old
+    // label quoted a percentage from a table measured before half the
+    // mechanics changed — a number nobody had any reason to trust.
     el.dialValue.textContent =
-      `${dial.toFixed(2)} · ~${expected}% wins · ${floor.monsters} monsters, ${floor.covers} covers`
+      `depth ${floor.level} · ${floor.monsters} monsters, ${floor.covers} covers`
       + (dial === session.dial ? '' : ' — from next run');
   };
 
