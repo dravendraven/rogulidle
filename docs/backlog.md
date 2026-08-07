@@ -44,14 +44,15 @@ session, skip it.
 | 4 | M12 | Raise creature count and cluster size together | READY |
 | 5 | M14 | One top-tier-for-the-floor creature next to the shrine | READY |
 | 6 | M15 | Chests get a creature nearby, spine included | READY |
-| 7 | X1 | Delete what nothing references | READY |
-| 8 | M4 | Side-room risk/reward spread scales with depth | READY |
-| 9 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 7 | M16 | Bigger rooms, shorter corridors | READY |
+| 8 | X1 | Delete what nothing references | READY |
+| 9 | M4 | Side-room risk/reward spread scales with depth | READY |
+| 10 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 **I8 first, and it runs alongside everything else** — different agent,
 different files, and it is what the batch gets checked with when it lands.
 
-Items 2–6 are one batch, in that order: one commit each, each with a test
+Items 2–7 are one batch, in that order: one commit each, each with a test
 asserting its own property, no measurement between them. X1 after the batch
 rather than inside it, so a bisect stays readable.
 
@@ -298,6 +299,42 @@ M12's, not this item's.
 
 **Assert.** Fraction of chests with a live creature within N tiles, at
 floors 1, 5, 10. It should be high and roughly flat with depth.
+
+## M16 · bigger rooms, shorter corridors
+
+`work agent` · **READY** — last of the batch
+
+The floor reads as corridors with rooms attached. It should read as rooms
+with corridors between them.
+
+**What is set today.** `CORRIDOR_LENGTH = [1, 5]` and `MAP_DUG_PERCENTAGE =
+0.15`. Room size is not set at all — `mapgen.js` passes neither `roomWidth`
+nor `roomHeight`, so ROT's defaults apply and nobody chose them.
+
+**Do.** Shorten corridors and raise the room-size minimums. Both go in
+`balance.md` first. `dugPercentage` may need to move with them to keep the
+same amount of floor dug; treat it as part of the same change rather than a
+separate dial.
+
+**The constraint that matters, and it is not obvious.** `dugPercentage` was
+lowered from ROT's 0.2 **on purpose** — `map-design.md` records that at 0.2
+"there were usually several equivalent ways through", and the spine/side
+design needs a mandatory path to exist at all. Bigger rooms and shorter
+corridors push toward exactly that warren.
+
+So: **spine share has to stay inside its band**, floor by floor. M10 just
+fixed that number and this is the most likely thing to break it again. If
+the two cannot both be had, say so with the numbers rather than picking one
+quietly.
+
+**Why it is worth doing beyond taste.** I2's review found that grouping only
+becomes a real lever where the map stops the bot escaping — in a corridor it
+backs up and fights a cluster one at a time, which is the mechanism M7 is
+built on being undone by geometry. Open rooms are the condition that makes
+clustering bite. It also gives M12's extra creatures somewhere to be.
+
+**Assert.** Mean room area and mean corridor length, before and after.
+Spine share per floor, still in band. Tests green.
 
 ## X1 · delete what nothing uses
 
