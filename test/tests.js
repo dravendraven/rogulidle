@@ -1395,6 +1395,28 @@ test('rooms are bigger than the old default, and spine share holds in band', () 
   }
 });
 
+// ***** M20 — hero and shrine at the two furthest-apart rooms ***** //
+
+test('hero and shrine are the furthest-apart pair of rooms', () => {
+  // Recomputes every pairwise room-centre distance independently of
+  // spawn.js's own logic and checks the hero-shrine path matches the map's
+  // actual longest one — not just "some far room", the GLOBAL maximum.
+  for (let seed = 0; seed < 15; seed++) {
+    const state = newGame(960000 + seed, floorPlan(5));
+    const passable = playerPassable(state.map);
+    let maxLen = 0;
+    for (let i = 0; i < state.map.rooms.length; i++) {
+      for (let j = i + 1; j < state.map.rooms.length; j++) {
+        const path = findPath(state.map.rooms[i].center, state.map.rooms[j].center, passable);
+        if (path.length > maxLen) maxLen = path.length;
+      }
+    }
+    const actual = findPath(state.player.pos, state.shrine.pos, passable);
+    assertEq(actual.length, maxLen,
+      `seed ${seed}: hero-shrine path (${actual.length}) is not the map's longest room-pair path (${maxLen})`);
+  }
+});
+
 // ***** curve-shape diagnostics ***** //
 //
 // growthOf is the one piece of real maths the shape report rests on: every

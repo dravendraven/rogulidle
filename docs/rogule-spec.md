@@ -917,3 +917,36 @@ conseguiria dizer qual tornou a abertura difícil.
 
 **Estado atual: construído e ligado, sem flag.** Ver `docs/backlog.md`
 M18.
+
+### 13.12 Herói e santuário nas duas pontas do mapa (M20)
+
+**Vai além da correção do §9.1.** Aquele quirk já estava corrigido —
+o santuário ordena por comprimento real do caminho, não pelo vetor — mas
+metade do problema seguia intacta: o herói cai numa posição livre
+aleatória PRIMEIRO, e só depois o santuário escolhe a sala mais distante
+DAQUELA posição. Numa sala central, "mais distante" é só moderado.
+
+**Regra nova.** Sem flag, ligado sem condição. Calcula a distância
+caminhável entre TODO PAR de centros de sala (`findPath` par a par —
+poucas salas por andar, O(salas²) é barato) e coloca herói e santuário
+nas duas pontas do par mais distante do mapa inteiro, não apenas o mais
+distante a partir de onde o herói caiu por sorte.
+
+**Consequência, medida — o risco se confirmou, o custo previsto não.**
+Comparado par a par (mesmos seeds, `n=40`/andar):
+
+    espinha       andar1  andar2  andar3  andar5  andar7  andar10
+    antes         0,836   0,829   0,833   0,874   0,815   0,888
+    depois        0,949   0,964   0,943   0,969   0,928   0,944
+
+Dois andares (2 e 5) passam do teto de 0,95 — o risco que o item já
+esperava, registrado sem ajustar a faixa. **O que NÃO se confirmou:** a
+variância do caminho herói→santuário deveria cair (o custo previsto,
+"remove uma fonte de variância entre andares") — medido, ela SUBIU
+levemente (desvio padrão 10,24 → 11,03; comprimento médio 27,85 → 31,49).
+CV do desafio por andar (Sonda A, `n=30`) também não caiu de forma clara
+— média cruzando os dez andares foi de 0,614 para 0,637, dentro do ruído
+esperado nessa amostra.
+
+**Estado atual: construído e ligado, sem flag; dois andares fora da faixa
+de espinha, disclosed e não escondido.** Ver `docs/backlog.md` M20.

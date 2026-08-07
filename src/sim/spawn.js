@@ -179,8 +179,38 @@ export function populate(state, map, counts = {}) {
     return positions[drawInt(state, 'spawn', 0, positions.length - 1)];
   };
 
-  // 1. Player.
-  const playerPos = pickFree();
+  // 1. Player and shrine, at the two ends of the longest walkable path
+  // between any pair of room centres — docs/backlog.md M20.
+  //
+  // Half of this already existed: the shrine went in the room furthest
+  // from the hero, which is itself a deliberate divergence from spec §9.1
+  // (the original sorts by path VECTOR, not length, and scatters the
+  // shrine into an arbitrary room). What was missing was choosing the
+  // PAIR — the hero landed on a random free tile first, and only then did
+  // the shrine take the room furthest from wherever that happened to be.
+  // Land in a central room and "furthest" was merely moderate.
+  //
+  // `map.rooms.length` is a handful (measured ~3-5 after M16), so an
+  // O(rooms^2) pairwise `findPath` between centres is cheap — no need for
+  // a real flood-fill. If (A, B) is the GLOBAL maximum-distance pair, B is
+  // guaranteed to also be the room furthest from A specifically (a closer
+  // pair would have been the global maximum instead), so `furthestLength`
+  // below still comes out equal to the hero-shrine distance without any
+  // special-casing.
+  let bestPair = null;
+  for (let i = 0; i < map.rooms.length; i++) {
+    for (let j = i + 1; j < map.rooms.length; j++) {
+      const a = map.rooms[i];
+      const b = map.rooms[j];
+      const path = findPath(a.center, b.center, passable);
+      if (!path.length) continue;
+      if (!bestPair || path.length > bestPair.length) bestPair = { a, b, length: path.length };
+    }
+  }
+
+  // Fewer than two reachable rooms — a degenerate map, kept working the
+  // old way rather than left to place nothing.
+  const playerPos = bestPair ? bestPair.a.center : pickFree();
   takeFree(playerPos);
   state.player = {
     pos: playerPos,
@@ -216,10 +246,12 @@ export function populate(state, map, counts = {}) {
     ? roomPaths[roomPaths.length - 1].path.length
     : 0;
 
-  // 3. Shrine, in the furthest room.
-  const shrinePos = roomPaths.length
-    ? roomPaths[roomPaths.length - 1].center
-    : playerPos;
+  // 3. Shrine — the other end of `bestPair`, already decided in step 1.
+  // Falls back to the old "furthest room from the player" reading only in
+  // the degenerate no-pair case above.
+  const shrinePos = bestPair
+    ? bestPair.b.center
+    : (roomPaths.length ? roomPaths[roomPaths.length - 1].center : playerPos);
   takeFree(shrinePos);
   state.shrine = { id: nextId(state), emoji: '⛩️', pos: shrinePos };
 

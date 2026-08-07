@@ -40,7 +40,7 @@ session, skip it.
 |---|---|---|---|
 | 1 | U3 | Show killed-xp and xp per turn, instead of the damage stat labelled xp | IN FLIGHT |
 | 2 | U4 | Lifetime score, awarded only on a full clear, xpEarned over turns | BLOCKED on U3 |
-| 3 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | READY |
+| 3 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | REPORTED |
 | 4 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
 | 5 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
 | 6 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
@@ -462,7 +462,7 @@ M19 gets that written into it rather than left as one option of three.
 
 ## M20 · start and shrine at the two ends of the map
 
-`work agent` · **READY**
+`work agent` · **REPORTED**
 
 **Half of this already exists.** The shrine goes in the room furthest from
 the hero, by walkable path length — and that is already a deliberate
@@ -514,7 +514,55 @@ adjusting the band. It is the same question M16 was told to answer the same
 way, and there the worry turned out to be misplaced — the lever was
 elsewhere. It may be misplaced here too.
 
-## M21 · deep floors have something waiting where you land
+### Result
+
+**Built both halves.** `spawn.js` step 1 now computes walkable distance
+between every pair of room centres (`findPath`, O(rooms²) — rooms/map is
+a handful, cheap) and places the hero at one end and the shrine at the
+other of the single longest pair on the map, replacing `pickFree()` for
+the hero entirely — the hero can no longer spawn in a corridor. `roomPaths`
+(player → every room, used for `furthestLength` and chest weighting) is
+unchanged in shape, just fed from the new `playerPos`; `furthestLength`
+comes out equal to the hero-shrine distance without special-casing, since
+the global-maximum pair is by construction also the pair farthest from
+either of its own two ends.
+
+**This time the worry was NOT misplaced — unlike M16.** Spine share, same
+seeds, before/after (n=40/floor):
+
+    floor      1      2      3      5      7      10
+    before   0.836  0.829  0.833  0.874  0.815  0.888
+    after    0.949  0.964  0.943  0.969  0.928  0.944
+
+Floors 2 and 5 clear the 0.95 ceiling. Left failing, not adjusted — same
+two tests that already checked this (`a floor puts most of its threat
+mass...`, `rooms are bigger than the old default...`) now report it
+directly, per the item's own explicit instruction not to touch the band.
+
+**The predicted COST did not show up, though — measured, not assumed.**
+The item expected path-length variance to fall (floor shape becoming more
+uniform, "the spread falling is the cost"). It did not: mean hero-shrine
+path length rose 27.85 → 31.49 (expected — the pair is now chosen to
+maximise it), but spread ROSE too, 10.24 → 11.03 sd, not fell. Challenge
+CV (Sonda A, n=30/floor) tells the same story — mean CV across the ten
+floors 0.614 → 0.637, not a clear fall, within likely noise at this
+sample. **The trade the item framed — variety between floors for
+consistency within one — only half-landed**: spine share paid the
+expected cost, but CV did not buy back the expected benefit. Worth a
+closer read at a larger sample before concluding either way; not chased
+further here.
+
+**Assert, checked:** hero and shrine verified directly as the map's
+actual longest room-pair path (new test, 15 seeds, independent
+recomputation from outside `spawn.js` — not just trusting the
+implementation's own claim). Path length and spine share reported above.
+91 tests, 89 pass — the 2 failures are the disclosed spine-share breach,
+not a bug.
+
+`docs/rogule-spec.md` §13.12 added — goes beyond the existing §9.1 fix
+(which only corrected the sort), so it's a further deliberate divergence,
+not a numbers-only update to an existing one. No `docs/balance.md` entry —
+no new tunable constant, pure geometry.
 
 `work agent` · **READY** — after M20
 
