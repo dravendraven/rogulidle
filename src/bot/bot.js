@@ -28,12 +28,32 @@ function priceOfReaching(field, pos) {
   return cost === undefined ? Infinity : cost;
 }
 
-// R0, the owner's rule: the shrine is not a legal target until everything
-// is dead. docs/bot-strategy.md §0 — a hard constraint, not a weight. The
-// bot is not allowed to flee to the exit.
-function clearedTheFloor(belief, total) {
-  const dead = [...belief.monsters.values()].filter((m) => m.dead).length;
-  return dead >= total;
+// R0, and it is now a MAP rule rather than a bot rule.
+//
+// It used to read "the shrine is illegal until everything is dead", which
+// was the owner's original design: the fun was in having to clear the
+// floor, and the score was steps. The map redesign moves that job to
+// generation — 70% of a floor's threat mass sits on the mandatory route
+// (src/sim/spine.js), so reaching the shrine already means fighting most of
+// it. Forcing the rest by fiat would delete the choice the side rooms exist
+// to offer.
+//
+//   'spine'  shipped. The exit opens once nothing MANDATORY is known alive.
+//            Side rooms become an economic decision: worth the fight for
+//            what the chest might hold, or not.
+//   'all'    the old R0, kept so the cost of the change stays measurable.
+//   'none'   no constraint; the bot may bolt for the stairs at any time.
+function clearedTheFloor(belief, total, mode = 'spine') {
+  if (mode === 'none') return true;
+
+  const monsters = [...belief.monsters.values()];
+  if (mode === 'all') return monsters.filter((m) => m.dead).length >= total;
+
+  // Unknown monsters are not counted: the bot cannot know whether one it has
+  // never seen is on the route. It does not need to — anything mandatory is
+  // by construction standing between it and the shrine, so walking there
+  // finds them.
+  return !monsters.some((m) => !m.dead && !m.side);
 }
 
 function liveMonsters(belief) {
@@ -47,11 +67,25 @@ function liveMonsters(belief) {
 // the expensive monster at the end is met with double the starting damage.
 // Nothing here encodes that — it falls out of repricing every turn against
 // current xp and gear.
-function priceMonsters(belief, field, safetyMargin) {
+function priceMonsters(belief, field, safetyMargin, mode = 'spine') {
   const out = [];
   for (const monster of liveMonsters(belief)) {
     const approach = priceOfReaching(field, monster.pos);
     if (!Number.isFinite(approach)) continue;     // walled off for now
+
+    // A creature in a side room is not a job, it is an option — so it is
+    // not hunted for its own sake. It becomes a target the moment it is
+    // close enough to be coming anyway, because then refusing the fight
+    // only means taking it while walking away.
+    //
+    // Side rooms still get visited: their CHESTS are goals, and the route
+    // to a chest is danger-priced, so the bot pays for the guard when it
+    // decides whether the loot is worth it. That is the whole risk/reward
+    // decision, and it happens in lootGoals rather than here.
+    if (mode === 'spine' && monster.side) {
+      const steps = field.steps.get(key(monster.pos));
+      if (steps === undefined || steps > monster.activation) continue;
+    }
 
     const duel = duelCost(belief.player, monster);
     out.push({
@@ -214,7 +248,7 @@ function chooseGoal(belief, field, danger, current, options) {
 
   // 2. Something alive and known? Take the cheapest fight, not the closest.
   //    Walking into it is the attack, so combat needs no special case.
-  const priced = priceMonsters(belief, field, options.safetyMargin);
+  const priced = priceMonsters(belief, field, options.safetyMargin, options.requireClear);
   if (priced.length) {
     // `pick` exists so P4 can ablate one rule at a time and measure what it
     // is actually worth, rather than trusting that it helped.
@@ -248,7 +282,7 @@ function chooseGoal(belief, field, danger, current, options) {
 
   // 3. Nothing known to fight and the floor is not clear — the rest are out
   //    there in the dark. Go and look.
-  if (!clearedTheFloor(belief, options.monsterCount)) {
+  if (!clearedTheFloor(belief, options.monsterCount, options.requireClear)) {
     return cheapestOf(field, frontierGoals(belief));
   }
 
@@ -262,7 +296,7 @@ function chooseGoal(belief, field, danger, current, options) {
 // A goal survives between turns so the bot commits instead of dithering,
 // and so the policy is not a pure function of the belief, which can
 // livelock — docs/bot-strategy.md §4.0.
-function stillValid(goal, belief, field, total) {
+function stillValid(goal, belief, field, total, mode) {
   if (!goal) return false;
 
   if (goal.kind === 'monster') {
@@ -273,7 +307,7 @@ function stillValid(goal, belief, field, total) {
 
   if (goal.kind === 'item' && !belief.items.has(goal.id)) return false;
   if (goal.kind === 'chest' && !belief.chests.has(goal.id)) return false;
-  if (goal.kind === 'shrine' && !clearedTheFloor(belief, total)) return false;
+  if (goal.kind === 'shrine' && !clearedTheFloor(belief, total, mode)) return false;
 
   if (goal.kind === 'frontier') {
     const stillDark = frontiers(belief).some((pos) => key(pos) === key(goal.pos));
@@ -305,6 +339,10 @@ export function makeBot(options = {}) {
     falloff: DANGER_FALLOFF,
     crowdPenalty: CROWD_PENALTY,
     safetyMargin: DUEL_SAFETY_MARGIN,
+
+    // What must die before the shrine is legal. 'spine' | 'all' | 'none' —
+    // see clearedTheFloor. The old hard R0 is 'all'.
+    requireClear: 'spine',
 
     pick: 'cheapest',
     stickiness: GOAL_STICKINESS,
@@ -358,7 +396,8 @@ export function makeBot(options = {}) {
     // or a new shield reorders the whole board. Frontier goals stay sticky:
     // dozens of them sit at the same distance, so re-choosing would make the
     // bot swap targets every step and never arrive.
-    const held = stillValid(goal, belief, field, settings.monsterCount) ? goal : null;
+    const held = stillValid(goal, belief, field, settings.monsterCount,
+      settings.requireClear) ? goal : null;
     goal = (held && held.kind === 'frontier')
       ? held
       : chooseGoal(belief, field, danger, held, settings);

@@ -8,6 +8,14 @@
 
 export const MAP_SIZE = 32;              // FAITHFUL ui.cljs:26
 export const CORRIDOR_LENGTH = [1, 5];   // FAITHFUL generator.cljs:146
+
+// GUESS — how much of the grid the digger hollows out. ROT's default is
+// 0.2; lowering it digs fewer and smaller rooms, which is what makes the
+// floor read as a route with rooms hanging off it rather than a warren
+// with many equivalent ways through. The map-design goal of "one mandatory
+// path plus optional detours" needs the map to HAVE a mandatory path, and
+// at 0.2 there are usually several.
+export const MAP_DUG_PERCENTAGE = 0.15;
 export const VISIBLE_DIST = 9;           // FAITHFUL ui.cljs:27
 export const CLEAR_DIST = 7;             // FAITHFUL ui.cljs:29 (cosmetic)
 export const CHEST_COUNT = 15;           // FAITHFUL generator.cljs:326
@@ -173,6 +181,49 @@ export const CHEST_DIFFICULTY_SCALE = 0.9;  // FAITHFUL generator.cljs:238
 // Either way the probability sweeps the same range, just in opposite
 // directions: from 10% at one end to 100% at the other.
 export const CHEST_LOOT_RICHER_FAR = true;
+
+// GUESS — depth buys BETTER loot, not merely more of it.
+//
+// With this off, a deep chest is likelier to hold something but what it
+// holds is drawn from the same pool as one by the front door: risk bought
+// quantity and never quality. On, the within-kind weight becomes
+// `value^(2·depth − 1)`, so the axe is rare at the entrance, even money
+// half way, and the common outcome at the shrine. See spawn.js itemWeights.
+export const CHEST_QUALITY_BY_DEPTH = true;
+
+// ***** map design: the spine and its detours ***** //
+//
+// docs/map-design.md. The floor should offer a choice: a short mandatory
+// route holding most of the threat, and side rooms that can be skipped,
+// holding fewer but nastier creatures and better chests.
+
+// GUESS — share of a floor's THREAT MASS placed on the mandatory route.
+// Mass rather than headcount, because cost tracks hp × (xp − 1): a floor
+// can put 70% of its bodies on the spine and still hide the dangerous half
+// in a side room.
+export const SPINE_THREAT_SHARE = 0.7;
+
+// GUESS — a side room is treated as if it sat this much deeper than it is.
+//
+// ONE constant drives both halves of the bargain, which is why it is the
+// whole of the risk/reward design rather than a tweak to it: depth is what
+// picks the monster tier AND what sets chest quality, so raising it makes a
+// detour more dangerous and better paid by the same number. Raise it for a
+// sharper gamble, drop it to zero to make side rooms ordinary.
+export const SIDE_ROOM_DEPTH_BONUS = 0.35;
+
+// GUESS — floors with fewer creatures than this put everything on the
+// spine. The mass split is too coarse to honour below it: on a
+// two-creature floor one side monster is already half the mass, which
+// measured 68% and 63% spine on floors 1 and 3 against a 70% target. A
+// single creature behind a detour is not a gamble either.
+export const MIN_ROSTER_FOR_SIDE = 4;
+
+// GUESS — how much likelier a chest is to land in a side room than in a
+// spine room. A weight, not a quota: a detour nobody is paid to make is not
+// a choice, it is scenery — but a map with no side rooms must still place
+// every chest.
+export const SIDE_CHEST_BIAS = 3;
 
 // ***** bot ***** //
 

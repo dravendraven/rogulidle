@@ -5,12 +5,15 @@
 // pool, so changing the order changes every map.
 
 import {
-  CHEST_COUNT, CHEST_DIFFICULTY_SCALE, CHEST_LOOT_RICHER_FAR, CHEST_TABLE,
-  ITEM_TABLE, MONSTER_COUNT, MONSTER_DIFFICULTY_SCALE, MONSTER_DROP_CHANCE,
-  MONSTER_TABLE, MONSTER_WEIGHTS, PLAYER_HP, PLAYER_XP,
+  CHEST_COUNT, CHEST_DIFFICULTY_SCALE, CHEST_LOOT_RICHER_FAR, CHEST_QUALITY_BY_DEPTH,
+  CHEST_TABLE, ITEM_TABLE, MONSTER_COUNT, MONSTER_DIFFICULTY_SCALE,
+  MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE, MONSTER_WEIGHTS,
+  PLAYER_HP, PLAYER_XP, SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS,
+  SPINE_THREAT_SHARE,
 } from './balance.js';
 import { drawChance, drawInt, drawPick, drawWeighted } from './rng.js';
 import { findPath, playerPassable, posKey, walkablePositions } from './mapgen.js';
+import { classifyRooms } from './spine.js';
 
 // Items are drawn with weight 1/value, so a high value is a RARE item.
 //
@@ -32,22 +35,35 @@ import { findPath, playerPassable, posKey, walkablePositions } from './mapgen.js
 // Scarcity keeps the same meaning either way: 1 draw in S gives something,
 // the rest come up empty.
 //
+// `quality` 0..1 tilts WHICH item comes out, and is how a deep chest pays
+// better than one at the hero's feet. Within a kind the weight is
+// `value^(2q - 1)`:
+//
+//   q = 0    value^-1  — 1/value, the shipped rule: strong items are rare
+//   q = 0.5  value^0   — flat, every item in the kind equally likely
+//   q = 1    value^+1  — inverted, the axe is now the COMMON outcome
+//
+// One expression, no thresholds, and q = 0 reproduces the old behaviour
+// exactly — which matters, because it means quality can be switched off and
+// the pool is provably unchanged.
+//
 // Returns [[item | null, weight], ...]; null means this draw holds nothing.
-export function itemWeights(scarcity = {}, source = 'chest') {
+export function itemWeights(scarcity = {}, source = 'chest', quality = 0) {
   const kinds = source === 'monster' ? ['potion'] : ['weapon', 'armour'];
   const shareEach = 1 / kinds.length;
+  const exponent = 2 * quality - 1;
+  const tilt = (item) => Math.pow(item.value, exponent);
 
-  // Within a kind, split by 1/value so the stronger item stays rarer.
   const kindTotals = new Map();
   for (const item of ITEM_TABLE) {
     if (!kinds.includes(item.kind)) continue;
-    kindTotals.set(item.kind, (kindTotals.get(item.kind) || 0) + 1 / item.value);
+    kindTotals.set(item.kind, (kindTotals.get(item.kind) || 0) + tilt(item));
   }
 
   const entries = ITEM_TABLE
     .filter((item) => kinds.includes(item.kind))
     .map((item) => {
-      const shareOfKind = (1 / item.value) / kindTotals.get(item.kind);
+      const shareOfKind = tilt(item) / kindTotals.get(item.kind);
       const mass = shareEach / (scarcity[item.kind] ?? 1);
       return [item, mass * shareOfKind];
     });
@@ -115,8 +131,14 @@ export function populate(state, map, counts = {}) {
     armour: counts.armourScarcity,
     potion: counts.potionScarcity,
   };
-  const chestWeights = itemWeights(scarcity, 'chest');
   const monsterWeights = itemWeights(scarcity, 'monster');
+
+  // Map design (docs/map-design.md). All three default to the shipped
+  // values in balance.js and can be swept from the lab page.
+  const spineShare = counts.spineThreatShare ?? SPINE_THREAT_SHARE;
+  const sideBonus = counts.sideRoomDepthBonus ?? SIDE_ROOM_DEPTH_BONUS;
+  const sideChestBias = counts.sideChestBias ?? SIDE_CHEST_BIAS;
+
   const passable = playerPassable(map);
   const free = new Map();
   for (const pos of walkablePositions(map)) free.set(posKey(pos), pos);
@@ -167,11 +189,37 @@ export function populate(state, map, counts = {}) {
   takeFree(shrinePos);
   state.shrine = { id: nextId(state), emoji: '⛩️', pos: shrinePos };
 
+  // 3b. Which rooms the hero cannot avoid on the way to the shrine.
+  //
+  // Purely a reading of the map the digger already made — nothing is dug
+  // differently for it, so this cannot fail to produce a floor.
+  const zones = classifyRooms(map, playerPos, shrinePos);
+  state.spine = { path: zones.path, sideRooms: zones.side.length,
+    spineRooms: zones.spine.length };
+
+  // A side room is treated as if it sat DEEPER than it does, and that one
+  // bonus drives both halves of the bargain: depth is what picks the monster
+  // tier and what sets chest quality, so a detour is more dangerous and
+  // better paid by the same number. See docs/map-design.md.
+  const depthAt = (pos) => {
+    const depth = posToDifficulty(pos, playerPos, passable, furthestLength);
+    return Math.min(1, depth + (zones.isSide(pos) ? sideBonus : 0));
+  };
+
   // 4. Chests. Rooms only — never corridors.
+  //
+  // Side rooms are BIASED for, not reserved: a detour nobody is paid to make
+  // is not a choice, it is scenery. The bias is a weight rather than a quota
+  // so a map with no side rooms at all still places every chest.
   state.chests = [];
+  const chestRoomWeights = roomPaths.map((entry) => [
+    entry,
+    zones.side.includes(entry.room) ? sideChestBias : 1,
+  ]);
+
   for (let i = 0; i < chestCount; i++) {
     if (!roomPaths.length) break;
-    const entry = drawPick(state, 'spawn', roomPaths);
+    const entry = drawWeighted(state, 'spawn', chestRoomWeights);
     const roomFree = [];
     for (let x = entry.room.x1; x <= entry.room.x2; x++) {
       for (let y = entry.room.y1; y <= entry.room.y2; y++) {
@@ -183,11 +231,16 @@ export function populate(state, map, counts = {}) {
     const pos = roomFree[drawInt(state, 'spawn', 0, roomFree.length - 1)];
     takeFree(pos);
 
-    const depth = posToDifficulty(pos, playerPos, passable, furthestLength);
+    const depth = depthAt(pos);
     // Sweeps 10%..100% across the map; the flag decides which end is rich.
     const emptiness = CHEST_LOOT_RICHER_FAR ? 1 - depth : depth;
     const hasLoot = drawChance(state, 'spawn', 1 - CHEST_DIFFICULTY_SCALE * emptiness);
-    const template = drawWeighted(state, 'spawn', chestWeights);
+    // Depth buys BETTER loot, not just more of it. Without this a deep chest
+    // was merely likelier to hold something, and what it held was drawn from
+    // the same pool as the one by the front door — so risk bought quantity
+    // and never quality.
+    const template = drawWeighted(state, 'spawn',
+      itemWeights(scarcity, 'chest', CHEST_QUALITY_BY_DEPTH ? depth : 0));
 
     const chest = drawPick(state, 'spawn', CHEST_TABLE);
     state.chests.push({
@@ -195,27 +248,70 @@ export function populate(state, map, counts = {}) {
       name: chest.name,
       emoji: chest.emoji,
       pos,
+      side: zones.isSide(pos),
       // `template` is null when the scarcity dials sent this draw to the
       // empty slot, which is the replacement for Rogule's junk collectibles.
       drop: hasLoot && template ? makeItem(state, template, pos) : null,
     });
   }
 
-  // 5. Monsters. Anywhere still free, harder the deeper they sit.
+  // 5. Monsters, split between the mandatory route and the side rooms.
+  //
+  // The split is by MASS, not headcount — cost tracks hp × (xp − 1), so a
+  // floor can put 70% of its bodies on the spine and still hide the
+  // dangerous half in a side room. Greedy: each monster goes wherever the
+  // running share is furthest from target, which converges without needing
+  // to know the total in advance.
+  //
+  // Combined with the side depth bonus this produces the shape asked for by
+  // itself — side rooms fill their smaller mass budget with fewer, stronger
+  // creatures, because each one weighs more.
+  // Below this the split cannot be honoured and should not be attempted.
+  // On a two-creature floor a single side monster is already half the mass,
+  // so aiming for 30% overshoots to 37% — measured 68% and 63% on floors 1
+  // and 3, under the 70% the design calls for. A lone creature behind a
+  // detour is not a gamble anyway; it is one fight in a side room.
+  const sideTarget = monsterCount >= MIN_ROSTER_FOR_SIDE ? 1 - spineShare : 0;
+  let spineMass = 0;
+  let sideMass = 0;
+
+  const freeIn = (wantSide) => {
+    const out = [];
+    for (const pos of free.values()) {
+      if (zones.isSide(pos) === wantSide) out.push(pos);
+    }
+    return out;
+  };
+
   state.monsters = [];
   for (let i = 0; i < monsterCount; i++) {
     if (!free.size) break;
-    const pos = pickFree();
+
+    const running = spineMass + sideMass;
+    const wantSide = running > 0
+      ? (sideMass / running) < sideTarget
+      : sideTarget >= 0.5;
+
+    // Fall back to the other zone rather than dropping the monster: a map
+    // with no side rooms must still receive its full roster.
+    let pool = freeIn(wantSide);
+    if (!pool.length) pool = freeIn(!wantSide);
+    if (!pool.length) break;
+
+    const pos = pool[drawInt(state, 'spawn', 0, pool.length - 1)];
     takeFree(pos);
 
-    const depth = posToDifficulty(pos, playerPos, passable, furthestLength);
-    const difficulty = Math.min(1, depth * difficultyScale);
+    const difficulty = Math.min(1, depthAt(pos) * difficultyScale);
     const index = Math.floor(difficulty * (MONSTER_TABLE.length - 1));
     const slot = drawWeighted(state, 'spawn', monsterWeightsAround(index));
     const template = MONSTER_TABLE[slot];
 
     const carries = drawChance(state, 'spawn', dropChance);
     const dropTemplate = drawWeighted(state, 'spawn', monsterWeights);
+
+    const side = zones.isSide(pos);
+    const mass = template.hp * Math.max(0, template.xp - 1);
+    if (side) sideMass += mass; else spineMass += mass;
 
     state.monsters.push({
       id: nextId(state),
@@ -227,6 +323,10 @@ export function populate(state, map, counts = {}) {
       xp: template.xp,
       activation: template.activation,
       dead: false,
+      // Which side of the bargain this creature is on. Read by spineShare()
+      // to check the floor came out at the ratio that was asked for, and by
+      // the bot to tell a mandatory fight from an optional one.
+      side,
       drop: carries && dropTemplate ? makeItem(state, dropTemplate, pos) : null,
     });
   }

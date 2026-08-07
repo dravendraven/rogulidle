@@ -8,7 +8,7 @@
 // everything after generation uses our own streams (rng.js).
 
 import * as ROT from 'https://cdn.jsdelivr.net/npm/rot-js@2.2.0/+esm';
-import { MAP_SIZE, CORRIDOR_LENGTH } from './balance.js';
+import { MAP_SIZE, CORRIDOR_LENGTH, MAP_DUG_PERCENTAGE } from './balance.js';
 
 // Tiles the player and monsters may walk on. FAITHFUL engine.cljs:321.
 const WALKABLE = ['room', 'door', 'corridor'];
@@ -66,11 +66,16 @@ export function playerPassable(map) {
 }
 
 // Generates the dungeon. `mapSeed` is an int derived from the run seed.
-export function generateMap(mapSeed, size = MAP_SIZE) {
+export function generateMap(mapSeed, size = MAP_SIZE, options = {}) {
   ROT.RNG.setSeed(mapSeed);
 
   const digger = new ROT.Map.Digger(size, size, {
     corridorLength: CORRIDOR_LENGTH,
+    // Fewer, smaller rooms than ROT's default 0.2, so the floor reads as a
+    // route with rooms hanging off it instead of a warren where every way
+    // through is equivalent. The spine/side design needs there to BE a
+    // mandatory path.
+    dugPercentage: options.dugPercentage ?? MAP_DUG_PERCENTAGE,
   });
 
   // Everything the digger carved out. value 0 = floor.
