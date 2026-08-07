@@ -39,10 +39,11 @@ session, skip it.
 | # | id | what gets done | status |
 |---|---|---|---|
 | 1 | I8 | One page: three levels, twelve numbers, success and health | REPORTED |
-| 2 | M17 | Near-flat roster, ~5 to ~8, with strength carrying the difficulty | READY |
-| 3 | X1 | Delete what nothing references | READY |
-| 4 | M4 | Side-room risk/reward spread scales with depth | READY |
-| 5 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 2 | M18 | The rat gets a real attack and a real chase radius | READY |
+| 3 | M17 | Near-flat roster, ~5 to ~8, with strength carrying the difficulty | READY |
+| 4 | X1 | Delete what nothing references | READY |
+| 5 | M4 | Side-room risk/reward spread scales with depth | READY |
+| 6 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -222,6 +223,46 @@ number for even when that number is boring.
 **Not measured / left off:** nothing from the spec's twelve. The `run-shape.html`
 and `run-curve.html` diagnostics (modelled-cost pages, unrelated method,
 not named in this item) are untouched — not this item's call to remove.
+
+## M18 · the rat becomes a creature
+
+`work agent` · **READY** — before M17
+
+`MONSTER_TABLE` row 0 is `activation 3, xp 1, hp 2`. Damage is a roll over
+`0 .. xp-1`, so a rat's die has one face and it reads **zero**. `threat.js`
+skips it from the danger field entirely and `duelCost` returns 0. And an
+activation of 3 means it barely wakes.
+
+It is scenery that costs turns. Make it the weakest real creature instead of
+a non-creature.
+
+**Do.** Raise `xp` to 2 so it can land a blow, and the activation to
+something that chases — around 8. Keep `hp` at 2. Both values are FAITHFUL
+and this is a deliberate divergence: `rogule-spec.md` §13.
+
+**Keep it below the bat.** At `xp 2, activation 10, hp 3` the bat is the
+next row up; a rat at `xp 2, activation 8, hp 2` is still strictly weaker on
+two of three. If the two end up interchangeable, the table has ten rows
+instead of eleven and the change cost more than it bought.
+
+**What it moves, and why the order matters.** A rat's mass is `hp × (xp−1)`,
+which is `2 × 0 = 0` today and becomes `2 × 1 = 2`. **The bottom tier stops
+being free**, so shallow floors get more expensive and the challenge growth
+rate falls, since its mean rises at the bottom. M11's `expectedFloorMass`
+test reads the shipped parameters and will catch any monotonicity break by
+itself.
+
+It also puts rats into the bot's danger field for the first time, which
+changes routing on shallow floors.
+
+**Do this before M17.** M17 raises floor 1 from two creatures to about five.
+If those five start biting in the same change, nobody will be able to say
+which made the opening hard. One at a time, and floor 1 is the floor most
+likely to become a wall.
+
+**Assert.** A rat's expected damage is above zero. It wakes and closes from
+a distance a floor-1 hero will actually meet. Challenge per floor still
+rises at every step — the existing test covers this.
 
 ## M17 · a near-flat roster, with strength carrying the difficulty
 
