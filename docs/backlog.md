@@ -58,7 +58,7 @@ its standing job, which is not a task and so has no row of its own.
 | # | id | what and why | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
 | 1 | I5 | Does the probe under-read hp? Design says too hard, product says too easy | map | metrics | IN FLIGHT · now the highest-value item | n/a |
-| 2 | U1 | The screen plays one synthetic floor, not the descent everything is designed around | product | ui | IN FLIGHT | n/a |
+| 2 | U1 | The screen plays one synthetic floor, not the descent everything is designed around | product | ui | REPORTED | n/a |
 | 3 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | READY · the main route | — |
 | 4 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
 | 5 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
@@ -918,7 +918,7 @@ B4's effect on the reversal rate before concluding B3 still has work to do.
 
 ## U1 · the spectator watches a different game than the one being designed
 
-`product` · `ui agent` · **IN FLIGHT**
+`product` · `ui agent` · **REPORTED**
 
 `index.html` does not play a descent. It plays **one synthetic floor**,
 picked by the difficulty dial — `difficultyToParams(dial)` in
@@ -961,6 +961,57 @@ touch the map or bot lanes, and it is the only way the owner can form an
 opinion about whether the curve work is producing a better spectacle. Sub-
 goal 3 says a run should read like a horse race; nobody can check that on a
 screen showing one floor.
+
+### Result
+
+`index.html` now runs `playDungeon` (`src/sim/dungeon.js`) by default —
+floors 1 to 10 in one continuous session, replaying each floor's recorded
+run in turn with `replayGame`. Nothing in `src/sim/` or `src/bot/` changed;
+`playDungeon` already returned everything needed (a `replay` per floor, plus
+`cleared`/`depth`/`killedBy` for the whole descent), so this was a pure
+`src/ui/` change. Changed: `src/ui/spectator.js` (new `runDescentForever`
+alongside the old `runForever`), `src/ui/render.js` (added `renderHistory`;
+the tally line is now caller-supplied text instead of hardcoded to the
+single-floor W/L/timeout vocabulary), `index.html` (dial markup removed, a
+`#floor` chip and a `#history` strip added, banner rewritten), `style.css`
+(dial rules removed, `.history`/`.history-chip` added).
+
+**Difficulty dial.** Removed from the page entirely — no slider markup. `?
+difficulty=` still works exactly as before: it runs the untouched legacy
+`runForever` loop (one synthetic floor via `difficultyToParams`), just
+without the now-deleted dial UI reflecting its value. Cheap, as asked —
+same code path, just no longer wired to a control.
+
+**Per-run history and current floor.** A `#floor` chip shows `floor N / 10`
+during play, updated once per floor. A `#history` strip keeps the last 12
+runs, newest first, each a chip of `<depth reached><icon>` (⛩️ cleared, 💀
+died, 🕳️ timed out) — the readable form of `finishes` the item asked for.
+Tally line reads `cleared/played` for the descent; the old `W · L · timeout`
+line is preserved verbatim for legacy mode.
+
+**Banner.** Rewritten to describe the mechanism (hp-priced routing, gear
+gathering, monster avoidance, floor-to-floor carry) without quoting a win
+rate or a kill-everything rule that will go stale the next time the bot or
+the rules change — that staleness is exactly what this item was raised
+against, so I deliberately left numbers out rather than putting in a
+number that will rot the same way.
+
+**Verified in-browser** (temporary server on a spare port, not the shared
+8141 — another session had that one): a full descent carries hp/xp/kills/
+inventory across floors, the floor chip advances 1→10, a death mid-descent
+and a full clear both produced correct summary cards and history chips
+(`5💀`, `10⛩️` observed in one session), and `?difficulty=` still drives the
+old single-floor loop with no console errors. `run-tests.html` still reports
+all 64 engine tests passing (untouched).
+
+**What I could not verify.** Full 10-floor descents take a while to watch
+even at 8× — I confirmed floor advancement and one clear plus one death by
+letting several runs play out, not by exhaustively checking every floor
+transition frame-by-frame.
+
+**Out of scope, reported rather than done.** None — the engine already
+exposed everything the screen needed; no reaching into `src/sim/` or
+`src/bot/` was required.
 
 ## I5 · the ruler cannot see the buffer where the target lives
 
