@@ -623,11 +623,32 @@ gastá-lo custa a luta. Mesmo recurso, sem exploit, sem precisar de teto.
 
 **Medido, e a tensão é real.** Buffer sobe de ×0,846/andar (desligado) para
 ×0,910/andar (padrão, `per=2, amount=1`) nos andares 1–6 — melhora real
-(z≈2,1) mas **ainda cai**, longe da meta de ~×1,16. E o clear rate do bot
-real quase dobra no mesmo intervalo: 30,7% → 56,7% em seeds pareadas
-(n=150). Testado um intervalo de taxas (0,125 a 0,5 hp/morte): nenhuma
-melhora o buffer o bastante sem também inflar o clear rate — reduzir a taxa
-protege o clear rate só um pouco e não compra buffer de volta. Ver
-`docs/backlog.md` M6 para a tabela completa; ship no valor especificado
-(mesma cadência do xp) porque é o único ponto medido com efeito de buffer
-estatisticamente real, com a ressalva registrada explicitamente.
+(z≈2,1) mas **ainda cai**. E `finishes` — a fração de runs em que o bot
+alcança o fundo — quase dobra no mesmo intervalo: 30,7% → 56,7% em seeds
+pareadas (n=150). Testado um intervalo de taxas (0,125 a 0,5 hp/morte):
+**nenhuma** melhora o buffer sem também inflar `finishes`. Reduzir a taxa
+protege `finishes` só um pouco e não compra buffer de volta — na taxa mais
+baixa o buffer não se move de forma nenhuma (z≈0,3) e `finishes` já está em
+44,7%. Tabela completa em `docs/backlog.md`, item M6.
+
+**Estado atual: construído, `HP_FROM_KILLS = false`.** O mecanismo funciona e
+não está retratado; o que foi revertido é a adoção. Foi ligado brevemente
+enquanto o M7 seria o próximo trabalho, para servir de linha de base a ele.
+Com a ordem alterada por decisão do dono, o que a mudança compra (+0,095 de
+buffer) não justifica o que custa (26 pontos de `finishes`, fora da faixa) —
+sobretudo porque a meta que ele não atingiu foi depois **retirada**.
+
+**A meta de buffer ~×1,16 não existe mais.** Ela era um número do DCSS
+derivado para um jogador real, aplicado a uma leitura de sonda, e a medição
+I5 mostrou duas coisas que a derrubam. Buffer é na verdade **duas
+grandezas** — capacidade (o que o herói acumula descendo) e atrito (quanto o
+andar toma de volta) — e a taxa medida depende da sonda: a mesma concessão
+de ~+42 hp lê ×1,011/andar sobre a base de 400 hp da sonda e ~×1,20 sobre os
+10 hp de um herói real. Uma grandeza que se move vinte vezes conforme uma
+opção do instrumento não sustenta barra absoluta.
+
+O critério que substitui é comparativo: capacidade sobe, atrito é reportado
+ao lado com o viés de sobrevivência declarado, e buffer só é citado junto da
+janela de andares em que foi ajustado — o sinal dele se inverte entre 1–6 e
+1–10, e o I5 mostrou que essa inversão é **seleção por sobrevivência**, não
+o jogo ficando tolerante. Ver `docs/backlog.md`, "Targets for objective 1".

@@ -329,68 +329,97 @@ bot with known defects would measure the defects.
 
 ## Targets for objective 1
 
-Concrete numbers, so every map item has an acceptance figure rather than
-"stops falling". Growth per floor, measured on the probes.
+Growth per floor, measured on the probes, so every map item is judged
+against something rather than against "stops falling".
 
-| quantity | now | must reach | aim for | kind |
-|---|---|---|---|---|
-| challenge | 1.343 ±0.009 | hold, ±0.03 | unchanged | **constraint** |
-| buffer | 0.855 ±0.023 | ≥ 1.00 | 1.16 | goal |
-| CV challenge | 0.944 ±0.012 | ≥ 1.00 | ~1.05 | goal |
-| challenge/power | ≥1.307 | ≥ 1.15 | — | **bound** |
-| **finishes**, real bot | ~30% | 15–40% | — | **bound** |
+| quantity | now | target | kind |
+|---|---|---|---|
+| challenge | 1.343 ±0.009 | hold, ±0.03 | **constraint** |
+| CV challenge | 0.944 ±0.012 | ≥ 1.00, aim ~1.05 | goal |
+| capacity | see below | **rises** | goal, comparative |
+| attrition | see below | does not outrun capacity | goal, comparative |
+| challenge/power | ≥1.307 | ≥ 1.15 | **bound** |
+| **finishes**, real bot | ~30% | 15–40% | **bound** |
+| reward | — | none, no instrument | see I6 |
 
-**`finishes`** is the fraction of runs where the bot reaches the bottom —
-what used to be called the clear rate. The name is deliberate: finishes is
-something you read and bet on, not something you maximise. "Clear rate"
-reads like a performance figure to be pushed up, which is exactly the wrong
-instinct for a bound.
+### Why capacity and attrition are comparative, not absolute
 
-**And it is measured on the real bot, not on the probes — that is the
-point.** Everything else on this page describes the design against a fixed,
-deliberately dumb reference player. The probe cannot exploit a game that got
-easier the way a competent bot can, so it systematically under-reports how
-much a change moves the actual product.
+They used to be one number, `buffer`, carrying `≥ 1.00`. That target is
+withdrawn. Two reasons, both from I5.
 
-M6 proved it: the probe's buffer moved 0.846 to 0.910, a modest and
-carefully-argued improvement, while finishes went from 30.7% to 56.7%. On
-the probes alone that change looks safe. **`finishes` is the only number on
-this page that catches a design change whose effect on the game is far
-larger than its effect on the reference player** — and it costs nothing,
-since the batch runner already reports it.
+**It was borrowed.** 1.00 and 1.16 came from a DCSS figure derived for a
+real player and applied to a probe reading. Nothing checked that the two
+were commensurable, and they are not.
 
-**Challenge is a constraint, not a goal.** It is calibrated and no map item
-is licensed to move it. An item that improves a ratio by making floors
-harder or easier has not improved anything — it has moved the denominator.
+**And the rate is not scale-invariant, so no absolute can survive.** The
+same M6 grant of about +42 hp across a descent reads `×1.011` per floor on
+the probe's 400 hp base and roughly `×1.20` on a real hero's 10. A quantity
+that moves twenty-fold with an instrument setting cannot carry a bar.
 
-**Buffer: 1.16 is DCSS's figure and it transfers cleanly.** With challenge
-held at 1.343 it puts `challenge/buffer` near 1.16 against DCSS's 1.11.
-Anything at or above 1.00 already fixes the sign, which is the part that
-matters; 1.16 is the ambition.
+**Buffer was also two things glued together:**
 
-**CV: do NOT copy DCSS's 1.14.** The growth rates are not comparable because
-the starting points are not. Rogulidle's CV of challenge begins at 1.20 on
-floor one and falls to 0.64 by floor nine; DCSS starts from a much lower
-base. Growing 1.14 per floor from 1.20 would end near 3.9 — a standard
-deviation four times the mean, which is not a game, it is a coin toss.
+    capacity     what the hero accumulates descending — ceiling, gear, grants
+    attrition    how much of that a floor takes back
+    buffer       = capacity − attrition, as seen on arrival
 
-The high base is itself an artefact worth understanding rather than
-preserving: floor one holds two creatures, so a single draw swings the total
-enormously, and the fall to 0.64 is mostly the law of large numbers as the
-roster grows. **The target is therefore the sign, not the slope** — deep
-floors at least as unpredictable as shallow ones, with ~1.05 as a reasonable
-ambition and anything above 1.00 counting as fixed.
+Capacity is measurable with no survivor selection. Attrition needs a hero
+that can die, so its bias is intrinsic and gets **declared rather than
+disguised**. Quote `buffer` only with the window it was fitted over — its
+sign flips between floors 1–6 and 1–10, and I5 showed that flip is
+selection, not the game becoming forgiving.
 
-**Two bounds, not goals.** `challenge/power` must not fall below about 1.15
-and finishes must stay inside 15–40%. Both drift the same way when the
-hero gets stronger, which M6 does on purpose. They are there to catch a fix
-that works by making the game easy, and if either leaves its band the answer
-is a smaller change, never a difficulty re-tune.
+**Instrument note, load-bearing.** Capacity must be measured with death
+suppressed as a flag and the probe starting at `PLAYER_HP`. The current
+probe survives *because* it carries 400 hp, which conflates immortality with
+base and dilutes every rate it reports. Immortality and starting hp are
+independent; the instrument should treat them that way.
 
-**No target for reward.** `reward/challenge` and CV of reward have no
-instrument that answers the question — the probes measure incidental
-pickup, which is a property of their policy. Nothing should be built to move
-a number that does not yet mean anything.
+### Challenge is a constraint, not a goal
+
+It is calibrated and no map item is licensed to move it. An item that
+improves a ratio by making floors harder or easier has improved nothing — it
+moved the denominator.
+
+### CV: do not copy DCSS's 1.14
+
+The rates are not comparable because the bases are not. Rogulidle's CV of
+challenge begins at 1.20 on floor one and falls to 0.64 by floor nine; DCSS
+starts much lower. Growing 1.14 per floor from 1.20 ends near 3.9 — a
+standard deviation four times the mean, which is not a game, it is a coin
+toss.
+
+The high base is an artefact worth understanding rather than preserving:
+floor one holds two creatures, so one draw swings the total. The fall to
+0.64 is mostly the law of large numbers as the roster grows. **The target is
+the sign, not the slope** — deep floors at least as unpredictable as shallow
+ones.
+
+### Two bounds, not goals
+
+`challenge/power` must not fall below about 1.15, and finishes must stay
+inside 15–40%. Both drift the same way when the hero gets stronger. They
+exist to catch a fix that works by making the game easy, and if either
+leaves its band the answer is a smaller change, never a difficulty re-tune.
+
+**`finishes`** is the fraction of runs where the bot reaches the bottom.
+The name is deliberate: it is something you read and bet on, not something
+you maximise.
+
+**And it is measured on the real bot — that is the point.** Everything else
+here describes the design against a fixed, deliberately dumb reference
+player. The probe cannot exploit a game that got easier the way a competent
+bot can, so it under-reports how much a change moves the actual product. M6
+proved it: the probe's buffer moved 0.846 to 0.910, a modest and
+carefully-argued improvement, while finishes went 30.7% to 56.7%. On the
+probes alone that change looks safe.
+
+### No target for reward, yet
+
+`reward/challenge` and CV of reward have no instrument that answers the
+question — the probes collect only what they step over, which is a property
+of their policy. **I6** exists to fix that. Until it lands, nothing should
+be built to move a number that does not yet mean anything, which is why M5
+and M9 are both held.
 
 ## The problem all of this serves
 
