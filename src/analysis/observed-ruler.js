@@ -61,7 +61,7 @@ import { playDungeon, floorPlan, LEVELS } from '../sim/dungeon.js';
 import { hashSeeds } from '../sim/rng.js';
 import { findPath } from '../sim/mapgen.js';
 import { effectiveHp, expectedDamage, weaponDamage } from '../sim/combat.js';
-import { PLAYER_XP } from '../sim/balance.js';
+import { PLAYER_HP, PLAYER_XP } from '../sim/balance.js';
 
 // ***** the calibration hero ***** //
 //
@@ -352,7 +352,7 @@ export function builtShape(options = {}) {
   } = options;
 
   const rows = Array.from({ length: levels }, (_, i) => ({
-    level: i + 1, power: [], buffer: [], reached: 0,
+    level: i + 1, power: [], buffer: [], damage: [], reached: 0,
   }));
   const depths = [];
   let cleared = 0;
@@ -368,6 +368,11 @@ export function builtShape(options = {}) {
       row.reached++;
       row.power.push(heroPower(lvl.arrivedWith));
       row.buffer.push(heroBuffer(lvl.arrivedWith, lvl.roster));
+      // Attrition (I5): what this floor actually took from a hero who can
+      // die, as opposed to capacityShape's immortal hero, which cannot
+      // spend anything. Same descents, same survivor selection as
+      // power/buffer above — carried, not removed, see I5.
+      row.damage.push(lvl.damage);
     }
   }
 
@@ -377,6 +382,125 @@ export function builtShape(options = {}) {
       reached: r.reached,
       power: summarise(r.power),
       buffer: summarise(r.buffer.filter(Number.isFinite)),
+      damage: summarise(r.damage),
+    })),
+    cleared,
+    runs,
+    depths: depths.slice().sort((a, b) => a - b),
+  };
+}
+
+// ***** I5 — capacity: what an immortal Sonda B accumulates, all 10 floors ***** //
+//
+// "Buffer" was two quantities glued together. `builtShape` above measures
+// it with a MORTAL hero, so it is intrinsically survivor-selected and its
+// window shrinks with depth (Sonda B dies). What it cannot separate is how
+// much of "hp on arrival" is CAPACITY (what the build accumulated — ceiling,
+// gear, grants) against ATTRITION (what floors already spent from it).
+// `builtShape`'s new `damage` column is attrition. This is capacity: an
+// immortal hero earns every grant and kills every roster exactly like the
+// mortal one, but cannot die, so there is no survivor selection and no
+// truncated window — all 10 floors, every run.
+//
+// `playDungeon` (src/sim/dungeon.js) has no way to seed a starting hero
+// other than the default PLAYER_HP, and the protocol since the M6 episode
+// is: the metrics agent does not reach into src/sim/ for a hook like that —
+// ask the work agent and wait. Rather than block I5 on that, the descent
+// loop is reimplemented locally instead, the same way clustering.js
+// reimplements playGame's turn loop rather than touching game.js: floor
+// generation (`floorPlan`) and single-floor play (`playGame`) are already
+// exported engine primitives, and driving them across ten floors with a
+// chosen starting hero needs none of dungeon.js's own code changed. The
+// per-floor `counts` built below mirror `playDungeon`'s exactly.
+function carryFromPlayer(player) {
+  return {
+    hp: player.hp,
+    hpMax: player.hpMax,
+    armour: player.armour,
+    xp: player.xp,
+    inventory: player.inventory.map((i) => ({ ...i })),
+    kills: player.kills.slice(),
+  };
+}
+
+function driveDescent(seed, makePolicy, startHero, maxTurns, levels, dungeonOptions = {}) {
+  let carry = startHero ? carryFromPlayer(startHero) : null;
+  const perFloor = [];
+
+  for (let level = 1; level <= levels; level++) {
+    const plan = floorPlan(level);
+    const counts = {
+      monsters: plan.monsters,
+      chests: plan.chests,
+      difficultyScale: plan.difficultyScale,
+      dropChance: plan.dropChance,
+      weaponScarcity: plan.weaponScarcity,
+      armourScarcity: plan.armourScarcity,
+      potionScarcity: plan.potionScarcity,
+      monsterSpread: plan.monsterSpread,
+      sideActivationCap: plan.sideActivationCap,
+      sideRoomDepthBonus: plan.sideRoomDepthBonus,
+      spineThreatShare: plan.spineThreatShare,
+      sideChestBias: plan.sideChestBias,
+      carry,
+      xpFromKills: dungeonOptions.xpFromKills,
+      hpFromKills: dungeonOptions.hpFromKills,
+      attackWhenAdjacent: dungeonOptions.attackWhenAdjacent,
+      weaponsWidenRoll: dungeonOptions.weaponsWidenRoll,
+    };
+
+    const arrivedWith = carry
+      ? carryFromPlayer(carry)
+      : {
+        hp: PLAYER_HP, hpMax: PLAYER_HP, armour: 0, xp: PLAYER_XP, inventory: [], kills: [],
+      };
+
+    const run = playGame(hashSeeds(seed, level), makePolicy(), { maxTurns, counts });
+    const damage = run.state.log
+      .filter((e) => e.type === 'attack' && e.target === 'player')
+      .reduce((sum, e) => sum + e.damage, 0);
+
+    perFloor.push({
+      level, arrivedWith, damage, outcome: run.outcome || 'timeout',
+    });
+
+    if (run.outcome !== 'ascended') return { levels: perFloor, cleared: false, depth: level };
+    carry = carryFromPlayer(run.state.player);
+  }
+  return { levels: perFloor, cleared: true, depth: levels };
+}
+
+export function capacityShape(options = {}) {
+  const {
+    runs = 150, firstSeed = 950000, maxTurns = 4000, levels = LEVELS,
+    dungeonOptions = {},
+  } = options;
+
+  const rows = Array.from({ length: levels }, (_, i) => ({
+    level: i + 1, power: [], hpMax: [], reached: 0,
+  }));
+  const depths = [];
+  let cleared = 0;
+
+  for (let i = 0; i < runs; i++) {
+    const result = driveDescent(firstSeed + i, makeSondaPolicy, PROBE_HERO, maxTurns, levels, dungeonOptions);
+    depths.push(result.depth);
+    if (result.cleared) cleared++;
+
+    for (const lvl of result.levels) {
+      const row = rows[lvl.level - 1];
+      row.reached++;
+      row.power.push(heroPower(lvl.arrivedWith));
+      row.hpMax.push(lvl.arrivedWith.hpMax);
+    }
+  }
+
+  return {
+    rows: rows.filter((r) => r.reached > 0).map((r) => ({
+      level: r.level,
+      reached: r.reached,
+      power: summarise(r.power),
+      hpMax: summarise(r.hpMax),
     })),
     cleared,
     runs,

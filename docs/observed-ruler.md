@@ -178,6 +178,81 @@ count further would not fix this cheaply: going from 1500 to tens of
 thousands of runs would still leave floor 10 in single digits, because the
 survival curve itself is the finding, not a sampling shortfall.
 
+> ⚠️ **This table predates M6.** With `HP_FROM_KILLS` on, Sonda B survives
+> much further (see "Capacity and attrition" below — 81/1500 reached floor
+> 10 in that reading). Kept for the historical record of what the ladder
+> looked like before the hero could grow past `PLAYER_HP`; not comparable
+> to numbers measured after M6 landed.
+
+## Capacity and attrition (I5) — buffer was two quantities
+
+"Buffer" (`effectiveHp / mean blow`, hero on arrival) glues together two
+different things: **capacity** (what the build accumulated — ceiling, gear,
+grants) and **attrition** (what floors have already spent from it). A
+descent by a hero who can die measures their *difference*, on survivors
+only, over a window that shrinks with depth. `capacityShape` and
+`builtShape`'s new `damage` column separate them.
+
+**Capacity** — `capacityShape`, an immortal Sonda B (`PROBE_HERO`, 400 hp,
+via a locally re-driven descent loop, `driveDescent` — `playDungeon` has no
+hook to seed a starting hero, and touching `src/sim/` for one is the work
+agent's call, not this file's; see the function's own comment). It still
+kills, collects, and earns every `HP_FROM_KILLS` grant — it just cannot
+die, so there is no survivor selection and no truncated window. 150 runs,
+seed base 950000: **150/150 reached every floor, all ten.**
+
+```
+floor        1      2      3      4      5      6      7      8      9     10
+hpMax     400.0  401.0  402.0  404.0  405.7  408.8  412.5  417.3  423.9  431.8
+power     666.7  718.2  758.9  809.3  854.9  895.5  915.2  958.9  990.4 1022.8
+```
+
+```
+hpMax   ×1.008 ±0.001 / floor
+power   ×1.048 ±0.003 / floor
+```
+
+Capacity grows, slowly and steadily, with no death anywhere in the sample.
+
+**Attrition** — `builtShape`'s `damage` column, same mortal Sonda B
+descents that already produce power/buffer, 1500 runs, seed base 900000,
+current default (`HP_FROM_KILLS = true`):
+
+```
+floor         1      2      3      4      5      6      7      8      9     10
+reached    1500   1386   1047    734    470    277    190    127    105     81
+damage     3.90   4.78   4.55   5.65   6.75   7.68   9.11  11.67  13.38  15.96
+buffer    14.68  12.05  10.89  11.14  10.86  12.57  13.75  16.64  18.61  21.23
+power      8.33   7.93   8.13  10.18  12.31  17.65  22.18  30.38  37.78  47.27
+```
+
+**Every floor now clears n ≥ 50** — the hp grant alone (no other change)
+pushed the reliable window from floors 1–6 to the whole ladder, floor 10
+included (81 ≥ 50). Growth, fit over all 10 floors:
+
+```
+damage (attrition)   ×1.172 ±0.009 / floor
+buffer               ×1.058 ±0.020 / floor   <- RISES, not falls
+power (mortal)        ×1.243 ±0.021 / floor
+```
+
+**The incoherence review 2 could not resolve, made visible.** Over its old
+floors-1–6 window, buffer fell. Over the full ladder it now *rises*
+(1.058), because deeper floors are increasingly survivor-selected — by
+floor 10 the sample is the luckiest 81 of 1500. Capacity's own power grows
+×1.048/floor with **zero** selection (immortal, full sample, every floor);
+the mortal sample's power grows ×1.243/floor. The gap between those two
+rates — about ×1.19 per floor compounding — is not progression, it is
+selection, and it is now a number instead of a suspicion. A design that
+reads "still too hard" (capacity barely grows) can produce a product
+reading of "too easy" (surviving heroes look flush) purely from which
+heroes are left standing to be measured.
+
+**What this does not settle.** Which of buffer, capacity or attrition
+should carry the ≥1.00 target, if any — `docs/backlog.md`'s I5 item flags
+this as the project agent's call, not this file's. This section reports
+the split; it does not adopt a replacement target.
+
 ## What changed in this session, for the record
 
 The instrument's `recompensa` was first written as `challenge(B) −

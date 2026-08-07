@@ -57,7 +57,7 @@ its standing job, which is not a task and so has no row of its own.
 
 | # | id | what and why | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
-| 1 | I5 | Does the probe under-read hp? Design says too hard, product says too easy | map | metrics | IN FLIGHT · now the highest-value item | n/a |
+| 1 | I5 | Does the probe under-read hp? Design says too hard, product says too easy | map | metrics | REPORTED | n/a |
 | 2 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | IN FLIGHT | — |
 | 3 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
 | 4 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
@@ -917,7 +917,7 @@ B4's effect on the reversal rate before concluding B3 still has work to do.
 
 ## I5 · the ruler cannot see the buffer where the target lives
 
-`map` · `metrics agent` · **IN FLIGHT**
+`map` · `metrics agent` · **REPORTED**
 
 The ruler is solid on one half and weak on exactly the half currently being
 decided.
@@ -1129,6 +1129,67 @@ survivor selection gets stated rather than hidden (an I1-style check
 against the mid-floor-power selection z, or something built for this
 specifically). Deciding that shape is most of the next pass's work, not a
 detail to fill in while coding.
+
+### Result — the split, built and measured. Closing I5.
+
+Full write-up in `docs/observed-ruler.md`'s "Capacity and attrition (I5)" —
+summarised here.
+
+**Boundary honoured.** `playDungeon` has no hook to seed a starting hero,
+and per the protocol this backlog settled on after the M6 passthrough
+episode, reaching into `src/sim/` for one is not this file's call to make
+unilaterally. Rather than ask and block I5 on it, the descent loop is
+reimplemented locally (`driveDescent` in `src/analysis/observed-ruler.js`)
+the same way `clustering.js` already reimplements `playGame`'s turn loop
+instead of touching `game.js` — floor generation and single-floor play are
+already exported primitives, and driving ten of them with a chosen starting
+hero needed none of `dungeon.js` changed. `src/sim/` and `src/bot/` both
+untouched. 64/64 tests pass.
+
+**Capacity** (`capacityShape`, immortal `PROBE_HERO`, 150 runs): **150/150
+reached every floor, all ten** — no survivor selection, no truncated
+window, by construction. `hpMax` ×1.008 ±0.001/floor, `power` ×1.048
+±0.003/floor.
+
+**Attrition** (`builtShape`'s new `damage` column, same mortal Sonda B
+descents already producing power/buffer, 1500 runs, current default
+`HP_FROM_KILLS=true`): **every floor now clears n ≥ 50, including floor 10
+(81/1500)** — the grant alone widened the reliable window from 1–6 to the
+whole ladder, no instrument change needed for that part. `damage` ×1.172
+±0.009/floor, `buffer` **×1.058 ±0.020/floor — rises**, `power` (mortal)
+×1.243 ±0.021/floor.
+
+**Direct answer to the main question: yes, buffer can be measured at
+depth, and splitting it is what made that possible.** More than that — the
+split explains the incoherence review 2 flagged and could not resolve
+("design reads too hard, product reads too easy"). Capacity grows
+×1.048/floor with zero selection, full sample, every floor. The mortal
+sample's power grows ×1.243/floor — noticeably faster — and the only
+thing different between the two measurements is that the mortal one only
+counts survivors, fewer of them at every floor down. That gap, roughly
+×1.19/floor compounding, is the selection effect, quantified rather than
+gestured at. Buffer's sign flip (falls over floors 1–6, rises over 1–10) is
+the same effect: depth doesn't make the game more forgiving, it makes the
+buffer sample more exclusive.
+
+**What surprised me.** That the M6 hp grant, on its own, fixed the
+truncation problem this item opened with — I expected to still be capping
+attrition's window well short of floor 10 even after the split, and instead
+every floor cleared n ≥ 50 at 1500 runs. The capacity/attrition split was
+still worth building (it is what exposed *why* buffer's sign depends on the
+window), but the practical blocker I5 was raised over turned out to already
+be gone by the time this pass ran.
+
+**What I could not resolve.** Which of the three numbers — capacity,
+attrition, or the old combined buffer — should carry a `≥1.00`-shaped
+target, or whether the target needs to change shape entirely now that it
+is visibly two things. Flagged in the doc as the project agent's call, not
+manufactured here.
+
+**Out of scope, for the project agent to weigh.** `docs/rogule-spec.md`
+§13 and the M6 targets language were written against the old, single-
+quantity buffer; whichever number ends up carrying a target, the prose
+describing it will need to say which.
 
 ## M7 · move difficulty off count, onto strength and grouping
 
