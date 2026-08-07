@@ -63,20 +63,44 @@ import { findPath } from '../sim/mapgen.js';
 import { step } from '../sim/step.js';
 import { observe, emptyBelief, foldBelief } from '../sim/observe.js';
 import { effectiveHp, expectedDamage, weaponDamage } from '../sim/combat.js';
-import { PLAYER_HP, PLAYER_XP } from '../sim/balance.js';
+import {
+  PLAYER_HP, PLAYER_XP, OUT_OF_DEPTH_CHANCE_PER_LEVEL, OUT_OF_DEPTH_CHANCE_CAP,
+} from '../sim/balance.js';
 import {
   makeFloorPlan, MONSTER_GROWTH_REBALANCED, STRENGTH_GROWTH_REBALANCED, CLUSTER_SIZE,
 } from '../sim/difficulty.js';
 
 // M7's "on" state, built from its own exported constants via the model
 // override `makeFloorPlan` already provides for exactly this — no src/sim/
-// change needed to read a flag's alternate state. `floorPlan(level)` (the
-// default everywhere above) already reads the "off" state, so passing this
-// as `floorPlanFn`/`dungeonOptions.floorPlan` is the whole toggle.
+// change needed to read a flag's alternate state.
+//
+// STALE NOTE, kept for the record rather than silently fixed: this used to
+// say `floorPlan(level)` reads the "off" state by default. That was true
+// when this constant was built and is not true any more — M7 was adopted
+// (`DIFFICULTY_REBALANCED = true`, commit `25f45a1`, mid-I7), so the
+// shipped `floorPlan(level)` now reads what THIS constant encodes, and
+// `makeFloorPlan({})` (`DEFAULT_MODEL`, untouched) is the one that reads
+// the pre-M7 "off" state. `M7_ON` is still exactly what M3's "off" arm
+// needs below, though — it is the current shipped baseline either way.
 export const M7_ON = makeFloorPlan({
   monsterGrowth: MONSTER_GROWTH_REBALANCED,
   strengthGrowth: STRENGTH_GROWTH_REBALANCED,
   clusterSize: CLUSTER_SIZE,
+});
+
+// M3's "on" state, same shipped baseline as `M7_ON` plus the out-of-depth
+// reskin chance turned on. `DEFAULT_MODEL`'s own
+// `outOfDepthChancePerLevel`/`outOfDepthChanceCap` default to 0/the shipped
+// cap respectively — 0 reproduces "off" regardless of `OUT_OF_DEPTH_TAIL`'s
+// live value (mirrors how `DEFAULT_MODEL` freezes the pre-M7 monster/
+// strength growth too) — so `M7_ON` above already IS "M3 off": the current
+// shipped state, standing duty's baseline arm. This is only the "on" arm.
+export const M3_ON = makeFloorPlan({
+  monsterGrowth: MONSTER_GROWTH_REBALANCED,
+  strengthGrowth: STRENGTH_GROWTH_REBALANCED,
+  clusterSize: CLUSTER_SIZE,
+  outOfDepthChancePerLevel: OUT_OF_DEPTH_CHANCE_PER_LEVEL,
+  outOfDepthChanceCap: OUT_OF_DEPTH_CHANCE_CAP,
 });
 
 // ***** the calibration hero ***** //

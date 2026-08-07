@@ -427,6 +427,14 @@ export function botFinishesAndSpike(options = {}) {
         sideRoomDepthBonus: plan.sideRoomDepthBonus,
         spineThreatShare: plan.spineThreatShare,
         sideChestBias: plan.sideChestBias,
+        // M3's field. Missing here since before this fix, meaning any
+        // floorPlanFn that set it (e.g. M3_ON) silently read as "off" —
+        // spawn.js falls back to `counts.outOfDepthChance ?? 0`. Found
+        // while trying to actually measure M3's on/off difference through
+        // the real bot: both arms came back byte-identical over 150 runs,
+        // which isolatedShape's own (correct) reading had already shown
+        // was not possible once the reskin chance is non-zero.
+        outOfDepthChance: plan.outOfDepthChance,
         carry,
         hpFromKills,
       };

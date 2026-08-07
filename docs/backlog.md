@@ -1073,6 +1073,58 @@ it. **Fixed by rule: an adoption decided in review 2 is the work agent's
 first commit on its next task, before claiming anything.** Recorded in the
 queue section.
 
+### Metrics reading (standing duty)
+
+Measured at commit `8eb8c39`. Flag off = `M7_ON` (current shipped baseline,
+new export in `observed-ruler.js`), flag on = `M3_ON` (same baseline plus
+the reskin chance) — both hold M7 fixed so only M3 moves. `isolatedShape`
+default (60/level); `botFinishesAndSpike` at 150 runs, `firstSeed =
+970000`, `hpFromKills` forced false both arms, matching the M7 reading's
+own protocol.
+
+**Found a bug on the way, fixed before trusting the real-bot numbers.**
+`botFinishesAndSpike`'s own `counts` object never threaded
+`outOfDepthChance` through — built before this item existed, same class of
+gap as `driveDescent`'s missing `clusterSize` during M7. First pass at this
+reading came back byte-identical between flag off and on across 150 runs,
+which `isolatedShape`'s own (correct) reading had already shown could not
+be right once the chance is non-zero. Fixed in `clustering.js`
+(`outOfDepthChance: plan.outOfDepthChance` added to the counts object);
+every number below is post-fix.
+
+**CV per floor — does not clear the bar.** Growth rate of `challenge`'s CV,
+floors 1–10: off ×0.994 ±0.009/floor, on ×0.984 ±0.008/floor. Gap is
+−0.010 ±0.012, z ≈ 0.8 — not distinguishable from zero. **CV keeps
+falling with M3 on, same as off**; this item's own acceptance hoped it
+would stop falling, and on the isolated-floor probe it does not.
+
+**Real finish rate moves, but not past 2σ.** 30/150 (20.0% ±3.3) off, 23/150
+(15.3% ±2.9) on — a 4.7pp drop, z ≈ −1.1. Directionally harder, consistent
+with a rare bigger blow costing more clears, but the sample cannot say more
+than that yet.
+
+**The per-turn damage percentiles do not show a bigger spike — they show a
+longer fight.** Conditioned on `adjacent ≥ 1` (M7 review 2's own
+statistic): the combat-turn sample nearly **doubles** with M3 on (20,464 →
+40,755 turns out of a similar total), and its p95/p99 **fall slightly**
+rather than rise (1/3 off → 0/2 on). Reskinned monsters are tankier, not
+just harder-hitting, so a floor that rolls one spends far more turns
+adjacent to something alive — the extra combat volume dilutes the
+percentiles instead of raising them. Unconditioned pooled p95/p99 are
+unchanged either way (0/1, both arms) as before.
+
+**Read together:** M3 is measurably doing something (more combat turns,
+fewer clears, both directionally consistent with "harder"), but not the
+specific thing its acceptance criteria asked for — a CV that stops falling,
+or a percentile spike from a rare huge blow. What it produces instead reads
+more like "occasionally a fight runs long" than "occasionally one hit is
+devastating." Whether that is still worth keeping is a design call, not a
+measurement one — reported as data, not a verdict.
+
+**Not measured, still:** `challenge`/`power` interaction (needs
+`builtShape`, a real descent) — left for whoever asks for it next
+specifically, rather than folded into this reading past what M7 review 2's
+own two questions (CV, conditioned spike) already called for.
 
 ## M10 · allocate cluster zones against the mass quota
 

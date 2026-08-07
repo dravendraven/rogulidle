@@ -195,6 +195,33 @@ floors generate. **`reward/challenge` cannot be directly compared to the
 old ratio** — this is a different definition of "loot," not a revised
 estimate of the same one.
 
+### M3 — out-of-depth tail, standing-duty reading (flag off by default)
+
+Measured at commit `8eb8c39`. Full write-up in `docs/backlog.md`'s M3 item;
+summary here since this is a real reading, not a placeholder. Flag off =
+`M7_ON`, flag on = `M3_ON` (both new exports, `observed-ruler.js`), M7 held
+fixed in both arms so only M3 moves.
+
+Found and fixed a real bug on the way: `clustering.js`'s
+`botFinishesAndSpike` never threaded `outOfDepthChance` into its `counts`
+object, so the real-bot arm silently read "off" regardless of
+`floorPlanFn` until fixed.
+
+| quantity | off | on | reading |
+|---|---|---|---|
+| challenge CV (×/floor, fl 1–10) | 0.994 ±0.009 | 0.984 ±0.008 | not distinguishable, z≈0.8 — CV keeps falling either way |
+| real finish rate | 20.0% ±3.3 (30/150) | 15.3% ±2.9 (23/150) | z≈−1.1, directionally harder, not past 2σ |
+| pooled p95/p99 per turn | 0 / 1 | 0 / 1 | unchanged |
+| adjacent-conditioned p95/p99 | 1 / 3 (n=20,464) | 0 / 2 (n=40,755) | combat-turn volume nearly doubles; percentiles fall slightly rather than rise |
+
+**M3 measurably does something — more combat turns, fewer clears — but not
+the thing its own acceptance criteria named** (CV that stops falling, or a
+percentile spike from a rare huge blow). Reskinned monsters read as tankier
+more than harder-hitting: fights run longer, which dilutes the per-turn
+percentiles instead of raising them.
+
+## Objective 2 — bot
+
 Parked. Left here so the shape of the file does not have to change when the
 lane restarts.
 
