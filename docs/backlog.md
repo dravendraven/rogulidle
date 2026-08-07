@@ -28,12 +28,11 @@ repeating it in the table only made the queue slower to scan.
 
 | # | id | what gets done | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
-
 | 1 | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | REPORTED | n/a |
-| 3 | M10 | Allocate cluster zones against the mass quota so side rooms stop emptying | map | work | IN FLIGHT | — |
-| 4 | M3 | Unlock the strength ceiling with small probability, so a rare blow can be huge | map | work | REPORTED · review 1 passed | — |
-| 5 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | BLOCKED on I6 | — |
-| 6 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | BLOCKED on M10 | — |
+| 2 | M10 | Allocate cluster zones against the mass quota so side rooms stop emptying | map | work | IN FLIGHT | — |
+| 3 | M3 | Unlock the strength ceiling with small probability, so a rare blow can be huge | map | work | REPORTED · review 1 passed | — |
+| 4 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | BLOCKED on I6 | — |
+| 5 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | BLOCKED on M10 | — |
 | — | M7 | Move difficulty off creature count onto strength and same-type clusters | map | work | **DONE** · adopted, flag ON | done |
 | — | I7 | Measure capacity with death suppressed at PLAYER_HP, not on a 400 hp probe | map | metrics | **DONE** | n/a |
 | — | I5 | Split buffer into capacity and attrition and measure each on its own terms | map | metrics | **DONE** | n/a |
@@ -52,7 +51,7 @@ repeating it in the table only made the queue slower to scan.
 | — | I2 | Retest clustering with a mortal hero, measuring lethality instead of cost | map | metrics | **DONE** | n/a |
 
     work agent      M10 (M7 regression) → M9 (waits on I6) → M4 after M10
-    metrics agent   I7 → I6, plus the ruler re-run after each landing
+    metrics agent   I6, plus the ruler re-run after each landing
     ui agent        idle
 
 **The bot lane is PARKED by owner decision** — the focus is map design
