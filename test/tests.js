@@ -9,7 +9,7 @@ import { step, ACTIONS } from '../src/sim/step.js';
 import { observe, emptyBelief, foldBelief } from '../src/sim/observe.js';
 import { weaponDamage, armourValue } from '../src/sim/combat.js';
 import { findPath, playerPassable, posKey } from '../src/sim/mapgen.js';
-import { makeRng } from '../src/sim/rng.js';
+import { drawLogUniform, makeRng } from '../src/sim/rng.js';
 import { classifyRooms, spineShare } from '../src/sim/spine.js';
 import { itemWeights } from '../src/sim/spawn.js';
 import { floorPlan } from '../src/sim/dungeon.js';
@@ -713,6 +713,63 @@ test('a weapon is worth more with a campaign ahead than with one floor', () => {
   // touch it — otherwise the bot would hoard potions it cannot drink.
   assertEq(far.get('health'), near.get('health'),
     'the horizon changed what a potion is worth');
+});
+
+// ***** floor spread ***** //
+//
+// The whole mechanism rests on E[M] = 1: if the multiplier drifts, average
+// difficulty drifts with it, and average difficulty is the one thing the
+// spread work was forbidden from moving.
+
+test('the floor multiplier has mean exactly 1', () => {
+  for (const sigma of [0.2, 0.5, 0.81, 1.4]) {
+    let sum = 0;
+    const runs = 20000;
+    const state = { rng: { spawn: 12345 } };
+    for (let i = 0; i < runs; i++) sum += drawLogUniform(state, 'spawn', sigma);
+    const mean = sum / runs;
+    // sd of M is at most ~0.8 here, so the standard error over 20k draws is
+    // under 0.006. A 2% window is generous and still catches any real bias.
+    assert(Math.abs(mean - 1) < 0.02,
+      `sigma ${sigma}: mean ${mean.toFixed(4)} is not 1`);
+  }
+});
+
+test('zero spread returns exactly 1 and draws nothing', () => {
+  // Must be a true no-op, or every measurement taken before spread existed
+  // stops being comparable with one taken after it at sigma 0.
+  const state = { rng: { spawn: 999 } };
+  assertEq(drawLogUniform(state, 'spawn', 0), 1, 'sigma 0 changed the multiplier');
+  assertEq(state.rng.spawn, 999, 'sigma 0 consumed a draw');
+});
+
+test('the multiplier stays positive at wide spread', () => {
+  const state = { rng: { spawn: 4242 } };
+  for (let i = 0; i < 500; i++) {
+    const m = drawLogUniform(state, 'spawn', 2.5);
+    assert(m > 0, 'the multiplier went non-positive');
+  }
+});
+
+test('spread makes floor size vary, and deeper floors vary more', () => {
+  const spreadOf = (level) => {
+    const plan = floorPlan(level);
+    const counts = new Set();
+    for (let s = 0; s < 40; s++) counts.add(newGame(8800 + s, plan).monsters.length);
+    return counts.size;
+  };
+  // Floor 1 has sigma 0 by design, so it is always its nominal size.
+  assertEq(spreadOf(1), 1, 'floor 1 should be a fixed size');
+  assert(spreadOf(10) > 4, 'floor 10 did not vary in size');
+});
+
+test('spread does not break determinism', () => {
+  // An extra draw is still a seeded draw. If this ever fails the whole
+  // replay system goes with it.
+  const a = newGame(31415, floorPlan(9));
+  const b = newGame(31415, floorPlan(9));
+  assertEq(a.monsters.length, b.monsters.length, 'same seed gave different sizes');
+  assertEq(JSON.stringify(a.monsters), JSON.stringify(b.monsters), 'rosters differ');
 });
 
 // ***** run it ***** //

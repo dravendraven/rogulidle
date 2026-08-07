@@ -11,7 +11,9 @@ import {
   PLAYER_HP, PLAYER_XP, SIDE_ACTIVATION_CAP, SIDE_CHEST_BIAS,
   SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE,
 } from './balance.js';
-import { draw, drawChance, drawInt, drawPick, drawWeighted } from './rng.js';
+import {
+  draw, drawChance, drawInt, drawLogUniform, drawPick, drawWeighted,
+} from './rng.js';
 import { findPath, playerPassable, posKey, walkablePositions } from './mapgen.js';
 import { classifyRooms } from './spine.js';
 
@@ -117,7 +119,22 @@ function makeItem(state, template, pos) {
 // does not pay on a sparse map may pay on a crowded one — so they have to
 // be sweepable without editing balance.js.
 export function populate(state, map, counts = {}) {
-  const monsterCount = counts.monsters ?? MONSTER_COUNT;
+  // ONE roll, shared by the whole floor, and that is the entire point.
+  //
+  // Clearing cost is a sum over creatures, so with independent draws it
+  // converges: CV = CV_c / sqrt(N). Measured, CV x sqrt(N) was flat at ~1.2
+  // from floor 1 to 10 — the law holding exactly — which means deep floors,
+  // where the run's climax lives, are the most predictable ones. Nothing
+  // independent can fix that; only a roll the whole floor shares can, since
+  // then cost is N x mu(F) and no sqrt(N) survives.
+  //
+  // On the COUNT rather than on strength because cost is linear in count, so
+  // a mean-1 multiplier cannot move the average difficulty — the one thing
+  // that was calibrated and must not move.
+  const monsterCount = Math.max(1, Math.round(
+    (counts.monsters ?? MONSTER_COUNT)
+    * drawLogUniform(state, 'spawn', counts.monsterSpread ?? 0),
+  ));
   const chestCount = counts.chests ?? CHEST_COUNT;
   // How far up the monster table the deepest tiles reach. The third dial of
   // difficulty, alongside how many monsters and how much loot.

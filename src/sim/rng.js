@@ -58,6 +58,27 @@ export function drawChance(state, stream, p) {
   return draw(state, stream) < p;
 }
 
+// A positive multiplier with mean EXACTLY 1, log-uniform over e^±sigma.
+//
+// Used to give a whole floor one shared roll (see difficulty.js). Log space
+// rather than linear for three reasons:
+//
+//   - it cannot go negative, however wide sigma gets
+//   - "half as many" and "twice as many" are equally likely, which is the
+//     symmetry that actually matters for something that multiplies
+//   - the mean has a closed form, so the centre is preserved by
+//     construction instead of by calibration
+//
+// E[e^(sigma·U)] for U uniform on [-1,1] is sinh(sigma)/sigma, so dividing
+// by it makes E[M] = 1 to floating point. Spread is
+// CV = sqrt( [sinh(2s)/2s] / [sinh(s)/s]^2 - 1 ), which runs 0.29 at
+// sigma 0.5, 0.46 at 0.8 and 0.76 at 1.4.
+export function drawLogUniform(state, stream, sigma) {
+  if (!(sigma > 0)) return 1;
+  const raw = Math.exp(sigma * (2 * draw(state, stream) - 1));
+  return raw / (Math.sinh(sigma) / sigma);
+}
+
 export function drawPick(state, stream, arr) {
   return arr[Math.floor(draw(state, stream) * arr.length)];
 }

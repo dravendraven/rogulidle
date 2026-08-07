@@ -1,4 +1,5 @@
 import {
+  FLOOR_SPREAD_BASE, FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL,
   SIDE_ACTIVATION_CAP, SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE,
 } from './balance.js';
 
@@ -94,12 +95,26 @@ export function monstersAt(base, growth, step, perLevel = null) {
   return Math.max(1, Math.round(raw));
 }
 
+// How wide this floor's shared roll is. Zero means every floor comes out at
+// its nominal size, which is what every measurement before this assumed.
+//
+// Rises with depth ON PURPOSE, and it is the only thing here that does. The
+// count law already makes deep floors bigger; this makes them less certain,
+// which the count law by itself makes strictly worse (see balance.js).
+export function floorSpread(level, model = {}) {
+  const base = model.spreadBase ?? FLOOR_SPREAD_BASE;
+  const perLevel = model.spreadPerLevel ?? FLOOR_SPREAD_PER_LEVEL;
+  const cap = model.spreadCap ?? FLOOR_SPREAD_CAP;
+  return Math.max(0, Math.min(cap, base + perLevel * Math.max(0, level)));
+}
+
 // Everything the generator needs for floor N, zero-based.
 export function floorParams(level) {
   const monsters = monstersAt(MONSTERS_BASE, MONSTER_GROWTH, Math.max(0, level));
   return {
     level,
     monsters,
+    monsterSpread: floorSpread(level),
     chests: CHESTS_PER_FLOOR,
     difficultyScale: MONSTER_STRENGTH,
     dropChance: DROP_CHANCE,
@@ -135,6 +150,9 @@ export const DEFAULT_MODEL = {
   // Map design (docs/map-design.md). Mirrored from balance.js so the lab
   // page can show and sweep them; populate() would fall back to the same
   // values if these were left out.
+  spreadBase: FLOOR_SPREAD_BASE,
+  spreadPerLevel: FLOOR_SPREAD_PER_LEVEL,
+  spreadCap: FLOOR_SPREAD_CAP,
   spineThreatShare: SPINE_THREAT_SHARE,
   sideRoomDepthBonus: SIDE_ROOM_DEPTH_BONUS,
   sideChestBias: SIDE_CHEST_BIAS,
@@ -151,6 +169,7 @@ export function makeFloorPlan(model = {}) {
     return {
       level,
       monsters,
+      monsterSpread: floorSpread(level - 1, m),
       chests: Math.max(0, Math.round(m.chests + m.chestsPerMonster * monsters)),
       difficultyScale: m.strength,
       dropChance: m.dropChance,

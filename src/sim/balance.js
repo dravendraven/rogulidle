@@ -191,6 +191,31 @@ export const CHEST_LOOT_RICHER_FAR = true;
 // half way, and the common outcome at the shrine. See spawn.js itemWeights.
 export const CHEST_QUALITY_BY_DEPTH = true;
 
+// ***** floor spread: making deep floors lotteries ***** //
+//
+// GUESS — how wide the whole floor's shared roll is, by depth:
+//
+//     sigma(N) = min(CAP, BASE + PER_LEVEL × (N − 1))
+//
+// Difficulty grows by creature count, and a sum of N independent draws
+// converges on its mean — CV = CV_c / √N. Measured over 150 seeds a floor,
+// CV × √N came out flat at ~1.2 from floor 1 to floor 10, which is the law
+// holding exactly. So the deeper the floor, the more PREDICTABLE it is, and
+// the climax of a run lands where the variance is lowest. The player decides
+// nothing here, so surprise is the only tension there is.
+//
+// Nothing independent can fix that: widening the per-creature spread, or
+// giving each creature a chance of being huge, both leave the √N underneath.
+// One roll shared by the WHOLE floor does, because then cost is N·μ(F) and
+// the CV is the spread of F with no N in it at all.
+//
+// On the count rather than on strength, because cost is linear in count and
+// convex in tier — so a mean-1 multiplier on the count cannot move the
+// centre, which is the constraint that matters most here.
+export const FLOOR_SPREAD_BASE = 0;
+export const FLOOR_SPREAD_PER_LEVEL = 0.09;
+export const FLOOR_SPREAD_CAP = 0.9;
+
 // ***** map design: the spine and its detours ***** //
 //
 // docs/map-design.md. The floor should offer a choice: a short mandatory

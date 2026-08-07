@@ -70,6 +70,89 @@ Measured with these, 12 dungeons: 4 cleared, depths 2, 2, 2, 4, 5, 7, 7, 8,
 floor 10 — the hero builds up and is worn away, which is the arc worth
 having.
 
+## Floor spread — making deep floors lotteries
+
+| Name | Value | Status |
+|---|---|---|
+| `FLOOR_SPREAD_BASE` | 0 | **INITIAL GUESS** |
+| `FLOOR_SPREAD_PER_LEVEL` | 0.09 | **INITIAL GUESS** |
+| `FLOOR_SPREAD_CAP` | 0.9 | **INITIAL GUESS** |
+
+`sigma(N) = min(CAP, BASE + PER_LEVEL × (N − 1))`, fed to a log-uniform
+multiplier on the creature **count** (`drawLogUniform`, mean exactly 1).
+
+**The problem it fixes.** Difficulty grows by creature count, and a sum of N
+independent bounded draws converges on its mean: `CV = CV_c / √N`. Measured
+over 150 seeds a floor, against a fixed reference hero:
+
+```
+floor      1     4     7    10
+creatures  2     4    10    21
+mean cost  1.26  2.71  6.89 14.46
+CV         0.870 0.607 0.370 0.306
+CV × √N    1.23  1.21  1.17  1.40      <- flat: the law, exactly
+```
+
+So the deeper the floor, the more **predictable** it is, and the climax of a
+run lands where the variance is lowest. That is bad here in a way it would not
+be elsewhere: the player does not decide anything, so surprise is the only
+tension on offer.
+
+**Why the obvious fixes do not work.** While the draws stay independent the
+`1/√N` decay is untouchable — anything iid moves the 1.2 and nothing else.
+Widening the per-creature tier spread: still `1/√N`. Giving each creature a
+small chance of being huge: `sd = √N·√(p(1−p))·(C−μ)`, still `1/√N`. Scaling
+difficulty to the hero: rejected outright in curve.js, it nullifies
+progression.
+
+**Breaking independence is the whole trick.** One roll shared by every
+creature on the floor makes cost `N·μ(F)`, so `CV = CV[μ(F)]` with no `√N`
+underneath. Applied to the count it is also mean-exact, because cost is
+linear in N — applying it to `strength` instead would work but cost is
+*convex* in tier, so the centre would drift and need recalibrating.
+
+**The dial is not sacrificed.** Count still sets the mean; spread is a second,
+orthogonal dial.
+
+**Known ceiling.** Matching floor 1's CV (0.870) at floor 10 needs an added CV
+of 0.81, which is `sigma ≈ 1.6`, which is 3 to 70 creatures — more than the
+map has walkable tiles. Count spread can stop the decay and turn it around; it
+cannot flatten the whole ladder. Going further needs a fixed-count rare event
+(one champion per floor), where a single t-rex costs ~21 hp against floor
+ten's whole 14.5.
+
+### MEASURED, 150 paired seeds a floor
+
+```
+floor        1     4     5     7     8     9    10
+sigma      0.00  0.27  0.36  0.54  0.63  0.72  0.81
+CV before  0.870 0.607 0.477 0.370 0.356 0.334 0.306
+CV after   0.870 0.609 0.514 0.495 0.507 0.546 0.548
+p90 cost   2.8   5.3   7.2   11.9  15.9  20.1  25.4   (was 19.8 at floor 10)
+```
+
+The decay is broken. CV bottoms out at floor 7 and **rises** from there, and
+floor ten is up 79%. It is not a rise all the way from floor 1 — that was
+shown impossible above, and floors 1 to 3 hold 2 or 3 creatures, so one ogre
+against one rat *is* the whole floor.
+
+Confirmed on unseen seeds (5150000+): floor 10 CV 0.292 → 0.536, +0.244
+against +0.241 on the tuning seeds.
+
+**Win rate is flat, which is the point.** 40 paired dungeons on unseen seeds:
+cleared 16/40 → 17/40, mean depth 7.4 → 7.6. The centre was not supposed to
+move and it did not.
+
+**A measurement artifact worth knowing.** The multiplier is the *first* draw
+of the `spawn` stream, and that stream is seeded `hashSeeds(seed, 2)` — the
+same for every floor of a given seed. So a per-floor probe that reuses one
+seed list gives all ten floors the *same* multiplier, and a seed family that
+happens to draw high shifts every floor together. The confirmation family did
+exactly that: `E[u] = 0.5599`, 2.5 standard errors high, which alone explains
+a +9% count and +13% mean cost on that family. Over 40 000 draws `E[M] =
+1.0014`. Real dungeons are unaffected — floors are seeded `hashSeeds(seed,
+level)` and each draws its own — which is why the descent came out flat.
+
 ## Where the current numbers live
 
 **Not here.** The dungeon curve, the win rates and the difficulty-dial table

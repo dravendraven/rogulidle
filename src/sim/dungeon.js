@@ -120,6 +120,7 @@ export function playDungeon(seed, makePolicy, options = {}) {
       potionScarcity: options.scarcity ?? plan.potionScarcity,
       // Map-design dials ride along untouched; undefined means "use the
       // shipped value", which populate() resolves against balance.js.
+      monsterSpread: plan.monsterSpread,
       sideActivationCap: plan.sideActivationCap,
       sideRoomDepthBonus: plan.sideRoomDepthBonus,
       spineThreatShare: plan.spineThreatShare,
