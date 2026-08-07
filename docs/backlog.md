@@ -38,11 +38,11 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| 1 | X2 | Bisect the M11–M16 batch — finishes went 31% to 0% | READY · before anything else |
-| 2 | M18 | The rat gets a real attack and a real chase radius | READY |
-| 3 | M17 | Near-flat roster, ~5 to ~8, with strength carrying the difficulty | READY |
-| 4 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | READY |
-| 5 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
+| 1 | M18 | The rat gets a real attack and a real chase radius | READY |
+| 2 | M17 | Near-flat roster, ~5 to ~8, with strength carrying the difficulty | READY |
+| 3 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | READY |
+| 4 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
+| 5 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
 | 6 | X1 | Delete what nothing references | READY |
 | 7 | M4 | Side-room risk/reward spread scales with depth | READY |
 | 8 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
@@ -236,6 +236,16 @@ not named in this item) are untouched — not this item's call to remove.
 Five commits landed without a reading between them and four of them make it
 harder. The numbers cannot say which.
 
+**Deferred by the owner until the map work is done, and that is the better
+call.** M17 replaces M12's count growth outright — 1.22 back down to about
+1.053 — so one of the four changes that hardened the game is about to be
+undone. Bisecting now would be settling a question about a dial that is
+already on its way out, and a half-finished map is not a thing worth
+attributing.
+
+The bisect stays available because each change is still its own commit. If
+the map work ends somewhere good, this item closes unread.
+
 **Do.** Run `run-check.html` at the commit before M12, then at each of M12,
 M13, M14, M15, M16 in turn. Same seed base, same sample. Report finishes and
 median depth at each — that is six runs of about thirty seconds.
@@ -304,10 +314,13 @@ numbers alone.
 here.** Bisect: `run-check` at the commit before M12, then after each of
 M12, M13, M14, M15, M16. Five runs of thirty seconds each answers it.
 
-**Nothing else lands first.** M18, M17, M20 and M19 all touch the same
-floors and the same dials, and piling them onto a state nobody understands
-is how the ability to attribute gets lost for good. The bisect comes before
-the queue resumes.
+**The owner deferred the bisect until the map work finishes**, and the
+reason is better than the one I gave for doing it now: M17 replaces M12's
+count growth, so one of the four hardening changes is about to be reversed
+anyway. Measuring a half-finished map attributes nothing.
+
+The queue continues at M18. The bisect stays available — each change is its
+own commit — and X2 sits after M19 rather than before M18.
 
 ## M18 · the rat becomes a creature
 
