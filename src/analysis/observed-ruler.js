@@ -208,12 +208,16 @@ export function makeSondaPolicy() {
 // ***** driving a single isolated floor ***** //
 
 // `collect` picks Sonda B (true) or Sonda A (false). Same seed, same plan,
-// same policy — only the pickup toggle differs.
-function driveFloor(seed, plan, collect, maxTurns) {
+// same policy — only the pickup toggle differs. `gameOptions` is an escape
+// hatch for engine-level rule variants (e.g. `hpFromKills`) that postdate
+// this file and were never meant to require editing it — merged into
+// `counts` last, so a rule variant can never silently override the pickup
+// toggle or the probe hero this instrument depends on.
+function driveFloor(seed, plan, collect, maxTurns, gameOptions = {}) {
   const hero = heroCopy(PROBE_HERO);
   const run = playGame(seed, makeSondaPolicy(), {
     maxTurns,
-    counts: { ...plan, carry: hero, noPickup: !collect },
+    counts: { ...plan, ...gameOptions, carry: hero, noPickup: !collect },
   });
   const clearedAll = run.state.monsters.length > 0
     && run.state.monsters.every((m) => m.dead);
@@ -292,6 +296,10 @@ function heroBuffer(player, roster) {
 export function isolatedShape(options = {}) {
   const {
     runs = 60, firstSeed = 800000, maxTurns = 4000, levels = LEVELS,
+    // See driveFloor: a passthrough for engine rule variants that postdate
+    // this file, empty by default so every committed number above is
+    // reproduced exactly when this is omitted.
+    gameOptions = {},
   } = options;
   const rows = [];
 
@@ -304,8 +312,8 @@ export function isolatedShape(options = {}) {
 
     for (let i = 0; i < runs; i++) {
       const seed = hashSeeds(firstSeed + i, level);
-      const a = driveFloor(seed, plan, false, maxTurns);
-      const b = driveFloor(seed, plan, true, maxTurns);
+      const a = driveFloor(seed, plan, false, maxTurns, gameOptions);
+      const b = driveFloor(seed, plan, true, maxTurns, gameOptions);
       if (!a.clearedAll) { discardedA++; continue; }
       if (!b.clearedAll) { discardedB++; continue; }
       challenge.push(a.damage);
@@ -337,6 +345,10 @@ export function isolatedShape(options = {}) {
 export function builtShape(options = {}) {
   const {
     runs = 60, firstSeed = 900000, maxTurns = 4000, levels = LEVELS,
+    // Same escape hatch as isolatedShape's gameOptions, threaded to
+    // playDungeon instead of playGame — empty by default, so omitting it
+    // reproduces every committed number exactly.
+    dungeonOptions = {},
   } = options;
 
   const rows = Array.from({ length: levels }, (_, i) => ({
@@ -346,7 +358,8 @@ export function builtShape(options = {}) {
   let cleared = 0;
 
   for (let i = 0; i < runs; i++) {
-    const dungeon = playDungeon(firstSeed + i, () => makeSondaPolicy(), { maxTurns, levels });
+    const dungeon = playDungeon(firstSeed + i, () => makeSondaPolicy(),
+      { maxTurns, levels, ...dungeonOptions });
     depths.push(dungeon.depth);
     if (dungeon.cleared) cleared++;
 

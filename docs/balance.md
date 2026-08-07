@@ -451,13 +451,63 @@ Five monsters on a 32×32 map is very sparse — see spec §10.2.
 | `PLAYER_XP` | 3 | FAITHFUL (`generator.cljs:26`) |
 | `XP_PER_KILLS` | 1 xp every 2 kills | FAITHFUL (`engine.cljs:272`) |
 
+## Defensive progression (M6)
+
+| Name | Value | Status |
+|---|---|---|
+| `HP_FROM_KILLS` | `true` | **DECIDED** — see `docs/backlog.md` M6 |
+| `HP_GRANT_PER_KILLS` | 2 | **INITIAL GUESS**, mirrors `KILLS_PER_XP` |
+| `HP_GRANT_AMOUNT` | 1 | **INITIAL GUESS**, calibrated against the buffer target below |
+
+Every `HP_GRANT_PER_KILLS` kills, both `hpMax` **and** current `hp` rise by
+`HP_GRANT_AMOUNT` — same cadence as `KILLS_PER_XP`'s xp grant, same place in
+`playerAttacks` (`combat.js`), same modulo-on-kill-count shape. Deliberately
+not a new system: one constant, reusing machinery already there.
+
+**Why both bars, not just the ceiling.** There is no regeneration (below).
+A hero who gains ceiling without gaining current hp arrives at every floor
+exactly as hurt as before — the *measured* buffer (taken from the hero on
+arrival, not its theoretical max) would barely move. This is why M6 is
+partly a healing mechanic, even though healing was deliberately removed in
+§13.1 — see the fidelity note there for why that removal does not apply
+here: this supply is finite and earned by killing, not free and earned by
+waiting, so it cannot be camped.
+
+**Why kills, not floors or turns.** Turns can be camped (§13.1's whole
+argument). Floors would grant the same hp whether the floor cost two kills
+or twenty, decoupling the grant from the thing that is actually eroding the
+buffer. Kills are the resource already being spent to survive, so the grant
+scales with the danger actually faced.
+
+**Measured — the target is not reached, and the shortfall is disclosed
+rather than hidden.** Full bracket and method in `docs/backlog.md` M6
+result; headline:
+
+```
+rate (hp/kill)   buffer ×/floor (fl 1-6)   real-bot clear rate (n=150, paired)
+0     (off)      0.846 ±0.026              30.7% ±3.8
+0.125 (per=8)    0.857 ±0.022  (n.s.)      44.7% ±4.1
+0.25  (per=4)    0.895 ±0.022  (n.s.)      48.0% (n=80, different sample)
+0.5   (per=2)    0.910 ±0.015  (z≈2.1)     56.7% ±4.0   <- SHIPPED
+```
+
+Only the shipped rate clears 2σ on buffer, and it still **falls**
+(0.910 < 1), nowhere near the ~1.16 target — while clear rate nearly
+doubles. Smaller rates protect clear rate only a little and buy back
+essentially no buffer (0.125 and 0.25 are not distinguishable from off).
+There is no point in the tested range where both acceptance criteria hold;
+shrinking the grant trades one shortfall for a bigger one on the other axis
+rather than resolving the tension. Shipped at the rate that at least shows a
+real, measured effect on the stated target, with this trade-off on record.
+
 ## Regeneration
 
 | Name | Value | Status |
 |---|---|---|
-**There is none.** Rogule healed +1 hp every 100 turns, uncapped; we removed
-it outright (spec §13.1). Waiting heals nothing, so the only source of hp is
-a potion, and potions only fall off monsters.
+**There is none, from time.** Rogule healed +1 hp every 100 turns, uncapped;
+we removed it outright (spec §13.1). Waiting heals nothing. Two sources of
+hp exist: a potion (falls off monsters only), and the kill-triggered grant
+above — both are earned by acting, neither by waiting.
 
 We tried a cap first (20% of max hp per run). It worked, but it was
 machinery guarding a resource we did not want to exist.

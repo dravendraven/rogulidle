@@ -4,7 +4,8 @@
 // only whoever moved gets to hit. A duel is therefore strictly alternating.
 
 import {
-  HIT_CHANCE, KILLS_PER_XP, WEAPONS_WIDEN_ROLL, XP_FROM_KILLS,
+  HIT_CHANCE, HP_FROM_KILLS, HP_GRANT_AMOUNT, HP_GRANT_PER_KILLS,
+  KILLS_PER_XP, WEAPONS_WIDEN_ROLL, XP_FROM_KILLS,
 } from './balance.js';
 import { drawChance, drawInt } from './rng.js';
 
@@ -121,6 +122,16 @@ export function playerAttacks(state, monster) {
     // One xp every second kill. FAITHFUL engine.cljs:272.
     const growsXp = state.xpFromKills ?? XP_FROM_KILLS;
     if (growsXp && state.player.kills.length % KILLS_PER_XP === 0) state.player.xp++;
+
+    // Defensive half of the same idiom — M6, docs/backlog.md. Same shape as
+    // the xp grant just above: every HP_GRANT_PER_KILLS kills, both the
+    // ceiling and the current value rise, so the grant shows up in the
+    // buffer measured on arrival, not just in a maximum nothing refills.
+    const growsHp = state.hpFromKills ?? HP_FROM_KILLS;
+    if (growsHp && state.player.kills.length % HP_GRANT_PER_KILLS === 0) {
+      state.player.hpMax += HP_GRANT_AMOUNT;
+      state.player.hp += HP_GRANT_AMOUNT;
+    }
   }
 
   state.log.push({

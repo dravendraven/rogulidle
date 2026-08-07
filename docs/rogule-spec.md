@@ -591,3 +591,43 @@ escudo não torna mais morcegos inofensivos.
 Com o teto, **HP vira recurso não-renovável**. Toda a estratégia do bot se
 reorganiza em volta disso: a ordem dos duelos deixa de ser otimização de
 margem e passa a determinar se a run termina. Ver `bot-strategy.md` §5.
+
+### 13.4 HP máximo cresce com as mortes (M6)
+
+**Não existe no original.** Rogule nunca move `PLAYER_HP` — é constante do
+início ao fim, e §13.2 tinha acabado de restaurar essa invariante depois do
+experimento de "armadura como HP extra" que a quebrava.
+
+**Reabrimos a invariante de propósito.** Medido (`docs/observed-ruler.md`):
+o *buffer* (`hp efetivo ÷ golpe médio do andar`) **cai** ao longo da
+descida — o herói termina absorvendo uma fração dos golpes que absorvia no
+começo, enquanto o desafio sobe. Todo o programa de variância planejado
+depois disto (M2–M5) acrescenta uma cauda letal, e uma cauda letal contra um
+buffer que cai não é tensão — é morte súbita sem arco.
+
+**Regra nova.** A cada `HP_GRANT_PER_KILLS` mortes, `hp_máximo` **e** `hp`
+atual sobem `HP_GRANT_AMOUNT`. Mesma cadência do ganho de xp original
+(`KILLS_PER_XP`), mesmo lugar no código — "matar deixa mais forte" já era o
+idioma de progressão do jogo; isto é a metade defensiva dele.
+
+**As duas barras, não só o teto — e isso não é detalhe.** Não há
+regeneração (§13.1). Um herói que ganha teto sem ganhar HP atual chega a
+cada andar exatamente tão machucado quanto antes, e o buffer *medido* (que
+lê o herói na chegada, não o teto teórico) mal se move. Por isso isto é, em
+parte, um mecanismo de cura — que §13.1 removeu de propósito. A diferença é
+a mesma razão que motivou aquela remoção: o original curava com **tempo**,
+então um bot podia acampar numa zona fria e encher para sempre — "maquinário
+guardando um recurso que a gente não queria que existisse". Cura ganha por
+**morte** não pode ser acampada: o suprimento é finito, fixado na geração, e
+gastá-lo custa a luta. Mesmo recurso, sem exploit, sem precisar de teto.
+
+**Medido, e a tensão é real.** Buffer sobe de ×0,846/andar (desligado) para
+×0,910/andar (padrão, `per=2, amount=1`) nos andares 1–6 — melhora real
+(z≈2,1) mas **ainda cai**, longe da meta de ~×1,16. E o clear rate do bot
+real quase dobra no mesmo intervalo: 30,7% → 56,7% em seeds pareadas
+(n=150). Testado um intervalo de taxas (0,125 a 0,5 hp/morte): nenhuma
+melhora o buffer o bastante sem também inflar o clear rate — reduzir a taxa
+protege o clear rate só um pouco e não compra buffer de volta. Ver
+`docs/backlog.md` M6 para a tabela completa; ship no valor especificado
+(mesma cadência do xp) porque é o único ponto medido com efeito de buffer
+estatisticamente real, com a ressalva registrada explicitamente.

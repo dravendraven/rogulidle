@@ -32,6 +32,7 @@ function cloneState(state) {
     sim: state.sim,
     attackWhenAdjacent: state.attackWhenAdjacent,
     xpFromKills: state.xpFromKills,
+    hpFromKills: state.hpFromKills,
     weaponsWidenRoll: state.weaponsWidenRoll,
     noPickup: state.noPickup,
     map: state.map,

@@ -52,15 +52,70 @@ export const KILLS_PER_XP = 2;           // FAITHFUL engine.cljs:272
 // damage die never grows and the only ladder is what the map hands over.
 export const XP_FROM_KILLS = false;
 
+// ***** defensive progression (M6, docs/backlog.md) ***** //
+//
+// DECIDED by the owner: the hero gets growing maximum capacity. The buffer
+// (effectiveHp / a floor's mean blow) FALLS across the descent under
+// measurement — ×0.862 per floor on the observed ruler — while challenge
+// climbs ×1.343. Every point of variance work planned after this (M2-M5)
+// adds a lethal tail, and a lethal tail against a falling buffer is not
+// tension, it is sudden death with no arc.
+//
+// Mirrors KILLS_PER_XP's shape exactly: every HP_GRANT_PER_KILLS kills,
+// hpMax AND current hp both rise by HP_GRANT_AMOUNT. Same place in the code
+// as the xp grant (combat.js playerAttacks), same modulo-on-kill-count
+// mechanism. "Killing makes you gradually stronger" is already the game's
+// progression idiom (xp); this is its defensive half.
+//
+// BOTH bars, not just the ceiling — this is not an afterthought. There is
+// no regeneration (below), so a hero that gains ceiling without gaining
+// current hp arrives at every floor exactly as hurt as before, and the
+// MEASURED buffer (read from the hero on arrival, not its theoretical max)
+// barely moves. That makes this partly a healing mechanic, which spec
+// §13.1 deliberately removed — the difference is the reason that removal
+// existed: the original healed with TIME, so a bot could camp a cold
+// corner and refill forever, "machinery guarding a resource we did not
+// want to exist". Healing earned by KILLS cannot be camped: the supply is
+// finite, fixed at generation, and spending it costs the fight. Same
+// resource (hp), no exploit, no cap needed.
+//
+// FAITHFUL note: PLAYER_HP is FAITHFUL and this diverges from Rogule
+// knowingly, recorded in docs/rogule-spec.md §13.4. It also reopens the
+// "hpMax never moves" invariant that §13.2's armour rewrite deliberately
+// established — every place that assumed a constant hpMax needs rechecking
+// (dungeon.js and game.js already carry hpMax down the stairs field-by-
+// field rather than assuming PLAYER_HP, so they did not need a change).
+export const HP_FROM_KILLS = true;
+
+// GUESS — same cadence as KILLS_PER_XP (2) on purpose: reuse the pacing
+// that already exists rather than introduce a second rhythm to reason
+// about.
+export const HP_GRANT_PER_KILLS = 2;
+
+// GUESS — measured, and the target is NOT reached; ships anyway as the best
+// point found. A rate sweep (0.125 to 0.5 hp/kill, i.e. HP_GRANT_PER_KILLS
+// 8 down to 2 at this AMOUNT) found no point where buffer approaches the
+// ~1.16/floor target without the real bot's clear rate leaving its band —
+// at this shipped rate buffer moves 0.846 -> 0.910/floor (real, z~2.1, but
+// still FALLING) while clear rate nearly doubles, 30.7% -> 56.7% (n=150,
+// paired). Smaller rates (tried down to 0.125) protect clear rate only
+// a little and buy back no buffer distinguishable from zero effect. Full
+// bracket in docs/backlog.md M6 result. Shipped here because it is the
+// only tested point with a statistically real buffer effect, not because
+// it satisfies the item's own acceptance criteria — it does not, and that
+// shortfall needs an owner decision, not a bigger constant.
+export const HP_GRANT_AMOUNT = 1;
+
 // ***** regeneration ***** //
 
-// REMOVED by owner decision: there is no passive regeneration at all.
+// REMOVED by owner decision: there is no PASSIVE (time-based) regeneration.
 //
 // Rogule gave +1 hp every 100 turns, uncapped, and monsters are motionless
 // outside their chase radius — so a bot that maximises winning simply camps
 // somewhere cold and heals to full before every fight. We first tried a cap
 // (spec §13.1); deleting it outright is simpler and leaves nothing to
-// exploit. Hp is now strictly non-renewable except by drinking a potion.
+// exploit. Hp is renewable only by ACTING: drinking a potion, or killing
+// (HP_FROM_KILLS above) — never by waiting.
 
 // ***** combat ***** //
 

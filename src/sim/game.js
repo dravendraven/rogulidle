@@ -34,6 +34,7 @@ export function newGame(seed, counts = {}) {
     // same options bag so it travels into replays too.
     attackWhenAdjacent: counts.attackWhenAdjacent,
     xpFromKills: counts.xpFromKills,
+    hpFromKills: counts.hpFromKills,
     weaponsWidenRoll: counts.weaponsWidenRoll,
     // Instrumentation only, not a rule variant: suppresses item/potion/shield
     // pickup so a probe can clear a floor without ever getting stronger from

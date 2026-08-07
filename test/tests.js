@@ -2,7 +2,7 @@
 // Run them with: python tools/dev-server.py -> http://localhost:8138/run-tests.html
 
 import {
-  ITEM_TABLE, MONSTER_TABLE, PLAYER_HP,
+  HP_GRANT_AMOUNT, ITEM_TABLE, MONSTER_TABLE, PLAYER_HP,
 } from '../src/sim/balance.js';
 import { newGame, playGame, replayGame } from '../src/sim/game.js';
 import { step, ACTIONS } from '../src/sim/step.js';
@@ -67,6 +67,7 @@ function makeState(options) {
     nextId: 100,
     rng: { map: 1, spawn: 2, combat: options.combatSeed ?? 3 },
     xpFromKills: options.xpFromKills,
+    hpFromKills: options.hpFromKills,
     log: [],
     map: options.map,
     player: {
@@ -320,6 +321,64 @@ test('by default killing does not raise xp at all', () => {
 
   assert(state.monsters[0].dead && state.monsters[1].dead, 'the rats did not die');
   assertEq(state.player.xp, startXp, 'xp grew despite the default being off');
+});
+
+test('the player gains max AND current hp every second kill, by default (M6)', () => {
+  // HP_FROM_KILLS ships true — the inverse default from xp, and the whole
+  // point of the item: xp is frozen, hp-from-kills is not.
+  let state = makeState({
+    map: ROOM_5x5, playerPos: [2, 2],
+    monsters: [dummy('rat', [1, 2]), dummy('rat', [3, 2])],
+  });
+  const startHp = state.player.hp;
+  const startMax = state.player.hpMax;
+
+  for (let i = 0; i < 60 && !state.monsters[0].dead; i++) state = step(state, 'left').state;
+  assert(state.monsters[0].dead, 'first rat never died');
+  assertEq(state.player.hpMax, startMax, 'hpMax rose after only one kill');
+  assertEq(state.player.hp, startHp, 'hp rose after only one kill');
+
+  for (let i = 0; i < 60 && !state.monsters[1].dead; i++) state = step(state, 'right').state;
+  assert(state.monsters[1].dead, 'second rat never died');
+  assertEq(state.player.hpMax, startMax + HP_GRANT_AMOUNT,
+    'hpMax did not rise by HP_GRANT_AMOUNT on the second kill');
+  assertEq(state.player.hp, startHp + HP_GRANT_AMOUNT,
+    'current hp did not rise by HP_GRANT_AMOUNT on the second kill — a ceiling '
+    + 'grant with no matching current-hp grant would not move the buffer');
+});
+
+test('hp-from-kills can be switched off, for A/B measurement', () => {
+  let state = makeState({
+    map: ROOM_5x5, playerPos: [2, 2], hpFromKills: false,
+    monsters: [dummy('rat', [1, 2]), dummy('rat', [3, 2])],
+  });
+  const startHp = state.player.hp;
+  const startMax = state.player.hpMax;
+
+  for (let i = 0; i < 60 && !state.monsters[0].dead; i++) state = step(state, 'left').state;
+  for (let i = 0; i < 60 && !state.monsters[1].dead; i++) state = step(state, 'right').state;
+
+  assert(state.monsters[0].dead && state.monsters[1].dead, 'the rats did not die');
+  assertEq(state.player.hpMax, startMax, 'hpMax grew despite hpFromKills being off');
+  assertEq(state.player.hp, startHp, 'hp grew despite hpFromKills being off');
+});
+
+test('the hp grant never widens the gap between hp and hpMax', () => {
+  // Both bars move by the SAME amount on the same kill, in the same step of
+  // playerAttacks — a hero at full health before the grant is at full
+  // health after it, never left freshly "damaged" relative to a ceiling
+  // that just moved out from under them.
+  let state = makeState({
+    map: ROOM_5x5, playerPos: [2, 2],
+    monsters: [dummy('rat', [1, 2]), dummy('rat', [3, 2])],
+  });
+  assertEq(state.player.hp, state.player.hpMax, 'fixture did not start at full health');
+
+  for (let i = 0; i < 60 && !state.monsters[0].dead; i++) state = step(state, 'left').state;
+  for (let i = 0; i < 60 && !state.monsters[1].dead; i++) state = step(state, 'right').state;
+
+  assertEq(state.player.hp, state.player.hpMax,
+    'a full-health hero fell out of sync with its own ceiling after two kills');
 });
 
 test('a dead monster drops what it carried', () => {
