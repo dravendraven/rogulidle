@@ -38,17 +38,16 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| 1 | U3 | Show killed-xp and xp per turn, instead of the damage stat labelled xp | REPORTED |
-| 2 | U4 | Lifetime score, awarded only on a full clear, xpEarned over turns | REPORTED |
-| 3 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | REPORTED |
-| 4 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
-| 5 | B7 | Raise STEP_COST_IN_HP so turns cost the bot something | READY · after M19 |
-| 6 | M22 | Two routes to the shrine, one short and dangerous, one long and quiet | NEEDS DECISION |
-| 7 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
-| 8 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
-| 9 | X1 | Delete what nothing references | READY |
-| 10 | M4 | Side-room risk/reward spread scales with depth | OBSOLETE if M22 lands |
-| 11 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 1 | P1 | Decide what play.html is — scratch tool, second mode, or gone | NEEDS DECISION |
+| 2 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | REPORTED |
+| 3 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
+| 4 | B7 | Raise STEP_COST_IN_HP so turns cost the bot something | READY · after M19 |
+| 5 | M22 | Two routes to the shrine, one short and dangerous, one long and quiet | NEEDS DECISION |
+| 6 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
+| 7 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
+| 8 | X1 | Delete what nothing references | READY |
+| 9 | M4 | Side-room risk/reward spread scales with depth | OBSOLETE if M22 lands |
+| 10 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -325,221 +324,37 @@ anyway. Measuring a half-finished map attributes nothing.
 The queue continues at M18. The bisect stays available — each change is its
 own commit — and X2 sits after M19 rather than before M18.
 
-## U3 · show what the hero has killed, and how fast
+## P1 · what is `play.html` for
 
-`work agent` done · `ui agent` — **REPORTED**
+**NEEDS DECISION** — owner's, and it is about what the project is
 
-The screen shows `3 xp` and rising. That number is the hero's **damage
-stat** — Rogule uses `xp` for both a creature's damage and the number over
-its head — and it says nothing about what the run has achieved.
+An interactive mode was added on direct request: a human plays instead of
+watching the bot. Both `U3` and `U4` flagged it and both declined to wire
+themselves into it, which was right.
 
-Show instead the **sum of the xp of every creature killed**, and the rate:
-that sum per turn.
+**It contradicts the stated premise.** `CLAUDE.md`'s first line is *"The
+player does nothing but watch a bot clear the dungeon"*, and every design
+decision in this repo descends from it — the bot is the product, `finishes`
+is a bound rather than a goal, the whole reason a spectator needs surprise.
+An interactive mode is a different game with the same engine.
 
-### Two things called xp, and this is the trap
+That is not an objection. It is that **nothing else can be decided
+consistently until it is settled**, because half the arguments in
+`objectives.md` stop applying if a human is playing.
 
-The damage stat still matters and still changes. If the screen relabels one
-as the other, the next person to read it will be wrong about which. **Show
-both, named apart** — "damage" for the stat, something else for the score.
-The item does not care what the second word is; it cares that they are not
-both "xp".
+**Three answers, and they need different things:**
 
-### Engine half — `work agent`, one line
+- **A scratch tool** — for feeling out whether a floor is fair, never
+  shipped, not maintained. Then it needs a line saying so, and nothing else
+  ever wires into it.
+- **A real second mode** — then `CLAUDE.md`'s premise changes, and questions
+  that were closed reopen: is the difficulty tuned for a bot or a human, does
+  the lifetime score count human runs, is fog of war still a design decision
+  or now a UI problem.
+- **Delete it.**
 
-`kills` is `push(monster.name)`, and a name is not enough: M3 can reskin a
-creature's stats, so looking the name up in `MONSTER_TABLE` afterwards can
-give the wrong number.
-
-**Do not change the shape of `kills`** — `kills.length` is load-bearing in
-`combat.js`'s modulo grants and in the renderer. Add a counter instead:
-`state.player.xpEarned`, incremented by the dead monster's own `xp` at the
-same place the kill is pushed. One line, no shape change, and it carries
-down the stairs with everything else the hero is.
-
-### Screen half — `ui agent`
-
-Show the total and the rate. The rate is the interesting one: **it says
-whether a run is going somewhere.** A bot grinding rats forever and a bot
-carving through a floor look similar on a kill count and nothing alike on
-xp per turn.
-
-**Also worth putting on `run-check.html`**, where it is a better version of
-"turns between events" — that one counts events without weighting them, and
-this weights them by what was actually killed. The ui agent owns the screen;
-whether it belongs on the check page is the metrics agent's call, so report
-rather than reach.
-
-### Result
-
-Three HUD chips replace the old single `xp` one: `dmg` (the untouched
-damage-roll stat, `player.xp`), `xp` (`player.xpEarned`, the work agent's
-engine half), and `xp/turn` (`xpEarned` over a running turn total). Changed
-`src/ui/render.js` (`renderHud`), `src/ui/spectator.js` (added
-`session.turnOffset`, accumulated per floor in the descent loop), and
-`index.html`'s chips row. `docs/backlog.md` is the only other file touched.
-
-**The rate needed a turn total the engine doesn't hand over directly.**
-`state.turn` resets to 0 at every floor while `xpEarned` carries through, so
-`xpEarned / state.turn` would spike right after each floor transition —
-correct on floor 1, meaningless from floor 2 on. `session.turnOffset` banks
-the turn count from floors already finished this run and gets added in. It
-defaults to 0 and only the descent loop touches it, so the legacy
-`?difficulty=` single-floor mode reads correctly with no changes of its own.
-
-**Verified by hand against the live numbers**, not just by eye: killed a
-bat (xp 2) at turn 18 → 2/18 = 0.11, matched the chip exactly; a later kill
-put it at 4/57 = 0.07, also matched. Checked both the descent (`index.html`
-default) and the legacy single-floor mode (`?difficulty=`) in-browser, no
-console errors either way. `run-tests.html`: 89/91 — the 2 failures are
-pre-existing spine-share tests against `src/sim/spawn.js`, from a different
-session's in-flight map work, confirmed unrelated (nothing here touches
-map generation) and present before this change too.
-
-**Also shipped:** the same three chips in `play.html`/`src/ui/play.js` — an
-interactive mode added earlier this session on direct owner request (see
-that commit's message; it deviates from the project's stated
-watch-only premise and the project agent hasn't reviewed it yet). Left the
-old single-`xp` label there would have reintroduced the exact trap this
-item exists to close, on a second page. Its own floor-carry logic had
-independently dropped `xpEarned` across a floor transition — a real bug
-this pass also fixed while it was in the file for the label change.
-
-**Out of scope, reported per the item's own instruction.** Whether
-`xpEarned`/turn belongs on `run-check.html` is the metrics agent's call —
-not touched here.
-
-## U4 · a lifetime score, earned only by finishing
-
-`ui agent` · **REPORTED**
-
-Runs loop forever and **nothing accumulates**. Run 47 has the same
-consequence as run 1, which is the whole of it: a loop, not a sequence. The
-project is called Rogul**idle** and there is currently nothing idle in it.
-
-**Do.** When a run clears all ten floors, award permanent score:
-
-    award = xpEarned / (turns × 0.01)
-
-Keep a lifetime total across runs, and show it. Nothing else changes.
-
-**Only a full clear pays.** That is what makes the formula safe: a rate on
-its own is maximised by dying early after a fast start, and the completion
-gate removes that entirely — you cannot score by not finishing. It also
-gives the horse race a stake, which is the point.
-
-**Score only, not power.** Nothing bought, nothing unlocked, no effect on
-any run. That keeps determinism intact — `seed = same run, always` is the
-strongest rule in this repo, and a score that changes future runs breaks it.
-Whether it should ever buy power is a separate and much harder question;
-this item deliberately does not open it.
-
-**Storage lives in `src/ui/`.** `localStorage`, and never anywhere near
-`src/sim/` — `step()` takes no storage access and that boundary already
-does half the work here. Include a way to reset it.
-
-**Show three things:** the lifetime total, what the last clear paid, and how
-many clears there have been. The award alone is meaningless without knowing
-how rare it is.
-
-### Two practical notes
-
-**Nothing will ever be awarded right now.** `finishes` reads 0/20 — the map
-work has to land before this is visible at all. Build a way to verify it
-without waiting: force a clear, or feed it a synthetic finished run.
-
-**Rough size, so a wrong magnitude is obvious.** A cleared descent runs
-around 1700 turns and kills maybe 200 xp worth of creatures, so an award
-lands near **12**. If it comes out at 0.1 or 4000, something is wrong with
-the units rather than with the run.
-
-### Result
-
-New `src/ui/score.js` — three pure functions (`award`, `readScore`,
-`resetScore`) over one `localStorage` key, no DOM and no `src/sim/` import
-either direction. `src/ui/spectator.js`'s `tallyDescent` calls `award()`
-only inside its existing `if (run.cleared)` branch, using
-`run.levels.reduce((sum, l) => sum + l.turns, 0)` for total turns and the
-last level's `xpEarned` — both straight from `playDungeon`'s own per-floor
-records, not from the display's own turn bookkeeping. `src/ui/render.js`
-gets `renderScore`; `index.html` gets a `lifetime score` field (total ·
-clears · last award) and a `reset` button behind a native `confirm()`,
-since the action is irreversible and purely local. `style.css`: one small
-rule so the reset button reads as secondary, not a peer of the header
-controls.
-
-**Verified without waiting for a clear**, as asked — `finishes` is near 0
-right now. `score.js`'s functions take plain `(xpEarned, turns)`, no DOM,
-so they're callable from the console directly:
-`award(200, 1700)` → **11.76**, matching the item's own worked estimate of
-~12. A second call (`award(50, 1600)` → 3.125) accumulated correctly to
-14.89 over 2 clears; reloading the page picked the persisted total back up
-before any run had completed in the new load (confirms the
-read-on-`start()` path, not just the write path); `resetScore()` zeroed it
-back to "no clears yet". That console-callable shape *is* the verification
-path — considered a `?forceClear=1` debug flag instead and skipped it,
-since it risks quietly mixing fake data into the real lifetime total if
-anyone forgets to turn it off.
-
-**Deliberately out of scope:** did not wire this into `play.html`, the
-interactive mode added earlier this session on direct owner request and
-not yet reviewed by the project agent. U4's own opening line is about the
-spectator ("runs loop forever and nothing accumulates"); merging the bot's
-lifetime and a human player's into one `localStorage` key felt like a
-product decision to flag, not one to make unilaterally while already
-mid-item.
-
-`run-tests.html`: 89/91, same 2 pre-existing spine-share failures from a
-different session's in-flight map work — confirmed unrelated, nothing here
-touches map generation.
-
-### Review of M17 — kept. And the diagnosis just got much sharper
-
-**Every risk the item named was measured and none of them happened.**
-Challenge growth 1.317 ±0.016, inside the band at −1.48σ. Tier spread within
-a floor did not collapse — it rose slightly, sd 1.54 → 2.06 across the
-descent, against the item's own worry that strength carrying ×1.108 over 11
-rows would narrow deep floors to a few tiers. Saturation never happens
-inside the descent, and the measured 0.881 lands on the item's estimate of
-0.885.
-
-**The one it could not answer on paper went the wrong way.** Median depth
-**3 → 2**, finishes 0/40, and **32 of 40 runs end at depth ≤ 2**.
-
-That is not "the game is hard". Four runs in five never leave floor 2, which
-is a wall standing exactly where the hero arrives.
-
-### The arithmetic of floor 1, which nobody had done
-
-The hero starts with `xp 3` and **an empty inventory** — no weapon. Damage
-is a roll over `0..xp-1`, so mean 1.0, times a 5/6 hit chance:
-**0.83 hp per turn.**
-
-Floor 1 now holds five creatures at roughly 2–3 hp each, so about 12–13 hp
-of monster. That is **fifteen turns of attacking** to clear it.
-
-Incoming, per adjacent creature at `xp 2`: mean 0.5 × 5/6 = **0.42 per
-turn**.
-
-    fought one at a time    15 × 0.42 = 6.3 damage    survives on 10 hp
-    fought in pairs         15 × 0.84 = 12.6 damage   dead
-
-**And clusters are pairs** — effective size 1.77–2.10, measured. So floor 1
-is a coin toss at best and the measurement says it lands badly.
-
-### What that means for M19, and it is not "richer chests"
-
-The lever is not how much loot floor 1 holds. It is that **the hero has to
-survive long enough to reach any of it while dealing 0.83 a turn**, and five
-creatures are between it and every chest.
-
-One weapon changes the whole calculation: an axe takes output from 0.83 to
-about 2.5 a turn, cutting fifteen turns of combat to five. **The answer is
-probably a guaranteed weapon within reach of the spawn**, which is M19's
-third lever and the one I listed as most expensive because it needs a new
-rule. On these numbers it is the only one that obviously works — richer
-chests further in do not help a hero that dies on the way to them.
-
-M19 gets that written into it rather than left as one option of three.
+**Until this is answered, nothing wires into it.** U3 and U4 both stopped at
+that line on their own, and that is the right default.
 
 ## M20 · start and shrine at the two ends of the map
 
