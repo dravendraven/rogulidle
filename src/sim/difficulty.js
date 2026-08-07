@@ -52,18 +52,18 @@ export const MONSTERS_BASE = 2;
 // the 20 creatures the additive model ended on (10^(1/9) = 1.29).
 export const MONSTER_GROWTH = 1.3;
 
-// FLAT, not per-monster. Rogule ships 15 covers to 5 monsters, but Rogule
+// FLAT, not per-monster. Rogule ships 15 chests to 5 monsters, but Rogule
 // is one floor — nothing carries forward, so the ratio can be generous.
 //
-// Tying covers to the creature count was tried and fails: loot then grows
+// Tying chests to the creature count was tried and fails: loot then grows
 // at exactly the same rate as threat, and since the hero ACCUMULATES while
 // each floor's threat is spent once, the hero wins. Measured that way, the
 // tenth floor handed over 64 items and capacity reached 118 against a
 // starting 10.
 //
-// Flat covers are what makes threat outpace supply, which is the whole
+// Flat chests are what makes threat outpace supply, which is the whole
 // requirement.
-export const COVERS_PER_FLOOR = 6;
+export const CHESTS_PER_FLOOR = 6;
 
 // How far up the monster table the deepest corner of a floor reaches.
 // Rogule's constant, and now fixed rather than scaled per floor: strength
@@ -96,7 +96,7 @@ export function floorParams(level) {
   return {
     level,
     monsters,
-    covers: COVERS_PER_FLOOR,
+    chests: CHESTS_PER_FLOOR,
     difficultyScale: MONSTER_STRENGTH,
     dropChance: DROP_CHANCE,
     weaponScarcity: SCARCITY,
@@ -115,12 +115,12 @@ export const DEFAULT_MODEL = {
   // to the additive form and compare the two curves.
   monsterGrowth: MONSTER_GROWTH,
   monstersPerLevel: 0,
-  covers: COVERS_PER_FLOOR,
-  // Covers tied to the creature count. Zero by default, and deliberately:
+  chests: CHESTS_PER_FLOOR,
+  // Chests tied to the creature count. Zero by default, and deliberately:
   // at 2 per monster loot grows exactly as fast as threat, and since the
   // hero accumulates while each floor's threat is spent once, the hero
   // runs away with it. Exposed so that result stays re-checkable.
-  coversPerMonster: 0,
+  chestsPerMonster: 0,
   strength: MONSTER_STRENGTH,
   dropChance: DROP_CHANCE,
   weaponScarcity: SCARCITY,
@@ -139,7 +139,7 @@ export function makeFloorPlan(model = {}) {
     return {
       level,
       monsters,
-      covers: Math.max(0, Math.round(m.covers + m.coversPerMonster * monsters)),
+      chests: Math.max(0, Math.round(m.chests + m.chestsPerMonster * monsters)),
       difficultyScale: m.strength,
       dropChance: m.dropChance,
       weaponScarcity: m.weaponScarcity,

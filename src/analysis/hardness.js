@@ -128,7 +128,7 @@ export function descentCurve(options = {}) {
 
     for (const lvl of dungeon.levels) {
       const row = floors[lvl.level - 1] || (floors[lvl.level - 1] = {
-        level: lvl.level, monsters: lvl.monsters, covers: planFor(lvl.level).covers,
+        level: lvl.level, monsters: lvl.monsters, chests: planFor(lvl.level).chests,
         reached: 0, died: 0, stalled: 0, damage: 0, capacity: 0,
         turns: 0, kills: 0, gear: 0, mass: 0,
       });
@@ -154,7 +154,7 @@ export function descentCurve(options = {}) {
   const rows = floors.map((row) => ({
     level: row.level,
     monsters: row.monsters,
-    covers: row.covers,
+    chests: row.chests,
     reached: row.reached,
     survivalPct: +((100 * (row.reached - row.died)) / row.reached).toFixed(0),
     stalled: row.stalled,

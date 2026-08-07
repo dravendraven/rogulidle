@@ -120,14 +120,14 @@ even a twenty-creature floor is made of small things. At 1.0 the far corner
 reaches the t-rex. Strength is fixed across floors on purpose — floors differ
 by how many creatures they hold, not by what kind.</p>
 
-<h3>Cover loot</h3>
-<div class="formula" id="fCover"></div>
-<p class="note">This inverts Rogule's original, which made distant covers
+<h3>Chest loot</h3>
+<div class="formula" id="fChest"></div>
+<p class="note">This inverts Rogule's original, which made distant chests
 <i>less</i> likely to hold anything (spec quirk §9.3). Either way the
 probability sweeps 10%→100%; we point it so that walking deeper pays.</p>
 
 <h2>Loot and scarcity</h2>
-<p class="note">The two sources hold different things, by design: <b>covers
+<p class="note">The two sources hold different things, by design: <b>chests
 give weapons and armour</b> — gear comes from exploring — and <b>corpses give
 health potions only</b> — healing comes from killing. Both use the same
 scarcity rule.</p>
@@ -141,11 +141,11 @@ the deck.</p>
 
 <h2>The difficulty model</h2>
 <div class="formula" id="fModel"></div>
-<p class="note">Covers are <b>flat</b> by default, and that is the load-bearing
+<p class="note">Chests are <b>flat</b> by default, and that is the load-bearing
 choice. Tie them to the creature count and loot grows exactly as fast as
 threat — but the hero <i>accumulates</i> while each floor's threat is spent
 once, so the hero wins. Measured that way, floor ten handed over 64 items and
-capacity reached 118 against a starting 10. Set <code>covers per creature</code>
+capacity reached 118 against a starting 10. Set <code>chests per creature</code>
 above 0 below to watch it happen.</p>
 
 <h2>Reading the results</h2>
@@ -176,8 +176,8 @@ which drops a fixed reference hero straight into it.</p>
     <div><label>creatures, floor 1 <small>(base)</small></label><input id="monstersBase" type="number" step="1" min="0"></div>
     <div><label>growth per floor <small>(×, compounds)</small></label><input id="monsterGrowth" type="number" step="0.05" min="1"></div>
     <div><label>…or added per floor <small>(0 = use growth)</small></label><input id="monstersPerLevel" type="number" step="1" min="0"></div>
-    <div><label>covers per floor <small>(flat)</small></label><input id="covers" type="number" step="1" min="0"></div>
-    <div><label>covers per creature <small>(extra)</small></label><input id="coversPerMonster" type="number" step="0.5" min="0"></div>
+    <div><label>chests per floor <small>(flat)</small></label><input id="chests" type="number" step="1" min="0"></div>
+    <div><label>chests per creature <small>(extra)</small></label><input id="chestsPerMonster" type="number" step="0.5" min="0"></div>
     <div><label>strength <small>(0–1, table reach)</small></label><input id="strength" type="number" step="0.05" min="0" max="1"></div>
     <div><label>floors</label><input id="levels" type="number" step="1" min="1" max="40"></div>
   </div>
@@ -210,7 +210,7 @@ which drops a fixed reference hero straight into it.</p>
 
 <script type="module">
 import {
-  COVER_DIFFICULTY_SCALE, HIT_CHANCE, ITEM_TABLE, MAP_SIZE, MONSTER_SKIP_CHANCE,
+  CHEST_DIFFICULTY_SCALE, HIT_CHANCE, ITEM_TABLE, MAP_SIZE, MONSTER_SKIP_CHANCE,
   MONSTER_TABLE, MONSTER_WEIGHTS, PLAYER_HP, PLAYER_XP, POTION_HEAL,
   WEAPONS_WIDEN_ROLL, XP_FROM_KILLS, CORRIDOR_LENGTH,
 } from './src/sim/balance.js';
@@ -275,7 +275,7 @@ creature turn   skipped ${pct(MONSTER_SKIP_CHANCE)} of the time
 populate order (each step removes the tile it used):
   1. hero        a uniformly random free tile
   2. shrine      centre of the FURTHEST room by path length
-  3. covers      rooms only, never corridors
+  3. chests      rooms only, never corridors
   4. creatures   anywhere still free`;
 
 $('fDepth').textContent = `depth(tile) = pathLength(hero -> tile) / pathLength(hero -> furthest room)
@@ -296,17 +296,17 @@ its neighbour at the ends (spec quirk 9.2).
 carries loot = true with probability `
   + `dropChance, drawn from the POTION pool only`;
 
-$('fCover').textContent = `emptiness  = 1 - depth(tile)           covers are richer FAR from the hero
-P(loot)    = 1 - ${COVER_DIFFICULTY_SCALE} x emptiness
+$('fChest').textContent = `emptiness  = 1 - depth(tile)           chests are richer FAR from the hero
+P(loot)    = 1 - ${CHEST_DIFFICULTY_SCALE} x emptiness
 
-  at the hero's feet   P = ${(1 - COVER_DIFFICULTY_SCALE).toFixed(2)}
+  at the hero's feet   P = ${(1 - CHEST_DIFFICULTY_SCALE).toFixed(2)}
   at the shrine        P = 1.00
 
 Then the scarcity draw runs; it can still come up EMPTY.
-A cover costs 2 turns: one to open, one to step onto the loot.`;
+A chest costs 2 turns: one to open, one to step onto the loot.`;
 
 $('fScarcity').textContent = `Each source splits its mass evenly between the kinds it can hold
-(covers: weapon + armour, so 1/2 each; corpses: potion, so 1/1).
+(chests: weapon + armour, so 1/2 each; corpses: potion, so 1/1).
 Within a kind, items split by 1/value, so the stronger one stays rarer.
 
     mass(item) = (1 / kinds) / scarcity[kind] x shareOfKind
@@ -321,7 +321,7 @@ const itemRows = ITEM_TABLE.map((it) => {
     : `+${it.dmg} to the die`;
   return `<tr><td>${it.emoji} ${it.name}</td><td>${it.kind}</td>`
     + `<td>${effect}</td><td>${it.value}</td>`
-    + `<td class="thin">${it.kind === 'potion' ? 'corpses' : 'covers'}</td></tr>`;
+    + `<td class="thin">${it.kind === 'potion' ? 'corpses' : 'chests'}</td></tr>`;
 }).join('');
 $('tItems').innerHTML =
   `<thead><tr><th>item</th><th>kind</th><th>effect</th>`
@@ -329,7 +329,7 @@ $('tItems').innerHTML =
   + `<tbody>${itemRows}</tbody>`;
 
 $('fModel').textContent = `creatures(N) = base x growth^(N - 1)      EXPONENTIAL, compounds
-covers(N)    = flat + perCreature x creatures(N)
+chests(N)    = flat + perCreature x creatures(N)
 strength     = fixed for every floor
 
 Net challenge is cost / capacity. With cost exponential and capacity
@@ -349,8 +349,8 @@ xp from kills ${XP_FROM_KILLS ? 'ON' : 'OFF — gear and potions are the only pr
 
 /* ---------------------- inputs ---------------------- */
 
-const FIELDS = ['monstersBase','monsterGrowth','monstersPerLevel','covers',
-  'coversPerMonster','strength','levels','weaponScarcity','armourScarcity',
+const FIELDS = ['monstersBase','monsterGrowth','monstersPerLevel','chests',
+  'chestsPerMonster','strength','levels','weaponScarcity','armourScarcity',
   'potionScarcity','dropChance'];
 
 function loadDefaults() {
@@ -385,8 +385,8 @@ function showPreview() {
 
   $('preview').innerHTML =
     `creatures: ${ladder.map((p) => p.monsters).join(', ')}`
-    + ` &nbsp;·&nbsp; covers: ${ladder.map((p) => p.covers).join(', ')}`
-    + `<br>a cover comes up empty ${empty('weapon','cover')} of the time, `
+    + ` &nbsp;·&nbsp; chests: ${ladder.map((p) => p.chests).join(', ')}`
+    + `<br>a chest comes up empty ${empty('weapon','chest')} of the time, `
     + `a corpse ${empty('potion','monster')} — before the depth roll.`
     + (band === null
       ? '<br>additive growth: the jumps FADE, so the biggest step is at the top where the hero is weakest.'
@@ -412,7 +412,7 @@ const COLUMNS = [
     'Depth. Floor 1 is where every hero starts; the last floor is the one that ends the dungeon.'],
   ['creatures',
     'How many creatures the generator was told to place. This IS the difficulty dial — everything else follows from it.'],
-  ['covers',
+  ['chests',
     'Plants, rocks and wood blocks placed on the floor. Opening one costs 2 turns and may hold a weapon or a shield. Never a potion.'],
   ['threat mass',
     'Sum of hp x (xp-1) over the roster, which is what actually predicts the hp cost of clearing a floor. Summing xp does not: six rats and one genie both total 6, and one costs nothing.'],
@@ -449,7 +449,7 @@ function render(result) {
     const cls = r.netChallenge >= 1 ? 'hot' : (r.netChallenge >= 0.6 ? 'mid' : '');
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${r.level}</td><td>${r.monsters}</td>`
-      + `<td class="thin">${r.covers}</td><td class="thin">${r.threatMass}</td>`
+      + `<td class="thin">${r.chests}</td><td class="thin">${r.threatMass}</td>`
       + `<td>${r.reached}</td><td>${r.survivalPct}%</td>`
       + `<td class="thin">${r.stalled || ''}</td>`
       + `<td>${r.capacity}</td><td class="thin">${r.gear}</td>`
@@ -572,7 +572,7 @@ function mergeParts(parts, model) {
     depths.push(...part.depths);
     for (const r of part.rows) {
       const cur = acc.get(r.level) || { level: r.level, monsters: r.monsters,
-        covers: r.covers, reached: 0, survived: 0, stalled: 0,
+        chests: r.chests, reached: 0, survived: 0, stalled: 0,
         capacity: 0, gear: 0, mass: 0, damage: 0, kills: 0, turns: 0 };
       cur.reached += r.reached;
       cur.survived += Math.round(r.reached * r.survivalPct / 100);
@@ -589,7 +589,7 @@ function mergeParts(parts, model) {
   }
 
   const rows = [...acc.values()].sort((a, b) => a.level - b.level).map((c) => ({
-    level: c.level, monsters: c.monsters, covers: c.covers,
+    level: c.level, monsters: c.monsters, chests: c.chests,
     reached: c.reached, stalled: c.stalled,
     survivalPct: +((100 * c.survived) / c.reached).toFixed(0),
     capacity: +(c.capacity / c.reached).toFixed(1),

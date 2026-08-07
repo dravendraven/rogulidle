@@ -15,19 +15,19 @@
 // regardless; a potion is worth only the gap it can actually fill.
 
 import {
-  COVER_LOOT_CHANCE, ITEM_TABLE, MONSTER_COUNT, POTION_HEAL,
+  CHEST_LOOT_CHANCE, ITEM_TABLE, MONSTER_COUNT, POTION_HEAL,
   UNKNOWN_MONSTER_ESTIMATE,
 } from '../sim/balance.js';
 import { itemWeights } from '../sim/spawn.js';
 import { campaignCost } from './duel.js';
 
 // Borrowed from the generator rather than recomputed, so the bot's guess at
-// what a cover holds cannot drift away from what covers actually hold.
-// The COVER pool specifically — weapons and armour, no potions, since
-// potions now only fall off monsters. Includes the empty slot, so a cover
+// what a chest holds cannot drift away from what chests actually hold.
+// The CHEST pool specifically — weapons and armour, no potions, since
+// potions now only fall off monsters. Includes the empty slot, so a chest
 // full of nothing drags the expected value down instead of being invisible.
 const ITEM_MIX = (() => {
-  const weights = itemWeights({}, 'cover');
+  const weights = itemWeights({}, 'chest');
   const total = weights.reduce((sum, [, w]) => sum + w, 0);
   return weights.map(([item, w]) => [item, w / total]);
 })();
@@ -81,13 +81,13 @@ export function valueByItemName(belief, total = MONSTER_COUNT) {
   return values;
 }
 
-// What an unopened cover is worth on average: the chance it holds anything,
+// What an unopened chest is worth on average: the chance it holds anything,
 // times the mix of what it could be.
-export function expectedCoverValue(values) {
+export function expectedChestValue(values) {
   let sum = 0;
   for (const [template, probability] of ITEM_MIX) {
     if (!template) continue;                 // the empty slot is worth nothing
     sum += probability * (values.get(template.name) || 0);
   }
-  return COVER_LOOT_CHANCE * sum;
+  return CHEST_LOOT_CHANCE * sum;
 }

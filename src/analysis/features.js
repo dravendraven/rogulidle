@@ -22,12 +22,12 @@ function countWalkable(map) {
   return walkable;
 }
 
-// Gear lying in covers plus gear carried by monsters — everything the map
+// Gear lying in chests plus gear carried by monsters — everything the map
 // is willing to give up over the whole run.
 function loot(state) {
   const all = [
     ...state.items,
-    ...state.covers.map((c) => c.drop).filter(Boolean),
+    ...state.chests.map((c) => c.drop).filter(Boolean),
     ...state.monsters.map((m) => m.drop).filter(Boolean),
   ];
   return {
@@ -61,7 +61,7 @@ export function mapFeatures(state) {
     monsters: live.length,
     walkable,
     rooms: state.map.rooms.length,
-    covers: state.covers.length,
+    chests: state.chests.length,
 
     // threat
     sumXp,
@@ -96,7 +96,7 @@ export function mapFeatures(state) {
 }
 
 export const FEATURE_NAMES = [
-  'monsters', 'walkable', 'rooms', 'covers',
+  'monsters', 'walkable', 'rooms', 'chests',
   'sumXp', 'sumHp', 'maxXp', 'sumActivation', 'threatMass',
   'gearDamage', 'gearArmour', 'potions', 'gearTotal',
   'toShrine', 'density', 'xpPerTile', 'gearPerThreat', 'potionsPerThreat',

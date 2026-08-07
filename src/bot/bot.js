@@ -15,7 +15,7 @@ import {
 import { scoreActions } from './tactics.js';
 import { effectiveHp } from '../sim/combat.js';
 import { duelCost } from './duel.js';
-import { expectedCoverValue, valueByItemName } from './loot.js';
+import { expectedChestValue, valueByItemName } from './loot.js';
 import { dangerField } from './threat.js';
 import {
   actionToward, believedWalkable, dijkstra, exposure, frontiers, key, routeTo,
@@ -146,7 +146,7 @@ function monsterWithin(belief, field, steps) {
 // two rooms away does.
 function lootGoals(belief, field, danger, total, stepCost) {
   const values = valueByItemName(belief, total);
-  const coverValue = expectedCoverValue(values);
+  const chestValue = expectedChestValue(values);
   const out = [];
 
   for (const item of belief.items.values()) {
@@ -160,18 +160,18 @@ function lootGoals(belief, field, danger, total, stepCost) {
     });
   }
 
-  for (const cover of belief.covers.values()) {
-    const approach = priceOfReaching(field, cover.pos);
+  for (const chest of belief.chests.values()) {
+    const approach = priceOfReaching(field, chest.pos);
     if (!Number.isFinite(approach)) continue;
     // Two turns, not one: opening it costs a turn and does not move the
     // player, then stepping onto the tile costs another (spec §6). Those
-    // two turns are spent standing where the cover is, so they are charged
+    // two turns are spent standing where the chest is, so they are charged
     // at that tile's danger, not at the flat walking rate.
-    const lingering = 2 * (stepCost + danger.priceAt(cover.pos[0], cover.pos[1]));
+    const lingering = 2 * (stepCost + danger.priceAt(chest.pos[0], chest.pos[1]));
     out.push({
-      kind: 'cover', id: cover.id, pos: cover.pos, distance: approach,
-      gross: coverValue,
-      net: coverValue - approach - lingering,
+      kind: 'chest', id: chest.id, pos: chest.pos, distance: approach,
+      gross: chestValue,
+      net: chestValue - approach - lingering,
     });
   }
   return out;
@@ -272,7 +272,7 @@ function stillValid(goal, belief, field, total) {
   }
 
   if (goal.kind === 'item' && !belief.items.has(goal.id)) return false;
-  if (goal.kind === 'cover' && !belief.covers.has(goal.id)) return false;
+  if (goal.kind === 'chest' && !belief.chests.has(goal.id)) return false;
   if (goal.kind === 'shrine' && !clearedTheFloor(belief, total)) return false;
 
   if (goal.kind === 'frontier') {

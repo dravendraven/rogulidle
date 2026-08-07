@@ -25,13 +25,13 @@ import {
 } from '../sim/balance.js';
 import { duelCost } from '../bot/duel.js';
 
-// Everything lying on the floor, inside a cover, or carried by a monster.
+// Everything lying on the floor, inside a chest, or carried by a monster.
 function inventoryOfTheWholeMap(state) {
   const loose = [];
   const carried = new Map();          // monster id -> its drop
 
   for (const item of state.items) loose.push(item);
-  for (const cover of state.covers) if (cover.drop) loose.push(cover.drop);
+  for (const chest of state.chests) if (chest.drop) loose.push(chest.drop);
   for (const monster of state.monsters) {
     if (monster.drop) carried.set(monster.id, monster.drop);
   }

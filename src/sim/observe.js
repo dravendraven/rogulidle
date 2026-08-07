@@ -57,7 +57,7 @@ export function observe(state) {
     tiles,
     monsters: state.monsters.filter(seen).map(copyEntity),
     items: state.items.filter(seen).map(copyEntity),
-    covers: state.covers.filter(seen).map(copyEntity),
+    chests: state.chests.filter(seen).map(copyEntity),
     shrine: seen(state.shrine) ? copyEntity(state.shrine) : null,
   };
 }
@@ -71,7 +71,7 @@ export function emptyBelief() {
     tiles: new Map(),
     monsters: new Map(),
     items: new Map(),
-    covers: new Map(),
+    chests: new Map(),
     shrine: null,
   };
 }
@@ -85,7 +85,7 @@ function cloneBelief(belief) {
     tiles: new Map(belief.tiles),
     monsters: new Map(belief.monsters),
     items: new Map(belief.items),
-    covers: new Map(belief.covers),
+    chests: new Map(belief.chests),
     shrine: belief.shrine,
   };
 }
@@ -119,9 +119,9 @@ export function foldBelief(belief, obs) {
     b.seen.add(key);
   }
 
-  // Covers, loose items and corpses are static too, but they can be consumed,
+  // Chests, loose items and corpses are static too, but they can be consumed,
   // so they still need the visible-region refresh.
-  b.covers = refresh(b.covers, obs.covers, obs.visible, obs.turn);
+  b.chests = refresh(b.chests, obs.chests, obs.visible, obs.turn);
   b.items = refresh(b.items, obs.items, obs.visible, obs.turn);
 
   // Monsters are the only entity whose remembered position goes stale. They

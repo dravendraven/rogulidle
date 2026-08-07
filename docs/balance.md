@@ -11,7 +11,7 @@ creatures it holds, and everything else is a constant:
 
 ```
 monsters(N) = 2 × 1.3^(N-1)    2, 3, 3, 4, 6, 7, 10, 13, 16, 21
-covers      = 6                flat, every floor
+chests      = 6                flat, every floor
 strength    = 0.35             how far up the monster table a floor reaches
 ```
 
@@ -47,9 +47,9 @@ capacity 1 -> 10      10.0 -> 10.3    10.0 -> 11.8
 
 It bought what it was meant to buy: the descent is now played to the bottom
 instead of ending in its first three floors. The cost is that **capacity now
-rises**, so the hero is once more outgrowing the dungeon — six covers on a
+rises**, so the hero is once more outgrowing the dungeon — six chests on a
 three-creature floor is generous, and the gentle opening lets gear bank
-cheaply. Covers are the obvious next lever, not the growth rate.
+cheaply. Chests are the obvious next lever, not the growth rate.
 
 **Why count and not strength.** Clearing cost tracks `Σ hp × (xp − 1)`, so
 individual strength scales cost quadratically — a strong monster hits harder
@@ -57,11 +57,11 @@ AND lasts longer, and those multiply — while count scales it linearly.
 Linear is what a dial should be. Summing xp predicts nothing: six rats and
 one genie both total 6, and one costs zero while the other costs 20.6.
 
-**Why covers are flat.** Tying them to the creature count was tried and
+**Why chests are flat.** Tying them to the creature count was tried and
 fails: loot then grows at the same rate as threat, and since the hero
 accumulates while each floor's threat is spent once, the hero wins. Measured
-with `covers = monsters × 2`, floor ten handed over 64 items and capacity
-reached 118 against a starting 10. Flat covers are what makes threat outpace
+with `chests = monsters × 2`, floor ten handed over 64 items and capacity
+reached 118 against a starting 10. Flat chests are what makes threat outpace
 supply.
 
 **Why strength is low.** At Rogule's 0.75 a floor with only two creatures
@@ -107,7 +107,7 @@ One number, 0 to 1, sets how hard the floors are without touching the bot.
 |---|---|---|---|---|---|
 | **win rate** | 95% | 70% | 45% | 17% | 0% |
 | monsters | 3 | 5 | 6 | 9 | 22 |
-| covers | 22 | 17 | 14 | 10 | 2 |
+| chests | 22 | 17 | 14 | 10 | 2 |
 | difficulty scale | 0.35 | 0.6 | 0.75 | 0.9 | 1.0 |
 | drop chance | 0.8 | 0.65 | 0.5 | 0.3 | 0.0 |
 
@@ -150,10 +150,10 @@ being a copy. Values marked **INITIAL GUESS** are ours and are what P4 tunes.
 | `CORRIDOR_LENGTH` | `[1, 5]` | FAITHFUL (`generator.cljs:146`) |
 | `VISIBLE_DIST` | 9 | FAITHFUL (`ui.cljs:27`) |
 | `CLEAR_DIST` | 7 | FAITHFUL (`ui.cljs:29`) — cosmetic only |
-| `COVER_COUNT` | 15 | FAITHFUL (`generator.cljs:326`) |
+| `CHEST_COUNT` | 15 | FAITHFUL (`generator.cljs:326`) |
 | `MONSTER_COUNT` | 5 | FAITHFUL (`generator.cljs:326`) |
 
-`MONSTER_COUNT` and `COVER_COUNT` are the first dials to reach for in P4.
+`MONSTER_COUNT` and `CHEST_COUNT` are the first dials to reach for in P4.
 Five monsters on a 32×32 map is very sparse — see spec §10.2.
 
 ## Player
@@ -241,16 +241,16 @@ FAITHFUL — `generator.cljs:28`. Pick weight is `1 / value`, so a high
 | Name | Value | Status |
 |---|---|---|
 | `POTION_HEAL` | 3 | FAITHFUL (`engine.cljs:209`) |
-| `COVER_DIFFICULTY_SCALE` | 0.9 | FAITHFUL (`generator.cljs:238`) |
-| `COVER_LOOT_RICHER_FAR` | `true` | **INITIAL GUESS** |
+| `CHEST_DIFFICULTY_SCALE` | 0.9 | FAITHFUL (`generator.cljs:238`) |
+| `CHEST_LOOT_RICHER_FAR` | `true` | **INITIAL GUESS** |
 
-`COVER_LOOT_RICHER_FAR` is our fix for spec quirk §9.3.
+`CHEST_LOOT_RICHER_FAR` is our fix for spec quirk §9.3.
 
-- `true` (ours) — covers further from the player are **more** likely to hold
+- `true` (ours) — chests further from the player are **more** likely to hold
   loot, sweeping from 10% next to the spawn up to 100% at the far end.
 - `false` — the original's behaviour, the same sweep in reverse.
 
-Both directions cover the same probability range, so flipping it does not
+Both directions chest the same probability range, so flipping it does not
 change how much loot a map holds on average, only where it sits.
 
 ## Bot
@@ -263,7 +263,7 @@ Not used until P3. Listed here so there is one place to look.
 | `STEP_COST_IN_HP` | 0.01 | **INITIAL GUESS** |
 | `GOAL_STICKINESS` | 1.15 | **INITIAL GUESS** |
 | `UNKNOWN_MONSTER_ESTIMATE` | `{ xp: 4, hp: 7 }` | **INITIAL GUESS** |
-| `COVER_LOOT_CHANCE` | 0.60 | measured over 150 maps |
+| `CHEST_LOOT_CHANCE` | 0.60 | measured over 150 maps |
 
 `UNKNOWN_MONSTER_ESTIMATE` stands in for a monster the bot has not met yet.
 It knows how many are unaccounted for but not what they are, and gear has
@@ -271,9 +271,9 @@ to be priced against them too — otherwise the bot values a shield at zero
 in exactly the moment it should be stocking up. The values are the median
 of `MONSTER_TABLE`, which happens to be the ogre.
 
-`COVER_LOOT_CHANCE` is what the bot assumes when deciding whether opening
-a cover is worth the two turns it costs. Measured, not guessed, but it will
-move if `COVER_LOOT_RICHER_FAR` or the cover count changes.
+`CHEST_LOOT_CHANCE` is what the bot assumes when deciding whether opening
+a chest is worth the two turns it costs. Measured, not guessed, but it will
+move if `CHEST_LOOT_RICHER_FAR` or the chest count changes.
 
 ### How to tune these
 

@@ -61,7 +61,7 @@ export function beliefToState(belief) {
       ...m, pos: m.pos.slice(), drop: null,
     })),
     items: [...belief.items.values()].map(copyItem),
-    covers: [...belief.covers.values()].map(copyItem),
+    chests: [...belief.chests.values()].map(copyItem),
 
     // Somewhere off the map when the shrine has not been found, so that
     // nothing can accidentally step onto it and end the imagined run.

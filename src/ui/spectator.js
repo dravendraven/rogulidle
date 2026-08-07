@@ -181,7 +181,7 @@ function wireControls() {
     // label quoted a percentage from a table measured before half the
     // mechanics changed — a number nobody had any reason to trust.
     el.dialValue.textContent =
-      `depth ${floor.level} · ${floor.monsters} monsters, ${floor.covers} covers`
+      `depth ${floor.level} · ${floor.monsters} monsters, ${floor.chests} chests`
       + (dial === session.dial ? '' : ' — from next run');
   };
 

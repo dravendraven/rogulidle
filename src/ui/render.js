@@ -44,7 +44,7 @@ function believedAt(belief) {
     index.get(key).push({ entity, kind });
   };
   for (const monster of belief.monsters.values()) put(monster, 'monster');
-  for (const cover of belief.covers.values()) put(cover, 'cover');
+  for (const chest of belief.chests.values()) put(chest, 'chest');
   for (const item of belief.items.values()) put(item, 'item');
   if (belief.shrine) put(belief.shrine, 'shrine');
   return index;
@@ -59,14 +59,14 @@ function trueAt(state) {
     index.get(key).push({ entity, kind });
   };
   for (const monster of state.monsters) put(monster, monster.dead ? 'corpse' : 'monster');
-  for (const cover of state.covers) put(cover, 'cover');
+  for (const chest of state.chests) put(chest, 'chest');
   for (const item of state.items) put(item, 'item');
   put(state.shrine, 'shrine');
   return index;
 }
 
 // Which of the things sharing a tile is the one worth drawing.
-const PRIORITY = { monster: 4, shrine: 3, cover: 2, item: 1, corpse: 0 };
+const PRIORITY = { monster: 4, shrine: 3, chest: 2, item: 1, corpse: 0 };
 
 function topmost(entries) {
   let best = null;
@@ -204,10 +204,10 @@ function describe(entry) {
       return entry.by === 'player'
         ? `hit the ${entry.target} for ${entry.damage}`
         : `the ${entry.by} hit you for ${entry.damage}`;
-    case 'uncover':
+    case 'open':
       return entry.found
-        ? `opened the ${entry.cover} — found a ${entry.found}`
-        : `opened the ${entry.cover} — empty`;
+        ? `opened the ${entry.chest} — found a ${entry.found}`
+        : `opened the ${entry.chest} — empty`;
     case 'pickup': return `picked up the ${entry.item}`;
     case 'heal': return `drank a potion, +${entry.amount} hp`;
     case 'ascend': return 'reached the shrine';

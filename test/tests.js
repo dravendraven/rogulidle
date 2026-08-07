@@ -71,7 +71,7 @@ function makeState(options) {
     },
     monsters: options.monsters ?? [],
     items: options.items ?? [],
-    covers: options.covers ?? [],
+    chests: options.chests ?? [],
     shrine: options.shrine ?? { id: 's', emoji: '⛩️', pos: [-9, -9] },
   };
 }
@@ -125,7 +125,7 @@ test('same seed produces an identical starting state', () => {
   assertEq(JSON.stringify(a.map), JSON.stringify(b.map), 'maps differ');
   assertEq(JSON.stringify(a.player), JSON.stringify(b.player), 'players differ');
   assertEq(JSON.stringify(a.monsters), JSON.stringify(b.monsters), 'monsters differ');
-  assertEq(JSON.stringify(a.covers), JSON.stringify(b.covers), 'covers differ');
+  assertEq(JSON.stringify(a.chests), JSON.stringify(b.chests), 'chests differ');
 });
 
 test('different seeds produce different maps', () => {
@@ -160,7 +160,7 @@ test('a replay of a non-default floor rebuilds the same floor', () => {
   // The replay regenerates the map from the seed, so it has to remember how
   // the floor was generated. Without that it silently played back a
   // different dungeon whenever generation was off its defaults.
-  const counts = { monsters: 11, covers: 4 };
+  const counts = { monsters: 11, chests: 4 };
   const run = playGame(4321, makeWanderPolicy(4321), { maxTurns: 120, counts });
   const frames = replayGame(run.replay);
   const last = frames[frames.length - 1].state;
@@ -349,21 +349,21 @@ test('attacking passes the turn but does not move the player', () => {
   assertEq(posKey(after.player.pos), '2,2', 'the player moved onto the monster');
 });
 
-test('opening a cover costs a turn and leaves the loot on the floor', () => {
-  const cover = {
+test('opening a chest costs a turn and leaves the loot on the floor', () => {
+  const chest = {
     id: 'c1', name: 'rock', emoji: '🪨', pos: [1, 2],
     drop: item('dagger', [1, 2], { dmg: 1 }),
   };
-  const state = makeState({ map: ROOM_5x5, playerPos: [2, 2], covers: [cover] });
+  const state = makeState({ map: ROOM_5x5, playerPos: [2, 2], chests: [chest] });
 
   const opened = step(state, 'left').state;
   assertEq(opened.turn, 1, 'the turn did not pass');
-  assertEq(posKey(opened.player.pos), '2,2', 'the player moved onto the cover');
-  assertEq(opened.covers.length, 0, 'the cover survived');
+  assertEq(posKey(opened.player.pos), '2,2', 'the player moved onto the chest');
+  assertEq(opened.chests.length, 0, 'the chest survived');
   assertEq(opened.items.length, 1, 'the loot was not dropped');
   assertEq(opened.player.inventory.length, 0, 'the loot was picked up too early');
 
-  // A second turn to actually collect it — spec §6, covers cost 2 turns.
+  // A second turn to actually collect it — spec §6, chests cost 2 turns.
   const collected = step(opened, 'left').state;
   assertEq(posKey(collected.player.pos), '1,2', 'the player did not step on');
   assertEq(collected.player.inventory.length, 1, 'the loot was not collected');
@@ -467,7 +467,7 @@ test('the shrine sits in the furthest room', () => {
 test('a generated level has the counts the balance file asks for', () => {
   const state = newGame(4242);
   assertEq(state.monsters.length, 5, 'monster count');
-  assertEq(state.covers.length, 15, 'cover count');
+  assertEq(state.chests.length, 15, 'chest count');
   assert(state.player.pos, 'no player');
   assert(state.shrine.pos, 'no shrine');
 });
@@ -479,7 +479,7 @@ test('nothing is generated on an unwalkable tile', () => {
   assert(walkable(state.player.pos), 'the player is in a wall');
   assert(walkable(state.shrine.pos), 'the shrine is in a wall');
   for (const m of state.monsters) assert(walkable(m.pos), `${m.name} is in a wall`);
-  for (const c of state.covers) assert(walkable(c.pos), `${c.name} is in a wall`);
+  for (const c of state.chests) assert(walkable(c.pos), `${c.name} is in a wall`);
 });
 
 // ***** fog of war, spec §12 ***** //

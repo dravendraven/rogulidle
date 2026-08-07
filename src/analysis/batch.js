@@ -85,7 +85,7 @@ export function summarise(rows) {
 
 // Plays `count` games and reports as it goes. `onProgress(done, total)` is
 // called between chunks; returning true from `shouldStop()` ends it early
-// and the summary covers whatever finished.
+// and the summary chests whatever finished.
 export async function runBatch(options) {
   const {
     count = 100, firstSeed = 300, botOptions = {}, counts, maxTurns,

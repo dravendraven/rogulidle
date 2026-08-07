@@ -10,7 +10,7 @@ export const MAP_SIZE = 32;              // FAITHFUL ui.cljs:26
 export const CORRIDOR_LENGTH = [1, 5];   // FAITHFUL generator.cljs:146
 export const VISIBLE_DIST = 9;           // FAITHFUL ui.cljs:27
 export const CLEAR_DIST = 7;             // FAITHFUL ui.cljs:29 (cosmetic)
-export const COVER_COUNT = 15;           // FAITHFUL generator.cljs:326
+export const CHEST_COUNT = 15;           // FAITHFUL generator.cljs:326
 export const MONSTER_COUNT = 5;          // FAITHFUL generator.cljs:326
 
 // ***** player ***** //
@@ -142,7 +142,7 @@ export const MONSTER_WEIGHTS = [
 //
 // They do nothing mechanically — they exist in the original as the score on
 // the share card, which this game does not have. They were 53% of all loot,
-// so their only real effect here was DILUTION: half the covers you opened
+// so their only real effect here was DILUTION: half the chests you opened
 // gave nothing useful. Scarcity is now set deliberately by the dials rather
 // than as a side effect of junk in the pool.
 //
@@ -155,21 +155,24 @@ export const ITEM_TABLE = [
   { name: 'axe',    emoji: '🪓',  value: 4, dmg: 2, kind: 'weapon' },
 ];
 
-export const COVER_TABLE = [
-  { name: 'potted plant', emoji: '🪴' },
-  { name: 'rock',         emoji: '🪨' },
-  { name: 'wood block',   emoji: '🪵' },
+// DIVERGENCE: Rogule dresses these as scenery — potted plant, rock, wood
+// block — because there they are cover you kick over. Ours are the reward
+// container of the map design, so they look like what they are. One row,
+// but still a table: the pick still burns one RNG draw, so the streams
+// stay aligned with runs recorded before the rename.
+export const CHEST_TABLE = [
+  { name: 'chest', emoji: '📦' },
 ];
 
 export const POTION_HEAL = 3;               // FAITHFUL engine.cljs:209
-export const COVER_DIFFICULTY_SCALE = 0.9;  // FAITHFUL generator.cljs:238
+export const CHEST_DIFFICULTY_SCALE = 0.9;  // FAITHFUL generator.cljs:238
 
 // GUESS — our fix for spec quirk 9.3.
-//   true  (ours)     covers FURTHER from the player are MORE likely to hold loot
-//   false (original) covers further from the player are LESS likely
+//   true  (ours)     chests FURTHER from the player are MORE likely to hold loot
+//   false (original) chests further from the player are LESS likely
 // Either way the probability sweeps the same range, just in opposite
 // directions: from 10% at one end to 100% at the other.
-export const COVER_LOOT_RICHER_FAR = true;
+export const CHEST_LOOT_RICHER_FAR = true;
 
 // ***** bot ***** //
 
@@ -193,8 +196,8 @@ export const GOAL_STICKINESS = 1.15;
 export const UNKNOWN_MONSTER_ESTIMATE = { xp: 4, hp: 7 };
 
 // GUESS — measured at 0.60 over 150 generated maps. What the bot assumes
-// when deciding whether opening a cover is worth the two turns.
-export const COVER_LOOT_CHANCE = 0.60;
+// when deciding whether opening a chest is worth the two turns.
+export const CHEST_LOOT_CHANCE = 0.60;
 
 // GUESS — how fast a monster's menace fades with distance. The hp it is
 // expected to deal is multiplied by this per tile away, so at 0.5 a wolf

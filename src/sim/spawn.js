@@ -1,11 +1,11 @@
-// Places the player, the shrine, the covers and the monsters on a generated
+// Places the player, the shrine, the chests and the monsters on a generated
 // map. Spec: docs/rogule-spec.md §2 "Ordem de povoamento".
 //
 // Placement order matters: each step removes the tile it used from the free
 // pool, so changing the order changes every map.
 
 import {
-  COVER_COUNT, COVER_DIFFICULTY_SCALE, COVER_LOOT_RICHER_FAR, COVER_TABLE,
+  CHEST_COUNT, CHEST_DIFFICULTY_SCALE, CHEST_LOOT_RICHER_FAR, CHEST_TABLE,
   ITEM_TABLE, MONSTER_COUNT, MONSTER_DIFFICULTY_SCALE, MONSTER_DROP_CHANCE,
   MONSTER_TABLE, MONSTER_WEIGHTS, PLAYER_HP, PLAYER_XP,
 } from './balance.js';
@@ -21,19 +21,19 @@ import { findPath, playerPassable, posKey, walkablePositions } from './mapgen.js
 // was doing real work, while making it a number you set rather than a side
 // effect of what is in the deck.
 //
-// At scarcity 1 a kind takes its full third and no cover comes up empty. At
+// At scarcity 1 a kind takes its full third and no chest comes up empty. At
 // 3 it takes a ninth, and two thirds of the pool is nothing.
 //
 // The two sources hold different things, by owner decision:
 //
-//   covers   weapons and armour — gear comes from exploring
+//   chests   weapons and armour — gear comes from exploring
 //   monsters health potions only — healing comes from killing
 //
 // Scarcity keeps the same meaning either way: 1 draw in S gives something,
 // the rest come up empty.
 //
 // Returns [[item | null, weight], ...]; null means this draw holds nothing.
-export function itemWeights(scarcity = {}, source = 'cover') {
+export function itemWeights(scarcity = {}, source = 'chest') {
   const kinds = source === 'monster' ? ['potion'] : ['weapon', 'armour'];
   const shareEach = 1 / kinds.length;
 
@@ -83,7 +83,7 @@ function monsterWeightsAround(index) {
 }
 
 // Turns a table row into a live item entity, or null when the roll says the
-// cover / corpse holds nothing.
+// chest / corpse holds nothing.
 function makeItem(state, template, pos) {
   return {
     id: nextId(state),
@@ -96,13 +96,13 @@ function makeItem(state, template, pos) {
   };
 }
 
-// `counts` overrides how many monsters and covers to place. Generation
+// `counts` overrides how many monsters and chests to place. Generation
 // numbers are the other half of the difficulty dial, and a bot rule that
 // does not pay on a sparse map may pay on a crowded one — so they have to
 // be sweepable without editing balance.js.
 export function populate(state, map, counts = {}) {
   const monsterCount = counts.monsters ?? MONSTER_COUNT;
-  const coverCount = counts.covers ?? COVER_COUNT;
+  const chestCount = counts.chests ?? CHEST_COUNT;
   // How far up the monster table the deepest tiles reach. The third dial of
   // difficulty, alongside how many monsters and how much loot.
   const difficultyScale = counts.difficultyScale ?? MONSTER_DIFFICULTY_SCALE;
@@ -115,7 +115,7 @@ export function populate(state, map, counts = {}) {
     armour: counts.armourScarcity,
     potion: counts.potionScarcity,
   };
-  const coverWeights = itemWeights(scarcity, 'cover');
+  const chestWeights = itemWeights(scarcity, 'chest');
   const monsterWeights = itemWeights(scarcity, 'monster');
   const passable = playerPassable(map);
   const free = new Map();
@@ -167,9 +167,9 @@ export function populate(state, map, counts = {}) {
   takeFree(shrinePos);
   state.shrine = { id: nextId(state), emoji: '⛩️', pos: shrinePos };
 
-  // 4. Covers. Rooms only — never corridors.
-  state.covers = [];
-  for (let i = 0; i < coverCount; i++) {
+  // 4. Chests. Rooms only — never corridors.
+  state.chests = [];
+  for (let i = 0; i < chestCount; i++) {
     if (!roomPaths.length) break;
     const entry = drawPick(state, 'spawn', roomPaths);
     const roomFree = [];
@@ -185,15 +185,15 @@ export function populate(state, map, counts = {}) {
 
     const depth = posToDifficulty(pos, playerPos, passable, furthestLength);
     // Sweeps 10%..100% across the map; the flag decides which end is rich.
-    const emptiness = COVER_LOOT_RICHER_FAR ? 1 - depth : depth;
-    const hasLoot = drawChance(state, 'spawn', 1 - COVER_DIFFICULTY_SCALE * emptiness);
-    const template = drawWeighted(state, 'spawn', coverWeights);
+    const emptiness = CHEST_LOOT_RICHER_FAR ? 1 - depth : depth;
+    const hasLoot = drawChance(state, 'spawn', 1 - CHEST_DIFFICULTY_SCALE * emptiness);
+    const template = drawWeighted(state, 'spawn', chestWeights);
 
-    const cover = drawPick(state, 'spawn', COVER_TABLE);
-    state.covers.push({
+    const chest = drawPick(state, 'spawn', CHEST_TABLE);
+    state.chests.push({
       id: nextId(state),
-      name: cover.name,
-      emoji: cover.emoji,
+      name: chest.name,
+      emoji: chest.emoji,
       pos,
       // `template` is null when the scarcity dials sent this draw to the
       // empty slot, which is the replacement for Rogule's junk collectibles.
@@ -232,6 +232,6 @@ export function populate(state, map, counts = {}) {
   }
 
   // Items lying loose on the floor. Starts empty: everything enters this list
-  // later, when a cover is opened or a monster dies.
+  // later, when a chest is opened or a monster dies.
   state.items = [];
 }

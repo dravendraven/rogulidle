@@ -63,7 +63,7 @@ export function flood(origin, passable, maxDist = Infinity) {
 //
 // Prices are in hp, so a route that strolls past a wolf costs more than the
 // long way round, and one number compares walking against fighting. Steps
-// are still tracked separately, because some things (opening a cover) cost
+// are still tracked separately, because some things (opening a chest) cost
 // turns rather than danger.
 //
 // `priceOf(x, y)` returns the hp charged for standing on that tile, or
@@ -78,7 +78,7 @@ export function dijkstra(origin, passable, priceOf) {
   steps.set(originKey, 0);
 
   // A binary heap, not a linear scan of the open set. Unknown tiles count
-  // as walkable, so the flood covers the whole 32x32 map rather than the
+  // as walkable, so the flood chests the whole 32x32 map rather than the
   // ~200 tiles actually seen — a scan makes this O(V^2) and the batch
   // runner grinds to a halt.
   const heap = [{ pos: origin, cost: 0 }];

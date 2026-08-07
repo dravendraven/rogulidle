@@ -46,9 +46,9 @@
 //   reached floor 10         2               9
 //
 // WHAT IS WRONG NOW: capacity climbs again, 10.0 -> 11.8. A gentle opening
-// lets the hero bank gear cheaply — six covers on a three-creature floor is
+// lets the hero bank gear cheaply — six chests on a three-creature floor is
 // generous — so they outgrow the dungeon by the middle. Net challenge on
-// floor 10 fell from 1.00 to 0.71 as a result. Covers are the lever, not
+// floor 10 fell from 1.00 to 0.71 as a result. Chests are the lever, not
 // the growth rate.
 
 import { PLAYER_HP, PLAYER_XP } from './balance.js';
@@ -107,7 +107,7 @@ export function playDungeon(seed, makePolicy, options = {}) {
     const plan = planFor(level);
     const counts = {
       monsters: plan.monsters,
-      covers: plan.covers,
+      chests: plan.chests,
       difficultyScale: plan.difficultyScale,
       dropChance: plan.dropChance,
       // A fixed rate overrides the per-floor one, for sweeping.

@@ -18,7 +18,7 @@ function makeStreams(rootSeed) {
 }
 
 // `seed` may be a number or a string ("2026-08-05").
-// `counts` optionally overrides how many monsters and covers get placed.
+// `counts` optionally overrides how many monsters and chests get placed.
 export function newGame(seed, counts = {}) {
   const rootSeed = typeof seed === 'string' ? seedFromString(seed) : seed >>> 0;
 

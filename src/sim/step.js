@@ -45,7 +45,7 @@ function cloneState(state) {
       ...m, pos: m.pos.slice(), drop: copyItem(m.drop),
     })),
     items: state.items.map(copyItem),
-    covers: state.covers.map((c) => ({
+    chests: state.chests.map((c) => ({
       ...c, pos: c.pos.slice(), drop: copyItem(c.drop),
     })),
     shrine: { ...state.shrine, pos: state.shrine.pos.slice() },
@@ -61,10 +61,10 @@ function resolveEncounters(state, pos) {
 
   // Snapshot everything standing here BEFORE anything reacts. The original
   // collects the tile's entities once and then folds over that fixed list
-  // (engine.cljs:68), so loot dropped by this very turn's kill or uncover is
-  // NOT also collected by it — that is what makes a cover cost two turns.
+  // (engine.cljs:68), so loot dropped by this very turn's kill or chest opening is
+  // NOT also collected by it — that is what makes a chest cost two turns.
   const monster = state.monsters.find((m) => !m.dead && samePos(m.pos, pos));
-  const coverIndex = state.covers.findIndex((c) => samePos(c.pos, pos));
+  const chestIndex = state.chests.findIndex((c) => samePos(c.pos, pos));
   const itemsHere = state.items.filter((i) => samePos(i.pos, pos));
   const shrineHere = samePos(state.shrine.pos, pos);
 
@@ -74,12 +74,12 @@ function resolveEncounters(state, pos) {
     blocked = true;
   }
 
-  // A cover: opening it costs this turn, and whatever was inside is left on
+  // A chest: opening it costs this turn, and whatever was inside is left on
   // the floor for a second turn to pick up.
-  if (coverIndex >= 0) {
-    const [cover] = state.covers.splice(coverIndex, 1);
-    if (cover.drop) state.items.push(cover.drop);
-    state.log.push({ type: 'uncover', cover: cover.name, found: cover.drop ? cover.drop.name : null, turn: state.turn });
+  if (chestIndex >= 0) {
+    const [chest] = state.chests.splice(chestIndex, 1);
+    if (chest.drop) state.items.push(chest.drop);
+    state.log.push({ type: 'open', chest: chest.name, found: chest.drop ? chest.drop.name : null, turn: state.turn });
     blocked = true;
   }
 
