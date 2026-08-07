@@ -1,13 +1,19 @@
 # The shape of the curve — measured
 
-> ⚠️ **PRE-CHANGE. The ruler moved after this was measured.** Every
-> challenge figure here — the series, the growth rates, and the
-> challenge/power and challenge/buffer ratios — used `campaignCost` WITHOUT
-> the crowd correction (balance.md, "Crowd correction"). That model
-> under-priced crowds by 1.4x to 1.9x, and by an amount that grew with the
-> creature count. **Do not compare a new measurement against these numbers.**
-> Re-run `run-shape.html` to get a current set. Reward, power and buffer are
-> unaffected; only challenge and the two ratios built on it moved.
+> ⚠️ **SUPERSEDED, TWICE OVER.** This document measures `campaignCost`, a
+> model that sums clean one-on-one duels. Everything in it is now obsolete:
+>
+> 1. The crowd-correction note below was the first fix — a multiplicative
+>    factor on the roster count.
+> 2. That fix was itself replaced by an additive-overhead form (see
+>    `docs/balance.md`, "Crowd correction").
+> 3. **Both are moot.** `docs/observed-ruler.md` retires the model
+>    entirely: challenge, reward, power and buffer are now measured by
+>    actually playing two frozen probes, not by summing a duel formula over
+>    a roster. That document is the current valid baseline. No challenge or
+>    ratio number in THIS file is comparable with anything in it — read this
+>    page for the historical argument (why a modelled sum misses crowding),
+>    not for numbers.
 
 Diagnostic, not tuning. Nothing here changes a balance value. Produced by
 `run-shape.html` / `src/analysis/shape.js`; re-run it rather than trusting the

@@ -59,7 +59,15 @@ files rather than deleted — see `SIDE_ACTIVATION_CAP` in balance.js and
 - `/run-lab.html` — **the main instrument.** Every dial, the formulas they
   feed rendered from balance.js, and the descent measured on demand
 - `/run-shape.html` — diagnostic only: the six curve quantities per floor,
-  their growth rates and the four ratios. Changes nothing, just looks
+  their growth rates and the four ratios. Changes nothing, just looks.
+  **Superseded by run-ruler.html** — its challenge/reward numbers use the
+  modelled `campaignCost`, not actual play. See docs/observed-ruler.md.
+- `/run-ruler.html` — **the current instrument for challenge, reward,
+  power and buffer.** Two frozen probes (`src/analysis/observed-ruler.js`)
+  actually clear a floor twice — once collecting nothing, once collecting
+  what's in the way — and the real damage taken is the ruler, not a duel
+  formula. See docs/observed-ruler.md for the baseline and what this
+  instrument cannot answer (map clustering needs its own).
 - `/run-batch.html` — older single-floor sweeper, still useful for bot flags
 - `/run-curve.html` — **superseded.** It reads the MODELLED net challenge
   from `src/analysis/curve.js`, which prices clean 1v1 duels and so read
