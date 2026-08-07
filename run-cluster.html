@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rogulidle — clustering (I2)</title>
+<style>
+  :root { --bg:#101216; --panel:#171a21; --line:#262b35; --text:#d8dee9; --dim:#7a8595;
+          --faint:#5b6472; --good:#8ce99a; --warn:#ffd8a8; --bad:#ff8787; --accent:#74c0fc; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:1.5rem 1rem 4rem; background:var(--bg); color:var(--text);
+         font:13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .app { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size:1rem; letter-spacing:.08em; text-transform:uppercase; margin:0 0 .3rem; }
+  h2 { font-size:.8rem; letter-spacing:.1em; text-transform:uppercase; color:var(--accent);
+       margin:2rem 0 .6rem; padding-bottom:.3rem; border-bottom:1px solid var(--line); }
+  p { max-width:84ch; }
+  .lede, .note { color:var(--faint); font-size:11.5px; max-width:84ch; }
+  .lede { margin:0 0 1.2rem; font-size:13px; }
+  fieldset { border:1px solid var(--line); border-radius:8px; background:var(--panel);
+             margin:0 0 .9rem; padding:.7rem 1rem 1rem; }
+  legend { color:var(--dim); font-size:11px; letter-spacing:.1em; text-transform:uppercase; padding:0 .4rem; }
+  label { display:block; color:var(--dim); font-size:11px; margin:.5rem 0 .2rem; }
+  input { font:inherit; color:var(--text); background:#12151b; border:1px solid var(--line);
+    border-radius:5px; padding:.35rem .5rem; width:100%; }
+  .row { display:flex; gap:.9rem; flex-wrap:wrap; }
+  .row > div { flex:1 1 130px; }
+  button { font:inherit; color:var(--text); background:#20242d; border:1px solid var(--line);
+    border-radius:6px; padding:.45rem 1rem; cursor:pointer; margin-right:.5rem; }
+  button.primary { background:#25333f; border-color:#33495c; color:#cfe6ff; }
+  button[disabled] { opacity:.45; cursor:default; }
+  #status { color:var(--dim); margin:.7rem 0 1rem; }
+  table { border-collapse:collapse; width:100%; font-size:12px; margin:.3rem 0 .8rem; }
+  th, td { text-align:right; padding:.3rem .5rem; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:var(--dim); font-weight:600; }
+  th[title], label[title] { cursor:help; text-decoration:underline dotted var(--faint); text-underline-offset:3px; }
+  td.thin { color:var(--faint); }
+  .err { color:var(--faint); font-size:10.5px; }
+  .card { border:1px solid var(--line); border-radius:8px; background:var(--panel);
+    padding:.7rem 1rem; margin:.6rem 0 1rem; }
+  .ok { color:var(--good); } .no { color:var(--bad); } .meh { color:var(--warn); }
+  .big { font-size:15px; font-weight:600; }
+</style>
+</head>
+<body>
+<div class="app">
+
+<h1>I2 — clustering: lethality, not cost</h1>
+<p class="lede">Same roster, two spatial arrangements — spread (shipped
+generation, unchanged) against grouped (same monsters, gathered into
+clusters). Played by the REAL bot, starting at the ordinary 10-hp hero —
+this is a question about lethality and about the bot's own behaviour, not
+about the design in isolation, so no calibration tank here. See
+<code>src/analysis/clustering.js</code>.</p>
+
+<div class="card">
+<b>Why the earlier "no effect" result is suspect.</b>
+<p class="note">That test used a 400-hp measuring hero. Spread or grouped,
+the hero meets the same creatures and takes a similar <i>total</i> number of
+blows — what changes is their <b>concentration in time</b>: three adjacent
+creatures strike the same turn. To 400 hp that is noise; to 10 hp it can be
+the whole game. This page asks about lethality (deaths, worst single-turn
+damage) and about whether the bot is <b>un-grouping</b> clusters back into
+sequential fights (fraction of turns with two or more monsters adjacent at
+once) instead of asking about cost.</p>
+</div>
+
+<fieldset>
+  <legend>run</legend>
+  <div class="row">
+    <div><label title="Paired seeds per level — each seed plays once spread, once grouped, same roster.">runs per level</label><input id="runs" type="number" value="100"></div>
+    <div><label title="How many monsters land in one cluster before the next anchor tile is picked.">cluster size</label><input id="clusterSize" type="number" value="3"></div>
+    <div><label>seed base</label><input id="firstSeed" type="number" value="300000"></div>
+    <div><label>max turns per floor</label><input id="maxTurns" type="number" value="1500"></div>
+  </div>
+</fieldset>
+
+<button id="run" class="primary">Measure</button>
+<p id="status">idle</p>
+<div id="out"></div>
+
+<script type="module">
+import { clusterExperiment, compareRates, compareMeans } from './src/analysis/clustering.js';
+
+const $ = (id) => document.getElementById(id);
+const f = (x, d = 2) => (x === null || x === undefined || !Number.isFinite(x) ? '—' : x.toFixed(d));
+const zCls = (z) => (z === null ? 'thin' : Math.abs(z) >= 2 ? 'ok' : 'thin');
+
+function table(head, rows) {
+  const t = document.createElement('table');
+  t.innerHTML = `<thead><tr>${head.map(([h, tip]) =>
+    `<th${tip ? ` title="${tip.replace(/"/g, '&quot;')}"` : ''}>${h}</th>`).join('')}</tr></thead>`
+    + `<tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>`;
+  return t;
+}
+function section(title, node) {
+  const h = document.createElement('h2');
+  h.textContent = title;
+  $('out').append(h, node);
+}
+function para(html, cls = 'note') {
+  const p = document.createElement('p');
+  p.className = cls;
+  p.innerHTML = html;
+  $('out').append(p);
+}
+
+function render(rows) {
+  $('out').innerHTML = '';
+
+  section('Per floor', table(
+    [['floor'], ['mon'],
+      ['death spread', 'Fraction of spread runs that ended in death.'],
+      ['death grouped', 'Fraction of grouped runs that ended in death.'],
+      ['gap (pp)', 'grouped minus spread, in percentage points.'], ['z'],
+      ['worst turn spread', 'Mean damage taken in the single worst turn of the run.'],
+      ['worst turn grouped'], ['z'],
+      ['crowded spread', 'Mean fraction of turns with 2+ live monsters adjacent to the player.'],
+      ['crowded grouped'], ['z']],
+    rows.map((r) => {
+      const dGap = compareRates(r.grouped.death, r.spread.death);
+      const wGap = compareMeans(r.grouped.worstTurn, r.spread.worstTurn);
+      const cGap = compareMeans(r.grouped.crowded, r.spread.crowded);
+      return [
+        r.level, r.monsters,
+        `${f(100 * r.spread.death.p, 1)}%`,
+        `${f(100 * r.grouped.death.p, 1)}%`,
+        `${f(100 * dGap.gap, 1)}`,
+        `<span class="${zCls(dGap.z)}">${f(dGap.z, 2)}</span>`,
+        `${f(r.spread.worstTurn.mean, 2)} <span class="err">±${f(r.spread.worstTurn.se, 2)}</span>`,
+        `${f(r.grouped.worstTurn.mean, 2)} <span class="err">±${f(r.grouped.worstTurn.se, 2)}</span>`,
+        `<span class="${zCls(wGap.z)}">${f(wGap.z, 2)}</span>`,
+        `${f(r.spread.crowded.mean, 3)} <span class="err">±${f(r.spread.crowded.se, 3)}</span>`,
+        `${f(r.grouped.crowded.mean, 3)} <span class="err">±${f(r.grouped.crowded.se, 3)}</span>`,
+        `<span class="${zCls(cGap.z)}">${f(cGap.z, 2)}</span>`,
+      ];
+    }),
+  ));
+
+  // Pooled across every floor: per-floor samples are underpowered on their
+  // own (the same reason hardness.js's compareRates exists), so the
+  // headline question — does clustering raise lethality AT ALL — is asked
+  // of the pooled counts too.
+  const pool = (side) => rows.reduce((acc, r) => {
+    acc.hit += r[side].death.hit; acc.n += r[side].death.n;
+    return acc;
+  }, { hit: 0, n: 0 });
+  const pooledSpread = pool('spread');
+  pooledSpread.p = pooledSpread.n ? pooledSpread.hit / pooledSpread.n : 0;
+  const pooledGrouped = pool('grouped');
+  pooledGrouped.p = pooledGrouped.n ? pooledGrouped.hit / pooledGrouped.n : 0;
+  const pooledGap = compareRates(pooledGrouped, pooledSpread);
+
+  const allCrowdedSpread = rows.flatMap((r) => Array(r.spread.crowded.n).fill(r.spread.crowded.mean));
+  const allCrowdedGrouped = rows.flatMap((r) => Array(r.grouped.crowded.n).fill(r.grouped.crowded.mean));
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `<b>Pooled across the whole ladder</b>`
+    + `<p class="note">death rate: spread <b>${f(100 * pooledSpread.p, 1)}%</b> `
+    + `(${pooledSpread.hit}/${pooledSpread.n}), grouped <b>${f(100 * pooledGrouped.p, 1)}%</b> `
+    + `(${pooledGrouped.hit}/${pooledGrouped.n}) — gap `
+    + `<b class="${zCls(pooledGap.z)}">${f(100 * pooledGap.gap, 1)} pp</b>, z = ${f(pooledGap.z, 2)}. `
+    + `${Math.abs(pooledGap.z) >= 2
+    ? 'Clears 2 sigma: clustering measurably changes lethality in this run.'
+    : 'Inside 2 sigma at this sample size — raise "runs per level" before reading this as settled.'}</p>`;
+  $('out').append(card);
+
+  para('<b>Reading this page.</b> If grouped death and crowded-fraction both '
+    + 'rise together, clustering raises lethality and the bot is not fully '
+    + 'un-grouping it. If crowded-fraction stays flat between the two columns '
+    + 'while death does not move, the bot IS converting clusters back into '
+    + 'sequential fights (see threat.js\'s CROWD_PENALTY) — clustering only '
+    + 'becomes a lever where the map prevents escape (open rooms, no '
+    + 'corridor) or creatures are too fast to be separated, which this run '
+    + 'alone cannot tell apart from "no effect at all".');
+}
+
+$('run').addEventListener('click', async () => {
+  $('run').disabled = true;
+  $('out').innerHTML = '';
+  const started = performance.now();
+  try {
+    const runs = Number($('runs').value);
+    const clusterSize = Number($('clusterSize').value);
+    const firstSeed = Number($('firstSeed').value);
+    const maxTurns = Number($('maxTurns').value);
+
+    $('status').textContent = 'playing spread + grouped, paired…';
+    await new Promise((r) => setTimeout(r, 20));
+    const rows = clusterExperiment({ runs, firstSeed, maxTurns, clusterSize });
+
+    render(rows);
+    $('status').textContent = `done in ${((performance.now() - started) / 1000).toFixed(1)}s — `
+      + `${runs} paired seeds per level, cluster size ${clusterSize}`;
+  } catch (error) {
+    $('status').textContent = 'failed: ' + error.message;
+    console.error(error);
+  } finally {
+    $('run').disabled = false;
+  }
+});
+</script>
+</div>
+</body>
+</html>
