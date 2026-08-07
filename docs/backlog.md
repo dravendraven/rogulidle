@@ -142,6 +142,15 @@ question requires a change that does not exist yet, that is the work agent's
 job first — say so and wait, rather than approximating it in
 `src/analysis/`.
 
+**And the instrument stays in the metrics agent's hands.** If the work agent
+needs the ruler to accept a new option in order to measure its own change,
+it **requests the passthrough and waits** — it does not add it. Two rules
+collided here once already: the repo requires measuring a change with the
+existing instrument, and the instrument could not accept the option. The
+resolution is the request, not the edit. An agent reaching into the tool
+that measures its own work is the coupling this whole split exists to
+prevent, however careful the edit.
+
 The cost is real: the work agent builds before anyone knows whether it pays.
 Three things buy it back. Nothing can drift out of sync, because there is
 only one implementation. Every measurement describes the game rather than an
@@ -1515,6 +1524,64 @@ item marked DECIDED. Three ways out, none of them mine to pick: accept a
 higher clear-rate band, accept buffer only partially fixed (what is
 shipped), or spend a FAITHFUL lever (`PLAYER_HP`, item values) that this
 item was explicitly not licensed to touch.
+
+### Review 1 — conformance. One blocker, otherwise sound
+
+Conformance only; the verdict waits on the ruler reading.
+
+**The mechanism is right, including the part that decides whether measuring
+it means anything.** `playerAttacks` raises `hpMax` and `hp` together, so the
+grant reaches the hero on arrival rather than sitting in a ceiling nothing
+refills. Built as the mirror of the xp grant directly above it, which is the
+shape the spec asked for.
+
+**The `cloneState` bug is the most valuable catch in this item.** `hpFromKills`
+was being dropped on every turn after the first, silently falling back to the
+default. That is precisely the failure the first review pass exists for: the
+measurement would have run clean, produced a coherent-looking number, and
+described a game where the flag switched itself off after one turn. Caught by
+tests rather than by luck.
+
+**BLOCKER: it shipped switched ON, and it should not have.** `HP_FROM_KILLS =
+true` in `balance.js`, against a protocol that says every map item ships
+behind an off-by-default flag and that adoption is a separate act. That
+alone would be procedural. What makes it a blocker is the item's own
+numbers: the shipped rate leaves the buffer at 0.910 — still falling, short
+of the ≥1.00 it had to reach — and puts the real bot's clear rate at 56.7%,
+**outside the 15–40% bound**. A configuration that misses its goal and
+breaks a bound is live in the default game.
+
+Set `HP_FROM_KILLS = false` and leave the rest in place. Nothing else about
+the implementation needs to change, and the measurement can still run both
+arms through the toggle.
+
+**Boundary: `src/analysis/observed-ruler.js` belongs to the metrics agent.**
+The change itself is careful — an empty-by-default passthrough, merged
+before `carry` and `noPickup` so a rule variant cannot override the probe
+hero or the pickup toggle, and verified to reproduce the committed numbers
+when omitted. It was declared rather than slipped in.
+
+But the rule is that work outside your role gets **reported, not done**, and
+this is the exact coupling the split exists to prevent: the agent whose
+change is being measured reached into the instrument that measures it.
+
+The honest part is that two rules collided — the repo requires measuring a
+change with existing instruments, and the instrument could not accept the
+option. That is a defect in my rules, not in the judgement. Resolved going
+forward: **the work agent requests a passthrough and waits; the metrics
+agent adds it.** The passthrough that exists is kept, since re-doing it by
+another hand would buy nothing.
+
+**The escalation is correct and well argued.** Reporting that the two
+acceptance criteria are unsatisfiable together by this lever — rather than
+quietly picking the rate that made one of them look good — is the right
+call, and the sweep that establishes it is the evidence for the decision I
+now owe. Same for correcting its own transcription error mid-item and
+recomputing the z-scores.
+
+**Not settled here:** whether to accept a higher clear-rate band, accept a
+partially-fixed buffer, or spend a FAITHFUL lever. That is mine, and it
+needs the ruler reading first.
 
 ---
 
