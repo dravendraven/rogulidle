@@ -39,8 +39,8 @@ session, skip it.
 | # | id | what gets done | status |
 |---|---|---|---|
 | 1 | M24 | Cap the tier from above too — floor 1 can roll wolves and ogres | READY · skipped once |
-| 2 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
-| 3 | X1 | Delete what nothing references | READY |
+| 2 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M24 |
+| 3 | X1 | Delete what nothing references | READY · list refreshed |
 | 4 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
 | 5 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
@@ -129,7 +129,9 @@ That is the whole reason it is interesting to watch, and also the reason it
 might be too much: a bot that opens floor 10 already fighting has no
 information to route with.
 
-**Blocked on M19, not just ordered after it.** `run-check` at n=30 says
+**Blocked on M24 now — M19 landed and paid the original debt.** What remains is narrower: this item places a creature next to where the hero lands, and M24 changes the tier of what can legally be there. Building it first means placing against a table that is about to change.
+
+The old reasoning, kept for the record: `run-check` at n=30 says
 **14 of 30 runs die on floor 1** and 24 of 30 by floor 2. Putting a creature
 where the hero lands, before the hero can survive landing, is piling onto a
 wall. M19 has to make the opening survivable first — then this becomes a
@@ -145,64 +147,37 @@ zero.
 
 ## X1 · delete what nothing uses
 
-`chore` · `work agent` · **READY**
+`work agent` · **READY** — list refreshed after the metrics agent's own pass
 
-Roughly 1200 lines of code and 400 of docs exist because nobody removed
-them. Each was built for a question that has since been answered or
-abandoned, and every one of them is a thing a future session has to read and
-decide is irrelevant.
+The metrics agent already deleted `run-ruler.html`, `run-lab.html` and
+`run-batch.html` when `run-check.html` replaced them. What remains:
 
-**Zero references anywhere — delete outright.**
+**Pages of closed items — delete.**
 
-    src/analysis/features.js     170
-    src/analysis/winnable.js     109
-    src/analysis/power.js         61
-    src/bot/placeholder.js        43
+    run-curve.html      superseded, sole user of curve.js
+    run-shape.html      built on the retired campaignCost
+    run-cluster.html    served I2, closed
+    run-i3.html         served I3, closed
 
-Verified with a grep across `src/`, `*.html` and `test/`. Re-verify before
-deleting rather than trusting this list.
+**Modules — re-verify with a grep before deleting, the list is not proof.**
 
-**Superseded and already declared so — delete with their pages.**
+    src/analysis/curve.js       dies with run-curve
+    src/analysis/batch.js       0 references at last check
+    src/analysis/features.js    0 references
+    src/analysis/winnable.js    0 references
+    src/analysis/power.js       0 references
+    src/bot/placeholder.js      0 references
 
-    src/analysis/curve.js  +  run-curve.html
-    src/analysis/shape.js  +  run-shape.html
+**Trap:** `shape.js` is NOT orphaned — `observed-ruler.js` and
+`test/tests.js` import from it. The page dies, the module stays. Check what
+they import before touching anything.
 
-`curve.js` prices clean 1v1 duels and read 0.23 on a floor that killed four
-heroes of seven; `CLAUDE.md` already says it is "kept only until curve.js
-goes". `shape.js` is built on `campaignCost`, which was retired for the same
-reason and replaced by `observed-ruler.js`.
+**Stands after:** `index.html`, `run-check.html`, `run-tests.html`. And
+`hardness.js`, which has three consumers including `src/sim/dungeon.js`.
 
-**One-off pages whose items are closed.**
-
-    run-cluster.html    served I2
-    run-i3.html         served I3
-
-**And the rest of the pages, once I8's `run-check.html` works** —
-`run-ruler.html`, `run-lab.html`, `run-batch.html`. One metrics page is the
-target. Their modules stay; only the pages go. Coordinate with I8 rather
-than deleting ahead of it.
-
-The analysis modules they drive stay — `clustering.js` is still the source
-of the finishes and per-turn damage numbers.
-
-**Docs — already done.** `kpi.md`, `curve-shape.md`, `clustering-i2.md` and
-`clustering-i3.md` are deleted; `decisions.md` is now a findings list rather
-than a transcript.
-
-**Do not touch.** `hardness.js` (run-lab uses it), `batch.js`,
-`clustering.js`, `observed-ruler.js`.
-
-**After the M11–M15 batch, not during.** That batch is editing `spawn.js`
-and `difficulty.js`; this touches `src/analysis/` and pages. They would not
-conflict, but a deletion commit landing between two behaviour commits makes
-a bisect harder to read if the batch turns out to have broken something.
-
-**Assert.** `run-tests.html` still green, `index.html` still plays a
-descent, `run-ruler.html` and `run-lab.html` still produce numbers. Nothing
-else — this item removes, it does not change behaviour.
-
-**If something turns out to be referenced after all, leave it and say so.**
-The list is a grep, not a proof.
+**Assert.** Tests green, `index.html` plays a descent, `run-check.html`
+produces numbers. Anything that turns out referenced stays, and gets
+reported.
 
 ## M4 · scale the side-room bonus with depth
 
