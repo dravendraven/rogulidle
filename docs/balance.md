@@ -376,6 +376,58 @@ a +9% count and +13% mean cost on that family. Over 40 000 draws `E[M] =
 1.0014`. Real dungeons are unaffected — floors are seeded `hashSeeds(seed,
 level)` and each draws its own — which is why the descent came out flat.
 
+## Map design — the spine and its detours
+
+`docs/map-design.md`. The floor offers a choice: a short mandatory route
+holding most of the threat, and side rooms that can be skipped, holding
+fewer but nastier creatures and better chests.
+
+| Name | Value | Status |
+|---|---|---|
+| `SPINE_THREAT_SHARE` | 0.7 | **INITIAL GUESS** |
+| `SIDE_ROOM_DEPTH_BONUS` | 0.35 | **INITIAL GUESS** |
+| `SIDE_ACTIVATION_CAP` | 99 | **MEASURED NEGATIVE, kept off** — see below |
+| `SIDE_CHEST_BIAS` | 3 | **INITIAL GUESS** |
+| `MIN_ROSTER_FOR_SIDE` | 4 | **INITIAL GUESS** |
+
+`SPINE_THREAT_SHARE` is the share of a floor's THREAT MASS — not headcount
+— placed on the mandatory route. Mass, because cost tracks `hp × (xp − 1)`:
+a floor can put 70% of its bodies on the spine and still hide the
+dangerous half in a side room. See M10 for the mechanism that holds this
+in practice (a mass quota, re-checked per cluster member) and M16 for what
+does and does not threaten it (bigger rooms alone do not; a higher
+`MAP_DUG_PERCENTAGE` would).
+
+`SIDE_ROOM_DEPTH_BONUS` is a single constant driving BOTH halves of the
+side-room bargain — depth is what picks the monster tier and what sets
+chest quality, so raising it makes a detour more dangerous and better paid
+by the same number. This is the whole of the risk/reward design, not a
+tweak to it: two independent draws (risk, reward) over `[0, 2 × bonus]`
+keep the average side room where it was while making individual ones range
+from a den of ogres guarding a dagger to a lone bat sitting on an axe.
+
+`SIDE_ACTIVATION_CAP` caps how far a side-room creature's `activation` can
+reach, however far its table entry would normally go — 99 means no cap,
+i.e. off. **A measured negative, not an unused guess**: the hypothesis was
+that the nastiest side rooms (longest `activation`) should be the ones
+grabbing the bot from across the floor while safe rooms stay quiet.
+Capping it to 4 made the good/bad-room inversion WORSE (68% of unfavourable
+rooms opened against 54% of favourable, vs 53%/45% uncapped). Kept as a
+dial because "a guard guards" is still defensible and the negative result
+is worth being able to re-check — see `docs/map-design.md` for what the
+cause turned out to be.
+
+`SIDE_CHEST_BIAS` is how much likelier a chest is to land in a side room
+than a spine room — a weight, not a quota, since a detour nobody is paid to
+make is not a choice, and a map with no side rooms must still place every
+chest.
+
+`MIN_ROSTER_FOR_SIDE` is the floor below which every creature stays on the
+spine — the mass split is too coarse to honour below it (a two-creature
+floor's single side monster is already half the mass), and a lone creature
+behind a detour is not a gamble anyway. Measured 68%/63% spine on floors 1
+and 3 against the 70% target before this gate existed.
+
 ## Where the current numbers live
 
 **Not here.** The dungeon curve, the win rates and the difficulty-dial table
@@ -437,6 +489,7 @@ being a copy. Values marked **INITIAL GUESS** are ours and are what P4 tunes.
 | `CORRIDOR_LENGTH` | `[1, 3]` | was FAITHFUL `[1, 5]` (`generator.cljs:146`); **DIVERGENCE since M16** |
 | `ROOM_WIDTH` | `[5, 9]` | **NEW since M16** — was unset, ROT's own default applied |
 | `ROOM_HEIGHT` | `[4, 7]` | **NEW since M16** — was unset, ROT's own default applied |
+| `MAP_DUG_PERCENTAGE` | 0.15 | **INITIAL GUESS** — lower than ROT's own 0.2 default |
 | `VISIBLE_DIST` | 9 | FAITHFUL (`ui.cljs:27`) |
 | `CLEAR_DIST` | 7 | FAITHFUL (`ui.cljs:29`) — cosmetic only |
 | `CHEST_COUNT` | 15 | FAITHFUL (`generator.cljs:326`) |
@@ -445,13 +498,36 @@ being a copy. Values marked **INITIAL GUESS** are ours and are what P4 tunes.
 `MONSTER_COUNT` and `CHEST_COUNT` are the first dials to reach for in P4.
 Five monsters on a 32×32 map is very sparse — see spec §10.2.
 
+`MAP_DUG_PERCENTAGE` is how much of the grid ROT's digger hollows out.
+Lower than ROT's own 0.2 default on purpose: at 0.2 there were usually
+several equivalent ways through, and the spine/side design needs the map
+to HAVE a mandatory path. M16 swept it against room size and corridor
+length together and found it did not need to move from 0.15.
+
 ## Player
 
 | Name | Value | Status |
 |---|---|---|
 | `PLAYER_HP` | 10 | FAITHFUL (`generator.cljs:216`) |
 | `PLAYER_XP` | 3 | FAITHFUL (`generator.cljs:26`) |
-| `XP_PER_KILLS` | 1 xp every 2 kills | FAITHFUL (`engine.cljs:272`) |
+| `KILLS_PER_XP` | 2 | FAITHFUL (`engine.cljs:272`) — 1 xp every 2 kills |
+| `XP_FROM_KILLS` | `false` | **OFF by owner decision** — see below |
+| `WEAPONS_WIDEN_ROLL` | `true` | **ON by owner decision** — see below |
+
+`XP_FROM_KILLS` off means xp never grows — gear is the only progression.
+Measured, and it does not do what intuition suggests: over a ten-floor
+descent, freezing xp barely changes how deep the hero gets (gear compounds
+just as freely on its own), but it DOES move where the danger sits — three
+of ten dungeons ended on floor one with xp frozen, against one of ten with
+it on, because a hero who cannot level and has not yet looted is at their
+weakest ever.
+
+`WEAPONS_WIDEN_ROLL` on means a weapon enlarges the damage die
+(`0..xp-1+weapons`) rather than raising its floor (`weapon` added after a
+`0..xp-1` roll). The hero can still whiff however well armed, and each
+point of weapon is worth half what a flat bonus would be — the cheapest
+way found to blunt gear as the resource that runs away over a ten-floor
+descent, without capping what can be carried.
 
 ## Difficulty rebalance (M7) — ADOPTED, flag ON
 
@@ -782,31 +858,56 @@ drawn above the monster's head.
 | `MONSTER_DROP_CHANCE` | 0.50 | FAITHFUL (`generator.cljs:275`) |
 | `MONSTER_DIFFICULTY_SCALE` | 0.75 | FAITHFUL (`generator.cljs:262`) |
 | `MONSTER_WEIGHTS` | offset 0→6, ±1→2, ±2→1 | FAITHFUL (`generator.cljs:267`) |
+| `MONSTERS_ATTACK_WHEN_ADJACENT` | `false` | **OFF** — measured to change almost nothing |
 
 Weights are summed on collision at the table edges, which is our fix for
 spec quirk §9.2 — the original overwrites and makes the target monster
 *less* likely than its neighbour.
 
+`MONSTERS_ATTACK_WHEN_ADJACENT` off is FAITHFUL: a monster attacks by
+moving into the player, so standing beside one is only dangerous when it
+actually steps in. Measured over 50 floors: on gives byte-identical results
+to off, since an adjacent monster is two path steps away, under every
+`activation` in the table (the smallest is 3) — adjacency already means
+being attacked either way. Kept as a switch so the equivalence stays
+re-checkable, not because flipping it does anything.
+
 ## Items
 
-FAITHFUL — `generator.cljs:28`. Pick weight is `1 / value`, so a high
-`value` means a **rare** item.
+**The table below was stale** — it listed Rogule's ORIGINAL item pool
+(chestnut, mushroom, gem-stone), none of which exist in `ITEM_TABLE` any
+more (`src/sim/balance.js` — DIVERGENCE: they were scenery for the
+original's share card, which this game does not have, and were replaced
+with nothing rather than kept as junk). Corrected to the actual table,
+documented here for the first time.
 
-| Item | Emoji | `value` | weight | probability | Effect |
-|---|---|---|---|---|---|
-| chestnut | 🌰 | 1 | 1.000 | 32.9% | none (collectible) |
-| mushroom | 🍄 | 2 | 0.500 | 16.4% | none (collectible) |
-| health | 🥃 | 2 | 0.500 | 16.4% | +3 HP, capped at max |
-| shield | 🛡️ | 3 | 0.333 | 11.0% | **+3 armour** — a second bar, and it is spent |
-| dagger | 🗡️ | 3 | 0.333 | 11.0% | +1 damage |
-| axe | 🪓 | 4 | 0.250 | 8.2% | +2 damage |
-| gem-stone | 💎 | 8 | 0.125 | 4.1% | none (collectible) |
+Pick weight is `1 / value` at quality 0, so a high `value` means a **rare**
+item — see `spawn.js`'s `itemWeights` for the full formula, which also
+tilts by chest depth (`CHEST_QUALITY_BY_DEPTH`) and by scarcity
+(`SCARCITY` dials, `src/sim/difficulty.js`). No fixed probability column
+below for that reason — the split isn't a static pool any more.
+
+| Item | Emoji | `value` | `kind` | Effect |
+|---|---|---|---|---|
+| health | 🥃 | 2 | potion | +3 HP (`POTION_HEAL`), capped at max — monster drops only |
+| shield | 🛡️ | 3 | armour | **+3 armour** — a second bar, and it is spent — chests only |
+| dagger | 🗡️ | 3 | weapon | +1 damage — chests only |
+| axe | 🪓 | 4 | weapon | +2 damage — chests only |
+
+**`kind` decides the source, not just a label.** `itemWeights('chest', ...)`
+only draws from `weapon`/`armour` (shield, dagger, axe); `itemWeights(
+'monster', ...)` only draws from `potion` (health). A chest can never hold
+a potion and a corpse can never hold a weapon — healing comes from
+killing, gear comes from exploring, by owner decision.
 
 | Name | Value | Status |
 |---|---|---|
 | `POTION_HEAL` | 3 | FAITHFUL (`engine.cljs:209`) |
 | `CHEST_DIFFICULTY_SCALE` | 0.9 | FAITHFUL (`generator.cljs:238`) |
 | `CHEST_LOOT_RICHER_FAR` | `true` | **INITIAL GUESS** |
+| `CHEST_QUALITY_BY_DEPTH` | `true` | **INITIAL GUESS** |
+| `CHEST_TABLE` | `[{ chest, 📦 }]` | **DIVERGENCE** — see below |
+| `ITEM_TABLE` | 4 rows, above | **DIVERGENCE** — chestnut/mushroom/gem-stone removed |
 
 `CHEST_LOOT_RICHER_FAR` is our fix for spec quirk §9.3.
 
@@ -816,6 +917,19 @@ FAITHFUL — `generator.cljs:28`. Pick weight is `1 / value`, so a high
 
 Both directions chest the same probability range, so flipping it does not
 change how much loot a map holds on average, only where it sits.
+
+`CHEST_QUALITY_BY_DEPTH` makes depth buy BETTER loot, not merely more of
+it. Off, a deep chest is likelier to hold something but draws from the same
+pool as one by the front door. On, the within-kind weight becomes
+`value^(2·depth − 1)`, so the axe is rare at the entrance, even money
+halfway, and the common outcome at the shrine.
+
+`CHEST_TABLE` is one row (`chest`, 📦) — DIVERGENCE: Rogule dresses these
+as scenery (potted plant, rock, wood block) because there they are cover
+the player kicks over. Here they are the reward container the map design
+is built around, so they look like what they are. Still a table with one
+row rather than a bare constant, so the pick still burns one RNG draw and
+the streams stay aligned with runs recorded before the rename.
 
 ## Bot
 
@@ -828,6 +942,10 @@ Not used until P3. Listed here so there is one place to look.
 | `GOAL_STICKINESS` | 1.4 | **INITIAL GUESS** — raised from 1.15, see below |
 | `UNKNOWN_MONSTER_ESTIMATE` | `{ xp: 4, hp: 7 }` | **INITIAL GUESS** |
 | `CHEST_LOOT_CHANCE` | 0.60 | measured over 150 maps |
+| `LOOT_CAMPAIGN_HORIZON` | 0.5 | **INITIAL GUESS** |
+| `HOLD_RANGE` | 5 | **INITIAL GUESS** |
+| `EXPOSURE_WEIGHT` | 0.5 | **INITIAL GUESS** |
+| `REVERSAL_PENALTY` | 0 | **MEASURED, does not fix what it targets** — see below |
 
 `UNKNOWN_MONSTER_ESTIMATE` stands in for a monster the bot has not met yet.
 It knows how many are unaccounted for but not what they are, and gear has
@@ -839,10 +957,40 @@ of `MONSTER_TABLE`, which happens to be the ogre.
 a chest is worth the two turns it costs. Measured, not guessed, but it will
 move if `CHEST_LOOT_RICHER_FAR` or the chest count changes.
 
+`LOOT_CAMPAIGN_HORIZON` is what share of the REMAINING descent the bot
+prices gear against. A sword taken on floor 3 is swung on floors 4–10, so
+valuing it against floor 3 alone ignores the long game the map design is
+built around — but counting all seven floors ahead at face value assumes
+the hero survives to swing it, and only about 45% of dungeons are cleared.
+0.5 is that clear rate rounded, used as a plain discount rather than a
+modelled survival curve. At 0 the bot is myopic, which is how every
+measurement before this item was taken.
+
+`HOLD_RANGE` is how close a hunter must get before the bot stops walking
+out to meet it and lets it come instead. Waiting costs no tempo — monsters
+move after the player, so whoever closes the last tile, the player still
+strikes first.
+
+`EXPOSURE_WEIGHT` is how much an open tile multiplies the danger already on
+it — a tile with four ways in is charged `(1 + 3 × this)` times its
+menace, a dead end is charged plain. This is what makes the bot SEEK
+corridors when hunted rather than merely tolerate them (bot-strategy §2).
+
+`REVERSAL_PENALTY` charges hp for undoing the step just taken, meant to
+stop the two-turn ping-pong where the plan says "attack", the veto refuses
+and steps aside, then the plan says "go back" and the veto agrees. Shipped
+at 0 because it does NOT fix it — sweeping 0/1.5/6 moved the reversal rate
+only 0.238 → 0.205 and cost a few points of win rate. Traced further
+(bot-strategy §4.5): 61–64% of reversal episodes come from the TACTICAL
+VETO overriding a stable goal, not from goal selection flipping, so a
+penalty on the goal layer was never going to reach the dominant cause.
+
 ### How to tune these
 
-Open `/run-batch.html`, put the setting in "sweep" with a few values, and
-run. Every value plays the same seeds, so the comparison is paired.
+`run-ruler.html`/`run-lab.html`/`run-batch.html` were deleted with I8 —
+`descentCheck` (`src/analysis/clustering.js`) is what a self-check calls
+directly now; see `docs/backlog.md`'s GOAL_STICKINESS note for an example.
+Sweep a setting across paired seeds so the comparison is apples to apples.
 
 Two rules learned the hard way:
 
