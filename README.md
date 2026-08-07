@@ -24,7 +24,8 @@ python tools/dev-server.py
 
 Then open <http://localhost:8141/index.html> to watch,
 <http://localhost:8141/run-tests.html> to check the rules, or
-<http://localhost:8141/run-batch.html> to measure the bot over many games.
+<http://localhost:8141/run-check.html> to check whether the map and bot
+are any good.
 Opening the HTML files directly will not work — ES modules need `http://`.
 
 In the spectator, **🔎 debug** paints the danger map the bot believes in and

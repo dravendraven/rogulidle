@@ -76,6 +76,9 @@ import { posKey, playerPassable, walkablePositions } from '../sim/mapgen.js';
 import { step } from '../sim/step.js';
 import { observe, emptyBelief, foldBelief } from '../sim/observe.js';
 import { makeBot } from '../bot/bot.js';
+import { duelCost } from '../bot/duel.js';
+import { effectiveHp } from '../sim/combat.js';
+import { DUEL_SAFETY_MARGIN } from '../sim/balance.js';
 import { REFERENCE_HERO } from './hardness.js';
 
 function heroCopy(hero) {
@@ -549,4 +552,194 @@ export function effectiveClusterSizes(options = {}) {
         .map(([size, n]) => ({ size, n })),
     };
   });
+}
+
+// ***** I8 — one combined real-bot descent pass, for Product and Bot ***** //
+//
+// Seven of I8's twelve numbers (median/spread of depth reached, finishes,
+// turns between events, damage per kill, reversal rate, turns per floor,
+// lost fights started) all come from watching the SAME real ten-floor bot
+// descents, so this is one turn-by-turn pass collecting all seven rather
+// than seven separate ones — `botFinishesAndSpike` above already showed
+// the real-bot descent is the expensive part (~1s/run), and running it
+// seven times over instead of once would be the difference between "seconds"
+// and not.
+//
+// Every quantity below reads state the loop already has in hand, or calls
+// an existing exported function on it — nothing here re-derives what the
+// bot decided:
+//   - reversal rate compares consecutive ACTIONS the policy already
+//     returned, against the same up/down/left/right opposite-pairing
+//     bot.js's own reversal PENALTY uses (stated in its own comment) —
+//     this observes the sequence, it does not touch bot.js.
+//   - "a fight started" is detected the same way bot.js itself describes
+//     attacking as working: "walking into it is the attack" — the first
+//     time the player's chosen direction lands on a live monster's tile,
+//     that monster's id goes in `engaged` and stays there, so a multi-turn
+//     fight against the same monster is not recounted.
+//   - "lost" reuses `duelCost` + `effectiveHp` + `DUEL_SAFETY_MARGIN`
+//     (`src/bot/duel.js`, `src/sim/combat.js`, `src/sim/balance.js`, all
+//     already exported) against the monster's OWN live stats at the
+//     moment the fight actually started — the exact formula
+//     `priceMonsters` uses internally for `worthStarting`, re-applied
+//     externally to the engagement that happened rather than to every
+//     candidate the bot considered and did not take. It answers "was the
+//     fight the bot ended up in already priced as a loss when it began",
+//     which is what "started" means here — not a reconstruction of
+//     `chooseGoal`'s own target selection.
+//   - events are the log's own `ascend`/`open`/a killing `attack` entries;
+//     turn numbers reset to 0 every floor (`newGame`), so gaps spanning a
+//     floor change are computed against a running offset kept across the
+//     whole run, not per floor.
+const DIRS4 = {
+  up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0],
+};
+const OPPOSITE4 = {
+  up: 'down', down: 'up', left: 'right', right: 'left',
+};
+
+export function descentCheck(options = {}) {
+  const {
+    runs = 8, firstSeed = 800000, maxTurns = 1500, levels = LEVELS, hpFromKills = false,
+  } = options;
+
+  const depths = [];
+  let cleared = 0;
+  let totalKills = 0;
+  let totalDamage = 0;
+  let totalActions = 0;
+  let totalReversals = 0;
+  let totalFloorTurns = 0;
+  let floorAttempts = 0;
+  let fightsStarted = 0;
+  let lostFightsStarted = 0;
+  const eventGaps = [];
+
+  for (let i = 0; i < runs; i++) {
+    let carry = null;
+    let lastAction = null;
+    let runTurnOffset = 0;
+    let lastEventTurn = 0;
+    let depthReached = 0;
+
+    for (let level = 1; level <= levels; level++) {
+      const plan = floorPlan(level);
+      const counts = {
+        monsters: plan.monsters,
+        chests: plan.chests,
+        difficultyScale: plan.difficultyScale,
+        clusterSize: plan.clusterSize,
+        dropChance: plan.dropChance,
+        weaponScarcity: plan.weaponScarcity,
+        armourScarcity: plan.armourScarcity,
+        potionScarcity: plan.potionScarcity,
+        monsterSpread: plan.monsterSpread,
+        sideActivationCap: plan.sideActivationCap,
+        sideRoomDepthBonus: plan.sideRoomDepthBonus,
+        spineThreatShare: plan.spineThreatShare,
+        sideChestBias: plan.sideChestBias,
+        outOfDepthChance: plan.outOfDepthChance,
+        carry,
+        hpFromKills,
+      };
+      const seed = hashSeeds(firstSeed + i, level);
+      let state = newGame(seed, counts);
+      let observation = observe(state);
+      let belief = foldBelief(emptyBelief(), observation);
+      const bot = makeBot({ monsterCount: plan.monsters, level, levels });
+      let decisions = 0;
+      const maxDecisions = maxTurns * 4;
+      const engaged = new Set();
+
+      while (!state.outcome && state.turn < maxTurns && decisions < maxDecisions) {
+        const action = bot(belief, observation);
+        if (lastAction && action === OPPOSITE4[lastAction]) totalReversals++;
+        totalActions++;
+        lastAction = action;
+
+        const delta = DIRS4[action];
+        if (delta) {
+          const targetPos = [state.player.pos[0] + delta[0], state.player.pos[1] + delta[1]];
+          const target = state.monsters.find((m) => !m.dead
+            && m.pos[0] === targetPos[0] && m.pos[1] === targetPos[1]);
+          if (target && !engaged.has(target.id)) {
+            engaged.add(target.id);
+            fightsStarted++;
+            const duel = duelCost(state.player, target);
+            if (duel.hpLost > effectiveHp(state.player) * DUEL_SAFETY_MARGIN) lostFightsStarted++;
+          }
+        }
+
+        const beforeLog = state.log.length;
+        const result = step(state, action);
+        state = result.state;
+        observation = result.observation;
+        belief = foldBelief(belief, observation);
+        decisions++;
+
+        for (const e of state.log.slice(beforeLog)) {
+          if (e.type === 'attack' && e.target === 'player') totalDamage += e.damage;
+          const isEvent = e.type === 'ascend' || e.type === 'open'
+            || (e.type === 'attack' && e.by === 'player' && e.killed);
+          if (isEvent) {
+            const at = runTurnOffset + state.turn;
+            eventGaps.push(at - lastEventTurn);
+            lastEventTurn = at;
+          }
+        }
+      }
+
+      totalFloorTurns += state.turn;
+      floorAttempts++;
+      runTurnOffset += state.turn;
+      depthReached = level;
+
+      if (state.outcome !== 'ascended') {
+        totalKills += state.player.kills.length;
+        break;
+      }
+      carry = carryFromPlayer(state.player);
+      if (level === levels) {
+        cleared++;
+        totalKills += state.player.kills.length;
+      }
+    }
+    depths.push(depthReached);
+  }
+
+  const sortedDepths = [...depths].sort((a, b) => a - b);
+  const mid = Math.floor(sortedDepths.length / 2);
+  const medianDepth = sortedDepths.length % 2
+    ? sortedDepths[mid]
+    : (sortedDepths[mid - 1] + sortedDepths[mid]) / 2;
+  const meanDepth = depths.reduce((a, b) => a + b, 0) / (depths.length || 1);
+  const depthSpread = Math.sqrt(
+    depths.reduce((s, d) => s + (d - meanDepth) ** 2, 0) / (depths.length || 1),
+  );
+
+  const sortedGaps = [...eventGaps].sort((a, b) => a - b);
+  const gapMid = Math.floor(sortedGaps.length / 2);
+  const medianGap = sortedGaps.length
+    ? (sortedGaps.length % 2 ? sortedGaps[gapMid] : (sortedGaps[gapMid - 1] + sortedGaps[gapMid]) / 2)
+    : null;
+
+  return {
+    runs,
+    cleared,
+    finishRate: runs ? cleared / runs : 0,
+    depths,
+    medianDepth,
+    depthSpread,
+    eventGapMedian: medianGap,
+    eventGapN: eventGaps.length,
+    damagePerKill: totalKills ? totalDamage / totalKills : null,
+    totalKills,
+    reversalRate: totalActions ? totalReversals / totalActions : null,
+    totalActions,
+    turnsPerFloor: floorAttempts ? totalFloorTurns / floorAttempts : null,
+    floorAttempts,
+    fightsStarted,
+    lostFightsStarted,
+    lostFightRate: fightsStarted ? lostFightsStarted / fightsStarted : null,
+  };
 }

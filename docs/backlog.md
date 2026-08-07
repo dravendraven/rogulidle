@@ -38,7 +38,7 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| 1 | I8 | One page saying whether the map is good, in five numbers | REPORTED |
+| 1 | I8 | One page: three levels, twelve numbers, success and health | REPORTED |
 | 2 | M11 | Floor n+1 is never cheaper than floor n | REPORTED |
 | 3 | M13 | Tier floor rises with depth — rats stop appearing deep | REPORTED |
 | 4 | M12 | Raise creature count and cluster size together | REPORTED |
@@ -64,7 +64,7 @@ Closed work is in `docs/project/decisions.md`. Parked and unscheduled is in
 
 ## I8 · one page: three success numbers, nine health numbers
 
-`metrics agent` · **READY** — this supersedes the two earlier drafts of I8
+`metrics agent` · **REPORTED** — this supersedes the two earlier drafts of I8
 
 `run-ruler.html` reports nine quantities, four ratios, growth exponents and
 standard errors. Right for settling an argument, wrong for the question
@@ -147,6 +147,88 @@ deleted the last one.
 **If something in those pages turns out to be load-bearing and has no home
 here, say so and leave that page alone.** One page is the goal, not a rule
 worth losing a number over.
+
+### Result
+
+Rebuilt `run-check.html` from scratch for the new structure — the earlier
+two-section, five-number draft is gone, not extended. Three `<section>`s
+(Product, Map, Bot), each a 4-cell grid: one `success`-styled cell (accent
+border, bigger number) and three plain `health` cells, every cell carrying
+its own meaning and good-direction text, matching the spec's own wording.
+`run-ruler.html`, `run-lab.html` and `run-batch.html` are deleted —
+`git rm`, not just unlinked. Fixed the stale pointers that deletion left
+behind in `CLAUDE.md`, `README.md` and `docs/observed-ruler.md`'s baseline
+section (its own historical numbers untouched, just the "how to reproduce
+this" pointer, since `run-ruler.html` is gone but the module functions it
+called are not). Did not touch `docs/balance.md`, `docs/project/decisions.md`
+or this file's own older items — those are records of what was true when
+written, not live documentation, and rewriting history to match a page
+that didn't exist yet is the wrong kind of tidiness.
+
+**All twelve numbers exist; none needed touching `src/sim/` or `src/bot/`
+to get.** Nine were already sitting in `rewardShape`/`floorPlan` (Map's
+four) or a light rename of what `botFinishesAndSpike` was already doing
+(Product's finishes). The other three — Product's turns-between-events and
+spread-of-depths, and all four of Bot's numbers — needed a genuinely new
+pass, because nothing existing tracked a real descent's ACTIONS or its
+EVENTS, only its damage log. Built as one new function,
+`descentCheck` (`clustering.js`), rather than four separate ones: they all
+watch the same real ten-floor bot descents, and running that descent four
+times over instead of once would have cost more time than every other
+number on the page combined.
+
+**How the three previously-unmeasured Bot numbers turned out to be
+reachable without new instrumentation, since that was this item's one
+hard constraint:**
+- **Reversal rate** — bot.js computes this internally for its OWN reversal
+  PENALTY (`action === OPPOSITE[lastAction]`, stated in its own comment)
+  but never exposes the rate. `descentCheck` watches the SEQUENCE of
+  actions the policy already returns each turn and compares consecutive
+  ones against the same trivial opposite-pairing — an outside observation
+  of behaviour already happening, not a hook into the bot.
+- **Turns per floor** — `state.turn` at the point a floor attempt ends,
+  summed and divided by floor attempts. Already there; nobody had added
+  it up.
+- **Lost fights started** — the one I expected to have to leave off.
+  `priceMonsters` (internal to `bot.js`) computes `worthStarting` from
+  `duelCost` + `effectiveHp` + a safety margin, all THREE of which are
+  already exported (`src/bot/duel.js`, `src/sim/combat.js`,
+  `src/sim/balance.js`, the margin as `DUEL_SAFETY_MARGIN`). Reproducing
+  `chooseGoal`'s full target selection to know which candidate the bot
+  picked would have been new measurement in the bad sense — restating bot
+  logic outside the bot. What `descentCheck` does instead is narrower and
+  does not need that: "walking into it is the attack" (bot.js's own
+  words), so the first turn the chosen ACTION lands on a live monster's
+  tile is a fight starting, whichever monster that turns out to be — no
+  guess about alternatives needed. Pricing THAT engagement with the bot's
+  own published formula, at the moment it actually started, answers
+  "was this fight already known lost when it began" using only exported
+  pieces, against real state the loop already has, not a re-derivation of
+  a decision the bot made.
+
+**Speed, measured on this machine, not estimated:** floor samples at 6,
+descents at 2 — `descentCheck` is the entire cost, roughly 5s/descent since
+it does more per turn than `botFinishesAndSpike` did (reversal check, fight
+detection, event tracking, on top of the same base descent). Landed on
+**~11s** total for the default. Two descents is thin — median-of-2 is
+barely a median — but a third would have pushed this toward 16s, and nine
+of the twelve numbers already come from the cheap side (Map's eight
+samples/floor, ~2s). Both counts are page inputs, not constants.
+
+**What surprised me:** reversal rate read 36% on one ordinary run — the
+bot reverses on roughly a third of its moves. That happens to sit in the
+same range as the OLD parked reversal-rate reading in `docs/kpi.md`
+(0.174–0.210, different measurement, different era, kept for the bot lane
+being parked rather than deleted) — not close enough to call the same
+number, but close enough that the new instrument isn't reading something
+wildly different in kind from what B1's old one saw. `lostFightsStarted`
+read 0 on every run tried while building this — `refuseLostFights`
+appears to be doing exactly its job, which is itself worth having a
+number for even when that number is boring.
+
+**Not measured / left off:** nothing from the spec's twelve. The `run-shape.html`
+and `run-curve.html` diagnostics (modelled-cost pages, unrelated method,
+not named in this item) are untouched — not this item's call to remove.
 
 ## M11 · floor n+1 is never easier than floor n
 

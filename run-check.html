@@ -3,16 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rogulidle — is the map good?</title>
+<title>Rogulidle — is this any good?</title>
 <style>
   :root { --bg:#101216; --panel:#171a21; --line:#262b35; --text:#d8dee9; --dim:#7a8595;
-          --faint:#5b6472; --good:#8ce99a; --warn:#ffd8a8; --bad:#ff8787; --accent:#74c0fc; }
+          --faint:#5b6472; --good:#8ce99a; --warn:#ffd8a8; --bad:#ff8787; --accent:#74c0fc;
+          --success:#cfe6ff; }
   * { box-sizing: border-box; }
   body { margin:0; padding:1.5rem 1rem 4rem; background:var(--bg); color:var(--text);
          font:13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  .app { max-width: 900px; margin: 0 auto; }
+  .app { max-width: 960px; margin: 0 auto; }
   h1 { font-size:1rem; letter-spacing:.08em; text-transform:uppercase; margin:0 0 .3rem; }
-  h2 { font-size:.85rem; letter-spacing:.05em; margin:0 0 .3rem; color:var(--text); }
+  h2 { font-size:.85rem; letter-spacing:.08em; text-transform:uppercase; margin:0 0 .2rem; color:var(--accent); }
+  h3 { font-size:.85rem; letter-spacing:.03em; margin:0 0 .2rem; color:var(--text); }
   p { max-width:80ch; }
   .lede, .note { color:var(--faint); font-size:11.5px; max-width:80ch; }
   .lede { margin:0 0 1.2rem; font-size:13px; }
@@ -29,69 +31,68 @@
   button.primary { background:#25333f; border-color:#33495c; color:#cfe6ff; }
   button[disabled] { opacity:.45; cursor:default; }
   #status { color:var(--dim); margin:.7rem 0 1rem; }
-  table { border-collapse:collapse; width:100%; font-size:12.5px; margin:.3rem 0 .5rem; }
-  th, td { text-align:right; padding:.3rem .5rem; border-bottom:1px solid var(--line); white-space:nowrap; }
+  table { border-collapse:collapse; width:100%; font-size:12px; margin:.3rem 0 .5rem; }
+  th, td { text-align:right; padding:.25rem .5rem; border-bottom:1px solid var(--line); white-space:nowrap; }
   th:first-child, td:first-child { text-align:left; }
   th { color:var(--dim); font-weight:600; }
-  .card { border:1px solid var(--line); border-radius:8px; background:var(--panel);
-    padding:1rem 1.1rem; margin:0 0 1rem; }
-  .cardhead { display:flex; justify-content:space-between; align-items:baseline; gap:1rem; flex-wrap:wrap; }
-  .big { font-size:1.6rem; font-weight:600; }
-  .headline { font-size:1.05rem; margin:.15rem 0 .5rem; }
-  .meaning { color:var(--dim); font-size:11.5px; margin:.1rem 0 .6rem; }
-  .direction { color:var(--faint); font-size:11px; }
+  section.level { border:1px solid var(--line); border-radius:10px; background:#131620;
+    padding:1rem 1.2rem 1.2rem; margin:0 0 1.2rem; }
+  .grid { display:grid; grid-template-columns:1.1fr 1fr 1fr 1fr; gap:.8rem; margin-top:.6rem; }
+  @media (max-width:800px) { .grid { grid-template-columns:1fr 1fr; } }
+  .cell { border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:.7rem .8rem; }
+  .cell.success { border-color:#33495c; background:#182231; }
+  .kind { font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); }
+  .cell.success .kind { color:var(--success); }
+  .big { font-size:1.35rem; font-weight:600; margin:.2rem 0; }
+  .cell.success .big { font-size:1.55rem; }
+  .meaning { color:var(--dim); font-size:11px; margin:.15rem 0 0; }
+  .direction { color:var(--faint); font-size:10px; margin:.1rem 0 0; }
   .ok { color:var(--good); } .no { color:var(--bad); } .meh { color:var(--warn); }
-  .flag { color:var(--bad); font-size:12px; margin:.4rem 0 0; padding:.4rem .6rem;
-    background:rgba(255,135,135,.08); border:1px solid rgba(255,135,135,.3); border-radius:5px; }
-  .flag.none { color:var(--good); background:rgba(140,233,154,.06); border-color:rgba(140,233,154,.25); }
-  .smallprint { color:var(--faint); font-size:10.5px; margin-top:.5rem; }
+  .flag { color:var(--bad); font-size:11.5px; margin:.5rem 0 0; padding:.4rem .6rem;
+    background:rgba(255,135,135,.08); border:1px solid rgba(255,135,135,.3); border-radius:5px; grid-column:1/-1; }
+  .flag.none { color:var(--good); background:rgba(140,233,154,.06); border-color:rgba(140,233,154,.25); grid-column:1/-1; }
+  .subnote { grid-column:1/-1; }
+  .lede2 { color:var(--faint); font-size:11px; margin:0 0 .3rem; }
   details summary { cursor:pointer; color:var(--dim); font-size:11px; }
+  .smallprint { color:var(--faint); font-size:10.5px; margin-top:.5rem; }
 </style>
 </head>
 <body>
 <div class="app">
 
-<h1>Is the map good?</h1>
-<p class="lede">Five numbers, nothing else. For settling a specific
-argument with growth rates and standard errors, see
-<a href="run-ruler.html" style="color:var(--accent)">run-ruler.html</a> —
-this page exists so nobody has to open that one just to check the batch
-didn't break anything.</p>
+<h1>Is this any good?</h1>
+<p class="lede">Twelve numbers, three levels, four each — one success number
+(did it work) and three health numbers (has it rotted). This is the only
+metrics page; the numbers still come from
+<code>src/analysis/observed-ruler.js</code> and
+<code>src/analysis/clustering.js</code>, this just calls them and reads
+them in plain language instead of exponents and standard errors.</p>
 
 <fieldset>
   <legend>run</legend>
   <div class="row">
-    <div><label>samples per floor (cost, spread, loot)</label><input id="rewardRuns" type="number" value="8"></div>
-    <div><label>descents (finishes)</label><input id="botRuns" type="number" value="6"></div>
+    <div><label>floor samples (map numbers)</label><input id="floorRuns" type="number" value="6"></div>
+    <div><label>descents (product + bot numbers)</label><input id="descentRuns" type="number" value="2"></div>
     <div><label>seed base</label><input id="firstSeed" type="number" value="500000"></div>
   </div>
-  <p class="note" style="margin:.6rem 0 0">Small on purpose — a rough number
-  someone actually runs beats a precise one they don't. Raise these if you
-  want a steadier read; the defaults are tuned to finish in a few seconds.</p>
+  <p class="note" style="margin:.6rem 0 0">Small on purpose — a rough
+  number someone actually runs beats a precise one they don't. The descent
+  count especially: each one plays the real bot through a full ten-floor
+  game, which is the whole cost of this page. Raise it for a steadier read.</p>
 </fieldset>
 
-<button id="run" class="primary">Check the map</button>
+<button id="run" class="primary">Check</button>
 <p id="status">idle</p>
 <div id="out"></div>
 
 <script type="module">
 import { rewardShape } from './src/analysis/observed-ruler.js';
-import { botFinishesAndSpike } from './src/analysis/clustering.js';
+import { descentCheck } from './src/analysis/clustering.js';
 import { floorPlan, LEVELS } from './src/sim/dungeon.js';
 
 const $ = (id) => document.getElementById(id);
 const f = (x, d = 1) => (x === null || x === undefined || !Number.isFinite(x) ? '—' : x.toFixed(d));
 const pct = (x) => (x === null || x === undefined || !Number.isFinite(x) ? '—' : Math.round(x * 100) + '%');
-
-function card(title, node) {
-  const c = document.createElement('div');
-  c.className = 'card';
-  const h = document.createElement('h2');
-  h.textContent = title;
-  c.append(h, node);
-  $('out').append(c);
-  return c;
-}
 
 function el(tag, cls, html) {
   const e = document.createElement(tag);
@@ -100,111 +101,132 @@ function el(tag, cls, html) {
   return e;
 }
 
-function renderCost(rows) {
-  const body = el('div');
-  const first = rows[0].mean;
-  const last = rows[rows.length - 1].mean;
-  body.append(el('p', 'headline',
-    `Floor ${rows.length} costs <b>${f(last / first, 1)}×</b> floor 1 — `
-    + `${f(first, 1)} hp there, ${f(last, 1)} hp by the bottom.`));
-  body.append(el('p', 'meaning',
-    'hp a fixed reference player spends clearing the floor, picking up nothing. Good: rises, every single step — a floor should never be a relief after the one before it.'));
-
-  const t = el('table');
-  const drops = [];
-  t.innerHTML = '<thead><tr><th>floor</th>' + rows.map((r) => `<th>${r.level}</th>`).join('') + '</tr></thead>'
-    + '<tbody><tr><td>hp spent</td>' + rows.map((r, i) => {
-      const cheaper = i > 0 && r.mean < rows[i - 1].mean;
-      if (cheaper) drops.push(r.level);
-      return `<td class="${cheaper ? 'no' : ''}">${f(r.mean, 1)}</td>`;
-    }).join('') + '</tr>'
-    + '<tr><td class="direction">× floor 1</td>' + rows.map((r) => `<td class="direction">${f(r.mean / first, 1)}×</td>`).join('') + '</tr></tbody>';
-  body.append(t);
-
-  if (drops.length) {
-    body.append(el('p', 'flag',
-      `Cheaper than the floor before it: ${drops.map((l) => `floor ${l}`).join(', ')}. `
-      + `At this sample size that can be noise rather than a real dip — raise the `
-      + `sample count above, or settle it properly in run-ruler.html, before treating `
-      + `this as a finding.`));
-  } else {
-    body.append(el('p', 'flag none', 'No floor is cheaper than the one before it.'));
-  }
-  return body;
+function cell(kind, label, big, meaning, direction) {
+  const c = el('div', `cell${kind === 'success' ? ' success' : ''}`);
+  c.append(el('div', 'kind', kind === 'success' ? 'success' : 'health'));
+  c.append(el('div', null, `<b style="font-size:11px">${label}</b>`));
+  c.append(el('div', 'big', big));
+  c.append(el('div', 'meaning', meaning));
+  if (direction) c.append(el('div', 'direction', direction));
+  return c;
 }
 
-function renderCreatures(counts) {
-  const body = el('div');
-  body.append(el('p', 'headline', `${counts[0]} on floor 1, ${counts[counts.length - 1]} by floor ${counts.length}.`));
-  body.append(el('p', 'meaning', 'how full the floor is. Good: rises.'));
-  const t = el('table');
-  t.innerHTML = '<thead><tr><th>floor</th>' + counts.map((_, i) => `<th>${i + 1}</th>`).join('') + '</tr></thead>'
-    + '<tbody><tr><td>creatures</td>' + counts.map((c, i) => {
-      const drop = i > 0 && c < counts[i - 1];
-      return `<td class="${drop ? 'no' : ''}">${c}</td>`;
-    }).join('') + '</tr></tbody>';
-  body.append(t);
-  const drops = counts.filter((c, i) => i > 0 && c < counts[i - 1]);
-  if (drops.length) body.append(el('p', 'flag', 'Floor count drops somewhere in the ladder.'));
-  return body;
+function levelSection(title, lede, cells, flagNode) {
+  const s = el('section', 'level');
+  s.append(el('h2', null, title));
+  if (lede) s.append(el('p', 'lede2', lede));
+  const grid = el('div', 'grid');
+  for (const c of cells) grid.append(c);
+  if (flagNode) grid.append(flagNode);
+  s.append(grid);
+  return s;
 }
 
-function renderSpread(rows) {
-  const body = el('div');
-  const first = rows[0].cv;
-  const last = rows[rows.length - 1].cv;
-  body.append(el('p', 'headline',
-    `Two floor-1s typically differ by about ${pct(first)}; two floor-${rows.length}s by about ${pct(last)}.`));
-  body.append(el('p', 'meaning',
-    'how different two runs of the same floor number are from each other, as a share of the average cost. Good: does not shrink with depth — a deep floor should stay as unpredictable as a shallow one, not settle into a routine.'));
-  const t = el('table');
-  t.innerHTML = '<thead><tr><th>floor</th>' + rows.map((r) => `<th>${r.level}</th>`).join('') + '</tr></thead>'
-    + '<tbody><tr><td>spread</td>' + rows.map((r) => `<td>${pct(r.cv)}</td>`).join('') + '</tr></tbody>';
-  body.append(t);
-  const cls = last >= first * 0.85 ? 'flag none' : 'flag';
-  const msg = last >= first * 0.85
-    ? 'Holding up — deep floors are about as unpredictable as shallow ones.'
-    : `Shrinking — floor ${rows.length} is noticeably more predictable than floor 1.`;
-  body.append(el('p', cls, msg));
-  return body;
-}
-
-function renderFinishes(bot) {
-  const body = el('div');
-  const p = bot.finishRate;
-  const cls = p >= 0.15 && p <= 0.35 ? 'ok' : (p >= 0.10 && p <= 0.45 ? 'meh' : 'no');
-  body.append(el('div', 'cardhead',
-    `<span class="big ${cls}">${pct(p)}</span><span class="direction">n=${bot.runs} descents, ${bot.cleared} reached the bottom</span>`));
-  body.append(el('p', 'meaning',
-    'share of full ten-floor runs the real bot survives to the shrine. Good: somewhere near 1 in 4 — often enough to feel winnable, rare enough to matter.'));
-  return body;
-}
-
-function renderLoot(rows) {
-  const body = el('div');
-  body.append(el('p', 'meaning',
-    "what a floor's loot is worth, measured as hp saved, against what the floor costs. Context only — no target."));
-  const t = el('table');
-  t.innerHTML = '<thead><tr><th>floor</th>' + rows.map((r) => `<th>${r.level}</th>`).join('') + '</tr></thead>'
-    + '<tbody><tr><td>loot ÷ cost</td>' + rows.map((r) => `<td>${pct(r.reward / r.challenge)}</td>`).join('') + '</tr></tbody>';
-  body.append(t);
-  return body;
-}
-
-function render(reward, counts, bot) {
+function render(reward, counts, dc) {
   $('out').innerHTML = '';
-  card('1. Cost per floor', renderCost(reward.map((r) => ({ level: r.level, mean: r.challenge.mean }))));
-  card('2. Creatures per floor', renderCreatures(counts));
-  card('3. Spread within a floor', renderSpread(reward.map((r) => ({ level: r.level, cv: r.challenge.cv }))));
-  card('4. Finishes', renderFinishes(bot));
-  card('5. Loot vs cost', renderLoot(reward.map((r) => ({ level: r.level, reward: r.reward.mean, challenge: r.challenge.mean }))));
+
+  // ***** Product *****
+  const depths = dc.depths;
+  const depthList = depths.join(', ');
+  const finCls = dc.finishRate >= 0.15 && dc.finishRate <= 0.35 ? 'ok' : 'meh';
+
+  const productCells = [
+    cell('success', 'median depth reached',
+      `<span>${f(dc.medianDepth, 1)} <span style="font-size:.9rem;color:var(--faint)">of ${LEVELS}</span></span>`,
+      'How far into the descent a run typically gets before it ends, one way or another.',
+      `good: higher, around 7 of 10 — depths this run: ${depthList}`),
+    cell('health', 'finishes',
+      `<span class="${finCls}">${pct(dc.finishRate)}</span>`,
+      'Share of runs that reach the shrine at all. Moves with BOTH the map and the bot — a change here does not by itself say which one shifted.',
+      `${dc.cleared}/${dc.runs} reached the bottom`),
+    cell('health', 'turns between events',
+      f(dc.eventGapMedian, 0),
+      'A kill, a chest, a floor change — median turns between one and the next. Short: something is always happening.',
+      `n=${dc.eventGapN} events`),
+    cell('health', 'spread of depths reached',
+      `±${f(dc.depthSpread, 1)}`,
+      'How much runs differ in how far they get. Good: does not collapse to zero — runs should not all end on the same floor.',
+      null),
+  ];
+  $('out').append(levelSection('Product — is a run worth watching', null, productCells));
+
+  // ***** Map *****
+  const first = reward[0].challenge.mean;
+  const last = reward[reward.length - 1].challenge.mean;
+  const drops = [];
+  reward.forEach((r, i) => {
+    if (i > 0 && r.challenge.mean < reward[i - 1].challenge.mean) drops.push(r.level);
+  });
+  const costTable = el('table');
+  costTable.innerHTML = '<thead><tr><th>floor</th>' + reward.map((r) => `<th>${r.level}</th>`).join('') + '</tr></thead>'
+    + '<tbody><tr><td>hp spent</td>' + reward.map((r, i) => {
+      const cheaper = i > 0 && r.challenge.mean < reward[i - 1].challenge.mean;
+      return `<td class="${cheaper ? 'no' : ''}">${f(r.challenge.mean, 1)}</td>`;
+    }).join('') + '</tr></tbody>';
+  const costCard = el('div');
+  costCard.append(costTable);
+  const flagNode = drops.length
+    ? el('p', 'flag', `Cheaper than the floor before it: ${drops.map((l) => `floor ${l}`).join(', ')}. `
+      + 'At this sample size that can be noise — raise the sample or check the table above before treating it as a finding.')
+    : el('p', 'flag none', 'No floor is cheaper than the one before it.');
+
+  const creatureRow = counts.map((c, i) => {
+    const drop = i > 0 && c < counts[i - 1];
+    return `<td class="${drop ? 'no' : ''}">${c}</td>`;
+  }).join('');
+  const creatureTable = `<table><thead><tr><th>floor</th>${counts.map((_, i) => `<th>${i + 1}</th>`).join('')}</tr></thead>`
+    + `<tbody><tr><td>count</td>${creatureRow}</tr></tbody></table>`;
+
+  const spreadTable = `<table><thead><tr><th>floor</th>${reward.map((r) => `<th>${r.level}</th>`).join('')}</tr></thead>`
+    + `<tbody><tr><td>spread</td>${reward.map((r) => `<td>${pct(r.challenge.cv)}</td>`).join('')}</tr></tbody></table>`;
+
+  const lootTable = `<table><thead><tr><th>floor</th>${reward.map((r) => `<th>${r.level}</th>`).join('')}</tr></thead>`
+    + `<tbody><tr><td>loot ÷ cost</td>${reward.map((r) => `<td>${pct(r.reward.mean / r.challenge.mean)}</td>`).join('')}</tr></tbody></table>`;
+
+  const mapCells = [
+    cell('success', `cost, floor ${LEVELS} ÷ floor 1`,
+      `${f(last / first, 1)}×`,
+      `hp a fixed reference player spends clearing a floor, picking up nothing. Floor 1: ${f(first, 1)} hp, floor ${LEVELS}: ${f(last, 1)} hp.`,
+      'good: higher, AND rising every single step — see below'),
+    cell('health', 'creatures per floor', `${counts[0]} → ${counts[counts.length - 1]}`,
+      'How full the floor is.', 'good: rises'),
+    cell('health', 'spread within a floor', `${pct(reward[0].challenge.cv)} → ${pct(reward[reward.length - 1].challenge.cv)}`,
+      'How different two runs of the same floor number are from each other.', 'good: does not shrink with depth'),
+    cell('health', 'loot against cost',
+      `${pct(reward.reduce((s, r) => s + r.reward.mean, 0) / reward.reduce((s, r) => s + r.challenge.mean, 0))} avg`,
+      "What a floor's items are worth, measured as hp saved, against what it costs.", 'context only, no target'),
+  ];
+  const mapSection = levelSection('Map — does the floor do its job', null, mapCells, flagNode);
+  const tables = el('div', 'subnote');
+  tables.style.marginTop = '.7rem';
+  tables.append(el('h3', null, 'cost per floor'), costTable,
+    el('h3', null, 'creatures per floor'), el('div', null, creatureTable),
+    el('h3', null, 'spread within a floor'), el('div', null, spreadTable),
+    el('h3', null, 'loot vs cost, per floor'), el('div', null, lootTable));
+  mapSection.querySelector('.grid').append(tables);
+  $('out').append(mapSection);
+
+  // ***** Bot *****
+  const botCells = [
+    cell('success', 'damage per kill', f(dc.damagePerKill, 2),
+      'hp taken, on average, for every creature killed across a full descent.', 'good: lower'),
+    cell('health', 'reversal rate', pct(dc.reversalRate),
+      'Share of moves that immediately undo the move before it — the bot pacing instead of committing.', 'good: it stops pacing back and forth'),
+    cell('health', 'turns per floor', f(dc.turnsPerFloor, 0),
+      'Average turns spent on one floor, cleared or not.', 'good: it stops wandering'),
+    cell('health', 'lost fights started',
+      `${dc.lostFightsStarted} <span style="font-size:.85rem;color:var(--faint)">/ ${dc.fightsStarted}</span>`,
+      "Fights the bot's own pricing already knew it couldn't afford when it started them anyway (nothing left to prepare with).",
+      'good: near zero'),
+  ];
+  $('out').append(levelSection('Bot — does it play well', null, botCells));
 
   const details = el('details');
-  details.append(el('summary', null, 'sample sizes (small on purpose — see run-ruler.html for a steadier read)'));
-  const p = el('p', 'smallprint',
-    `Cost/spread/loot: ${reward[0]?.n ?? '—'}–${Math.max(...reward.map((r) => r.n))} cleared samples per floor (both probes must clear; a handful get discarded). `
-    + `Finishes: ${bot.runs} full descents. Neither number here carries a standard error — that is what run-ruler.html is for.`);
-  details.append(p);
+  details.append(el('summary', null, 'sample sizes and what they cost'));
+  details.append(el('p', 'smallprint',
+    `Map numbers: ${reward[0]?.n ?? '—'}–${Math.max(...reward.map((r) => r.n))} cleared samples per floor (both probes have to clear; a few get discarded). `
+    + `Product/Bot numbers: ${dc.runs} full ten-floor descents by the real bot (${dc.totalActions} turns, ${dc.floorAttempts} floor-attempts, ${dc.totalKills} kills, ${dc.fightsStarted} fights started, pooled). `
+    + 'No standard errors on this page by design — raise the sample counts above for a steadier read if a number here needs settling properly.'));
   $('out').append(details);
 }
 
@@ -213,21 +235,20 @@ $('run').addEventListener('click', async () => {
   $('out').innerHTML = '';
   const started = performance.now();
   try {
-    const rewardRuns = Number($('rewardRuns').value);
-    const botRuns = Number($('botRuns').value);
+    const floorRuns = Number($('floorRuns').value);
+    const descentRuns = Number($('descentRuns').value);
     const firstSeed = Number($('firstSeed').value);
 
-    $('status').textContent = 'clearing floors (cost, spread, loot)…';
+    $('status').textContent = 'clearing floors (map numbers)…';
     await new Promise((r) => setTimeout(r, 20));
-    const reward = rewardShape({ runs: rewardRuns, firstSeed });
-
+    const reward = rewardShape({ runs: floorRuns, firstSeed });
     const counts = Array.from({ length: LEVELS }, (_, i) => floorPlan(i + 1).monsters);
 
-    $('status').textContent = 'running descents (finishes)…';
+    $('status').textContent = 'playing full descents with the real bot (product + bot numbers)…';
     await new Promise((r) => setTimeout(r, 20));
-    const bot = botFinishesAndSpike({ runs: botRuns, firstSeed: firstSeed + 700000 });
+    const dc = descentCheck({ runs: descentRuns, firstSeed: firstSeed + 700000 });
 
-    render(reward, counts, bot);
+    render(reward, counts, dc);
     $('status').textContent = `done in ${((performance.now() - started) / 1000).toFixed(1)}s`;
   } catch (error) {
     $('status').textContent = 'failed: ' + error.message;

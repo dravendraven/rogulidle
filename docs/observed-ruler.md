@@ -76,7 +76,12 @@ to answer that question.
 
 150 isolated-floor samples per level (Sonda A and Sonda B paired on the same
 seed), 1500 descents for power/buffer (Sonda B only), seed base 800000,
-max 4000 turns per floor. `run-ruler.html`.
+max 4000 turns per floor. Taken on the now-deleted `run-ruler.html`
+(I8, `docs/backlog.md`) — the probes it called
+(`isolatedShape`/`builtShape` in `src/analysis/observed-ruler.js`) are
+unchanged and still callable directly for a reading at this depth; the
+page itself was folded into `run-check.html`'s "map" numbers, which run a
+much smaller default sample.
 
 ```
 fl  creatures  challenge      reward        power      buffer    CV chal   CV rew    n    reached

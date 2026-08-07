@@ -81,31 +81,32 @@ exists and what the alternative cost.
 `python tools/dev-server.py` then open:
 
 - `/index.html` — watch the bot play
-- `/run-tests.html` — check the rules (46 tests)
-- `/run-lab.html` — **the main instrument.** Every dial, the formulas they
-  feed rendered from balance.js, and the descent measured on demand
-- `/run-shape.html` — diagnostic only: the six curve quantities per floor,
-  their growth rates and the four ratios. Changes nothing, just looks.
-  **Superseded by run-ruler.html** — its challenge/reward numbers use the
-  modelled `campaignCost`, not actual play. See docs/observed-ruler.md.
-- `/run-ruler.html` — **the current instrument for challenge, reward,
-  power and buffer.** Two frozen probes (`src/analysis/observed-ruler.js`)
-  actually clear a floor twice — once collecting nothing, once collecting
-  what's in the way — and the real damage taken is the ruler, not a duel
-  formula. See docs/observed-ruler.md for the baseline and what this
-  instrument cannot answer (map clustering needs its own).
-- `/run-check.html` — **"is the map good?" in five numbers, nothing else.**
-  Cost per floor, creatures per floor, spread within a floor, finishes and
-  loot vs cost, each explained in plain language on the page and a small
-  default sample tuned to finish in seconds. Flags any floor cheaper than
-  the one before it by name. For settling an actual argument with growth
-  rates and standard errors, that's still run-ruler.html — this is the
-  quick look before reaching for it.
-- `/run-batch.html` — older single-floor sweeper, still useful for bot flags
+- `/run-tests.html` — check the rules (tests, not metrics — stays no
+  matter what happens to the pages below)
+- `/run-check.html` — **the only metrics page.** "Is this any good?" in
+  twelve numbers, three levels (product, map, bot), four each — one
+  success number and three health numbers per level, every one explained
+  in plain language and its good direction stated on the page itself.
+  Totals, not exponents; no standard errors, no growth rates. Small default
+  sample, tuned to run in seconds — raise it for a steadier read. Numbers
+  come from `src/analysis/observed-ruler.js` and `src/analysis/clustering.js`;
+  this page calls them, it does not compute anything itself. See I8 in
+  `docs/backlog.md` for why it replaced `run-ruler.html`/`run-lab.html`/
+  `run-batch.html` (deleted — nine quantities, four ratios and growth
+  exponents settled arguments but never told anyone whether the game was
+  worth watching) and `docs/observed-ruler.md` for the two-probe method
+  those modules still use underneath.
+- `/run-shape.html` — diagnostic only, unrelated to run-check's method:
+  the six curve quantities per floor, their growth rates and the four
+  ratios, still reading the MODELLED `campaignCost` rather than actual
+  play. Superseded in spirit by the real-play numbers `run-check.html`
+  shows; kept only for whatever this specific diagnostic view is still
+  used for.
 - `/run-curve.html` — **superseded.** It reads the MODELLED net challenge
   from `src/analysis/curve.js`, which prices clean 1v1 duels and so read
-  0.23 on a floor that killed four heroes of seven. run-lab measures the
-  same quantity instead of modelling it. Kept only until curve.js goes.
+  0.23 on a floor that killed four heroes of seven. `run-check.html`
+  measures the same kind of quantity from real play instead of modelling
+  it. Kept only until curve.js goes.
 
 Keep the measuring tab VISIBLE while it runs. Browsers clamp `setTimeout` to
 about a second in a background tab, and the runner yields between chunks,
