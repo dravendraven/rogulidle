@@ -80,6 +80,21 @@ that keeps side rooms populated is the same thing that stops clusters
 growing. There is no setting where both are maximised; the quota currently
 wins.
 
+**Monotonicity is now guaranteed, not observed.** `expectedFloorMass` is an
+exact closed-form integral over the tier distribution, reusing `spawn.js`'s
+own weighting rather than a second copy, and reading the shipped generation
+parameters — so a test that fails on any decrease guards whatever the dials
+are set to next. The 2.18/1.97 "defect" that prompted it was sampling noise.
+
+**Clamping a roll's centre is not clamping its outcome.**
+`monsterWeightsAround` spreads ±2, so a centre of 2 still reaches slot 0.
+The tier floor had to clamp the drawn slot, not the index it was drawn
+around.
+
+**Rats still deal exactly zero damage.** The tier floor moved where they
+appear — up to floor 4 — but not what they are. Any floor holding one holds
+a creature that cannot hurt the hero at all.
+
 **Floor depth sets the tier ceiling, never the floor.** Tier is
 `depthAt(pos) × difficultyScale` where `depthAt` is position *within* the
 map, so near an entrance the index falls to zero on every floor.
