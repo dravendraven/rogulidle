@@ -62,134 +62,74 @@ Closed work is in `docs/project/decisions.md`. Parked and unscheduled is in
 `docs/project/candidates.md`.
 
 
-## I8 · one page that says whether the map is good
+## I8 · one page: three success numbers, nine health numbers
 
-`metrics agent` · **REPORTED** — runs in parallel with the M11–M15 batch
+`metrics agent` · **READY** — this supersedes the two earlier drafts of I8
 
 `run-ruler.html` reports nine quantities, four ratios, growth exponents and
-standard errors. It is the right tool for settling an argument and the wrong
-one for the question actually being asked, which is **"is the map any
-good?"**
+standard errors. Right for settling an argument, wrong for the question
+actually asked, which is **"is this any good?"**
 
-Build a second page — `run-check.html` — that answers that and nothing else.
+Build `run-check.html` to answer that. Three levels, and each gets **one
+success number and three health numbers.** Nothing else.
 
-**Five numbers. No more.**
+**Success is "did it work". Health is "has it rotted".** They are different
+questions and mixing them is what made the old targets table unreadable.
 
-| shows | means | good direction |
-|---|---|---|
-| cost per floor | hp a fixed reference player spends clearing it | rises, **every step** |
-| creatures per floor | how full the floor is | rises |
-| spread within a floor | how different two floor-7s are from each other | does not shrink with depth |
-| finishes | share of runs the real bot reaches the bottom | somewhere near 1 in 4 |
-| loot vs cost | what a floor's items are worth against what it costs | context only, no target |
+### Product — is a run worth watching
 
-**Say what each one means on the page**, in the words above — not "CV
-challenge ×0.994/floor". Anyone opening this should not need the backlog to
-read it.
+    SUCCESS   median depth reached          higher, ~7 of 10
+    health    finishes                      the end is reachable at all
+    health    turns between events          a kill, a chest, a floor — how long between
+    health    spread of depths reached      runs end differently, not all on floor 3
 
-**Speak in totals, not exponents.** "Floor 10 costs 15× floor 1" is
-readable; "×1.351 per floor" is not. Keep the growth rate as small print if
-it is wanted at all.
+Median depth is the closest thing to "is there a story". A run that dies on
+floor 2 has no arc however good the numbers are.
 
-**Flag the monotonicity break in red.** Any floor cheaper than the one above
-it gets called out by name — "floor 5 is cheaper than floor 4". That is M11's
-whole subject and it is invisible in a column of growth rates.
+### Map — does the floor do its job
 
-**What is deliberately NOT on this page:** capacity, attrition, buffer,
-challenge/power, the four ratios, standard errors, growth exponents. They
-took three attempts to define, need enormous samples to read, and none of
-them ever told anyone whether the game was worth watching. They stay in
-`run-ruler.html` for when a specific argument needs settling.
+    SUCCESS   cost, floor 10 ÷ floor 1      higher, AND rising every single step
+    health    creatures per floor           the floor is populated
+    health    spread within a floor         two floor-7s differ from each other
+    health    loot against cost             there is something to gain
 
-**Build nothing new to measure with.** Every number above already comes out
-of `observed-ruler.js` or `clustering.js`. This is a presentation, and if a
-number turns out to need new measurement, leave it off and say so.
+The success number **fails outright if any step goes backwards**, however
+good the ratio. Name the floor in red: "floor 5 is cheaper than floor 4".
 
-**Fast enough to actually use.** Default sample small enough to finish in
-seconds. Better a rough number someone runs than a precise one they do not.
+### Bot — does it play well
 
-### Result
+    SUCCESS   damage per kill               lower
+    health    reversal rate                 it stops pacing back and forth
+    health    turns per floor               it stops wandering
+    health    lost fights started           near zero
 
-Built `run-check.html`. Five cards, five numbers, each with its meaning and
-good direction written in the words from the spec table, right on the page.
+**Not win rate.** `balance.md` records why: *"win rate mixes bot quality
+with map difficulty; damage and blows per kill do not."* A page whose
+sections get read side by side must not carry a number that moves when a
+different section's subject changes.
 
-**All five come from what already exists — nothing new to measure.**
-`rewardShape` (`observed-ruler.js`) alone supplies three of the five: its
-`challenge` column is cost per floor, `challenge.cv` (already computed by
-`summarise`, just never surfaced before) is spread within a floor, and
-`reward.mean / challenge.mean` is loot vs cost. Creatures per floor is
-`floorPlan(level).monsters` — a generation-time read, no play at all.
-Finishes is `botFinishesAndSpike` (`clustering.js`), unchanged. No
-`floorPlanFn` override anywhere: M7/M10/M11/M13 all ship unflagged now, so
-plain `floorPlan` already is the shipped map — reusing `M7_ON` here would
-have been reading a frozen, increasingly stale snapshot instead of asking
-the game what it currently does.
+`finishes` is the one exception, sitting in Product where it belongs, and it
+**gets a label saying it moves with both.**
 
-**Speed cost more than I expected to give up.** `botFinishesAndSpike` is
-the one real bottleneck — about 1s/run, a full ten-floor bot descent, and
-nothing about that is compressible without changing what "finishes" means.
-Timed directly: 150 runs (`run-ruler.html`'s own convention) is 60–100s;
-even 20 was 22s. Landed on 8 samples/floor for cost·spread·loot (~3s) and
-**6 descents** for finishes (~6s), total **≈9s** on this machine, measured
-by clicking the button, not estimated. 6 descents makes "finishes" close to
-useless as a precise number (n=6 → a single run swings it by ~17 points)
-but the page labels its own `n=` plainly and both sample sizes are inputs,
-not constants — raise them for a steadier read, same tradeoff `run-ruler.html`
-always had, just defaulted the other direction here.
+### Rules for the page
 
-**The red flag needed a caveat, not a bigger sample.** At 8 samples/floor,
-`challenge`'s CV runs 46–190%, so the SE on a single floor's mean is large
-enough that adjacent floors swap order from noise alone most runs — I
-watched 4 of 10 floors flag as "cheaper" on a completely ordinary sample
-while building this. Raising the sample to make the flag reliable would
-have meant abandoning "seconds" for the one number the item calls out by
-name as the whole point of the page. Kept the small sample and added a line
-to the flag itself when it fires: this can be noise at this size, raise the
-count or check run-ruler.html before treating it as a finding. Speed was
-the explicit instruction over precision; this is what honoring that costs,
-stated rather than hidden.
+**Totals, not exponents.** "Floor 10 costs 15× floor 1" reads. "×1.351 per
+floor" does not. Growth rates are small print if they appear at all.
 
-**Loot vs cost reads noisy and mostly small** (0–43% in one run) — expected,
-not investigated further: it is marked context-only in the spec, and I6's
-own report already found reward's CV far higher than challenge's.
+**Every number carries its meaning and its good direction, on the page.**
+Nobody should need the backlog to read it.
 
-**Not measured / left off:** nothing. All five numbers in the spec table
-have a card; nothing needed a new instrument.
+**Nothing new to measure with.** All twelve already come out of
+`observed-ruler.js` or `clustering.js`. Anything that would need new
+measurement gets left off with a note saying so.
 
-### Addendum, arriving mid-flight — the same page checks the bot
+**Seconds to run.** A rough number someone runs beats a precise one they do
+not.
 
-**Not a rewrite.** The map half above stands. This adds a second half to the
-same page; fold it in or finish the map half first, your call, but say
-which.
-
-Same shape as the map half: **five numbers, each with its meaning and its
-good direction written on the page.**
-
-| shows | means | good direction |
-|---|---|---|
-| reversal rate | how often it undoes the step it just took — the pacing back and forth | falls |
-| damage per kill | how expensively it fights | falls |
-| turns per floor | how much it wanders | falls, but not to zero |
-| chests taken | share of the chests it found that it opened | rises |
-| lost fights started | fights begun that it had already priced as unwinnable | near zero |
-
-**Not win rate, and this is the point.** `balance.md` already records why:
-*"Win rate mixes bot quality with map difficulty; damage and blows per kill
-do not."* A page whose two halves are read side by side must not have a
-number that moves when either half changes, or every conversation about it
-starts by untangling which caused what.
-
-**Which means `finishes` needs a warning label.** It is in the map half and
-it is the one number that mixes both. Mark it as such where it appears —
-"moves when the map changes *or* when the bot does". Everything else on the
-page belongs cleanly to one side: the map numbers come from probes, which
-are bot-independent by construction, and the bot numbers are behaviour,
-which barely moves with map difficulty.
-
-**Same constraints as the map half.** Nothing new to measure with — the
-reversal rate already exists from B1's instrumentation, the rest come out of
-`clustering.js`'s bot runs. Anything needing new measurement gets left off
-with a note. Seconds to run, plain words, no exponents.
+**Deliberately absent:** capacity, attrition, buffer, challenge/power, the
+four ratios, standard errors, growth exponents. Three attempts to define,
+enormous samples to read, and none of them ever told anyone whether the game
+was worth watching. They stay in `run-ruler.html`.
 
 ## M11 · floor n+1 is never easier than floor n
 
