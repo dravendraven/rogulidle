@@ -61,12 +61,8 @@
 <div class="app">
 
 <h1>Is this any good?</h1>
-<p class="lede">Twelve numbers, three levels, four each — one success number
-(did it work) and three health numbers (has it rotted). This is the only
-metrics page; the numbers still come from
-<code>src/analysis/observed-ruler.js</code> and
-<code>src/analysis/clustering.js</code>, this just calls them and reads
-them in plain language instead of exponents and standard errors.</p>
+<p class="lede">Twelve numbers, three levels — one success number and
+three health numbers each.</p>
 
 <fieldset>
   <legend>run</legend>
@@ -75,10 +71,8 @@ them in plain language instead of exponents and standard errors.</p>
     <div><label>descents (product + bot numbers)</label><input id="descentRuns" type="number" value="2"></div>
     <div><label>seed base</label><input id="firstSeed" type="number" value="500000"></div>
   </div>
-  <p class="note" style="margin:.6rem 0 0">Small on purpose — a rough
-  number someone actually runs beats a precise one they don't. The descent
-  count especially: each one plays the real bot through a full ten-floor
-  game, which is the whole cost of this page. Raise it for a steadier read.</p>
+  <p class="note" style="margin:.6rem 0 0">Small on purpose. Raise the
+  descent count for a steadier read — it's the expensive one.</p>
 </fieldset>
 
 <button id="run" class="primary">Check</button>
@@ -134,20 +128,20 @@ function render(reward, counts, dc, cap) {
   const productCells = [
     cell('success', 'median depth reached',
       `<span>${f(dc.medianDepth, 1)} <span style="font-size:.9rem;color:var(--faint)">of ${LEVELS}</span></span>`,
-      'How far into the descent a run typically gets before it ends, one way or another.',
-      `good: higher, around 7 of 10 — depths this run: ${depthList}`),
+      'How far a run typically gets.',
+      `good: ~7 of 10 · this run: ${depthList}`),
     cell('health', 'finishes',
       `<span class="${finCls}">${pct(dc.finishRate)}</span>`,
-      'Share of runs that reach the shrine at all. Moves with BOTH the map and the bot — a change here does not by itself say which one shifted.',
-      `${dc.cleared}/${dc.runs} reached the bottom`),
+      'Share of runs that reach the shrine. Moves with both map and bot.',
+      `${dc.cleared}/${dc.runs} reached bottom`),
     cell('health', 'turns between events',
       f(dc.eventGapMedian, 0),
-      'A kill, a chest, a floor change — median turns between one and the next. Short: something is always happening.',
-      `n=${dc.eventGapN} events`),
+      'Median turns between a kill, chest, or floor change.',
+      `n=${dc.eventGapN}`),
     cell('health', 'spread of depths reached',
       `±${f(dc.depthSpread, 1)}`,
-      'How much runs differ in how far they get. Good: does not collapse to zero — runs should not all end on the same floor.',
-      null),
+      'How much runs differ in how far they get.',
+      'good: not zero'),
   ];
   $('out').append(levelSection('Product — is a run worth watching', null, productCells));
 
@@ -159,17 +153,9 @@ function render(reward, counts, dc, cap) {
     if (i > 0 && r.challenge.mean < reward[i - 1].challenge.mean) drops.push(r.level);
   });
   // hp spent as a multiple of a hero's EXPECTED effectiveHp (hp + armour)
-  // on arrival — the bot-independent read of "is this survivable". Not
-  // PLAYER_HP flat: hp itself never grows (no regen), armour does, so a
-  // flat 10 gets more wrong every floor down. The expectation comes from
-  // `capacityShape({ suppressDeath: true, startHero: null })` — the sonda,
-  // real PLAYER_HP base, death suppressed so every run reaches every floor
-  // and nobody is selected out by dying, which would otherwise bias this
-  // optimistic (only survivors, i.e. the luckier builds, would be counted
-  // at the deep floors that matter most). `challenge` is still the 400-hp
-  // calibration probe clearing the WHOLE roster with no gear, so this
-  // stays a pessimistic bound, not a death certainty — but a much less
-  // wrong one than dividing by a constant that cannot reflect armour.
+  // on arrival, not flat PLAYER_HP — hp never grows, only armour does.
+  // Source: capacityShape({ suppressDeath: true, startHero: null }) — sonda,
+  // real base, death suppressed so deep floors aren't survivor-biased.
   const capByLevel = new Map(cap.rows.map((r) => [r.level, r.effectiveHp.mean]));
   const expectedHp = (level) => capByLevel.get(level) ?? PLAYER_HP;
   const lethal = [];
@@ -192,15 +178,14 @@ function render(reward, counts, dc, cap) {
   costCard.append(costTable);
   const flagParts = [];
   if (drops.length) {
-    flagParts.push(el('p', 'flag', `Cheaper than the floor before it: ${drops.map((l) => `floor ${l}`).join(', ')}. `
-      + 'At this sample size that can be noise — raise the sample or check the table above before treating it as a finding.'));
+    flagParts.push(el('p', 'flag', `Cheaper than the floor before: ${drops.map((l) => `floor ${l}`).join(', ')}. `
+      + 'Could be noise at this sample size.'));
   } else {
     flagParts.push(el('p', 'flag none', 'No floor is cheaper than the one before it.'));
   }
   if (lethal.length) {
-    flagParts.push(el('p', 'flag', `Costs ≥1× the hp+armour a hero can expect to have by then (sonda, death `
-      + `suppressed, no bot involved): ${lethal.map((x) => `floor ${x.level} (${f(x.ratio, 1)}×)`).join(', ')}. `
-      + 'Still pessimistic — this probe never dies so never loses momentum, and challenge itself assumes zero gear — but far less wrong than a flat PLAYER_HP would be.'));
+    flagParts.push(el('p', 'flag', `Costs more than a hero can expect to survive with (bot-independent): `
+      + `${lethal.map((x) => `floor ${x.level} (${f(x.ratio, 1)}×)`).join(', ')}.`));
   }
   const flagNode = el('div', 'subnote');
   for (const p of flagParts) flagNode.append(p);
@@ -222,17 +207,17 @@ function render(reward, counts, dc, cap) {
   const mapCells = [
     cell('success', `cost, floor ${LEVELS} ÷ floor 1`,
       `${f(last / first, 1)}×`,
-      `hp a fixed reference player spends clearing a floor, picking up nothing. Floor 1: ${f(first, 1)} hp, floor ${LEVELS}: ${f(last, 1)} hp — ${f(last / expectedHp(LEVELS), 1)}× what a hero can expect to have (hp+armour) by floor ${LEVELS}.`,
-      'good: higher, AND rising every single step — see below'),
+      `hp to clear a floor, no loot. Floor 1: ${f(first, 1)}, floor ${LEVELS}: ${f(last, 1)}.`,
+      'good: higher, every step — see below'),
     cell('health', 'creatures per floor',
       `${counts[0]} → ${counts[counts.length - 1]} <span style="font-size:.85rem;color:var(--faint)">(xp ${f(reward[0].meanXp, 1)} → ${f(reward[reward.length - 1].meanXp, 1)})</span>`,
-      'How full the floor is, and how strong its roster reads on average (mean xp, straight off generation — not a modelled score).',
-      'good: count rises; mean xp rises too, or at least holds, once M13-style tier floors are in play'),
+      'How full the floor is, and how strong (mean xp).',
+      'good: both rise'),
     cell('health', 'spread within a floor', `${pct(reward[0].challenge.cv)} → ${pct(reward[reward.length - 1].challenge.cv)}`,
-      'How different two runs of the same floor number are from each other.', 'good: does not shrink with depth'),
+      'How different two runs of the same floor are.', 'good: does not shrink'),
     cell('health', 'loot against cost',
       `${pct(reward.reduce((s, r) => s + r.reward.mean, 0) / reward.reduce((s, r) => s + r.challenge.mean, 0))} avg`,
-      "What a floor's items are worth, measured as hp saved, against what it costs.", 'context only, no target'),
+      "Loot's hp value vs. the floor's cost.", 'context only'),
   ];
   const mapSection = levelSection('Map — does the floor do its job', null, mapCells, flagNode);
   const tables = el('div', 'subnote');
@@ -247,25 +232,25 @@ function render(reward, counts, dc, cap) {
   // ***** Bot *****
   const botCells = [
     cell('success', 'damage per kill', f(dc.damagePerKill, 2),
-      'hp taken, on average, for every creature killed across a full descent.', 'good: lower'),
+      'hp taken per kill, across a full descent.', 'good: lower'),
     cell('health', 'reversal rate', pct(dc.reversalRate),
-      'Share of moves that immediately undo the move before it — the bot pacing instead of committing.', 'good: it stops pacing back and forth'),
+      'Share of moves that undo the one before it.', 'good: stops pacing'),
     cell('health', 'turns per floor', f(dc.turnsPerFloor, 0),
-      'Average turns spent on one floor, cleared or not.', 'good: it stops wandering'),
+      'Average turns spent per floor.', 'good: stops wandering'),
     cell('health', 'lost fights started',
       `${dc.lostFightsStarted} <span style="font-size:.85rem;color:var(--faint)">/ ${dc.fightsStarted}</span>`,
-      "Fights the bot's own pricing already knew it couldn't afford when it started them anyway (nothing left to prepare with).",
+      'Fights started that the bot already priced as lost.',
       'good: near zero'),
   ];
   $('out').append(levelSection('Bot — does it play well', null, botCells));
 
   const details = el('details');
-  details.append(el('summary', null, 'sample sizes and what they cost'));
+  details.append(el('summary', null, 'sample sizes'));
   details.append(el('p', 'smallprint',
-    `Map numbers: ${reward[0]?.n ?? '—'}–${Math.max(...reward.map((r) => r.n))} cleared samples per floor (both probes have to clear; a few get discarded). `
-    + `Expected hp+armour: ${cap.runs} more full ten-floor descents, sonda policy, death suppressed so all ${cap.runs} reach every floor. `
-    + `Product/Bot numbers: ${dc.runs} full ten-floor descents by the real bot (${dc.totalActions} turns, ${dc.floorAttempts} floor-attempts, ${dc.totalKills} kills, ${dc.fightsStarted} fights started, pooled). `
-    + 'No standard errors on this page by design — raise the sample counts above for a steadier read if a number here needs settling properly.'));
+    `Map: ${reward[0]?.n ?? '—'}–${Math.max(...reward.map((r) => r.n))} samples/floor. `
+    + `Expected hp+armour: ${cap.runs} descents. `
+    + `Product/Bot: ${dc.runs} real-bot descents (${dc.totalActions} turns, ${dc.totalKills} kills). `
+    + 'No standard errors by design — raise sample counts above for a steadier read.'));
   $('out').append(details);
 }
 
