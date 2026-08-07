@@ -29,7 +29,7 @@ repeating it in the table only made the queue slower to scan.
 | # | id | what gets done | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
 | 1 | I7 | Measure capacity with death suppressed at PLAYER_HP, not on a 400 hp probe | map | metrics | REPORTED | n/a |
-| 2 | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | READY | n/a |
+| 2 | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | IN FLIGHT | n/a |
 | 3 | M3 | Unlock the strength ceiling with small probability, so a rare blow can be huge | map | work | REPORTED | — |
 | 4 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | BLOCKED on I6 | — |
 | 5 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | READY · fine tuning | — |
@@ -266,7 +266,7 @@ outside what was cheap here.
 
 ## I6 · give reward an instrument
 
-`map` · `metrics agent` · **READY**
+`map` · `metrics agent` · **IN FLIGHT**
 
 Reward is the only quantity with no way to read it, and two items are stuck
 behind that: M9 and M5 both move reward and neither can be judged.
