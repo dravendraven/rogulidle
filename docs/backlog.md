@@ -603,7 +603,56 @@ not a bug.
 not a numbers-only update to an existing one. No `docs/balance.md` entry —
 no new tunable constant, pure geometry.
 
-`work agent` · **READY** — after M20
+### Review of M20 — it works, and it is incompatible with side rooms
+
+**The room-spawn half is unambiguously good.** The hero can no longer land
+in a corridor, and it is verified from *outside* `spawn.js` by
+independently recomputing the longest pair rather than trusting the
+implementation's own claim.
+
+**The cost I predicted did not appear.** I wrote that fixing the pair would
+make every floor the same shape and cost floor-to-floor variance. Path
+length spread **rose**, 10.24 → 11.03, and CV went 0.614 → 0.637.
+
+**The spine share did break, and this time the worry was right.**
+
+    floor      1      2      3      5      7     10
+    before   0.836  0.829  0.833  0.874  0.815  0.888
+    after    0.949  0.964  0.943  0.969  0.928  0.944
+
+Left failing rather than adjusted, per instruction.
+
+### It is not a bug and it cannot be fixed
+
+A room is spine when the mandatory path crosses it. **Maximising the path
+maximises the spine** — the same quantity seen twice. Hero and shrine at
+opposite ends means the route crosses almost everything, so almost nothing
+is optional.
+
+`map-design.md` asks for 70% of threat on the mandatory route and about 30%
+in skippable side rooms. M20 delivers **95/5**. That is not the bargain
+missing its target, it is the bargain gone.
+
+**So it is a choice, and it is the owner's:**
+
+- **A long route across the whole map** — the floor reads as one journey,
+  almost nothing optional. M20 as it stands.
+- **A shorter route with real side rooms**, risk and reward rolled
+  independently, which `map-design.md` derives as the only thing that makes
+  a detour a gamble rather than a free lunch.
+
+**A middle exists.** The room-spawn fix is separable from maximising the
+pair — put the hero in a room and the shrine in a *distant* room without
+requiring the global maximum. Corridor spawn stays gone, side rooms survive.
+
+Worth knowing before choosing: **side rooms have never been shown to work.**
+I4 is parked and unanswered, and its question is whether the bot can tell a
+good one from a bad one at all. Losing something that may not function is a
+smaller loss than it sounds.
+
+## M21 · deep floors have something waiting where you land
+
+`work agent` · **BLOCKED on M19**
 
 The hero lands and has a moment to look around. On floor 1 that is an
 opening; on floor 10 it is a free turn the floor should not be giving away.
