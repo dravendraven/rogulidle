@@ -23,34 +23,31 @@ that unblocks two others outranks one that unblocks none.
 `reading` is the state of the metrics agent's measurement for that item —
 its standing job, which is not a task and so has no row of its own.
 
-Stories name **who the task is for**, and there are only two beneficiaries
-worth naming. *A spectator* means the change shows up in what is watched.
-*The project agent* means it does not — it buys a number someone needs to
-decide with. If a story cannot honestly say "as a spectator", the task is an
-instrument, and that is fine as long as nobody pretends otherwise.
+The line says **what gets done**, not why. The why is in the item, and
+repeating it in the table only made the queue slower to scan.
 
-| # | id | user story | feature | agent | status | reading |
+| # | id | what gets done | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
-| 1 | I7 | As the project agent, I want capacity measured free of the probe's own size, so that selection can be told from artefact | map | metrics | IN FLIGHT | n/a |
-| 2 | I6 | As the project agent, I want reward measured as what a floor holds, so that loot changes can be judged at all | map | metrics | READY | n/a |
-| 3 | M3 | As a spectator, I want deep floors to threaten one sudden big hit, so that a run can be lost in a moment | map | work | IN FLIGHT | — |
-| 4 | M9 | As a spectator, I want a monster's loot to match its danger, so that a fight is worth watching for what it pays | map | work | BLOCKED on I6 | — |
-| 5 | M4 | As a spectator, I want side rooms to get wilder with depth, so that late detours are real gambles | map | work | READY · fine tuning | — |
-| — | M7 | As a spectator, I want deep floors to stay unpredictable, so that the end of a run is not its dullest part | map | work | **DONE** · adopted, flag ON | done |
-| — | I5 | As the project agent, I want buffer split into capacity and attrition, so that its sign stops depending on the window | map | metrics | **DONE** | n/a |
-| — | M6 | As a spectator, I want the hero to toughen as it descends, so that a lethal tail reads as tension, not sudden death | map | work | **DONE** · built, flag OFF | done |
-| — | M2 | As a spectator, I want creatures to arrive in packs, so that a floor is a few encounters rather than many chores | map | work | FOLDED into M7 | — |
-| — | M5 | As a spectator, I want loot to sometimes be an event, so that opening a chest is worth reacting to | map | work | ON HOLD · no instrument | — |
-| — | I3 | As the project agent, I want clustering's effect settled, so that grouping's share of the budget rests on evidence | map | metrics | **DONE** | n/a |
-| — | B1 | As the project agent, I want to know which layer creates the ping-pong, so that the next fix targets the right one | bot | work | PARKED · reported | — |
-| — | B2 | As the project agent, I want the veto loop characterised, so that a fix is designed against evidence | bot | work | PARKED | — |
-| — | B3 | As a spectator, I want the bot to stop pacing between two tiles, so that watching it is not tedious | bot | work | PARKED | — |
-| — | B4 | As a spectator, I want the bot to explore for reward, so that it stops ignoring the loot the map hides far away | bot | work | PARKED | — |
-| — | B5 | As a spectator, I want the bot to respect crowds once packs are common, so that it stops walking into them | bot | work | PARKED | — |
-| — | B6 | As a spectator, I want the bot to prefer good side rooms, so that its detours look like decisions | bot | work | PARKED | — |
-| — | I4 | As the project agent, I want to know if the side-room inversion is real, so that no fifth fix is built on noise | bot | metrics | PARKED | n/a |
-| — | I1 | As the project agent, I want the ruler to play a floor rather than model it, so that crowds stop being mispriced | map | metrics | **DONE** | n/a |
-| — | I2 | As the project agent, I want clustering retested with a mortal hero, so that lethality is measured instead of cost | map | metrics | **DONE** | n/a |
+| 1 | I7 | Measure capacity with death suppressed at PLAYER_HP, not on a 400 hp probe | map | metrics | IN FLIGHT | n/a |
+| 2 | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | READY | n/a |
+| 3 | M3 | Unlock the strength ceiling with small probability, so a rare blow can be huge | map | work | IN FLIGHT | — |
+| 4 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | BLOCKED on I6 | — |
+| 5 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | READY · fine tuning | — |
+| — | M7 | Move difficulty off creature count onto strength and same-type clusters | map | work | **DONE** · adopted, flag ON | done |
+| — | I5 | Split buffer into capacity and attrition and measure each on its own terms | map | metrics | **DONE** | n/a |
+| — | M6 | Grant max and current hp every N kills, mirroring the xp progression | map | work | **DONE** · built, flag OFF | done |
+| — | M2 | Place creatures in clusters instead of independently | map | work | FOLDED into M7 | — |
+| — | M5 | Add a rare high-value item to the loot table | map | work | ON HOLD · no instrument | — |
+| — | I3 | Settle clustering with a sign test, a damage percentile and a CV re-read | map | metrics | **DONE** | n/a |
+| — | B1 | Trace goal and action per turn to find which layer creates the ping-pong | bot | work | PARKED · reported | — |
+| — | B2 | Characterise what the tactical veto alternates between, and why | bot | work | PARKED | — |
+| — | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | PARKED | — |
+| — | B4 | Give unexplored map an hp-denominated value so it competes with fighting | bot | work | PARKED | — |
+| — | B5 | Retune the crowd penalty once clusters make crowded tiles common | bot | work | PARKED | — |
+| — | B6 | Fix the bot's side-room discrimination once I4 shows the inversion is real | bot | work | PARKED | — |
+| — | I4 | Measure the side-room inversion at a sample that settles whether it is real | bot | metrics | PARKED | n/a |
+| — | I1 | Replace the modelled ruler with two frozen probes that play the floor | map | metrics | **DONE** | n/a |
+| — | I2 | Retest clustering with a mortal hero, measuring lethality instead of cost | map | metrics | **DONE** | n/a |
 
     work agent      M3 (spike gap M7 left) → M9 (waits on I6) → M4 if needed
     metrics agent   I7 → I6, plus the ruler re-run after each landing
