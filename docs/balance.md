@@ -632,7 +632,7 @@ explicitly M12's budget, not this item's to spend.
 
 | Name | Value | Status |
 |---|---|---|
-| `HP_FROM_KILLS` | `true` | **ADOPTED, PROVISIONALLY** — Review 2, see `docs/backlog.md` M6 |
+| `HP_FROM_KILLS` | `false` | **BUILT, NOT ADOPTED** — briefly on, then reverted by the owner. See `docs/backlog.md` M6 |
 | `HP_GRANT_PER_KILLS` | 2 | **INITIAL GUESS**, mirrors `KILLS_PER_XP` |
 | `HP_GRANT_AMOUNT` | 1 | **INITIAL GUESS**, calibrated against the buffer target below |
 
@@ -790,7 +790,7 @@ Not used until P3. Listed here so there is one place to look.
 |---|---|---|
 | `BOT_KNOWS_MONSTER_COUNT` | `true` | decided — see bot-strategy §4.1 |
 | `STEP_COST_IN_HP` | 0.01 | **INITIAL GUESS** |
-| `GOAL_STICKINESS` | 1.15 | **INITIAL GUESS** |
+| `GOAL_STICKINESS` | 1.15 | **INITIAL GUESS** — being raised, see below |
 | `UNKNOWN_MONSTER_ESTIMATE` | `{ xp: 4, hp: 7 }` | **INITIAL GUESS** |
 | `CHEST_LOOT_CHANCE` | 0.60 | measured over 150 maps |
 
@@ -838,7 +838,7 @@ It is a price rather than a ban because a ban can leave a goal unreachable.
 
 | Name | Value | Status |
 |---|---|---|
-| `TACTICAL_DEPTH` | 3 | **INITIAL GUESS** |
+| `TACTICAL_DEPTH` | 1 | one turn of lookahead — deeper searches optimise for never closing, see bot-strategy §4.4 |
 | `TACTICAL_RANGE` | 4 | **INITIAL GUESS** |
 | `TACTICAL_OVERRIDE_MARGIN` | 0.5 | **INITIAL GUESS** |
 
