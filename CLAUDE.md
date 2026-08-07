@@ -34,57 +34,29 @@ files rather than deleted — see `SIDE_ACTIVATION_CAP` in balance.js and
 
 ## Sessions and roles
 
-Four sessions may run against this repo at once. Your opening prompt says
-which one you are. If it does not, ask before touching anything.
+Usually one session at a time. When more than one runs, the boundaries are:
 
-- **project & design agent** — decides what to work on and why, proposes
-  design direction, and writes the prompts for the other three. May edit
-  `docs/`, never `src/`.
-- **work agent** — changes game and bot code. Never redefines scope, and
-  never changes what a metric means without saying so explicitly.
-- **ui agent** — owns what the spectator sees: `src/ui/`, `index.html`,
-  `style.css`. Never touches `src/sim/`, `src/bot/` or `src/analysis/`. If
-  the screen needs something the engine does not expose, report it rather
-  than adding it.
-- **metrics agent** — builds and runs instruments, and reports baselines.
-  Never touches `src/bot/` and never changes a balance value. It measures
-  the real game and nothing else: it does not build a variant of the map or
-  the bot in order to study one. If a question needs a change that does not
-  exist yet, say so and wait — the work agent builds it behind an
-  off-by-default flag first, and then both states get measured.
+- **project & design** — decides what to work on, writes the prompts,
+  reviews results. Edits `docs/`, never `src/`.
+- **work** — game and bot code.
+- **ui** — `src/ui/`, `index.html`, `style.css`.
+- **metrics** — `src/analysis/` and the instruments. Occasional now, not a
+  standing role.
 
-Work outside your role gets REPORTED, not done — even when it is a one-line
-fix and you can see exactly what it should be. The measurement ruler and the
-thing being measured are deliberately kept in different hands; a helpful fix
-across that line is the failure mode this split exists to prevent.
+Work outside your role gets reported, not done. The one boundary worth
+keeping strictly: **whoever built a change does not decide whether it
+worked** — that is what a review is for.
 
-`docs/balance.md` is the one file all four may touch. Different sections,
-small commits, and say in the commit message which role you are.
+`docs/backlog.md` is the task list. Your prompt names your task; read that
+item in full and report against what it asks for. Only the project agent
+adds or reorders items — if one looks wrong, say so instead of editing it.
 
-`docs/kpi.md` holds the current measured value of every KPI, with the commit
-and sample each was taken at. The metrics agent owns it and updates it after
-every reading; nobody else edits it. Targets live in `docs/backlog.md` and
-belong to the project agent. If a number in prose anywhere disagrees with
-`kpi.md`, `kpi.md` wins and the prose is stale.
+`docs/kpi.md` records what was last measured, with the commit and sample.
+It is a record, not a set of goals.
 
-`docs/backlog.md` holds the task list and its acceptance criteria — the one
-file you need to pick up a task and finish it. Your opening prompt names your
-task; read that item in full before starting, and report against ITS criteria
-rather than your own sense of finished.
-
-The reasoning behind it lives in `docs/project/`, and you do not need it to
-deliver: `objectives.md` is why the work exists and what the targets are,
-`decisions.md` is closed items with their results and reviews, and
-`candidates.md` is ideas with no slot. Read them when an item points you
-there, or when something in a spec looks arbitrary.
-
-Your FIRST action on any task is to set it to IN FLIGHT and commit that
-alone — four sessions share this repo and cannot see each other, so an
-unclaimed item is one two agents can start at once. If it is already IN
-FLIGHT, stop and say so. When you finish, set it to REPORTED and append a
-`### Result` block — see the legend at the top of that file. Only the
-project agent adds or reorders items, or promotes REPORTED to DONE; if an
-item looks wrong, report that instead of editing it.
+**Watch the game. Fix what is wrong.** Measure only when you cannot tell by
+looking — `docs/project/objectives.md` has the history of why that rule
+exists and what the alternative cost.
 
 ## Hard rules
 - Vanilla JavaScript, ES modules. No frameworks, no npm, no build step,

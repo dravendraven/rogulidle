@@ -1475,4 +1475,1113 @@ asked for. And the verification is stated for what it was — several runs
 watched through, including one clear and one death, rather than every floor
 transition checked.
 
+## I7 · separate immortality from starting hp
 
+`map` · `metrics agent` · **REPORTED**
+
+The probe survives **because** it carries 400 hp, which welds two
+independent things together and costs two different measurements.
+
+**Capacity's rate is diluted by the base.** A growth rate is not
+scale-invariant: M6's grant of about +42 hp across a descent reads
+`×1.011` per floor on 400 and roughly `×1.20` on a real hero's 10. The
+measured `hpMax ×1.008` is the first of those almost exactly, so what
+capacity currently reports is mostly an artefact of the instrument's own
+size.
+
+**And it makes the selection effect unmeasurable.** I5 attributed the gap
+between capacity's power (×1.048) and the mortal series' (×1.243) to
+survivor selection. It cannot be attributed there — the two differ in
+mortality *and* in base, so the gap is selection plus dilution in unknown
+proportion.
+
+**The fix separates them.** Suppress death as a flag and start the probe at
+`PLAYER_HP`. Capacity then carries neither selection nor base artefact, and
+subtracting it from the mortal series at the **same base** isolates
+selection cleanly — turning attrition's bias from *declared* into
+*quantified*, which is as far as it can go, since a hero that cannot die
+cannot measure attrition at all.
+
+**Acceptance.** Capacity re-reported at `PLAYER_HP` with death suppressed,
+all ten floors, full sample. The selection effect stated as a number with
+its own standard error rather than as a direction. `docs/kpi.md` updated,
+including the note that says capacity and attrition may not be compared
+until they share a base.
+
+**Watch.** Suppressing death is not the same as ignoring damage — the probe
+must still take blows and still spend hp, or attrition disappears from the
+capacity arm and the two series stop being subtractable. It should reach hp
+0 and keep going, not stop losing hp.
+
+### Result
+
+Measured at commit `8eb8c39`. Full numbers and the reliable-window table are
+in `docs/kpi.md` under "I7 — capacity at the mortal series' own base"; this
+is the summary.
+
+**Built it as a new driver, not a flag on the old one.** `driveDescent`
+calls `playGame` once per floor, which runs a floor to completion
+internally and cannot be interrupted mid-death. Suppression needs a per-turn
+hook, so this is a second function, `driveDescentSuppressed`, that drives
+`step()` directly — same pattern `clustering.js`'s `playFromState` already
+used for I2 — and clears `state.outcome`/`killedBy` back to null the instant
+it reads `'died'`, before the next `step()` call, which is the only place
+the engine checks it. `applyDamage` clamps hp at 0 without touching the
+logged blow size, so attrition kept accumulating correctly straight through
+— checked directly: `diedBeforeOrOn` rose from 14/150 at floor 1 to 142/150
+by floor 10, and hp really does sit at 0 and keep taking hits rather than
+stopping. `capacityShape` gained two options, default-off
+(`suppressDeath`, `startHero`) — omitting both reproduces every number
+already committed exactly, so nothing upstream broke.
+
+**Same base confirmed the right way:** passing `startHero: null` gives
+`carry = null` on floor 1, which is the exact code path `builtShape` already
+uses for the mortal series (no synthetic hero object, just the engine's own
+default start) — not a hand-built "PLAYER_HP hero" that might drift from
+what the mortal series actually starts with.
+
+**The selection effect, as a number:** gap = mortal power − capacity power,
+same base, same flags. Not distinguishable from zero at floor 2
+(z = −0.41). Clears this project's 2σ bar at floor 3 (z = 2.12) and is
+unambiguous at floor 4 (z = 3.30) — the last floor with ≥50 survivors on
+both sides; floor 5 is bigger still (+4.95) but the mortal arm only has 33
+survivors there, below `MIN_RELIABLE_N`, so it's a footnote. As a rate over
+the reliable window: capacity shrinks at ×0.842/floor, survivors hold flat
+at ×0.988/floor, ratio ×1.17/floor.
+
+**What surprised me:** that ratio lands almost exactly on I5's original
+×1.19/floor — the number that was declared unattributable because it mixed
+selection with base dilution. Turns out dilution was a minor contaminant of
+that estimate, not the dominant one; removing it barely moved the number.
+I expected the fix to matter more than it did.
+
+**What I could not resolve:** capacity and attrition still cannot be
+compared to each other, same base or not — attrition is only defined for a
+hero that can actually die, and a suppressed-death hero has none to give.
+`docs/kpi.md` says this explicitly now. That was never this item's
+acceptance criteria (it asks for the selection effect, not an
+attrition/capacity subtraction), so it isn't a gap in what was delivered,
+just a boundary worth stating plainly rather than letting someone assume
+I7 closed it.
+
+**Scope note — M7 was adopted mid-task.** Commit `25f45a1` landed
+`DIFFICULTY_REBALANCED = true` while I7 was in flight, so every number above
+is against the *current* shipped default, not the pre-adoption state I7 was
+originally spec'd against. This doesn't change what I7 measures (capacity
+vs. mortal, same base, either way) but it does mean "M7 off" no longer
+describes anything shipped — noted in `kpi.md` so the Objective 1 table's
+`f42f085` columns aren't mistaken for live state.
+
+**Optional, from M7 review 2 (cheap, so done; not I7's own acceptance):**
+p95/p99 of per-turn damage conditioned on a live monster being adjacent that
+turn, added to `botFinishesAndSpike` in `clustering.js` since `playFromState`
+already tracks `adjacent` per turn — no replay needed. Pooled unconditioned
+stays flat (p95 = 0, p99 = 1) exactly as M7's review reported; conditioned on
+`adjacent ≥ 1` it moves to p95 = 1, p99 = 3 on about 15% of all turns played.
+The flat pooled number was walking-turn dilution, not a flat hit
+distribution. Whether that settles M3 is the reviewer's call, not mine — I
+did not re-run the old-vs-new comparison M7's review was asking about, since
+M7 adoption already made "old" not the shipped state, and re-deriving it is
+outside what was cheap here.
+
+### Review — DONE. Delivered its acceptance, and renamed the problem
+
+Accepted. The selection effect is now a number with a standard error rather
+than a direction: not distinguishable from zero at floor 2, clearing 2σ at
+floor 3, unambiguous at floor 4, and reported only over floors where **both**
+arms carry n ≥ 50 rather than pushed to where it looked biggest.
+
+**Two pieces of craft worth naming.** Suppression is a second driver rather
+than a flag on the old one, because `playGame` runs a floor to completion and
+cannot be interrupted mid-death — the right call rather than the cheap one.
+And `startHero: null` reuses the exact `carry = null` path the mortal series
+already takes, instead of hand-building a "`PLAYER_HP` hero" that could
+silently drift from what the other arm actually starts with. That is the
+difference between two series sharing a base and two series *claimed* to
+share one.
+
+### My critique was half right, and the half it got wrong is worth recording
+
+I said the ×1.19 selection figure was "selection plus base dilution in
+unknown proportion". Removing the dilution moved it to **×1.17**. The gap was
+robust and my confidence that it was contaminated was misplaced.
+
+What the base *did* distort badly is the absolute number: capacity's power
+read ×1.048 per floor on the 400 hp probe and shrinks at ×0.842 at the real
+base. So the fix mattered a great deal for what capacity is, and barely at
+all for the gap — and I asserted the reverse. Both halves are worth knowing;
+only one of them was worth the work.
+
+### The real finding: "capacity" is measuring the wrong thing, and I named it
+
+The report states the boundary plainly and it is the important sentence in
+it: capacity and attrition still cannot be compared, because **attrition is
+only defined for a hero that can die**.
+
+Death suppression removes *selection*. It does not separate capacity from
+attrition. What `capacityShape` measures is effective power of the
+**unselected population** — heroes at hp 0 walking on, averaged in with
+living ones — which is exactly right for isolating selection and is not what
+"capacity" means in the targets table. Spending is still inside it. That is
+why it falls at ×0.842 rather than rising.
+
+**A quantity that says "what the hero accumulates" cannot have spending
+subtracted from it.** It is `hpMax` plus the value of gear carried —
+monotone by construction, because nothing takes gear away. Attrition is what
+gets spent. Buffer is the difference, which is where this started.
+
+So the targets row is wrong again, for the third time, and each time the
+measurement taught the definition rather than the reverse. Fixing it below.
+
+### The conditioned spike, taken as a bonus, settles what M7's review asked
+
+Pooled over all turns: p95 = 0, p99 = 1. Conditioned on a live monster being
+adjacent — about 15% of turns — it is p95 = 1, p99 = 3.
+
+That confirms the diagnosis in M7's review 2: the flat pooled number was
+walking-turn dilution, not a flat hit distribution. It does not say whether
+clustering *moved* the spike, since the old-vs-new comparison was not re-run
+and "old" is no longer shipped. **M3 does not need it to** — its own report
+shows p99 going 4 → 9 at floor 10 against its own flag, which is the
+evidence M3 stands on.
+
+## I6 · give reward an instrument
+
+`map` · `metrics agent` · **REPORTED**
+
+Reward is the only quantity with no way to read it, and two items are stuck
+behind that: M9 and M5 both move reward and neither can be judged.
+
+**Why the probes cannot answer it.** Sonda B picks up only what it steps
+over and never detours, so its reward figure describes *its own policy*
+rather than what the floor holds. That is why `reward/challenge` reads flat
+and around 1% of challenge at every depth, and why reward has no row in the
+targets table. Recorded first as I1 review point 4 and never closed.
+
+**What is needed is a definition, and the definition is most of the work.**
+Two shapes, and choosing between them matters more than implementing either:
+
+- **What the floor contains** — sum the value of every chest and every drop
+  the floor holds, whether or not anyone takes it. A property of generation,
+  independent of any player, comparable across floors by construction.
+- **What is obtainable** — a third probe that detours for loot, so reward is
+  what a player willing to pay for it can actually get. Closer to the real
+  question, but reintroduces policy into the measurement.
+
+The first is cleaner and probably right for design work; the second answers
+"does descending pay", which is the ratio that was in the targets block.
+They may both be needed, as separate numbers with separate names, in which
+case say so rather than blending them.
+
+**Acceptance.** A reward figure that moves when the floor's contents move
+and does not move when only a policy changes. Report it per floor with its
+CV, alongside the existing challenge series so the ratio can be rebuilt.
+
+**Watch.** M9 makes drop value depend on the creature carrying it. Any
+definition that reads reward from the item table alone, without looking at
+who holds it, will be blind to exactly that change — which is the first
+thing this instrument will be asked to measure.
+
+### Result
+
+Measured at commit `8eb8c39` (shipped default, M7 on). Full table in
+`docs/kpi.md` under "I6 — reward: what the floor holds, not what a probe
+found"; this is the summary.
+
+**Which shape, and why.** Went with "what the floor contains," not "what is
+obtainable" — but built it to still be MEASURED by real play, not priced by
+a formula, because a hand-rolled point value per item is exactly what
+`campaignCost` was retired for being. The resolution: `state.chests[].drop`
+and `state.monsters[].drop` are already decided the instant `newGame`
+returns, before any tile is walked, so reading them off a fresh unplayed
+state is the floor's full manifest with zero exploration policy attached —
+then that manifest is handed to a probe from turn 0, all at once, and
+`reward = challenge − that probe's own damage`. Weapons and armour equip
+exactly (the pickup rule already sums them additively across everything
+ever picked up, so handing over the full manifest at once reproduces a
+"found everything" hero exactly, no model). Potions are the one item that
+cannot equip at turn 0 — one drunk at full hp is wasted — so they travel as
+a queue and are drunk only when the probe is hurt, untied from a map tile.
+That untying is a real simplification, stated in the code, not hidden: a
+real potion needs the hero to walk to it, this one is drunk on demand.
+
+**Acceptance, read literally:** reward moves with the floor's contents
+(depth-scaled loot quality, `CHEST_QUALITY_BY_DEPTH`, is exactly what
+drives its rise from floor 1 to floor 10) and cannot move from a policy
+change, because there is no pickup policy left in the measurement at all —
+the probe never explores for loot, it already holds everything. Reported
+per floor with CV (in `kpi.md`'s table), alongside challenge, so the ratio
+rebuilds directly.
+
+**The finding.** The old (`isolatedShape`) reward — Sonda B, picks up only
+what it steps over — reads "flat and around 1% of challenge at every
+depth" per this item's own framing. The floor-manifest reward instead runs
+**8–30% of challenge**, no strong trend, both growing at a similar clip
+(challenge ×1.351/floor, reward ×1.282/floor). That is not a revised
+estimate of the same quantity — it is roughly 10–20x larger because the
+old instrument was structurally blind to any loot off Sonda B's kill/explore
+path, and most of a floor's chests are exactly that. `docs/kpi.md` states
+explicitly that the two ratios are not comparable.
+
+**What I did not build.** The second shape from the spec ("what is
+obtainable," a third probe that detours for loot) — the spec allowed both
+to ship as separate numbers if needed, but nothing downstream (M9, M5) asks
+for the detour-and-find version yet, and the manifest version already
+satisfies this item's acceptance criteria on its own. Left as a candidate
+if a later item specifically needs "what a player willing to pay for it can
+get," rather than built speculatively now.
+
+### Review — DONE. Reward is measurable, and it was never 1%
+
+Accepted, and the design choice is the good part.
+
+**It measures the floor's contents by play rather than by a price list.**
+Reading `chests[].drop` and `monsters[].drop` off a fresh unplayed state
+gives the manifest with no exploration policy attached — those are decided
+the instant `newGame` returns. Handing that manifest to a probe at turn 0
+and taking `challenge − its damage` keeps the answer in hp and keeps a
+hand-rolled point-per-item out of it, which is exactly what `campaignCost`
+was retired for being. The item warned that a definition reading value from
+the item table would be blind to M9; this one is not, because M9 changes
+what is *in* the manifest.
+
+**The finding is large and it corrects a number this project has been
+quoting.** Old reward read about 1% of challenge; the manifest reads
+**8–30%**, growing ×1.282 against challenge's ×1.351. Not a revised
+estimate of the same thing — the old probe was structurally blind to
+anything off its kill-and-explore path, and most chests are exactly that.
+
+So "descending barely pays" was an artefact of the instrument. Reward does
+lose ground to challenge, at ×0.949 per floor, but from a base twenty times
+higher than believed and much nearer parity. That is consistent with the
+deliberate design in `balance.md` — flat chests so threat outpaces supply —
+rather than the near-zero it looked like.
+
+**It is a ceiling, and should always be quoted as one.** The probe holds
+everything from turn 0, including the axe that really sits in a chest at the
+far end and would be collected on turn 300. Potions compound it further:
+untied from tiles, drunk exactly when hurt, which no real hero can do. The
+simplification is disclosed in the code and in the report, which is right —
+but the number is "the most this floor could be worth", not "what a floor is
+worth". Anyone comparing it to challenge to ask whether descending pays is
+reading an upper bound.
+
+**Not building the obtainable version was the right call.** The spec allowed
+both; nothing downstream asks for the detour-and-find one yet, and building
+it speculatively would be a second instrument to keep honest for no current
+question.
+
+**Unblocks M9 and M5.** Both were held only because reward could not be
+judged. It can now.
+
+## M7 · move difficulty off count, onto strength and grouping
+
+`map` · `work agent` · **REPORTED** — the main route for the CV target
+
+**The problem is the dial, not the map.** Difficulty grows by adding
+creatures: `monsters(N) = 2 × 1.3^(N-1)`, from 2 on floor one to 21 on floor
+ten. The CV of a sum of `n` independent draws is `CV_single / √n`, so a
+count growing at 1.3 carries a built-in CV decay of **×0.877 per floor**.
+
+That decay is why the CV target cannot be reached by adding variance. Any
+per-creature source — a stronger tail, a wider strength spread — raises
+`CV_single`, which lifts every floor by the same factor and leaves the slope
+untouched. The dilution is not something the map does; it is arithmetic on
+the number of draws.
+
+**DCSS does not have this problem because it never created it.** Its
+creature count is roughly flat and difficulty comes from hit dice, so there
+is no dilution to fight and its tails — out-of-depth, bands — push the CV up
+freely. Ours falls for the opposite reason.
+
+**Group by identity, not just by proximity.** DCSS bands are compositional —
+an orc priest brings orcs, a pack is all hounds — and that buys two things
+spatial clustering alone does not. A same-type group is closer to a single
+draw than a mixed one, so it cuts deeper into the `√n` dilution this item
+exists to fight. And it reads on screen: "a pack of wolves" is a thing,
+while a bat, an ogre and a rat standing together is noise, which is half the
+value in a game whose product is watching. Cost is one draw instead of k.
+
+**Three levers, one budget.** Total challenge growth must stay at 1.343 per
+floor; what changes is where it comes from.
+
+- **Count grows slowly** instead of at 1.3, cutting the dilution.
+- **Strength scales** to replace the difficulty count stops providing.
+- **Grouping** cuts the remaining independent draws without emptying the
+  floor — twelve creatures in four clusters are four draws with twelve
+  bodies.
+
+They are one item because they are one budget and cannot be attributed
+apart: move one and the other two must move to hold challenge fixed.
+
+**What is already measured, and what it means.** The archived count→strength
+sweep, converted to a rate per floor:
+
+    count 1.30 (today)   CV 0.841 → 0.492   = 0.944 / floor
+    count 1.10           CV 0.841 → 0.637   = 0.970 / floor
+    count 1.00           CV 0.841 → 0.933   = 1.012 / floor
+
+The route was archived for the right reason and the wrong conclusion: the
+only point that flipped the sign was count 1.00, which on a base of 2 means
+two creatures on every floor — a dungeon that never grows. It was archived
+for emptying the floor, not for failing to move the CV.
+
+Grouping is what buys the last stretch without that cost. **This is the
+whole reason the item exists.**
+
+Also carried over from that sweep, and load-bearing here: the real cost
+exponent in strength is **2.356, not 2**, because strength indexes an
+11-row table whose mass runs 0 to 108. With the corrected exponent, the
+count 1.10 point saturates the table only at floor 11 — outside the descent.
+Get this wrong and the budget silently stops being constant.
+
+**Acceptance.**
+- CV of challenge reaches ≥ 1.00 per floor; 1.05 is the ambition.
+- Challenge holds at 1.343 ±0.03. This item moves where difficulty comes
+  from, never how much there is. **If challenge moves, the budget was not
+  held and the result is not interpretable** — that is what invalidated the
+  original sweep.
+- Floors stay populated. Report creatures per floor at 1, 5 and 10; the
+  degenerate corner is the failure mode this item exists to avoid.
+- `challenge/power` ≥ 1.15 and finishes inside 15–40%.
+
+**How to measure.** On the probes, flag off against flag on, with M6 already
+landed and its reading taken first. Paired seeds, confirmed on seeds not
+used for tuning.
+
+**Also settle the mechanism here — it is I3's unanswered question 2.**
+Grouping's rationale is that adjacent creatures strike in the same turn, so
+damage per *turn* rises while damage per *blow* stays capped. I2 found no
+consistent gap in worst-single-turn damage, and its own diagnosis is
+probably right: a mean is the wrong statistic for a tail, and "adjacent" is
+not "landed a blow" at 5/6 each.
+
+So report **p95 and p99 of per-turn damage taken**, not a mean, flag off
+against on. Spike moves → grouping delivers the shrinking reaction window it
+was chosen for. Spike flat while lethality still rises → it is working by
+attrition, which is a difficulty increase rather than a shape change, and
+grouping's share of the budget has to be re-argued rather than assumed.
+
+**Two things to watch.**
+
+The 11-row `MONSTER_TABLE` is FAITHFUL and its ceiling is the hard limit on
+how much of the budget strength can carry. Report the floor at which the
+chosen point saturates it.
+
+The bot avoids being reachable by two at once, so it may convert clusters
+back into sequential duels. I2 measured this and found it does *not* happen
+at cluster size 3 — crowded fraction was higher under grouping at all ten
+floors — but that was with the instrument's placement, not the engine's,
+and the finding does not automatically survive a different cluster size.
+
+**Reconcile the shadow implementation.** `src/analysis/clustering.js` was
+built by I2 to measure grouping and now holds placement logic outside the
+engine. When this lands, either the analysis file calls the engine's
+placement or the difference is written down deliberately. Silent drift means
+every clustering measurement stops describing the game.
+
+### Result
+
+**Built, flag off, exactly as instructed — no metrics-agent reading
+requested.** M6 was adopted (`HP_FROM_KILLS=true`) when this task started,
+so every number below was measured on that baseline. **Note for whoever
+reads this next:** M6's adoption was reversed while M7 was in flight
+(`ca5c6f9`, docs only — `src/sim/balance.js` still reads `true` on disk as
+of this report, so the reversal has not yet been executed in code). Not
+mine to act on: M7's own claim predates that decision and its commit
+message says the reversal is "cleaner" for M7 being mid-flight, so this
+report proceeds on the baseline it was given rather than re-measuring.
+Flagging the code/docs mismatch since it is not obviously anyone's task yet.
+`DIFFICULTY_REBALANCED=false` in `src/sim/difficulty.js`; 72/72 tests pass
+with the flag off, and a dedicated test confirms `floorParams`/`floorPlan`
+are byte-identical to before M7 in that state.
+
+**Mechanism, all three levers behind the one flag.**
+- `MONSTER_GROWTH_REBALANCED = 1.15` (count), replacing 1.3.
+- `STRENGTH_GROWTH_REBALANCED = 1.07` (strength), sized against the
+  corrected exponent 2.356 from the archived sweep, not 2.
+- `CLUSTER_SIZE = 6` (grouping) — `src/sim/spawn.js` now decides a zone and
+  an anchor once per cluster, draws **one** shared tier for the whole
+  cluster from the anchor's depth, then places every member nearest-tile
+  first via a new zone-filtered BFS (`clusterAround`), same RNG stream and
+  same side/spine rules as before. `CLUSTER_SIZE=1` reproduces the old
+  per-monster independent loop exactly (verified, RNG-exact). Because the
+  tier is drawn once per cluster rather than once per monster, a cluster is
+  always one creature type — this satisfies "group by identity, not just
+  proximity" from the design note above, not only spatial packing.
+
+**Acceptance, checked against what this instruction allowed measuring:**
+- **Challenge holds the budget — PASS.** 1.337 ±0.029 against the required
+  1.343 ±0.03. This is the criterion that invalidates everything else if it
+  fails; it did not fail.
+- **CV of challenge — SHORT.** Rose 0.944 → 0.986 per floor (target ≥1.00,
+  ambition 1.05). Not reached, and not still climbing: swept `CLUSTER_SIZE`
+  3 → 6 → 9 and got 0.954 → 0.986 → 0.993, sharply diminishing. Floors at
+  or below nominal `CLUSTER_SIZE` are already "one cluster" under the
+  slowed count law, and past that point a bigger cluster has nothing left
+  to absorb — this looks like a structural ceiling on how far grouping
+  alone can move CV once count growth is this slow, not a value that was
+  under-swept. Landing on 6 as the best point on that curve.
+- **Floors stay populated.** Self-measured (real bot, paired seeds,
+  flag-on, `CLUSTER_SIZE=6`, n=80 at floor 1, n=64 at floor 5, n=48 at
+  floor 10 — sample shrinks with reached depth): floor 1 mean 2.0, floor 5
+  mean 3.0, floor 10 mean 7.0. No degenerate corner.
+- **`challenge/power` and finish-rate band — not measured formally.** Out
+  of scope for this report per the "build and stop" instruction. A
+  work-agent self spot-check (n=80, real bot, flag on, **not** a
+  metrics-agent reading) came back at 56.3% ±5.5, well above the 15–40%
+  acceptance band on the same probe M6 used — roughly 3σ over the upper
+  edge. Flagging this as a strong prior for whoever runs the formal
+  reading, not as a finding in its own right: single spot-check, one
+  sample, and it says nothing about *why* (could be the slower count law,
+  the clustering, or bot behaviour against clusters — unseparated).
+- **p95/p99 of per-turn damage, "settle the mechanism" — not measured.**
+  Same reason: out of scope for a build-and-stop report.
+
+**Mid-build correction, disclosed.** First implementation clustered
+*position only* — every monster in a cluster still drew its own tier
+independently. Measured CV growth at 0.945, indistinguishable from
+baseline's 0.944: proximity alone bought nothing. This is what the design
+note's "group by identity, not just by proximity" was warning about, and I
+had built the "just by proximity" version anyway. Fixed by moving the tier
+draw to once per cluster (above); CV growth rose to 0.954 at the same
+`CLUSTER_SIZE=3`, and further with the size sweep. Not told this would
+happen — found it by measuring, which is why the mid-build number is
+recorded rather than only the final one.
+
+**Reconcile the shadow implementation — flagging, not fixing.**
+`src/analysis/clustering.js` (I2's) repositions monsters post-hoc, spatial
+only, and explicitly disclaims zone-awareness. The engine's placement above
+is zone-aware and draws one shared tier per cluster. These are genuinely
+different mechanisms now, not just different code paths to the same
+result — a clustering measurement taken through `clustering.js` will not
+describe what the flag-on engine actually does. Not my file to change
+(`src/analysis/` is metrics agent territory); leaving the decision — make
+`clustering.js` call the engine's placement, or document the divergence
+deliberately — to whoever owns that file next.
+
+**Not requesting a reading.** I5 is mid-measurement on the current game;
+flipping this flag would move the ground under it. This report is the
+build-and-test checkpoint only.
+
+### Review 1 — conformance. Passes, and one number needs rereading
+
+Conformance only; the verdict waits on the ruler reading. One miss, one
+correction, and one outstanding action that belongs to nobody yet.
+
+**The flag-off guarantee is the strongest this repo has produced.**
+`CLUSTER_SIZE = 1` reproduces the old per-monster loop RNG-exact, with a
+dedicated test that `floorParams`/`floorPlan` come out byte-identical. That
+is better than "off by default" — it is off by *identity*, so the flag
+cannot silently perturb a baseline the way M6's `cloneState` bug nearly did.
+
+**Challenge holds: 1.337 ±0.029 against 1.343 ±0.03.** This is the criterion
+that invalidates everything else, and the arithmetic behind it checks out —
+`1.15 × 1.07^2.356 = 1.349`, and using 2 instead of 2.356 would have
+overshot exactly as it did in the archived sweep.
+
+**MISS: the divergence is not in `rogule-spec.md` §13.** Rogule places
+creatures independently; the engine now anchors a cluster and draws one
+shared tier for all of it. That is a rule change, and §13 is where rule
+changes are recorded — it has §13.1 through §13.4 and no mention of
+clustering. Add it before the reading.
+
+### The mid-build correction is the most valuable thing in this report
+
+The first implementation clustered **position only**, each monster still
+drawing its own tier. Measured CV growth 0.945 against a 0.944 baseline —
+nothing. Rather than ship it or quietly rewrite, the failed version is in
+the report with its number.
+
+That empirically confirms the design note this item carried: **proximity
+alone buys nothing; the group has to be one creature type.** It was an
+argument when I wrote it and it is a measurement now, and the difference
+matters for M8 and anything else that reasons about draws.
+
+### finishes 56.3% is inherited from M6, not caused by M7
+
+The report flags its baseline honestly — M6 was adopted when M7 started, so
+everything was measured with `HP_FROM_KILLS=true` — but stops short of the
+consequence, and it inverts the reading.
+
+    M6 alone, on          56.7%
+    M6 on + M7 on         56.3%
+
+**M7 moved finishes by −0.4 points.** The 3σ overshoot of the band is M6's,
+and M6 is being reverted. Treat 56.3% as evidence about M6, not about M7,
+and expect M7's own finishes to sit near the ~30% baseline once the reversal
+is executed. The formal reading should be taken with `HP_FROM_KILLS=false`
+for exactly this reason.
+
+### CV 0.986 is not "short", it is indistinguishable from the target
+
+Reported as missing `≥1.00`. With CV's standard error running ±0.012–0.014
+on this instrument, 0.986 sits about **one** standard error below 1.00 —
+which is not a miss, it is a number that cannot be told apart from its
+target. The move it *did* make, 0.944 → 0.986, is around 3σ and is real.
+
+That does not make it a pass. It makes the honest statement "reaches the
+target within noise, ambition of 1.05 not approached", and the difference
+matters because the next decision is whether M4 and M3 are still needed.
+
+**And the ceiling argument is right, with a specific cause worth naming.**
+Slowing count to 1.15 leaves floor 10 holding **7 creatures** (measured: 7.0
+mean), so `CLUSTER_SIZE = 6` is already almost the entire floor. There is
+nothing left to group. **The two levers compete for the same material** —
+cutting count is what makes grouping run out of things to do — and that is
+why 3 → 6 → 9 gives 0.954 → 0.986 → 0.993 and stops. Not under-swept.
+
+### Two things outstanding, neither the work agent's
+
+**`HP_FROM_KILLS` is still `true` in `src/sim/balance.js`.** The reversal was
+decided and documented (`ca5c6f9`) but never executed in code, and the work
+agent was right to flag it rather than act on it mid-flight. It is a
+one-line change and it gates the M7 reading, since that reading has to be
+taken against the shipped baseline.
+
+**`src/analysis/clustering.js` is now genuinely divergent, not merely
+duplicated.** I2's version repositions monsters post-hoc, spatial only, and
+disclaims zone-awareness; the engine anchors by zone and shares one tier per
+cluster. They are different mechanisms, so any clustering measurement taken
+through the analysis file no longer describes the flag-on game. That is the
+metrics agent's file and its call.
+
+### Two Review 1 actions taken; the reading can proceed
+
+`HP_FROM_KILLS = false` in `src/sim/balance.js` — one line, mechanism not
+retracted, comment updated to point at `ca5c6f9`. This flipped the shipped
+default under a test that asserted the old default's behaviour with no
+explicit override (`the player gains max AND current hp every second kill,
+by default`) — same recurring failure mode as the first M6 flip, fixed the
+same way: split into an explicit-on test and a by-default-off test, mirror
+of the existing `xpFromKills` pair. 72/72 pass.
+
+`docs/rogule-spec.md` §13.5 added — clustering as a deliberate rule
+divergence (Rogule places independently; the engine now anchors a cluster
+and shares one tier), same structure as §13.1–13.4.
+
+Stopping here, as instructed. The M7 reading is the metrics agent's from
+here.
+
+### Ruler reading (metrics agent) — M7 isolated from M6
+
+Ran against commit `f42f085` (both Review 1 fixes landed). Full numbers in
+`docs/kpi.md`'s "Objective 1" table — summarised here.
+
+**`HP_FROM_KILLS = false` on both arms, by design.** The work agent's own
+report measured with it on (M6 was adopted when M7 started), and its
+Review-1 correction already showed finishes moved 56.7% → 56.3% — M7's own
+contribution was −0.4, the rest was M6. That correction is honoured here by
+construction rather than repeated: both M7-off and M7-on use the flag's off
+state explicitly, so nothing measured below can be M6's.
+
+**Ruler (probes, `src/analysis/observed-ruler.js`, 150/150/1500 samples):**
+challenge holds (1.337 ±0.029 vs 1.343 ±0.03, reproduces the work agent's
+own number exactly), CV reaches its target within noise (0.986 ±0.006,
+also reproduces exactly), `challenge/power` clears ≥1.15 in both arms
+(1.261 off, 1.193 on).
+
+**Real bot (`src/analysis/clustering.js`'s new `botFinishesAndSpike` — the
+probes cannot answer this, Sonda B did not finish a single descent in
+either arm, 0/1500 and 3/1500):**
+
+    finishes         off 31.3% ±3.8 (47/150)   on 20.0% ±3.3 (30/150)
+                     gap -11.3pp, z ~ -2.25
+    p95/p99 per-turn  off 0 / 1                 on 0 / 1   (no consistent shift, pooled or per-floor)
+
+**Direct answer: inside the band, but the review's "near baseline" prediction
+undersold it, and the mechanism is answered.** Finishes stay inside 15–40%
+in both arms — no repeat of M6's breach. But M7 alone moves finishes by
+−11.3 points, a real effect (z ≈ −2.25), not the "should sit near ~30%"
+the review expected once isolated from M6. And **the mechanism the item
+asked to settle is attrition, not spike**: per-turn damage percentiles do
+not move at all (0/1 pooled, no per-floor pattern either) while finishes
+fall significantly. Grouping is raising lethality through more turns of
+exposure, not through a bigger single-turn hit — exactly the branch the
+item's own spec flagged as a possible outcome ("a difficulty increase
+rather than a shape change... grouping's share of the budget has to be
+re-argued rather than assumed"), now measured rather than left open.
+
+**What surprised me.** That "inside the band" and "near baseline" turned
+out to be different claims. The first is true; the second isn't, by about
+2 standard errors. Both mattered to report, because a future item reading
+only the pass/fail on the band would miss that grouping has a real, signed
+effect on survival that the challenge/CV/challenge-power story says
+nothing about.
+
+**What I could not resolve.** Per-turn damage is a coarse instrument at
+this sample — most turns deal 0 or 1 damage regardless of arm, so p95/p99
+saturate early and a real spike difference smaller than "1 more point of
+damage lands sometimes" would not show up at n≈140k turns pooled. Attrition
+is the more sensitive read here, but a percentile built for a wider dynamic
+range (or a much larger sample) is the only way to fully rule out a small
+spike effect rather than just fail to find a large one.
+
+**Boundary note, since this shipped a new function.** `botFinishesAndSpike`
+reimplements the descent loop locally (same reasoning as
+`observed-ruler.js`'s `driveDescent`, and clustering.js's own
+`playFromState` from I2) rather than adding a hook to `playDungeon` — no
+`src/sim/` change. `clustering.js`'s old `toGrouped`/`clusterExperiment`
+(I2/I3) are left untouched and marked deprecated in the file's own header;
+this reading used only the real engine flag (`M7_ON` from
+`observed-ruler.js`) and the real bot, never the old shadow mechanism.
+
+### Review 2 — verdict. ADOPTED, flag ON
+
+    challenge         1.341 → 1.337    hold ±0.03      PASS
+    CV challenge      0.941 → 0.986    ≥ 1.00          within 1σ, ~3σ move
+    challenge/power   1.261 → 1.193    ≥ 1.15          PASS both arms
+    finishes          31.3% → 20.0%    15–40%          PASS, but see below
+    floors populated  fl10 holds 7                     PASS
+
+**Adopted.** CV is objective 1's goal, it moved about 3σ, and it lands
+inside one standard error of its target. Nothing else broke a bound. That is
+what this item existed to do, and the count→strength route it revived —
+archived for emptying the floor — now delivers with grouping filling the gap
+exactly as argued.
+
+Two things to record, and the second changes the queue.
+
+### The budget held on the instrument and not in the game
+
+Challenge is unchanged at 1.337 and finishes fell **11.3 points**
+(z ≈ −2.25). Both are true, and the item's stated intent was "moves where
+difficulty comes from, never how much there is."
+
+Challenge is damage taken by a 400 hp probe clearing a floor. The probe does
+not die. Clustering makes the real bot get caught without making the floor
+cost more to grind through, so the amount of difficulty **did** change while
+the criterion said it had not.
+
+This is the same asymmetry M6 showed in the opposite direction: the probe
+under-reads anything that acts on a competent player rather than on a
+yardstick. **The criterion was satisfied to the letter and missed the
+intent**, and that is a fault in how the criterion was written — mine — not
+in the work.
+
+Not a reason to reject: finishes stayed in band, and 20% is arguably a
+better race than 31% against sub-goal 3. Recorded so "challenge held"
+stops being read as "difficulty unchanged".
+
+### The spike question is NOT settled — the statistic was diluted
+
+Reported as decided: p95/p99 of per-turn damage are 0 and 1 in both arms, so
+the mechanism is attrition rather than spike.
+
+**Those numbers cannot answer it.** They are pooled over ~140k turns across
+full descents — roughly 930 turns per run, and the overwhelming majority are
+walking. p95 = 0 says 95% of turns are not combat turns, which was never in
+question. The entire tail of interest lives above p99, and the percentile
+stops exactly where it starts being informative.
+
+The right statistic conditions on turns where the hero was adjacent to
+something alive, or reports per-encounter rather than per-turn. Grouping may
+well be working by attrition — I2 pointed that way too — but this reading
+does not establish it.
+
+**Consequence for the queue.** M3 was demoted to "fine tuning, only if M7
+leaves a gap". It left one — the shrinking reaction window, which is the
+DCSS shape the whole programme is aimed at, and which grouping was chosen to
+deliver. Whether M3 is still needed now turns on the conditioned spike
+number, not on the pooled one. It stays READY rather than being dropped.
+
+## M3 · an out-of-depth tail
+
+`map` · `work agent` · **REPORTED** — the gap M7 left
+
+`MONSTER_STRENGTH = 0.35` is fixed, so the strongest possible blow is the
+same on floor 1 and floor 10. There is no right tail at all.
+
+**Why it matters.** It is the cheapest way to restore rising variance, and
+it does not touch the count dial whose linear tunability `balance.md`
+defends with good reason. The median floor is unchanged; only the rare floor
+moves.
+
+**Acceptance.** Median difficulty per floor unchanged inside noise; CV per
+floor stops falling; the frozen maximum blow starts to grow with depth.
+
+**Measured on the probes, not the real bot** — the CV verdict is a property
+of the design. Confirm playability against the real bot afterwards, but do
+not tune to it.
+
+**Constraint.** `PLAYER_HP` is 10, FAITHFUL, with no regeneration, and
+damage is `0..xp−1`. Near the top of the table one blow can take almost
+everything. The reaction window must shrink, not vanish — report the
+distribution of damage per blow, not its mean. The tail is what kills.
+
+### Result
+
+**Baseline: M7 adopted in code, not just docs.** `DIFFICULTY_REBALANCED`
+was `true` in `docs/balance.md`/backlog (Review 2, `7cc3ff4`) but still
+`false` in `src/sim/difficulty.js` — the same docs-precedes-code gap as the
+earlier `HP_FROM_KILLS` case. Executed the flip (`25f45a1`) so this item's
+baseline actually includes M7, per instruction. Two tests asserting the old
+off-by-default behaviour were updated the same way as before (one now
+asserts the adopted constants, one compares two independent constructions
+of "no clustering" instead of against a default that no longer means
+`clusterSize 1`).
+
+**DISCLOSED, NOT FIXED, out of scope for this item:** executing that flip
+surfaced a real regression — `a floor puts most of its threat mass on the
+mandatory route` (floor 7, 12 seeds) now reads mean spine share 0.97,
+above the 0.95 "side rooms are not empty" ceiling. Confirmed by reverting
+the flag that clustering causes it: with `CLUSTER_SIZE=6` and small
+rebalanced rosters, one shared zone-per-cluster draw can decide most of a
+floor's placement in a single roll, concentrating threat instead of
+splitting it per the map design's target. Left failing on purpose — not a
+design decision the work agent makes unilaterally, and unrelated to M3's
+own mechanism. 76/77 tests pass for that reason; the one failure is this,
+not M3.
+
+**Built, flag off.** `OUT_OF_DEPTH_TAIL = false` in `src/sim/balance.js`.
+After a floor finishes populating, a chance — zero on floor 1, growing
+(capped) with depth via `outOfDepthChanceAt` in `src/sim/difficulty.js`,
+mirroring `floorSpread`'s shape — decides whether ONE already-placed
+monster gets reskinned into a tier drawn near the table's true top (same
+position, zone, drop; only its own stats change). Reskinning rather than
+adding keeps the roster size untouched. With the flag off the chance is
+always 0 and `spawn.js` skips the roll entirely, rather than drawing a
+`drawChance(..., 0)` that can never fire but would still consume an RNG
+value — verified RNG-identical to before this item existed (`zero chance
+draws nothing extra`). 5 new tests, 76/77 total (see above).
+
+**Self-tested (work agent, NOT a metrics-agent reading), n=200 paired
+seeds per floor, flag off vs on:**
+
+    floor   count off/on      mass off/on       chance
+      1     2.00 / 2.00       10.0 / 10.0       0.000
+      5     3.01 / 3.01       23.8 / 29.6       0.080
+     10     7.04 / 7.04      118.7 / 132.5      0.150
+
+    max single blow (xp-1), off vs on:
+      1   p50 2/2   p90 2/2   p99 3/3   max 3/3
+      5   p50 2/2   p90 3/3   p99 4/9   max  4/9
+     10   p50 3/3   p90 4/9   p99 5/9   max  5/9
+
+**Median holds exactly** (count identical to 2 decimals at every floor
+checked, p50 damage identical) — the acceptance criterion's first clause.
+**The tail moves**, and moves toward the table's actual top (`t-rex`,
+xp 10) rather than a partial climb.
+
+**Worth flagging for the calibration reading, not fixed here:** floor 10's
+p90 shows the spike (4 → 9), not just p99. At `OUT_OF_DEPTH_CHANCE_CAP =
+0.15`, roughly 1 in 7 floor-10 visits gets the reskin — arguably too
+frequent to read as "rare" by the time it reaches the 90th percentile
+rather than staying below p95. Floor 5 (chance 0.08) looks more like the
+intended shape — only p99 and the max move. All three chance constants are
+marked `INITIAL GUESS`; whether the cap needs to come down is exactly the
+kind of thing the probes should decide, not a work-agent guess.
+
+**Not measured, per the explicit "flag off, then stop" instruction:** CV
+per floor and the challenge/power interaction (need the probes), and real
+finish rate. Also not attempted: distinguishing whether this addresses I2's
+unsettled attrition-vs-spike question from M7 Review 2 — that needs the
+same conditioned-on-combat-turns statistic Review 2 asked for, on the
+probes, flag off against on.
+
+Not requesting a reading — the metrics agent's is what decides this.
+
+### Review 1 — conformance. Clean. Two things it surfaced are mine
+
+Everything conformance asks for is there: `OUT_OF_DEPTH_TAIL = false`, the
+three constants in `balance.md` as INITIAL GUESS, `§13.6` written, and the
+median holding exactly — count identical to two decimals and p50 damage
+identical at every floor.
+
+**Skipping the roll rather than drawing a zero chance is the right instinct
+and worth naming.** `drawChance(..., 0)` can never fire but still consumes
+an RNG value, which would have made flag-off *behaviourally* identical and
+*stream* different — the kind of difference that shows up later as an
+unreproducible baseline and gets blamed on something else. Verified
+RNG-identical instead.
+
+**The cap flag is good self-criticism.** At `CHANCE_CAP = 0.15` roughly one
+floor-10 visit in seven gets the reskin, and it shows at p90 rather than
+staying above p95. Floor 5 at 0.08 has the shape the item asked for. Right
+call to leave it to the probes rather than guess — but the probes should be
+asked the question explicitly, not left to notice.
+
+### The spine regression is the headline, and it is M7's, not M3's
+
+Flipping `DIFFICULTY_REBALANCED` in code surfaced a failing test: floor 7
+spine share **0.97**, against a 0.95 ceiling that exists to keep side rooms
+from being empty. Confirmed by reverting the flag that clustering causes it.
+
+**This is more serious than a failing assertion.** Side rooms are the only
+place risk and reward roll independently, the only source of *structural*
+variance in the game, and the premise M4 is built on. At 0.97 they hold
+three percent of a floor's threat — they are gone.
+
+The cause is stated precisely in the report and it points at the fix: one
+shared zone draw per cluster, against rosters M7 itself shrank. Floor 7
+holds about four creatures now, so at `CLUSTER_SIZE = 6` a single draw
+decides the entire floor's placement. **A random assignment cannot hit a
+70/30 split when there is one thing to assign.**
+
+Zone and tier do not need to share a draw. The shared *tier* is what made
+grouping work — I2 measured that proximity alone bought nothing. The shared
+*zone* was incidental, and with few clusters it should be allocated against
+the mass quota rather than rolled. That is M10.
+
+**M7 stays adopted.** The CV gain is real and it is objective 1's goal.
+M4 becomes blocked on M10 — scaling the spread of side rooms that do not
+exist is not work.
+
+### And the docs-precedes-code gap has now happened twice
+
+`HP_FROM_KILLS` and now `DIFFICULTY_REBALANCED`: both decided in a review,
+written in the docs, and left `false` in `src/sim/`. Both times the work
+agent found it and was right to flag rather than act mid-flight.
+
+Twice is a process defect, not bad luck. Adoption falls between roles — the
+project agent decides it and cannot edit `src/`, and no item owns executing
+it. **Fixed by rule: an adoption decided in review 2 is the work agent's
+first commit on its next task, before claiming anything.** Recorded in the
+queue section.
+
+### Metrics reading (standing duty)
+
+Measured at commit `8eb8c39`. Flag off = `M7_ON` (current shipped baseline,
+new export in `observed-ruler.js`), flag on = `M3_ON` (same baseline plus
+the reskin chance) — both hold M7 fixed so only M3 moves. `isolatedShape`
+default (60/level); `botFinishesAndSpike` at 150 runs, `firstSeed =
+970000`, `hpFromKills` forced false both arms, matching the M7 reading's
+own protocol.
+
+**Found a bug on the way, fixed before trusting the real-bot numbers.**
+`botFinishesAndSpike`'s own `counts` object never threaded
+`outOfDepthChance` through — built before this item existed, same class of
+gap as `driveDescent`'s missing `clusterSize` during M7. First pass at this
+reading came back byte-identical between flag off and on across 150 runs,
+which `isolatedShape`'s own (correct) reading had already shown could not
+be right once the chance is non-zero. Fixed in `clustering.js`
+(`outOfDepthChance: plan.outOfDepthChance` added to the counts object);
+every number below is post-fix.
+
+**CV per floor — does not clear the bar.** Growth rate of `challenge`'s CV,
+floors 1–10: off ×0.994 ±0.009/floor, on ×0.984 ±0.008/floor. Gap is
+−0.010 ±0.012, z ≈ 0.8 — not distinguishable from zero. **CV keeps
+falling with M3 on, same as off**; this item's own acceptance hoped it
+would stop falling, and on the isolated-floor probe it does not.
+
+**Real finish rate moves, but not past 2σ.** 30/150 (20.0% ±3.3) off, 23/150
+(15.3% ±2.9) on — a 4.7pp drop, z ≈ −1.1. Directionally harder, consistent
+with a rare bigger blow costing more clears, but the sample cannot say more
+than that yet.
+
+**The per-turn damage percentiles do not show a bigger spike — they show a
+longer fight.** Conditioned on `adjacent ≥ 1` (M7 review 2's own
+statistic): the combat-turn sample nearly **doubles** with M3 on (20,464 →
+40,755 turns out of a similar total), and its p95/p99 **fall slightly**
+rather than rise (1/3 off → 0/2 on). Reskinned monsters are tankier, not
+just harder-hitting, so a floor that rolls one spends far more turns
+adjacent to something alive — the extra combat volume dilutes the
+percentiles instead of raising them. Unconditioned pooled p95/p99 are
+unchanged either way (0/1, both arms) as before.
+
+**Read together:** M3 is measurably doing something (more combat turns,
+fewer clears, both directionally consistent with "harder"), but not the
+specific thing its acceptance criteria asked for — a CV that stops falling,
+or a percentile spike from a rare huge blow. What it produces instead reads
+more like "occasionally a fight runs long" than "occasionally one hit is
+devastating." Whether that is still worth keeping is a design call, not a
+measurement one — reported as data, not a verdict.
+
+**Not measured, still:** `challenge`/`power` interaction (needs
+`builtShape`, a real descent) — left for whoever asks for it next
+specifically, rather than folded into this reading past what M7 review 2's
+own two questions (CV, conditioned spike) already called for.
+
+## M10 · allocate cluster zones against the mass quota
+
+`map` · `work agent` · **REPORTED** — fixes a regression M7 introduced
+
+M7 adopted, and floor 7 now puts **97%** of its threat mass on the mandatory
+route against a 0.95 ceiling. Side rooms are effectively empty.
+
+**Why it matters more than a failing test.** Side rooms are the only place
+risk and reward roll independently — `map-design.md` derives why that
+independence is what makes a detour a gamble rather than a free lunch — and
+they are the only *structural* variance in the game. They are also M4's
+entire premise.
+
+**The cause, from M3's report.** Zone is drawn once per cluster. M7 shrank
+rosters at the same time, so floor 7 holds about four creatures and
+`CLUSTER_SIZE = 6` makes that one cluster. One draw then decides the whole
+floor's placement, and **a random assignment cannot hit a 70/30 split when
+there is one thing to assign.**
+
+**The fix, and what must not change with it.** Allocate clusters to zones
+**against the running mass quota** rather than rolling each independently —
+`spawn.js` already tracks `spineMass`/`sideMass` for exactly this. The
+shared *tier* per cluster stays: I2 measured that proximity alone bought
+nothing, so that draw is load-bearing. Only the zone draw moves.
+
+**Acceptance.**
+- Spine share back inside its band at every floor, floor 7 included.
+- Clusters stay single-type and stay spatially coherent — this changes which
+  zone a cluster lands in, not whether it is a cluster.
+- Challenge unchanged: this redistributes placement, it does not add or
+  remove threat. If challenge moves, something else changed too.
+- No new RNG consumption when the rebalance flag is off.
+
+**Watch.** With few clusters per floor the quota may be unreachable exactly —
+one cluster cannot be 70% spine. Report what the achievable split is at
+floors where the roster is small, rather than forcing a number the geometry
+does not allow.
+
+### Result
+
+**Fix: re-check the quota per member, not per cluster.** `spawn.js`'s zone
+choice (`quotaWantsSide`, extracted from the existing inline `wantSide`
+expression) was already greedy against `spineMass`/`sideMass` — the bug was
+never the formula, it was that a cluster large enough to hold the whole
+roster only ever asked it ONCE. Now every member placed after the first
+re-runs the same check; as soon as adding the next member would flip the
+zone the quota wants, the rest of that cluster's (already-computed, BFS-
+ordered) positions are abandoned and the next loop iteration decides the
+zone fresh and starts a new cluster for whatever remains. The anchor and
+the shared tier are still drawn once per cluster-as-started — only how many
+members that cluster actually keeps changed. No new function, no new
+constant, no new flag: this corrects the shipped, already-adopted M7
+mechanism directly.
+
+**Acceptance, checked:**
+- **Spine share — PASS, floor 7 included.** Self-measured (not a metrics
+  reading), n=30 seeds/floor:
+
+      floor    1      3      5      7      9     10
+      share  1.000  0.992  0.916  0.795  0.797  0.781
+
+  Floor 7 moved from the reported 0.97 to 0.795, inside the [0.6, 0.95]
+  band. Floors 1 and 3 stay pinned near 1.0 — expected and correct, not a
+  miss: `MIN_ROSTER_FOR_SIDE` keeps `sideTarget` at 0 below that roster
+  size, and this item did not touch that gate.
+- **Clusters stay single-type and spatially coherent — PASS by
+  construction.** A split cluster's kept members are a PREFIX of the same
+  BFS-ordered, same-tier `positions` list; nothing about composition or
+  order changed, only where the prefix gets cut off.
+- **No new RNG consumption when the flag is off — PASS.** `clusterSize`
+  is 1 with `DIFFICULTY_REBALANCED` off, so `positions` never has more
+  than one member and the per-member re-check never has a second
+  iteration to run; `quotaWantsSide()` reuses the exact arithmetic the
+  removed `wantSide` inline already ran once per cluster, so no new
+  `draw*` call exists anywhere in this change. All 77 tests pass,
+  including the one this item exists to fix
+  (`a floor puts most of its threat mass on the mandatory route`).
+- **Challenge — not measured on the probes**, per "measured on the probes,
+  not the real bot" being the metrics agent's job; self-checked only that
+  mean threat mass per floor still climbs monotonically with depth (9.9 →
+  84.3 across floors 1–10, n=30), which is the shape expected if this
+  redistributes rather than adds or removes threat. The probes are what
+  actually settle whether the sum held.
+
+**Watch, answered.** Floors 1 and 3 (below `MIN_ROSTER_FOR_SIDE`, or too
+small to give even one split a second decision) stay at or near 1.0 —
+exactly the "achievable split, not a forced number" the item asked to
+report rather than hide. From floor 5 on, the finer-grained quota reaches
+the band comfortably.
+
+`docs/rogule-spec.md` §13.5 gets a short correction paragraph rather than
+a new subsection — this fixes how faithfully the already-documented M7
+mechanism hits its own stated design, it does not diverge further from
+Rogule on its own.
+
+Not requesting a reading — the metrics agent's ruler re-run is the standing
+job that follows a landed map item, per the "One change, then a reading"
+rule.
+
+### Review 1 — conformance. Passes, with one thing the reading must check
+
+**The diagnosis is sharper than the one I wrote.** I assumed the zone was
+rolled independently per cluster and needed to be allocated against the
+quota instead. It was already greedy against `spineMass`/`sideMass` — the
+formula was never wrong. The bug was **granularity**: a cluster big enough
+to hold the whole roster asked the right question exactly once. Re-checking
+per member and cutting the cluster where the answer flips is a smaller and
+better fix than the one the item specified.
+
+**No flag is correct here, and it is worth stating as a rule.** Every map
+item ships behind an off-by-default flag — but M10 repairs a defect in an
+already-adopted mechanism, and flagging a bug fix means shipping the bug by
+default. **Fixes to adopted mechanisms do not get flags.** The exception is
+narrow: it applies when the change makes an adopted mechanism hit its own
+documented design, not when it changes what that design is.
+
+Spine share at floor 7 goes 0.97 → 0.795, inside the band. Floors 1 and 3
+staying near 1.0 is `MIN_ROSTER_FOR_SIDE` doing its job, correctly reported
+as an achievable limit rather than massaged into looking like a pass.
+Single-type and coherence hold by construction — kept members are a prefix
+of the same BFS-ordered, same-tier list. No new RNG draw exists anywhere,
+verified rather than asserted. 77/77.
+
+### The risk: this may give back part of M7's CV gain
+
+Cutting a cluster short when the quota flips means **effective cluster size
+is now variable and smaller than `CLUSTER_SIZE`**. M7's whole mechanism was
+fewer independent draws per floor — twelve creatures in four clusters are
+four draws, not twelve — and splitting a cluster adds a draw back.
+
+Floor 7 is the clearest case: about four creatures, previously one cluster,
+now at least two so the quota can be met. That is one extra draw on a floor
+that only had one, and CV goes as `1/√draws`.
+
+Nothing here is wrong — the spine share had to be fixed and this is the
+right fix. But **M7 and M10 pull against each other by construction**, and
+the reading has to say by how much rather than assume it is small.
+
+**For the reading, on top of the standing four:**
+- **CV of challenge**, against M7-adopted-without-M10. If it fell back
+  toward 0.94, the two changes need balancing against each other rather
+  than both simply kept.
+- **Effective cluster size per floor** — mean and distribution, not the
+  constant. `CLUSTER_SIZE = 6` no longer describes what floors actually
+  hold, and every argument M7 made was about the real number.
+
+### Metrics reading
+
+Measured at commit `ff708dc` (current HEAD, M10 unflagged and always
+active). `isolatedShape`/`effectiveClusterSizes`
+(`src/analysis/observed-ruler.js`, `src/analysis/clustering.js`), default
+60 seeds/level, `floorPlanFn: M7_ON`.
+
+**Effective cluster size — the constant stops meaning anything past floor
+5.** Floors 1–2 place exactly one cluster of 2, every seed (below
+`MIN_ROSTER_FOR_SIDE`, nothing to cut against). From floor 6 on, size
+spreads wide instead of sitting at 6:
+
+    floor    mean size   distribution (size:n, n=60 seeds' worth of clusters)
+      6        3.97      3:26  4:15  5:14  6:5
+      7        4.21      1:9  2:4  3:12  4:12  5:12  6:22  7:2
+      8        4.29      1:5  2:2  3:17  4:13  5:13  6:14  7:1  8:3
+      9        4.71      1:3  2:4  3:18  4:8  5:13  6:26  7:1  9:2  10:2
+     10        4.87      1:3  2:4  3:16  4:11  5:12  6:44  9:1  12:1
+
+`6` is still the single most common outcome at every floor (it is the cap,
+and the floor where it lands cleanest), but the mean sits well under it
+(3.97–4.87, not 6) and the tail runs both directions — clusters of 1 exist
+(cut on the very first extra member) and one of 12 exists at floor 10 (two
+same-tier clusters that happened to land adjacent and merge under this
+method's own stated failure mode, see the function's header comment; a
+genuine 12 is not otherwise possible at `clusterSize = 6`). Read the mean,
+not the max, as the honest summary — the max is exactly the case this
+method cannot fully distinguish from a real large cluster.
+
+**CV against M7-adopted-without-M10 — no measurable give-back.** There is
+no flag to toggle for the old behaviour (M10 is a direct fix, not a
+variant), so the comparison is against the two readings already on file
+from before M10 existed: the very first M7 reading (`f42f085`, CV growth
+`0.986 ±0.006`) and this session's own M3 reading (`8eb8c39`, taken before
+`929d2f2` built M10, `0.994 ±0.009`). Today's reading, same default seeds,
+same `M7_ON`: **`0.994 ±0.009`** — indistinguishable from both, and
+bit-identical to the `8eb8c39` number to 15 significant figures. That
+exactness was not expected going in and is not fully explained here — `map`
+`/spawn`/`combat` are independent RNG streams by construction (`game.js`'s
+own `makeStreams`), so combat resolution cannot see how many extra
+placement draws a cut consumed, which covers part of it, but not why roster
+composition apparently came out identical too across a sample large enough
+that coincidence is not a credible explanation on its own. Flagged rather
+than pursued further, since the answer the reading needs — did challenge's
+CV move — is unambiguous either way: **it did not move.** M10 redistributes
+zone, not threat, exactly as its own report predicted, and the CV gain M7
+bought is intact.
