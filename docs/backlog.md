@@ -93,10 +93,31 @@ are frozen, so a re-run is cheap and paired by construction.
 The work agent does not start the next map item until the previous one has
 been read. Waiting is the point.
 
+**Every map item ships behind an off-by-default flag, and is measured on
+against off.** The work agent builds it in `src/sim/`, switched off; the
+metrics agent measures both states; the project agent decides whether it
+gets switched on. Adoption is a separate act from building.
+
+**The metrics agent measures the real game and nothing else.** It does not
+build a variant of the map or the bot in order to study it. If answering a
+question requires a change that does not exist yet, that is the work agent's
+job first — say so and wait, rather than approximating it in
+`src/analysis/`.
+
+The cost is real: the work agent builds before anyone knows whether it pays.
+Three things buy it back. Nothing can drift out of sync, because there is
+only one implementation. Every measurement describes the game rather than an
+approximation of it. And what was measured is what ships, if it ships.
+
+I2 is the example that motivated this: to measure clustering it had to build
+clustering, so grouping logic now exists in `src/analysis/clustering.js`
+outside the engine — inside its boundary, and still a shadow that M2 has to
+reconcile.
+
 **The re-run is a standing job, not a task.** It needs no prompt. When a map
 item lands, the metrics agent re-runs the observed ruler and appends the
-reading to that item's `### Result` block — the four ratios before and
-after, with standard errors and the commit each ran against. Then it goes
+reading to that item's `### Result` block — the four ratios with the flag off
+and on, with standard errors and the commit each ran against. Then it goes
 back to whatever it was doing.
 
 Three parties, on purpose: the work agent builds the change, the metrics
@@ -877,6 +898,16 @@ metric that can see clustering" — is largely already met: I2 built
 `src/analysis/clustering.js` and found the working signal on its third
 candidate, fraction of turns with two or more adjacent. What remains is
 three questions, in this order.
+
+**Scope change: only question 1 belongs to this item now.** The metrics
+agent measures the real game and does not build variants to study them —
+see "Every map item ships behind an off-by-default flag" above. Questions 2
+and 3 need clustering to exist in `src/sim/`, so they wait for M2 to build
+it switched off, and then get measured on against off.
+
+Question 1 stands because it re-analyses data already collected — but say
+plainly in the result that it describes the instrument's clustering, which
+is not yet the engine's, so it is a direction rather than a verdict.
 
 **1. Settle the death-rate result properly.** Pooled `z = 1.62`, but the
 per-floor directions are 8 positive, 2 tied, 0 reversed. Run the sign test —

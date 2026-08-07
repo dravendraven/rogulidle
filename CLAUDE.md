@@ -43,7 +43,11 @@ which one you are. If it does not, ask before touching anything.
 - **work agent** — changes game and bot code. Never redefines scope, and
   never changes what a metric means without saying so explicitly.
 - **metrics agent** — builds and runs instruments, and reports baselines.
-  Never touches `src/bot/` and never changes a balance value.
+  Never touches `src/bot/` and never changes a balance value. It measures
+  the real game and nothing else: it does not build a variant of the map or
+  the bot in order to study one. If a question needs a change that does not
+  exist yet, say so and wait — the work agent builds it behind an
+  off-by-default flag first, and then both states get measured.
 
 Work outside your role gets REPORTED, not done — even when it is a one-line
 fix and you can see exactly what it should be. The measurement ruler and the
