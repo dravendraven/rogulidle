@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rogulidle — observed ruler</title>
+<style>
+  :root { --bg:#101216; --panel:#171a21; --line:#262b35; --text:#d8dee9; --dim:#7a8595;
+          --faint:#5b6472; --good:#8ce99a; --warn:#ffd8a8; --bad:#ff8787; --accent:#74c0fc; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:1.5rem 1rem 4rem; background:var(--bg); color:var(--text);
+         font:13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .app { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size:1rem; letter-spacing:.08em; text-transform:uppercase; margin:0 0 .3rem; }
+  h2 { font-size:.8rem; letter-spacing:.1em; text-transform:uppercase; color:var(--accent);
+       margin:2rem 0 .6rem; padding-bottom:.3rem; border-bottom:1px solid var(--line); }
+  p { max-width:84ch; }
+  .lede, .note { color:var(--faint); font-size:11.5px; max-width:84ch; }
+  .lede { margin:0 0 1.2rem; font-size:13px; }
+  fieldset { border:1px solid var(--line); border-radius:8px; background:var(--panel);
+             margin:0 0 .9rem; padding:.7rem 1rem 1rem; }
+  legend { color:var(--dim); font-size:11px; letter-spacing:.1em; text-transform:uppercase; padding:0 .4rem; }
+  label { display:block; color:var(--dim); font-size:11px; margin:.5rem 0 .2rem; }
+  input { font:inherit; color:var(--text); background:#12151b; border:1px solid var(--line);
+    border-radius:5px; padding:.35rem .5rem; width:100%; }
+  .row { display:flex; gap:.9rem; flex-wrap:wrap; }
+  .row > div { flex:1 1 130px; }
+  button { font:inherit; color:var(--text); background:#20242d; border:1px solid var(--line);
+    border-radius:6px; padding:.45rem 1rem; cursor:pointer; margin-right:.5rem; }
+  button.primary { background:#25333f; border-color:#33495c; color:#cfe6ff; }
+  button[disabled] { opacity:.45; cursor:default; }
+  #status { color:var(--dim); margin:.7rem 0 1rem; }
+  table { border-collapse:collapse; width:100%; font-size:12px; margin:.3rem 0 .8rem; }
+  th, td { text-align:right; padding:.3rem .5rem; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:var(--dim); font-weight:600; }
+  th[title] { cursor:help; text-decoration:underline dotted var(--faint); text-underline-offset:3px; }
+  td.thin { color:var(--faint); }
+  .err { color:var(--faint); font-size:10.5px; }
+  .card { border:1px solid var(--line); border-radius:8px; background:var(--panel);
+    padding:.7rem 1rem; margin:.6rem 0 1rem; }
+  .ok { color:var(--good); } .no { color:var(--bad); } .meh { color:var(--warn); }
+  .big { font-size:15px; font-weight:600; }
+</style>
+</head>
+<body>
+<div class="app">
+
+<h1>Observed ruler — two probes, no model</h1>
+<p class="lede">Challenge and reward measured by actually clearing a floor
+twice — once picking up nothing, once picking up whatever is in the way —
+instead of summing a duel formula over the roster. See
+<code>src/analysis/observed-ruler.js</code> and docs/curve-shape.md for why.</p>
+
+<div class="card">
+<b>Sonda A and Sonda B differ in exactly one thing.</b>
+<p class="note">Both run the identical policy: kill every known monster,
+explore every frontier, then head for the shrine. Loot is never a movement
+target for either one. <b>Sonda A</b> clears the floor picking up nothing.
+<b>Sonda B</b> clears the same floor, same seed, and keeps whatever it steps
+over along the way. Neither is the bot with options off — this is a frozen,
+deliberately dumb instrument, and it stays dumb even after the bot changes.</p>
+<p class="note">Both carry a 400-hp calibration hero so death never selects
+which samples survive — challenge and reward do not depend on the hero's
+hp, only on the damage the floor actually lands. <b>Power and buffer</b> are
+different: they are properties of the hero <i>on arrival</i>, so they come
+from a real ten-floor descent played by Sonda B alone, starting at the
+ordinary hero and carrying survivor bias same as before (measured at
+z = 4.89 for the modelled numbers — see curve-shape.md).</p>
+</div>
+
+<fieldset>
+  <legend>run</legend>
+  <div class="row">
+    <div><label>isolated-floor samples per level</label><input id="isoRuns" type="number" value="60"></div>
+    <div><label>descents (power/buffer)</label><input id="builtRuns" type="number" value="60"></div>
+    <div><label>seed base</label><input id="firstSeed" type="number" value="800000"></div>
+    <div><label>max turns per floor</label><input id="maxTurns" type="number" value="4000"></div>
+  </div>
+</fieldset>
+
+<button id="run" class="primary">Measure</button>
+<p id="status">idle</p>
+<div id="out"></div>
+
+<script type="module">
+import { isolatedShape, builtShape, growthOf } from './src/analysis/observed-ruler.js';
+
+const $ = (id) => document.getElementById(id);
+const f = (x, d = 2) => (x === null || x === undefined || !Number.isFinite(x) ? '—' : x.toFixed(d));
+
+function table(head, rows) {
+  const t = document.createElement('table');
+  t.innerHTML = `<thead><tr>${head.map(([h, tip]) =>
+    `<th${tip ? ` title="${tip.replace(/"/g, '&quot;')}"` : ''}>${h}</th>`).join('')}</tr></thead>`
+    + `<tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>`;
+  return t;
+}
+
+function section(title, node) {
+  const h = document.createElement('h2');
+  h.textContent = title;
+  $('out').append(h, node);
+}
+
+function para(html, cls = 'note') {
+  const p = document.createElement('p');
+  p.className = cls;
+  p.innerHTML = html;
+  $('out').append(p);
+  return p;
+}
+
+function render(iso, built) {
+  $('out').innerHTML = '';
+
+  section('The series, by floor', table(
+    [['floor'], ['creatures'],
+      ['challenge', 'HP the 400-hp Sonda A actually took clearing the whole roster, no loot.'],
+      ['reward', 'Sonda A\'s damage minus Sonda B\'s, same seed — what the loot picked up along the way saved, in hp. Positive is the expected direction: B is better equipped, so it should clear for less.'],
+      ['power', 'effectiveHp x expected damage of the hero SONDA B built by this floor, on a real descent.'],
+      ['buffer', 'effectiveHp / mean blow of this floor, for the same Sonda B hero.'],
+      ['CV challenge'], ['CV reward'],
+      ['n', 'Isolated-floor samples that fully cleared under BOTH probes.'],
+      ['reached', 'Descents that reached this floor at all — the buffer/power sample size.']],
+    iso.map((row) => {
+      const b = built.rows.find((r) => r.level === row.level);
+      return [
+        row.level,
+        row.nominal,
+        `${f(row.challenge.mean)} <span class="err">±${f(row.challenge.se)}</span>`,
+        `${f(row.reward.mean)} <span class="err">±${f(row.reward.se)}</span>`,
+        b ? `${f(b.power.mean, 1)} <span class="err">±${f(b.power.se, 1)}</span>` : '—',
+        b ? `${f(b.buffer.mean, 1)} <span class="err">±${f(b.buffer.se, 1)}</span>` : '—',
+        `${f(row.challenge.cv, 3)} <span class="err">±${f(row.challenge.cvSe, 3)}</span>`,
+        `${f(row.reward.cv, 3)} <span class="err">±${f(row.reward.cvSe, 3)}</span>`,
+        `<span class="thin">${row.n}</span>`,
+        b ? `<span class="thin">${b.reached}</span>` : '—',
+      ];
+    }),
+  ));
+  const totalDiscarded = iso.reduce((s, r) => s + r.discardedA + r.discardedB, 0);
+  if (totalDiscarded > 0) {
+    para(`${totalDiscarded} isolated-floor sample(s) discarded across the ladder — the `
+      + `400-hp probe did not fully clear (raise max turns if this is more than a handful).`);
+  }
+
+  const series = {
+    challenge: iso.map((r) => r.challenge.mean),
+    reward: iso.map((r) => Math.abs(r.reward.mean)),
+    power: built.rows.map((r) => r.power.mean),
+    buffer: built.rows.map((r) => r.buffer.mean),
+    'CV challenge': iso.map((r) => r.challenge.cv),
+    'CV reward': iso.map((r) => r.reward.cv),
+  };
+  const growth = {};
+  for (const [k, v] of Object.entries(series)) growth[k] = growthOf(v);
+
+  section('Growth per floor', table(
+    [['quantity'], ['× per floor'], ['over the ladder'], ['reading']],
+    Object.entries(growth).map(([k, g]) => {
+      const n = iso.length;
+      const total = g.perFloor ? Math.pow(g.perFloor, n - 1) : null;
+      const cls = g.perFloor > 1.02 ? 'ok' : (g.perFloor < 0.98 ? 'no' : 'thin');
+      return [k === 'reward' ? 'reward (abs)' : k,
+        `<span class="${cls} big">${f(g.perFloor, 3)}</span> <span class="err">±${f(g.se, 3)}</span>`,
+        total ? `×${f(total, 1)}` : '—',
+        g.perFloor > 1 ? 'grows' : 'shrinks'];
+    }),
+  ));
+  para('Reward\'s growth is fitted on <code>|reward|</code> since a log-linear fit '
+    + 'needs positive values; the sign (positive = loot pays, B cleared for less than '
+    + 'A) is reported separately in the series above.');
+
+  const ratio = (a, b) => iso.map((row, i) => {
+    const built1 = built.rows[i];
+    const num = a === 'challenge' ? row.challenge.mean : row.reward.mean;
+    const den = b === 'power' ? (built1 ? built1.power.mean : null)
+      : b === 'buffer' ? (built1 ? built1.buffer.mean : null)
+        : row.challenge.mean;
+    return den ? num / den : null;
+  });
+
+  const rows = [
+    ['challenge / power', ratio('challenge', 'power'), 'is the average fight getting easier or harder?'],
+    ['reward / challenge', ratio('reward', 'challenge'), 'how big is the loot effect relative to the floor\'s cost?'],
+    ['challenge / buffer', ratio('challenge', 'buffer'), 'is a mistake getting more expensive?'],
+    ['CV challenge', iso.map((r) => r.challenge.cv), 'is the game getting more or less random?'],
+  ];
+
+  section('The four ratios', table(
+    [['ratio'], ...iso.map((r) => [String(r.level)]), ['× per floor']],
+    rows.map(([name, s]) => [name, ...s.map((v) => f(v, 2)), (() => {
+      const g = growthOf(s.filter((v) => v !== null).map((v) => Math.abs(v)));
+      const cls = g.perFloor > 1.02 ? 'no' : (g.perFloor < 0.98 ? 'ok' : 'thin');
+      return `<span class="${cls} big">${f(g.perFloor, 3)}</span>`;
+    })()]),
+  ));
+  for (const [name, , reading] of rows) para(`<b>${name}</b> — ${reading}`);
+
+  section('Descent summary (Sonda B)', table(
+    [['cleared'], ['runs'], ['depths (sorted)']],
+    [[`${built.cleared}/${built.runs}`, built.runs, built.depths.join(', ')]],
+  ));
+}
+
+$('run').addEventListener('click', async () => {
+  $('run').disabled = true;
+  $('out').innerHTML = '';
+  const started = performance.now();
+  try {
+    const isoRuns = Number($('isoRuns').value);
+    const builtRuns = Number($('builtRuns').value);
+    const firstSeed = Number($('firstSeed').value);
+    const maxTurns = Number($('maxTurns').value);
+
+    $('status').textContent = 'clearing isolated floors (Sonda A + Sonda B)…';
+    await new Promise((r) => setTimeout(r, 20));
+    const iso = isolatedShape({ runs: isoRuns, firstSeed, maxTurns });
+
+    $('status').textContent = 'playing descents (Sonda B)…';
+    await new Promise((r) => setTimeout(r, 20));
+    const built = builtShape({ runs: builtRuns, firstSeed: firstSeed + 900000, maxTurns });
+
+    render(iso, built);
+    $('status').textContent = `done in ${((performance.now() - started) / 1000).toFixed(1)}s — `
+      + `${isoRuns} isolated samples per level, ${built.cleared}/${built.runs} descents cleared`;
+  } catch (error) {
+    $('status').textContent = 'failed: ' + error.message;
+    console.error(error);
+  } finally {
+    $('run').disabled = false;
+  }
+});
+</script>
+</div>
+</body>
+</html>
