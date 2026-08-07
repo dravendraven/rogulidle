@@ -11,10 +11,11 @@ import { weaponDamage, armourValue } from '../src/sim/combat.js';
 import { findPath, playerPassable, posKey } from '../src/sim/mapgen.js';
 import { drawLogUniform, makeRng } from '../src/sim/rng.js';
 import { classifyRooms, spineShare } from '../src/sim/spine.js';
-import { itemWeights } from '../src/sim/spawn.js';
+import { itemWeights, monsterWeightsAround } from '../src/sim/spawn.js';
 import { floorPlan } from '../src/sim/dungeon.js';
 import {
-  floorParams, floorStrength, makeFloorPlan, monstersAt, outOfDepthChanceAt, saturatedAt,
+  expectedFloorMass, floorParams, floorStrength, makeFloorPlan, monstersAt,
+  outOfDepthChanceAt, saturatedAt,
   CLUSTER_SIZE, DIFFICULTY_REBALANCED, MONSTER_GROWTH, MONSTER_GROWTH_REBALANCED,
   MONSTER_STRENGTH, STRENGTH_GROWTH, STRENGTH_GROWTH_REBALANCED,
 } from '../src/sim/difficulty.js';
@@ -1110,6 +1111,53 @@ test('a fired roll reaches near the top of the table', () => {
   }
   assert(reached >= seeds * 0.7,
     `only ${reached}/${seeds} forced rolls reached near the table's top`);
+});
+
+// ***** M11 — floor n+1 is never easier than floor n ***** //
+
+test('expected floor mass never drops across the descent', () => {
+  // BY CONSTRUCTION, not on average: expectedFloorMass is an exact closed
+  // form (count x expected tier mass, integrated over depth), so this is
+  // never subject to the sampling noise a real played probe carries.
+  let prev = -Infinity;
+  for (let level = 0; level < 10; level++) {
+    const mass = expectedFloorMass(level);
+    assert(mass >= prev - 1e-9,
+      `floor ${level + 1} expected mass ${mass.toFixed(2)} is below `
+      + `floor ${level} at ${prev.toFixed(2)}`);
+    prev = mass;
+  }
+});
+
+test('the closed form agrees with a Monte Carlo cross-check', () => {
+  // Guards the exact integration itself, independent of the monotonicity
+  // property above: reimplements "one creature's expected mass at this
+  // scale" as a plain average over many depths (a fixed grid, not RNG — this
+  // stays deterministic) and checks it lands close to expectedFloorMass's
+  // closed form. A bug in the bucket-width maths would show up here even if
+  // it happened to leave monotonicity intact.
+  const mass = (t) => t.hp * Math.max(0, t.xp - 1);
+  const sampledMonsterMass = (scale, samples = 5000) => {
+    let sum = 0;
+    for (let i = 0; i < samples; i++) {
+      const depth = (i + 0.5) / samples;
+      const index = Math.floor(Math.min(1, depth * scale) * (MONSTER_TABLE.length - 1));
+      const entries = monsterWeightsAround(index);
+      const total = entries.reduce((s, [, w]) => s + w, 0);
+      sum += entries.reduce((s, [slot, w]) => s + w * mass(MONSTER_TABLE[slot]), 0) / total;
+    }
+    return sum / samples;
+  };
+
+  for (const level of [0, 4, 9]) {
+    const p = floorParams(level);
+    const sampled = p.monsters * sampledMonsterMass(p.difficultyScale);
+    const closedForm = expectedFloorMass(level);
+    const gap = Math.abs(sampled - closedForm) / closedForm;
+    assert(gap < 0.01,
+      `floor ${level + 1}: closed form ${closedForm.toFixed(3)} vs sampled `
+      + `${sampled.toFixed(3)}, ${(100 * gap).toFixed(2)}% apart`);
+  }
 });
 
 // ***** curve-shape diagnostics ***** //

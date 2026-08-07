@@ -90,7 +90,11 @@ function posToDifficulty(pos, playerPos, passable, furthestLength) {
 // offsets clamp onto the same slot. Spec quirk §9.2 — the original overwrites
 // instead, which makes the intended monster rarer than its neighbour at the
 // ends of the table.
-function monsterWeightsAround(index) {
+//
+// Exported so difficulty.js can compute an EXACT expected mass from the same
+// spread this file actually draws from (M11) — one source of truth for what
+// "around index N" means, rather than a second copy that could drift.
+export function monsterWeightsAround(index) {
   const max = MONSTER_TABLE.length - 1;
   const totals = new Map();
   for (const [offset, weight] of MONSTER_WEIGHTS) {

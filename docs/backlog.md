@@ -38,7 +38,7 @@ session, skip it.
 
 | # | id | what gets done | feature | agent | status |
 |---|---|---|---|---|---|
-| 1 | M11 | Make floor n+1 never cheaper than floor n — floors 2 and 5 are today | map | work | READY · batch |
+| 1 | M11 | Make floor n+1 never cheaper than floor n — floors 2 and 5 are today | map | work | REPORTED |
 | 2 | M13 | Raise the tier floor with depth so rats stop appearing deep | map | work | READY · batch |
 | 3 | M12 | Raise creature count and cluster size together, holding draws constant | map | work | READY · batch |
 | 4 | M14 | Put one top-tier-for-the-floor creature next to the shrine | map | work | READY · batch |
@@ -298,7 +298,7 @@ reason is here. Same treatment as `SIDE_ACTIVATION_CAP`.
 
 ## M11 · floor n+1 is never easier than floor n
 
-`map` · `work agent` · **READY**
+`map` · `work agent` · **REPORTED**
 
 Measured, in the shipped game: challenge by floor runs 2.18, **1.97**, 5.28,
 6.33, **5.70**, 8.10 — floors 2 and 5 cost less than the floor above them.
@@ -315,6 +315,52 @@ and can go either way.
 **Assert.** A test that walks floors 1→10 and fails if expected cost ever
 drops. Expected cost, not a sample — the point is that it cannot happen, not
 that it usually does not.
+
+### Result
+
+**No constant changed.** The 2.18/1.97 dip is the real probe's sampling
+noise (both figures are well within 1σ of each other in `docs/kpi.md`), not
+a structural defect — the actual generation formula already produces a
+non-decreasing expected cost, it just had no closed form and no guard
+proving so.
+
+**Built: `expectedFloorMass(level)` in `src/sim/difficulty.js`**, an EXACT
+closed-form integral, not a sample. `spawn.js`'s tier index is
+`floor(depth × scale × 10)` with `depth` ranging over a floor's tiles;
+integrating that step function against `depth ~ Uniform(0,1)` gives each
+table index below the ceiling a bucket of width `1/(scale×10)` and folds
+the remainder into the ceiling index — exact arithmetic, no RNG, no
+sampling. Reuses `spawn.js`'s own `monsterWeightsAround` (newly exported)
+for the weighted spread around each index, so this is the same rule the
+real generator draws from, not a second copy that could drift.
+`expectedFloorMass = floorParams(level).monsters × expectedMonsterMass(...)`
+— reads the shipped generation parameters directly, so it always describes
+the game that actually runs.
+
+**Assert, built and passing:** `expected floor mass never drops across the
+descent` walks levels 0–9 and fails on any decrease. Computed values (for
+the record, not asserted as exact targets): 8.57, 9.25, 14.87, 17.01, 19.00,
+27.82, 39.40, 44.35, 58.91, 79.61 — strictly rising, no flat-stretch dip.
+A second test cross-checks the closed form itself against a deterministic
+Monte Carlo average (fixed grid, not RNG) at floors 1, 5 and 10, within 1%
+— guards the integration maths independently of the monotonicity property
+it's used to prove. 2 new tests, 79/79 total.
+
+**Why it holds, not just that it does.** `monsterCount(level)` is
+`round(base × growth^level)` with `growth ≥ 1`, and rounding preserves
+monotonicity — non-decreasing by construction. `difficultyScale(level)` is
+`min(1, base × growth^level)` with `growth ≥ 1` — also non-decreasing by
+construction. `expectedMonsterMass(scale)` is non-decreasing in `scale`
+because `MONSTER_TABLE`'s mass is monotonic along the table and raising
+`scale` can only shift the index distribution toward higher rows. The
+product of two non-negative non-decreasing sequences is non-decreasing —
+this is why "by construction" was reachable without moving any constant:
+the three preconditions already held, they just were not, until now,
+combined into one checked claim.
+
+No flag — this adds an analytical function and a test, no runtime game
+behaviour changes. No `docs/balance.md` entry (no new tunable constant) and
+no `rogule-spec.md` divergence (no player-visible rule changed).
 
 ## M12 · fill the floors back up
 

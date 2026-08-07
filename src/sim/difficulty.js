@@ -1,9 +1,10 @@
 import {
-  FLOOR_SPREAD_BASE, FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL,
+  FLOOR_SPREAD_BASE, FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL, MONSTER_TABLE,
   OUT_OF_DEPTH_CHANCE_BASE, OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_CHANCE_PER_LEVEL,
   OUT_OF_DEPTH_TAIL,
   SIDE_ACTIVATION_CAP, SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE,
 } from './balance.js';
+import { monsterWeightsAround } from './spawn.js';
 
 // How hard a floor is, from one number: how many creatures are on it.
 //
@@ -312,4 +313,43 @@ export function threatMass(state) {
   return state.monsters
     .filter((m) => !m.dead)
     .reduce((sum, m) => sum + m.hpMax * Math.max(0, m.xp - 1), 0);
+}
+
+// ***** M11 — floor n+1 is never easier than floor n ***** //
+// docs/backlog.md M11. EXACT expected value, not a sample: spawn.js draws a
+// cluster's tier from `depth * scale` where `depth` ranges roughly uniformly
+// over a floor's tiles, so the index a real floor lands on is `floor(depth *
+// scale * 10)` — a step function of `depth`. Integrating that exactly, rather
+// than sampling it, means this can never itself be the source of a false
+// "it dropped" — the closed form has no sampling noise to produce one.
+function expectedMonsterMass(scale) {
+  const mass = (t) => t.hp * Math.max(0, t.xp - 1);
+  const massAt = (index) => {
+    const entries = monsterWeightsAround(index);
+    const total = entries.reduce((sum, [, w]) => sum + w, 0);
+    return entries.reduce((sum, [slot, w]) => sum + w * mass(MONSTER_TABLE[slot]), 0) / total;
+  };
+
+  const top = MONSTER_TABLE.length - 1;
+  if (scale <= 0) return massAt(0);
+
+  // depth ~ Uniform(0, 1); index(depth) = floor(depth * denom), denom = scale
+  // * top. Each full index below the ceiling covers a bucket of width
+  // 1/denom; the top index absorbs whatever width is left over.
+  const denom = scale * top;
+  const ceiling = Math.min(top, Math.floor(denom));
+  let total = 0;
+  for (let index = 0; index < ceiling; index++) {
+    total += (1 / denom) * massAt(index);
+  }
+  total += (1 - ceiling / denom) * massAt(ceiling);
+  return total;
+}
+
+// Expected total roster mass for floor N (0-based), from the SHIPPED
+// generation parameters — `floorParams`, not a swept model, so this always
+// describes the game that actually runs.
+export function expectedFloorMass(level) {
+  const p = floorParams(level);
+  return p.monsters * expectedMonsterMass(p.difficultyScale);
 }
