@@ -129,7 +129,24 @@ not.
 **Deliberately absent:** capacity, attrition, buffer, challenge/power, the
 four ratios, standard errors, growth exponents. Three attempts to define,
 enormous samples to read, and none of them ever told anyone whether the game
-was worth watching. They stay in `run-ruler.html`.
+was worth watching.
+
+### This is the only metrics page
+
+Not a second page beside the others — **the** one. When it works,
+`run-ruler.html`, `run-lab.html` and `run-batch.html` are deleted along with
+the ones X1 already removes. `run-tests.html` stays; it is tests, not
+metrics.
+
+**The modules stay, only the pages go.** `observed-ruler.js` and
+`clustering.js` are where the numbers come from and this page calls them. If
+a sweep is genuinely needed later, a page for it is an afternoon — and the
+odds are it never is, because the reason there are five pages is that nobody
+deleted the last one.
+
+**If something in those pages turns out to be load-bearing and has no home
+here, say so and leave that page alone.** One page is the goal, not a rule
+worth losing a number over.
 
 ## M11 · floor n+1 is never easier than floor n
 
@@ -474,6 +491,11 @@ reason and replaced by `observed-ruler.js`.
 
     run-cluster.html    served I2
     run-i3.html         served I3
+
+**And the rest of the pages, once I8's `run-check.html` works** —
+`run-ruler.html`, `run-lab.html`, `run-batch.html`. One metrics page is the
+target. Their modules stay; only the pages go. Coordinate with I8 rather
+than deleting ahead of it.
 
 The analysis modules they drive stay — `clustering.js` is still the source
 of the finishes and per-turn damage numbers.
