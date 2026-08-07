@@ -61,18 +61,14 @@
 <div class="app">
 
 <h1>Is this any good?</h1>
-<p class="lede">Twelve numbers, three levels — one success number and
-three health numbers each.</p>
 
 <fieldset>
   <legend>run</legend>
   <div class="row">
-    <div><label>floor samples (map numbers)</label><input id="floorRuns" type="number" value="6"></div>
-    <div><label>descents (product + bot numbers)</label><input id="descentRuns" type="number" value="2"></div>
+    <div><label>floor samples</label><input id="floorRuns" type="number" value="6"></div>
+    <div><label>descents</label><input id="descentRuns" type="number" value="2"></div>
     <div><label>seed base</label><input id="firstSeed" type="number" value="500000"></div>
   </div>
-  <p class="note" style="margin:.6rem 0 0">Small on purpose. Raise the
-  descent count for a steadier read — it's the expensive one.</p>
 </fieldset>
 
 <button id="run" class="primary">Check</button>
@@ -96,13 +92,11 @@ function el(tag, cls, html) {
   return e;
 }
 
-function cell(kind, label, big, meaning, direction) {
+function cell(kind, label, big, hint) {
   const c = el('div', `cell${kind === 'success' ? ' success' : ''}`);
-  c.append(el('div', 'kind', kind === 'success' ? 'success' : 'health'));
   c.append(el('div', null, `<b style="font-size:11px">${label}</b>`));
   c.append(el('div', 'big', big));
-  c.append(el('div', 'meaning', meaning));
-  if (direction) c.append(el('div', 'direction', direction));
+  if (hint) c.append(el('div', 'direction', hint));
   return c;
 }
 
@@ -126,24 +120,12 @@ function render(reward, counts, dc, cap) {
   const finCls = dc.finishRate >= 0.15 && dc.finishRate <= 0.35 ? 'ok' : 'meh';
 
   const productCells = [
-    cell('success', 'median depth reached',
-      `<span>${f(dc.medianDepth, 1)} <span style="font-size:.9rem;color:var(--faint)">of ${LEVELS}</span></span>`,
-      'How far a run typically gets.',
-      `good: ~7 of 10 · this run: ${depthList}`),
-    cell('health', 'finishes',
-      `<span class="${finCls}">${pct(dc.finishRate)}</span>`,
-      'Share of runs that reach the shrine. Moves with both map and bot.',
-      `${dc.cleared}/${dc.runs} reached bottom`),
-    cell('health', 'turns between events',
-      f(dc.eventGapMedian, 0),
-      'Median turns between a kill, chest, or floor change.',
-      `n=${dc.eventGapN}`),
-    cell('health', 'spread of depths reached',
-      `±${f(dc.depthSpread, 1)}`,
-      'How much runs differ in how far they get.',
-      'good: not zero'),
+    cell('success', 'median depth', `${f(dc.medianDepth, 1)}/${LEVELS}`, `depths: ${depthList}`),
+    cell('health', 'finishes', `<span class="${finCls}">${pct(dc.finishRate)}</span>`, `${dc.cleared}/${dc.runs}`),
+    cell('health', 'turns between events', f(dc.eventGapMedian, 0), `n=${dc.eventGapN}`),
+    cell('health', 'spread of depths', `±${f(dc.depthSpread, 1)}`),
   ];
-  $('out').append(levelSection('Product — is a run worth watching', null, productCells));
+  $('out').append(levelSection('Product', null, productCells));
 
   // ***** Map *****
   const first = reward[0].challenge.mean;
@@ -178,14 +160,10 @@ function render(reward, counts, dc, cap) {
   costCard.append(costTable);
   const flagParts = [];
   if (drops.length) {
-    flagParts.push(el('p', 'flag', `Cheaper than the floor before: ${drops.map((l) => `floor ${l}`).join(', ')}. `
-      + 'Could be noise at this sample size.'));
-  } else {
-    flagParts.push(el('p', 'flag none', 'No floor is cheaper than the one before it.'));
+    flagParts.push(el('p', 'flag', `Cheaper than floor before: ${drops.map((l) => l).join(', ')}`));
   }
   if (lethal.length) {
-    flagParts.push(el('p', 'flag', `Costs more than a hero can expect to survive with (bot-independent): `
-      + `${lethal.map((x) => `floor ${x.level} (${f(x.ratio, 1)}×)`).join(', ')}.`));
+    flagParts.push(el('p', 'flag', `Over hp+armour budget: ${lethal.map((x) => `${x.level} (${f(x.ratio, 1)}×)`).join(', ')}`));
   }
   const flagNode = el('div', 'subnote');
   for (const p of flagParts) flagNode.append(p);
@@ -205,21 +183,14 @@ function render(reward, counts, dc, cap) {
     + `<tbody><tr><td>loot ÷ cost</td>${reward.map((r) => `<td>${pct(r.reward.mean / r.challenge.mean)}</td>`).join('')}</tr></tbody></table>`;
 
   const mapCells = [
-    cell('success', `cost, floor ${LEVELS} ÷ floor 1`,
-      `${f(last / first, 1)}×`,
-      `hp to clear a floor, no loot. Floor 1: ${f(first, 1)}, floor ${LEVELS}: ${f(last, 1)}.`,
-      'good: higher, every step — see below'),
-    cell('health', 'creatures per floor',
-      `${counts[0]} → ${counts[counts.length - 1]} <span style="font-size:.85rem;color:var(--faint)">(xp ${f(reward[0].meanXp, 1)} → ${f(reward[reward.length - 1].meanXp, 1)})</span>`,
-      'How full the floor is, and how strong (mean xp).',
-      'good: both rise'),
-    cell('health', 'spread within a floor', `${pct(reward[0].challenge.cv)} → ${pct(reward[reward.length - 1].challenge.cv)}`,
-      'How different two runs of the same floor are.', 'good: does not shrink'),
-    cell('health', 'loot against cost',
-      `${pct(reward.reduce((s, r) => s + r.reward.mean, 0) / reward.reduce((s, r) => s + r.challenge.mean, 0))} avg`,
-      "Loot's hp value vs. the floor's cost.", 'context only'),
+    cell('success', `cost, floor ${LEVELS}÷1`, `${f(last / first, 1)}×`),
+    cell('health', 'creatures',
+      `${counts[0]} → ${counts[counts.length - 1]} <span style="font-size:.85rem;color:var(--faint)">(xp ${f(reward[0].meanXp, 1)} → ${f(reward[reward.length - 1].meanXp, 1)})</span>`),
+    cell('health', 'spread within floor', `${pct(reward[0].challenge.cv)} → ${pct(reward[reward.length - 1].challenge.cv)}`),
+    cell('health', 'loot / cost',
+      `${pct(reward.reduce((s, r) => s + r.reward.mean, 0) / reward.reduce((s, r) => s + r.challenge.mean, 0))} avg`),
   ];
-  const mapSection = levelSection('Map — does the floor do its job', null, mapCells, flagNode);
+  const mapSection = levelSection('Map', null, mapCells, flagNode);
   const tables = el('div', 'subnote');
   tables.style.marginTop = '.7rem';
   tables.append(el('h3', null, 'cost per floor'), costTable,
@@ -231,27 +202,13 @@ function render(reward, counts, dc, cap) {
 
   // ***** Bot *****
   const botCells = [
-    cell('success', 'damage per kill', f(dc.damagePerKill, 2),
-      'hp taken per kill, across a full descent.', 'good: lower'),
-    cell('health', 'reversal rate', pct(dc.reversalRate),
-      'Share of moves that undo the one before it.', 'good: stops pacing'),
-    cell('health', 'turns per floor', f(dc.turnsPerFloor, 0),
-      'Average turns spent per floor.', 'good: stops wandering'),
+    cell('success', 'damage per kill', f(dc.damagePerKill, 2)),
+    cell('health', 'reversal rate', pct(dc.reversalRate)),
+    cell('health', 'turns per floor', f(dc.turnsPerFloor, 0)),
     cell('health', 'lost fights started',
-      `${dc.lostFightsStarted} <span style="font-size:.85rem;color:var(--faint)">/ ${dc.fightsStarted}</span>`,
-      'Fights started that the bot already priced as lost.',
-      'good: near zero'),
+      `${dc.lostFightsStarted} <span style="font-size:.85rem;color:var(--faint)">/ ${dc.fightsStarted}</span>`),
   ];
-  $('out').append(levelSection('Bot — does it play well', null, botCells));
-
-  const details = el('details');
-  details.append(el('summary', null, 'sample sizes'));
-  details.append(el('p', 'smallprint',
-    `Map: ${reward[0]?.n ?? '—'}–${Math.max(...reward.map((r) => r.n))} samples/floor. `
-    + `Expected hp+armour: ${cap.runs} descents. `
-    + `Product/Bot: ${dc.runs} real-bot descents (${dc.totalActions} turns, ${dc.totalKills} kills). `
-    + 'No standard errors by design — raise sample counts above for a steadier read.'));
-  $('out').append(details);
+  $('out').append(levelSection('Bot', null, botCells));
 }
 
 $('run').addEventListener('click', async () => {
