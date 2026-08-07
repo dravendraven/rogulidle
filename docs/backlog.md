@@ -41,9 +41,10 @@ session, skip it.
 | 1 | I8 | One page: three levels, twelve numbers, success and health | REPORTED |
 | 2 | M18 | The rat gets a real attack and a real chase radius | READY |
 | 3 | M17 | Near-flat roster, ~5 to ~8, with strength carrying the difficulty | READY |
-| 4 | X1 | Delete what nothing references | READY |
-| 5 | M4 | Side-room risk/reward spread scales with depth | READY |
-| 6 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 4 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
+| 5 | X1 | Delete what nothing references | READY |
+| 6 | M4 | Side-room risk/reward spread scales with depth | READY |
+| 7 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -325,6 +326,42 @@ arithmetic answers.
 question — the last two attempts at it both looked right on paper and both
 were wrong in a way nobody predicted. Build it, look at `run-check.html`,
 and watch a few runs before deciding.
+
+## M19 · pay for the harder opening with loot
+
+`work agent` · **READY** — after M18 and M17, sized to what they actually did
+
+M18 makes the bottom tier bite and M17 puts about five creatures on floor 1
+instead of two. The hero meets that with 10 hp and one axe. If the opening
+becomes a wall, the compensation is loot, not a difficulty rollback —
+floor 1 being genuinely dangerous is the point.
+
+**Size it to the measured problem, not to this item's guess.** Nothing here
+should move until M18 and M17 have landed and `run-check.html` says how much
+the opening actually changed. If it turns out fine, this item closes
+unbuilt, and that is a good outcome rather than a wasted one.
+
+**The levers, cheapest first.**
+
+- **Early chests hold better loot.** `CHEST_QUALITY_BY_DEPTH` makes depth
+  buy quality, so floor 1 is currently the poorest floor as well as about to
+  become a dangerous one. Offsetting it near the top is one constant and no
+  new mechanism.
+- **More chests on shallow floors.** Costs more: `balance.md` keeps chests
+  flat *deliberately*, so that threat outpaces supply, and tying them to
+  anything undoes an argument that was measured. Only if quality is not
+  enough.
+- **A guaranteed weapon or potion near the spawn.** Surgical and reliable,
+  but it is a new mechanism and a new rule, so it earns a `§13` entry.
+
+**What not to do.** Do not lower the floor-1 roster or soften the tier. That
+undoes M17 and M18 in the same breath as shipping them, and the question
+those items exist to answer is whether a dangerous opening is good — which
+cannot be answered by making it safe again.
+
+**Watch.** Richer early chests feed the hero for the whole descent, not just
+floor 1 — gear carries down the stairs. A change sized to fix floor 1 can
+easily make floors 5–10 too easy, and `finishes` is where that shows up.
 
 ## X1 · delete what nothing uses
 
