@@ -59,7 +59,7 @@ its standing job, which is not a task and so has no row of its own.
 |---|---|---|---|---|---|---|
 | 1 | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | REPORTED · blocker fixed | REPORTED |
 | 2 | I5 | Ruler cannot see buffer past floor 6, and M6 moves the window it is measured in | map | metrics | IN FLIGHT · window closed, main question open | n/a |
-| 3 | U1 | The screen plays one synthetic floor, not the descent everything is designed around | product | ui | READY · now | n/a |
+| 3 | U1 | The screen plays one synthetic floor, not the descent everything is designed around | product | ui | IN FLIGHT | n/a |
 | 4 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | READY · the main route | — |
 | 5 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
 | 6 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
@@ -918,7 +918,7 @@ B4's effect on the reversal rate before concluding B3 still has work to do.
 
 ## U1 · the spectator watches a different game than the one being designed
 
-`product` · `ui agent` · **READY**
+`product` · `ui agent` · **IN FLIGHT**
 
 `index.html` does not play a descent. It plays **one synthetic floor**,
 picked by the difficulty dial — `difficultyToParams(dial)` in
