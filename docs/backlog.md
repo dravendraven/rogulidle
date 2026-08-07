@@ -9,14 +9,20 @@ items. If an item looks wrong, report that rather than editing it.
 The broad goal is that a run is **worth watching**. It is not measurable and
 no attempt should be made to measure it directly. Two things drive it:
 
-    1. Curve shape approaching DCSS's        map queue    M2..M6
-    2. An intelligent bot                    bot queue    B1..B6
+    1. Curve shape approaching DCSS's     feature: map    M2..M6, I1..I3
+    2. An intelligent bot                 feature: bot    B1..B6, I4
 
 A third — the outcome reading like a horse race — is an **effect of those
 two, never a target**. See "Goals" below before touching it.
 
 Every item in the queue serves 1 or 2. If you cannot say which, say so
 rather than starting.
+
+The `feature` column is **which objective an item serves**, not which files
+it touches. I1 and I2 are instruments living in `src/analysis/`, and they
+are `map` because what they measure is the curve. I4 is `bot` because the
+question is whether the bot can tell a good side room from a bad one, even
+though the metrics agent answers it.
 
 ## The queue
 
@@ -97,8 +103,10 @@ and it is not optional. The metrics agent builds *new* instruments and
 answers *design* questions — including questions about the bot's quality,
 because a bot judged by whoever wrote it is a weak counterweight.
 
-Note that `feature` and `agent` are independent. I4 is a bot question
-answered by the metrics agent; M3 is a map change made by the work agent.
+Note that `feature` and `agent` are independent, and that `feature` names
+the objective served rather than the directory touched — see the objectives
+list at the top. I4 is a bot question answered by the metrics agent; M3 is a
+map change made by the work agent.
 
 ## Goals
 
