@@ -52,24 +52,28 @@ The table is **always in execution order** — what happens next is row one.
 It is re-sorted whenever a status changes, so a row moving up or down is
 normal and does not mean the item changed.
 
-| # | id | what and why | feature | agent | status |
-|---|---|---|---|---|---|
-| 1 | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | REPORTED |
-| 2 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | READY · the main route |
-| 3 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning |
-| 4 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning |
-| — | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | FOLDED into M7 |
-| — | M5 | Best item is axe +2, so no reward is ever an event | map | work | ON HOLD · no instrument |
-| — | I3 | Settle clustering's sign test; spike and CV wait for M2 to exist | map | metrics | **DONE** |
-| — | B1 | Ping-pong is the ugliest visible defect — find which layer creates it | bot | work | PARKED · reported |
-| — | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | PARKED |
-| — | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | PARKED |
-| — | B4 | Bot values darkness at zero, so it never explores for reward | bot | work | PARKED |
-| — | B5 | Clustering makes crowd tiles common, so the inert crowd penalty starts mattering | bot | work | PARKED |
-| — | B6 | Fix side-room discrimination, once I4 shows the inversion is real | bot | work | PARKED |
-| — | I4 | Bot may open more bad side rooms than good — is that real? | bot | metrics | PARKED |
-| — | I1 | Model ruler misprices crowds — replace it with two frozen probes that play | map | metrics | **DONE** |
-| — | I2 | Clustering may change lethality, not cost — retest with a normal hero | map | metrics | **DONE** |
+`reading` is the state of the metrics agent's measurement for that item —
+its standing job, which is not a task and so has no row of its own.
+
+| # | id | what and why | feature | agent | status | reading |
+|---|---|---|---|---|---|---|
+| 1 | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | REPORTED · blocker | IN FLIGHT |
+| 2 | I5 | The ruler cannot see buffer past floor 6, which is where the target lives | map | metrics | READY · next | n/a |
+| 3 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | READY · the main route | — |
+| 4 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
+| 5 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
+| — | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | FOLDED into M7 | — |
+| — | M5 | Best item is axe +2, so no reward is ever an event | map | work | ON HOLD · no instrument | — |
+| — | I3 | Settle clustering's sign test; spike and CV wait for M2 to exist | map | metrics | **DONE** | n/a |
+| — | B1 | Ping-pong is the ugliest visible defect — find which layer creates it | bot | work | PARKED · reported | — |
+| — | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | PARKED | — |
+| — | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | PARKED | — |
+| — | B4 | Bot values darkness at zero, so it never explores for reward | bot | work | PARKED | — |
+| — | B5 | Clustering makes crowd tiles common, so the inert crowd penalty starts mattering | bot | work | PARKED | — |
+| — | B6 | Fix side-room discrimination, once I4 shows the inversion is real | bot | work | PARKED | — |
+| — | I4 | Bot may open more bad side rooms than good — is that real? | bot | metrics | PARKED | n/a |
+| — | I1 | Model ruler misprices crowds — replace it with two frozen probes that play | map | metrics | **DONE** | n/a |
+| — | I2 | Clustering may change lethality, not cost — retest with a normal hero | map | metrics | **DONE** | n/a |
 
 Archived: the count→strength route. Measured, does not pay. See the end.
 
@@ -890,6 +894,57 @@ value. What is missing is an estimate of how many chests a dark region holds
 
 **Interaction with B3.** B4 may resolve the ping-pong on its own. Measure
 B4's effect on the reversal rate before concluding B3 still has work to do.
+
+## I5 · the ruler cannot see the buffer where the target lives
+
+`map` · `metrics agent` · **READY**
+
+The ruler is solid on one half and weak on exactly the half currently being
+decided.
+
+**Challenge and CV are sound.** `isolatedShape` carries n ≥ 135 paired
+samples at every level, independent of descent survival. Those numbers can
+be leaned on.
+
+**Power and buffer cannot be, past floor 6.** They come from `builtShape`, a
+real descent by Sonda B, and Sonda B dies: of 1500 descents, 175 reached
+floor 5, 14 reached floor 7, and **zero reached floor 10**. The fit is
+honestly restricted to floors 1–6, and two things follow.
+
+The buffer target is about **deep** floors — the hero meeting floor ten's
+cost with less tolerance than it had at the top. The instrument stops seeing
+anything two thirds of the way down, so M6 was judged on the shallow half of
+the problem it was raised to fix.
+
+And what it does see is **survivor-selected**: the heroes measured on floor 5
+are the luckiest 12%. That biases buffer *optimistic*, so the true decline is
+steeper than reported. The direction of the bias is favourable to the
+finding, which is why M6's verdict is not in question — but the magnitude
+is not usable, and M7 will be judged on the same number.
+
+**The question, and it may not have a cheap answer.** Can buffer be measured
+at depth at all with a probe that dies there? Three shapes to weigh, and
+picking among them is most of the work:
+
+- A probe that survives deeper without becoming a different hero. More hp
+  makes it immortal-ish and stops it measuring the real progression; there
+  may be a version that only changes survival and not the buffer being
+  measured, or there may not.
+- Buffer measured per isolated floor against a defined hero state, rather
+  than from a descent — trading survivor selection for an assumption about
+  what hero arrives.
+- Accepting floors 1–6 as the measurable window and saying so once, loudly,
+  in the targets rather than in a footnote — so nobody again decides a
+  deep-floor question on shallow-floor evidence.
+
+**"It cannot be done cheaply" is an acceptable answer**, and the third option
+is a real outcome rather than a failure. What is not acceptable is leaving
+the limitation where it currently sits: true, documented, and quietly
+ignored every time a buffer number gets quoted.
+
+**Out of scope.** Reward still measures incidental pickup rather than what
+the floor holds — I1 review point 4, still open, and why reward has no entry
+in the targets table. Not this item; noted so it is not forgotten twice.
 
 ## M7 · move difficulty off count, onto strength and grouping
 
