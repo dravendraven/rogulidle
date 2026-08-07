@@ -67,23 +67,39 @@ normal and does not mean the item changed.
 | 3 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY |
 | 4 | M5 | Best item is axe +2, so no reward is ever an event | map | work | READY |
 | 5 | I3 | Clustering leans lethal but unexplained — spike or attrition, and does CV move? | map | metrics | READY · now |
-| 6 | I4 | Bot may open more bad side rooms than good — is that real? | bot | metrics | READY |
-| 7 | B4 | Bot values darkness at zero, so it never explores for reward | bot | work | READY · after the map batch |
-| 8 | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | BLOCKED on B1 |
-| 9 | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | BLOCKED on B2 |
-| 10 | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | BLOCKED on I3 |
-| 11 | B6 | Fix side-room discrimination, once I4 shows the inversion is real | bot | work | BLOCKED on I4 |
-| 12 | B5 | Clustering makes crowd tiles common, so the inert crowd penalty starts mattering | bot | work | BLOCKED on M2 |
-| — | B1 | Ping-pong is the ugliest visible defect — find which layer creates it | bot | work | REPORTED · review only |
+| 6 | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | BLOCKED on I3 |
+| — | B1 | Ping-pong is the ugliest visible defect — find which layer creates it | bot | work | PARKED · reported |
+| — | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | PARKED |
+| — | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | PARKED |
+| — | B4 | Bot values darkness at zero, so it never explores for reward | bot | work | PARKED |
+| — | B5 | Clustering makes crowd tiles common, so the inert crowd penalty starts mattering | bot | work | PARKED |
+| — | B6 | Fix side-room discrimination, once I4 shows the inversion is real | bot | work | PARKED |
+| — | I4 | Bot may open more bad side rooms than good — is that real? | bot | metrics | PARKED |
 | — | I1 | Model ruler misprices crowds — replace it with two frozen probes that play | map | metrics | **DONE** |
 | — | I2 | Clustering may change lethality, not cost — retest with a normal hero | map | metrics | **DONE** |
 
 Archived: the count→strength route. Measured, does not pay. See the end.
 
-Two agents run at once, so the single rank is a flattening of two lanes:
+**The whole bot lane is PARKED by owner decision.** The focus is map design
+calibrated by the probes. Nothing about the bot items changed and none were
+abandoned — B1's answer stands, and the routing locus it turned up (18.4%
+± 0.9 pp, before the veto is ever consulted, so a fix scoped to `tactics.js`
+cannot reach it) is still an open scoping question for when the lane
+restarts. Do not pick up a PARKED item without the owner saying so.
 
-    work agent      M6 → M3 → M4 → M5  ‖  then B4 → B2 → B3
-    metrics agent   I3 → I4
+That leaves one loop, and it is deliberately serial:
+
+    work agent      M6 → M3 → M4 → M5
+    metrics agent   I3, then re-run the ruler after EACH of the four
+
+**One change, then a reading, then the next.** M6 and M3–M5 all aim at the
+same two ratios by different routes, and stacked into one measurement they
+cannot be told apart — the count→strength route already died exactly that
+way, and at least one of these four probably does not pay either. The probes
+are frozen, so a re-run is cheap and paired by construction.
+
+The work agent does not start the next map item until the previous one has
+been read. Waiting is the point.
 
 **M6 is decided and the map lane opens.** The owner accepted the divergence
 from Rogule: the hero gets growing maximum capacity, because a falling
@@ -127,6 +143,9 @@ Status legend:
                     the project agent
     DONE            reviewed and closed
     NEEDS DECISION  waiting on the owner, not on other work
+    PARKED          set aside by the owner to keep focus elsewhere. Not
+                    blocked, not abandoned, not stale — do not pick one up
+                    without being told to
     ARCHIVED        decided against, with the reason kept
 
 **Closing out a task.** When you finish, set the status to **REPORTED** in
