@@ -28,9 +28,14 @@ repeating it in the table only made the queue slower to scan.
 
 | # | id | what gets done | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
-| 1 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | READY | — |
-| 2 | E1 | Expose one resumable turn loop from src/sim so the four copies stop drifting | engine | work | READY | — |
-| 3 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | READY · M10 unblocked it | — |
+| 1 | M11 | Make floor n+1 never cheaper than floor n — floors 2 and 5 are today | map | work | READY · batch | batch |
+| 2 | M13 | Raise the tier floor with depth so rats stop appearing deep | map | work | READY · batch | batch |
+| 3 | M12 | Raise creature count and cluster size together, holding draws constant | map | work | READY · batch | batch |
+| 4 | M14 | Put one top-tier-for-the-floor creature next to the shrine | map | work | READY · batch | batch |
+| 5 | M15 | Give chests a creature nearby, spine included | map | work | READY · batch | batch |
+| 6 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | READY | — |
+| 7 | E1 | Expose one resumable turn loop from src/sim so the four copies stop drifting | engine | work | READY | — |
+| 8 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | READY · M10 unblocked it | — |
 | — | M10 | Allocate cluster zones against the mass quota so side rooms stop emptying | map | work | **DONE** · live, unflagged | done |
 | — | M3 | Unlock the strength ceiling with small probability | map | work | **ARCHIVED** · pushes CV the wrong way | done |
 | — | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | **DONE** | n/a |
@@ -39,7 +44,7 @@ repeating it in the table only made the queue slower to scan.
 | — | I5 | Split buffer into capacity and attrition and measure each on its own terms | map | metrics | **DONE** | n/a |
 | — | M6 | Grant max and current hp every N kills, mirroring the xp progression | map | work | **DONE** · built, flag OFF | done |
 | — | M2 | Place creatures in clusters instead of independently | map | work | FOLDED into M7 | — |
-| 4 | M5 | Add a rare high-value item to the loot table | map | work | READY · unblocked by I6 | — |
+| 9 | M5 | Add a rare high-value item to the loot table | map | work | READY · unblocked by I6 | — |
 | — | I3 | Settle clustering with a sign test, a damage percentile and a CV re-read | map | metrics | **DONE** | n/a |
 | — | B1 | Trace goal and action per turn to find which layer creates the ping-pong | bot | work | PARKED · reported | — |
 | — | B2 | Characterise what the tactical veto alternates between, and why | bot | work | PARKED | — |
@@ -65,6 +70,17 @@ told apart — the count→strength route died exactly that way, and at least
 one of the current set probably does not pay either. The work agent does not
 start the next map item until the previous one has been read. Waiting is the
 point.
+
+**Batch mode is on for M11–M15, by owner decision.** No flags, no per-item
+reading, no two-pass review. Each ships on, with a **test asserting its own
+observable property** — these are structural fixes with obvious criteria
+("does a rat deal damage", "is floor 5 cheaper than floor 4"), not attempts
+on a ratio, so the ruler is not what tells you whether they worked.
+
+One reading at the end of the batch, checking CV has not fallen back and
+challenge and finishes are sane. **If CV moves, bisect** — each item is its
+own commit, which is what makes this safe here and was not true of M7, whose
+three levers shared one budget and could not be separated even by commit.
 
 **An adoption decided in review 2 is the work agent's first commit on its
 next task**, before claiming anything. Twice now a flag has been adopted in
@@ -1502,6 +1518,103 @@ longer fights change the sample. Two halves, neither delivering.
 
 **Archived, not deleted** — built, tested, RNG-clean, flag off, and the
 reason is here. Same treatment as `SIDE_ACTIVATION_CAP`.
+
+
+## M11 · floor n+1 is never easier than floor n
+
+`map` · `work agent` · **READY**
+
+Measured, in the shipped game: challenge by floor runs 2.18, **1.97**, 5.28,
+6.33, **5.70**, 8.10 — floors 2 and 5 cost less than the floor above them.
+
+Nothing has ever targeted this. Every acceptance criterion so far has been
+about growth *rates*, which are happily monotone on average while individual
+steps go backwards.
+
+**Do.** Make the expected cost of floor N+1 exceed floor N by construction,
+not on average. The roster count is 2, 2, 3, 3, 3, 4, 5, 5, 6, 7 — flat
+stretches are where it happens, since with count equal the tier roll decides
+and can go either way.
+
+**Assert.** A test that walks floors 1→10 and fails if expected cost ever
+drops. Expected cost, not a sample — the point is that it cannot happen, not
+that it usually does not.
+
+## M12 · fill the floors back up
+
+`map` · `work agent` · **READY**
+
+Floor 10 holds 7 creatures on a 32×32 map. That is M7's doing — it cut count
+growth from 1.3 to 1.15 to fight the CV decay — and the emptiness is the
+price that was paid without anyone looking at it.
+
+**It does not have to be paid.** CV depends on the number of independent
+*draws*, not on the number of creatures, and clustering separated those two.
+Raise the count **and raise cluster size with it**, holding
+`creatures ÷ cluster size` roughly where it is, and the floors fill up while
+the CV win survives.
+
+Effective cluster size is currently 3.97–4.87 (measured, not the constant 6).
+That ratio is the thing to hold.
+
+**Assert.** Creatures per floor at 1, 5, 10 in the report. Draws per floor —
+`creatures ÷ effective cluster size` — roughly unchanged from today.
+
+## M13 · the tier floor rises with depth
+
+`map` · `work agent` · **READY**
+
+A creature's tier is `min(1, depthAt(pos) × difficultyScale)`, and `depthAt`
+is position **within the map**, not the floor number. Near the entrance it
+is ~0, so the index falls to 0 — **a rat** — on every floor including 10.
+
+The floor's depth sets the **ceiling** and never the floor. That is why weak
+creatures keep showing up deep.
+
+**And rats cannot hurt anything.** `xp 1` means the damage roll is `0..0`,
+exactly zero. `threat.js` skips them from the danger field and `duelCost`
+returns 0. They are scenery that costs turns.
+
+**Do.** Give the tier a per-floor **minimum** that rises with depth, so the
+bottom of the table drops out as the descent goes on. Within-map position
+still varies tier — it just varies between a floor and a ceiling instead of
+between zero and a ceiling.
+
+**Assert.** Lowest tier seen at floors 1, 5, 10 rises. No `xp 1` creature at
+all past some floor.
+
+## M14 · a guardian at the shrine
+
+`map` · `work agent` · **READY**
+
+Nothing guards the exit. Reaching the shrine is currently the moment the
+floor stops being dangerous.
+
+**Do.** Place one creature adjacent to the shrine, drawn at or near the top
+of the tier that floor can reach — strong *relative to the floor*, not
+absolutely. It replaces one of the floor's roster rather than adding to it,
+so the budget does not move.
+
+**Assert.** Every floor has exactly one, its tier is at or above every other
+creature on that floor, and creature count is unchanged.
+
+## M15 · loot rooms have a guard
+
+`map` · `work agent` · **READY**
+
+Rooms hold a chest and nothing else, so most of a floor is walking. Loot
+that costs nothing to take is not a decision.
+
+`SIDE_CHEST_BIAS` already puts chests in side rooms, which have guards — so
+this may be smaller than it looks. What is missing is the spine, where
+chests sit unguarded.
+
+**Do.** Make a chest almost always have a creature within a short radius,
+spine included. Reuse placement rather than adding creatures — the budget is
+M12's, not this item's.
+
+**Assert.** Fraction of chests with a live creature within N tiles, at
+floors 1, 5, 10. It should be high and roughly flat with depth.
 
 
 ---
