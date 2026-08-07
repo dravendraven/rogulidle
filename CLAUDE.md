@@ -32,6 +32,35 @@ changes have been reverted on that basis and the reasons are kept in the
 files rather than deleted — see `SIDE_ACTIVATION_CAP` in balance.js and
 §2.1 of bot-strategy.md.
 
+## Sessions and roles
+
+Three sessions may run against this repo at once. Your opening prompt says
+which one you are. If it does not, ask before touching anything.
+
+- **project & design agent** — decides what to work on and why, proposes
+  design direction, and writes the prompts for the other two. May edit
+  `docs/`, never `src/`.
+- **work agent** — changes game and bot code. Never redefines scope, and
+  never changes what a metric means without saying so explicitly.
+- **metrics agent** — builds and runs instruments, and reports baselines.
+  Never touches `src/bot/` and never changes a balance value.
+
+Work outside your role gets REPORTED, not done — even when it is a one-line
+fix and you can see exactly what it should be. The measurement ruler and the
+thing being measured are deliberately kept in different hands; a helpful fix
+across that line is the failure mode this split exists to prevent.
+
+`docs/balance.md` is the one file all three may touch. Different sections,
+small commits, and say in the commit message which role you are.
+
+`docs/backlog.md` holds the task list, what each task is worth, and its
+acceptance criteria. Your opening prompt names your task — read that item in
+full before starting, and report against ITS criteria rather than your own
+sense of finished. When you finish, set your item to REPORTED and append a
+`### Result` block to it — see the legend at the top of that file. Only the
+project agent adds or reorders items, or promotes REPORTED to DONE; if an
+item looks wrong, report that instead of editing it.
+
 ## Hard rules
 - Vanilla JavaScript, ES modules. No frameworks, no npm, no build step,
   no TypeScript. Must run by opening HTML files / GitHub Pages as-is.
