@@ -1,9 +1,5 @@
 # Balance — single source of truth for every tunable number
 
-> ⚠️ **The single-floor win-rate curve below predates the armour change**
-> (spec §13.2) and needs re-measuring. The dungeon curve is current — see
-> "the dungeon" immediately below.
-
 ## The whole difficulty model, in three constants
 
 There is no calibration table any more. A floor is described by how many
@@ -74,64 +70,49 @@ Measured with these, 12 dungeons: 4 cleared, depths 2, 2, 2, 4, 5, 7, 7, 8,
 floor 10 — the hero builds up and is worn away, which is the arc worth
 having.
 
-## The dungeon curve (previous, hand-tuned table)
+## Where the current numbers live
 
-Measured over 12 dungeons after armour became a spent second bar and passive
-regeneration was removed. Net challenge is what the floor is expected to
-cost divided by the hp+armour the hero walked in with; above 1.00 the floor
-asks for more than the hero brought.
+**Not here.** The dungeon curve, the win rates and the difficulty-dial table
+that used to sit in this space were measured before xp was frozen, before
+weapons widened the roll, before armour became a spent second bar, before
+passive regeneration was removed, before the collectibles went, before growth
+turned exponential and before the map grew a spine. Every one of them was
+wrong by the time anybody read it, and one of them — a slider label promising
+"~45% wins" — was quoted back at us for weeks.
 
-| floor | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
-|---|---|---|---|---|---|---|---|---|---|---|
-| net challenge | 0.20 | 0.30 | 0.48 | 0.24 | 0.36 | 1.02 | 0.81 | 1.20 | 1.02 | 0.88 |
-| deaths | 0 | 0 | 0 | 0 | 1 | 2 | 1 | 3 | 0 | 0 |
-| capacity in | 10 | 11.3 | 14.6 | 16.3 | 19.7 | 17.9 | 18.9 | 15.5 | 15.0 | 17.6 |
+They are gone rather than updated, because a table of measurements in a
+markdown file rots on a schedule nobody controls. Run the numbers instead:
 
-5 of 12 dungeons cleared; depths 5, 6, 6, 7, 8, 8, 8, 10, 10, 10, 10, 10.
+```
+python tools/dev-server.py     ->  http://localhost:8141/run-lab.html
+```
 
-`LAST_LEVEL_DIFFICULTY` is 0.5, not 0.9. At 0.9 the net challenge crossed
-1.00 by floor five and nobody reached the bottom — the dial has far more
-bite now that floor cost genuinely climbs instead of being cancelled out by
-stockpiled armour.
+`run-lab.html` renders the formulas out of this file's mirror
+(`src/sim/balance.js`) at load, exposes every dial, and measures the descent
+on demand. What it prints is true today by construction.
 
-The wobble (floor 4 dips below floor 3) is sampling noise at n=12, not
-structure. Re-measure with a different `firstSeed` before reading anything
-into a single floor.
+The one shipped figure worth writing down is the shape, not the level: net
+challenge should **rise** with depth and capacity should **not**. The page
+says so in a verdict line rather than leaving it to be eyeballed.
 
-## The difficulty dial
+## Two findings that outlived their tables
 
-One number, 0 to 1, sets how hard the floors are without touching the bot.
-`src/sim/difficulty.js`; `index.html?difficulty=0.7` to watch it.
+Both were measured against an older bot and older generation, and both are
+about the *structure* of the problem rather than any particular number — so
+they are still worth knowing before turning any dial.
 
-| dial | 0.00 | 0.25 | 0.50 | 0.75 | 1.00 |
-|---|---|---|---|---|---|
-| **win rate** | 95% | 70% | 45% | 17% | 0% |
-| monsters | 3 | 5 | 6 | 9 | 22 |
-| chests | 22 | 17 | 14 | 10 | 2 |
-| difficulty scale | 0.35 | 0.6 | 0.75 | 0.9 | 1.0 |
-| drop chance | 0.8 | 0.65 | 0.5 | 0.3 | 0.0 |
+**Roughly half of a run's outcome is dice, not design.** Playing the same map
+with nine different combat streams: 46.5% of the outcome variance came from
+the map, 53.5% from the rolls. Six maps out of 21 always gave the same result;
+seven were near coin flips. So a dial sets a long-run rate and never a verdict
+on one run — and any comparison of two settings needs enough seeds to see past
+that, which is also why `descentCurve` reports a z.
 
-Measured over 30–40 held-out floors per point against bot v5. **Recalibrate
-after any material change to the bot** — difficulty here is defined against
-an opponent, not in the abstract.
-
-Three things worth knowing before turning it:
-
-- **Drop chance has to move too.** Piling on monsters also piles on their
-  drops, so crowding the floor arms the player as well. Holding drops at 0.5
-  the win rate bottomed out near 13% no matter how many monsters were added.
-- **Roughly half of a run's outcome is combat dice, not the floor.** Playing
-  the same map with nine different dice streams: 46.5% of the outcome
-  variance came from the map, 53.5% from the rolls. Six maps out of 21 always
-  gave the same result; seven were close to coin flips. So the dial sets a
-  long-run rate, never a verdict on one run.
-- **No formula from map features predicts much.** Correlations with winning
-  top out around 0.3 (`optimalCost` −0.32, `gearPerThreat` +0.31, `sumXp`
-  −0.30), and a fitted model reaches 64% accuracy against a 59% base rate.
-  That is the dice ceiling above, not a modelling failure. Controlling
-  generation works; predicting from it does not. `pressureOf()` in
-  difficulty.js is the best single descriptive index if you want one.
-
+**No formula over map features predicts much.** Correlations with winning
+topped out near 0.3, and a fitted model reached 64% accuracy against a 59%
+base rate. That is the dice ceiling above, not a modelling failure.
+Controlling generation works; predicting from it does not — which is why the
+modelled net challenge was eventually replaced by a measured one.
 
 Mirrored in `src/sim/balance.js`. Change here first, then there. Nothing in
 `src/sim/*.js` may hardcode a number that belongs on this page.

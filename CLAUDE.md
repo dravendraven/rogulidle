@@ -15,17 +15,20 @@ Read, in this order:
 Design questions get answered from those docs or by asking the owner, never
 by inventing defaults.
 
-**Current phase: P2** (update this line manually as phases complete)
+**Current phase: P4** (update this line manually as phases complete)
 
 - **P0** — rules spec. Done.
-- **P1** — headless deterministic engine. `step()` and the belief model,
-  no rendering. Done.
-- **P2** — renderer and replay player: emoji grid, spectator controls,
-  continuous run loop.
-- **P3** — the bot.
-- **P4** — batch tuning against win rate and step counts.
+- **P1** — headless deterministic engine. Done.
+- **P2** — renderer and replay player. Done.
+- **P3** — the bot. Done.
+- **P4** — tuning: difficulty model, map design, and the instruments to
+  measure both. In progress.
 
-Only build what the current phase requires.
+P4 work is measurement-first: change one thing, measure it, write down what
+the measurement said even when it says the change did nothing. Several
+changes have been reverted on that basis and the reasons are kept in the
+files rather than deleted — see `SIDE_ACTIVATION_CAP` in balance.js and
+§2.1 of bot-strategy.md.
 
 ## Hard rules
 - Vanilla JavaScript, ES modules. No frameworks, no npm, no build step,
@@ -43,28 +46,45 @@ Only build what the current phase requires.
   Fog of war is a design decision, not decoration — see spec §12.
 - The engine stays faithful to Rogule. Bot rules (like "kill everything
   before the shrine") are enforced in the bot, not in the engine, so that
-  P4 can measure what relaxing them would cost.
+  P4 can measure what relaxing them would cost. That rule has since been
+  relaxed by owner decision — see bot-strategy.md §0.
 
 ## Running it
-`python tools/dev-server.py` then open <http://localhost:8141/index.html>
-to watch, `/run-tests.html` to check the rules, or `/run-batch.html` to
-measure the bot over many games and sweep a setting.
+`python tools/dev-server.py` then open:
 
-Keep the batch tab VISIBLE while it runs. Browsers clamp `setTimeout` to
+- `/index.html` — watch the bot play
+- `/run-tests.html` — check the rules (46 tests)
+- `/run-lab.html` — **the main instrument.** Every dial, the formulas they
+  feed rendered from balance.js, and the descent measured on demand
+- `/run-batch.html` — older single-floor sweeper, still useful for bot flags
+- `/run-curve.html` — **superseded.** It reads the MODELLED net challenge
+  from `src/analysis/curve.js`, which prices clean 1v1 duels and so read
+  0.23 on a floor that killed four heroes of seven. run-lab measures the
+  same quantity instead of modelling it. Kept only until curve.js goes.
+
+Keep the measuring tab VISIBLE while it runs. Browsers clamp `setTimeout` to
 about a second in a background tab, and the runner yields between chunks,
 so hiding it makes a sweep take many times longer than it should.
 Port 8141, because the sibling roguidle project already uses 8137 and 8138.
 That server disables browser caching, so edits to `src/*.js` actually take
 effect. Opening the file directly will not work — ES modules need `http://`.
 
-`?seed=anything` on either page makes the whole session reproducible.
+`?seed=anything` makes the whole session reproducible.
+
+## Measuring note — read before reporting a difference
+A proportion measured over a few hundred samples has a standard error of
+several points. A gap of 1.3 sigma was once reported here as a finding and
+given a causal explanation within the hour; it later measured at 0.6 sigma
+over a proper sample and turned out to be nothing. `descentCurve` returns a
+`z` alongside every rate for this reason. **Do not explain a difference until
+it clears 2 sigma.**
 
 ## Editing note
 Do not rewrite text files with PowerShell `Get-Content` / `Set-Content`:
 it reads UTF-8 as ANSI and turns every em dash into mojibake. Use the
 editing tools.
 
-## Measuring note
+## Stale-module note
 Dynamic `import()` caches modules per page load. Re-importing after an edit
 in the same page silently returns the OLD module, so a batch measured that
 way is testing code you are not running. Always reload the page between an

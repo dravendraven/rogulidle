@@ -12,20 +12,57 @@ Premissa fixada em §10.1 da spec: **fog of war real com memória**. O bot lê
 
 ## 0. O objetivo: vencer primeiro, passos depois
 
-Regra fixada pelo dono: **matar todos os monstros antes de tocar o santuário
-é obrigatório**, não um peso. Vem da regra de casa que ele jogava com
-amigos — limpar o andar inteiro aumentava a chance de fracasso, e era isso
-que tornava o desafio divertido.
+> **Revisado.** A versão original desta seção fixava **matar todos os
+> monstros antes do santuário** como obrigação do bot. Isso mudou por decisão
+> do dono, junto com o redesenho de mapa: *"não há mais obrigação de matar
+> tudo, desde que o design do mapa obrigue o bot a matar o suficiente para
+> chegar no shrine"*. O texto abaixo é a regra em vigor; o que ela substituiu
+> está em §0.1.
 
-Mas passos são **critério de desempate, não objetivo**. Uma run de 1000
-passos que vence vale mais que qualquer run curta que morre.
+**R0 virou regra de mapa, não regra de bot.** A geração põe ~70% da massa de
+ameaça do andar na rota obrigatória até o santuário (`src/sim/spine.js`), de
+modo que **chegar ao santuário já significa ter brigado com a maior parte
+dela**. O bot só é proibido de sair enquanto algo *obrigatório* que ele
+conheça continuar vivo.
+
+Passos são **critério de desempate, não objetivo**. Uma run de 1000 passos
+que vence vale mais que qualquer run curta que morre.
 
 ```
 maximizar  P(vitória) − λ · passos
-sujeito a  R0: santuário só é alvo válido com todos os monstros mortos
+sujeito a  R0: santuário só é alvo válido sem nenhum monstro de ESPINHA
+               conhecido vivo  (`requireClear`, ver abaixo)
            R2: nunca escolher ação que resulte em ameaça ≥ 2
 falha      morte do jogador
 ```
+
+`requireClear` tem três valores, e os três continuam medíveis porque a
+mudança precisava ser comparável com o que ela substituiu:
+
+| valor | significado |
+|---|---|
+| `spine` | **em vigor.** Sai quando nada obrigatório conhecido está vivo |
+| `all` | o R0 antigo: kills == total de monstros |
+| `none` | sem restrição, pode correr para a escada a qualquer momento |
+
+Monstros **não vistos** não contam. O bot não tem como saber se um bicho que
+nunca viu está na rota — e não precisa: o que é obrigatório está, por
+construção, entre ele e o santuário, então andar até lá os encontra.
+
+### 0.1 Por que a regra dura saiu
+
+Ela vinha da regra de casa que o dono jogava com amigos: limpar o andar
+inteiro aumentava a chance de fracasso, e era isso que tornava o desafio
+divertido. Continua sendo verdade — o que mudou é **quem impõe**.
+
+Com salas laterais no mapa, forçar a limpeza por decreto apagava a escolha
+que elas existem para oferecer. Medido antes da mudança: proibir o desvio,
+exigir o desvio e permitir o desvio davam masmorras **idênticas**, porque o
+bot limpava tudo de qualquer jeito.
+
+**Aviso honesto:** trocar a regra ainda não fez a escolha existir. Medido em
+50 descidas, o bot abre 87% dos baús laterais tanto nas salas favoráveis
+quanto nas desfavoráveis (z = 0,64). Ver `docs/map-design.md`.
 
 ### λ — o botão de aversão a risco
 
@@ -47,11 +84,12 @@ Valor inicial e curva de sensibilidade ficam para a Fase 4.
 
 ### Duas consequências
 
-**1. O bot joga para vencer, mas não pode desistir.** As duas coisas
-convivem: ele maximiza sobrevivência dentro do espaço de jogadas legais, mas
-R0 proíbe a fuga para o santuário. Se está com 2 HP e sobrou um dragon, ele
-luta. Isso proíbe heurística de auto-preservação que viole R0 — não proíbe
-cautela.
+**1. O bot joga para vencer, mas não pode desistir do que é obrigatório.**
+As duas coisas convivem: ele maximiza sobrevivência dentro do espaço de
+jogadas legais, mas R0 proíbe a fuga para o santuário enquanto houver
+monstro de espinha vivo. Se está com 2 HP e sobrou um dragon **na rota**, ele
+luta. Um dragon numa **sala lateral**, não — aquele é decisão econômica, e
+recusar é jogada legal.
 
 **2. Passos não disciplinam o descanso.** Uma versão anterior deste
 documento afirmava que o custo em passos do descanso bastava para impedir o
@@ -88,9 +126,9 @@ ordem, dado que cada desvio custa passos no placar. É o caso que você
 descreveu: a sala só com loot é resolvida inteira antes de encostar na sala
 com monstro.
 
-O "que se pague" é o que mudou com o placar de passos (§0). Uma cobertura a
-30 tiles de distância, isolada, provavelmente não vale o desvio; a mesma
-cobertura no caminho, sim. O bot resolve isso com o valor de sobrevivência
+O "que se pague" é o que mudou com o placar de passos (§0). Um baú a
+30 tiles de distância, isolada, provavelmente não vale o desvio; o mesmo
+baú no caminho, sim. O bot resolve isso com o valor de sobrevivência
 esperado do item contra o custo em passos do desvio — não com um raio fixo.
 
 ### O que o fog muda
@@ -112,21 +150,21 @@ atravessar os raios de perseguição que ele cruza.
 
 ### O que os números dizem sobre a ambição da regra
 
-O valor esperado de destampar uma cobertura é baixo:
+O valor esperado de abrir um baú é baixo:
 
-- ~50% das coberturas estão vazias (spec §4)
+- ~50% dos baús estão vazios (spec §4)
 - do que sai, só ~30% afeta combate (escudo/adaga/machado) e ~16% cura
-- cada cobertura custa **2 turnos** (destampar, depois pisar)
+- cada baú custa **2 turnos** (abrir, depois pisar)
 
-Combinando: uma cobertura vale em média ~0.15 de item de combate e ~0.08 de
+Combinando: um baú vale em média ~0.15 de item de combate e ~0.08 de
 cura. Isso **não invalida a regra** — com turno de graça, colher tudo que é
 frio continua estritamente correto. Mas significa que *atravessar perigo*
-por uma cobertura específica quase nunca compensa, porque o prêmio esperado
+por um baú específico quase nunca compensa, porque o prêmio esperado
 é uma fração de item. Atravessar perigo por um **item de chão já visível e
 identificado** (a adaga que você enxerga no chão) é outra conversa — aí o
 prêmio é certo.
 
-Distinção prática para o bot: **cobertura fechada e item revelado são dois
+Distinção prática para o bot: **baú fechado e item revelado são dois
 tipos de alvo com valores muito diferentes.** Vale separar.
 
 ---
@@ -294,7 +332,7 @@ monstro deixa de depender do equipamento do herói.
 Armas continuam cortando o outro lado, e agora são o único item cujo valor
 depende do que sobrou para matar.
 
-### Sob "matar todos", a ordem importa por causa das armas
+### A ordem de matar importa por causa das armas
 
 > **Revisado.** Esta seção argumentava que a bola de neve vinha do xp. O xp
 > deixou de crescer (balance.js) e a armadura deixou de reduzir dano, então
@@ -342,7 +380,7 @@ Duas são restrições duras, uma é pontuação.
 **Restrições (o bot nunca as viola):**
 
 ```
-R0  santuário só é alvo válido quando kills == total_de_monstros
+R0  santuário só é alvo válido sem monstro de ESPINHA conhecido vivo
 R2  nunca escolher ação que resulte em ameaça ≥ 2
 ```
 
@@ -356,9 +394,10 @@ score(alvo) = valor_de_sobrevivência(alvo)
             − prêmio_de_incerteza            ; fog: alvo em região inexplorada
 ```
 
-Cinco tipos de alvo: **item revelado**, **cobertura fechada**, **monstro**,
-**fronteira** (exploração) e **santuário** — este último trivial, porque
-quando R0 libera não sobrou mais nada a fazer.
+Cinco tipos de alvo: **item revelado**, **baú fechado**, **monstro**,
+**fronteira** (exploração) e **santuário**. O santuário deixou de ser
+trivial: sob `spine` ele libera com salas laterais ainda de pé, então sair
+passa a competir de verdade com continuar saqueando.
 
 Ordem que deve emergir sem ser codificada: colher o loot frio que se paga →
 explorar fronteira fria → matar o monstro mais barato alcançável → recolher
@@ -390,18 +429,25 @@ porque `maxTurns` não detecta esse caso — o contador de turnos nunca sobe.
 
 ### 4.1 O bot precisa saber quantos monstros existem
 
-R0 exige comparar `kills` com o total, e sob fog o bot não descobre esse
-total sozinho. Duas saídas:
+Escrito quando R0 era "matar todos", e a razão original **caducou**: sob
+`spine` a saída não compara `kills` com total nenhum, só checa se algo de
+espinha conhecido continua vivo. A contagem sobreviveu por outro motivo, e
+ele é mais forte.
 
-- **Bot conhece a contagem** (5) como constante de jogo. Ele sabe quando
-  terminou, mas ainda precisa explorar para *achar* os que faltam.
-- **Bot não conhece.** Aí R0 só é satisfeita após varredura completa do
-  mapa, e toda run termina com uma exploração exaustiva e chata.
+**Precificar equipamento exige saber quanto falta matar.** Uma arma vale
+exatamente o HP que economiza no que resta (`loot.js`), então sem a contagem
+o bot atribuiria valor zero a gear sempre que não visse nada — justamente a
+hora de se armar. `monstersStillToFight` preenche o que falta com estimativas
+medianas.
 
-**Recomendação: o bot conhece a contagem.** É coerente com a premissa que
-você já fixou (o bot conhece o comportamento das criaturas), e evita a
-varredura obrigatória. A tensão de "falta um, onde está?" continua existindo,
-que é a parte boa.
+O mesmo raciocínio se estende para baixo: gear pega no andar 3 é usada nos
+andares 4 a 10, então `monstersAhead` soma os andares seguintes pela lei de
+crescimento, descontados por `LOOT_CAMPAIGN_HORIZON` — contar todos a valor
+de face suporia que o herói vive para usá-los.
+
+**O bot conhece a contagem** (`BOT_KNOWS_MONSTER_COUNT`). Coerente com a
+premissa de que ele conhece o comportamento das criaturas, e evita a
+varredura obrigatória do mapa. A tensão de "falta um, onde está?" continua.
 
 ### 4.2 O que retirei da versão anterior
 
@@ -415,6 +461,11 @@ run inteira.
 Fica como item de Fase 4 medir a taxa de morte real. Se ela vier alta demais
 para ser divertida, o ajuste correto é o **balanceamento** (contagem de
 monstros, densidade de loot, §10.2 da spec) — não relaxar R0.
+
+> **Nota posterior.** R0 acabou sendo relaxada mesmo assim (§0), mas não
+> como saída de emergência para a taxa de morte: por decisão de design, para
+> que salas laterais fossem uma escolha. O conselho acima continua valendo —
+> afrouxar a regra para consertar dificuldade é tratar o sintoma.
 
 ---
 
@@ -552,8 +603,11 @@ simulação — o motor como previsor funcionou exatamente como projetado:
 3. **Dano causado era invisível.** HP perdido era custo puro e HP tirado do
    monstro não valia nada, então nenhuma luta se justificava. Creditar o
    dano causado ao par com o recebido consertou o dithering (turnos 364 →
-   157, travamentos 4 → 1). Faz sentido: sob R0 todo monstro precisa morrer,
-   então HP tirado de um vale quase o mesmo que HP guardado.
+   157, travamentos 4 → 1). Fazia sentido sob a R0 dura, onde todo monstro
+   precisava morrer, então HP tirado de um valia quase o mesmo que HP
+   guardado. Sob `spine` isso vale para os monstros de espinha e passa a ser
+   uma aproximação para os de sala lateral, que podem ser deixados vivos —
+   não foi remedido depois da mudança.
 
 O que provavelmente falta, para quem retomar: o horizonte de 3 turnos é
 curto demais para as decisões que justificariam a busca — recuar até um
@@ -601,7 +655,7 @@ comportamentos diferentes**, e o bot precisa tratá-los assim.
 
 | | HP | Armadura |
 |---|---|---|
-| onde repõe | poção, de criatura | escudo, de cobertura |
+| onde repõe | poção, de criatura | escudo, de baú |
 | se acumula? | não, tem teto | não, é gasta |
 | o que faz | mantém vivo | adia o dano |
 
