@@ -59,6 +59,21 @@ twelve creatures in four clusters are four draws with twelve bodies.
 still draws its own tier measured 0.945 against a 0.944 baseline. The group
 has to be one creature type to count as one draw.
 
+**M3 was archived on the wrong test, and is worth revisiting after M24.**
+Its acceptance was written around CV because everything was being judged by
+CV at the time — but it existed to shrink the reaction window, which is
+spike, not variance. And the spike measurement that failed it was p95/p99
+pooled over every turn including walking; I7 later showed that was dilution,
+and conditioned on combat-adjacent turns the spike is there (p95 = 1,
+p99 = 3).
+
+It also had no room to work. Above-tier creatures are currently *routine* —
+the ±2 spread gives a wolf 17% of the time and an ogre 8% — so a rare
+deliberate tail firing at 8% is invisible against a background already
+firing at 25%. **M24 tightens the routine band, which would make M3 the only
+source of an above-tier creature** rather than one of two, and rare rather
+than lost in noise.
+
 **An out-of-depth tail pushes CV the wrong way by construction.** Its chance
 grows with depth, so it fires where cost is already highest, and raising the
 deep mean lowers sd/mean even while raising sd. Swept to its ceiling and
