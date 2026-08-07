@@ -39,7 +39,7 @@ session, skip it.
 | # | id | what gets done | status |
 |---|---|---|---|
 | 1 | U3 | Show killed-xp and xp per turn, instead of the damage stat labelled xp | REPORTED |
-| 2 | U4 | Lifetime score, awarded only on a full clear, xpEarned over turns | IN FLIGHT |
+| 2 | U4 | Lifetime score, awarded only on a full clear, xpEarned over turns | REPORTED |
 | 3 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | REPORTED |
 | 4 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
 | 5 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
@@ -408,7 +408,7 @@ not touched here.
 
 ## U4 · a lifetime score, earned only by finishing
 
-`ui agent` · **IN FLIGHT** — U3's engine half landed, unblocked
+`ui agent` · **REPORTED**
 
 Runs loop forever and **nothing accumulates**. Run 47 has the same
 consequence as run 1, which is the whole of it: a loop, not a sequence. The
@@ -449,6 +449,46 @@ without waiting: force a clear, or feed it a synthetic finished run.
 around 1700 turns and kills maybe 200 xp worth of creatures, so an award
 lands near **12**. If it comes out at 0.1 or 4000, something is wrong with
 the units rather than with the run.
+
+### Result
+
+New `src/ui/score.js` — three pure functions (`award`, `readScore`,
+`resetScore`) over one `localStorage` key, no DOM and no `src/sim/` import
+either direction. `src/ui/spectator.js`'s `tallyDescent` calls `award()`
+only inside its existing `if (run.cleared)` branch, using
+`run.levels.reduce((sum, l) => sum + l.turns, 0)` for total turns and the
+last level's `xpEarned` — both straight from `playDungeon`'s own per-floor
+records, not from the display's own turn bookkeeping. `src/ui/render.js`
+gets `renderScore`; `index.html` gets a `lifetime score` field (total ·
+clears · last award) and a `reset` button behind a native `confirm()`,
+since the action is irreversible and purely local. `style.css`: one small
+rule so the reset button reads as secondary, not a peer of the header
+controls.
+
+**Verified without waiting for a clear**, as asked — `finishes` is near 0
+right now. `score.js`'s functions take plain `(xpEarned, turns)`, no DOM,
+so they're callable from the console directly:
+`award(200, 1700)` → **11.76**, matching the item's own worked estimate of
+~12. A second call (`award(50, 1600)` → 3.125) accumulated correctly to
+14.89 over 2 clears; reloading the page picked the persisted total back up
+before any run had completed in the new load (confirms the
+read-on-`start()` path, not just the write path); `resetScore()` zeroed it
+back to "no clears yet". That console-callable shape *is* the verification
+path — considered a `?forceClear=1` debug flag instead and skipped it,
+since it risks quietly mixing fake data into the real lifetime total if
+anyone forgets to turn it off.
+
+**Deliberately out of scope:** did not wire this into `play.html`, the
+interactive mode added earlier this session on direct owner request and
+not yet reviewed by the project agent. U4's own opening line is about the
+spectator ("runs loop forever and nothing accumulates"); merging the bot's
+lifetime and a human player's into one `localStorage` key felt like a
+product decision to flag, not one to make unilaterally while already
+mid-item.
+
+`run-tests.html`: 89/91, same 2 pre-existing spine-share failures from a
+different session's in-flight map work — confirmed unrelated, nothing here
+touches map generation.
 
 ### Review of M17 — kept. And the diagnosis just got much sharper
 
