@@ -599,6 +599,35 @@ already-adjacent monster away — so the budget M7/M12 spend does not move.
 Verified 750 floor/seed combinations, zero misses. See `docs/backlog.md`
 M14 and `docs/rogule-spec.md` §13.8.
 
+## Loot rooms have a guard (M15) — structural, on unconditionally
+
+| Name | Value | Status |
+|---|---|---|
+| `CHEST_GUARD_RADIUS` | 8 | **SETTLED** — swept 4/6/8/10/12, see reasoning below |
+
+Every chest without a live creature within `CHEST_GUARD_RADIUS` tiles gets
+one, by relocating the nearest existing monster — reuses the roster,
+M12's budget, not this item's. Never crosses the spine/side line (the
+target tile and the monster moved both have to already be in the chest's
+own zone), and never touches M14's shrine guardian.
+
+**Swept, not guessed.** 4 left floor 1 at 39% coverage and floor 3 at 46%
+— nowhere near "high". Raising the radius keeps helping past 8 (floor 1
+reaches 74% at 12), but 12 is a third of the 32×32 map — not "short" by
+any reading of the word. Landed on 8: floors 7 and 10 reach ~99% there,
+and pushing wider buys shallow floors little at real cost to what "short"
+means.
+
+**Floor 1 does not reach "high" at any reasonable radius, and the reason
+is not radius.** Floor 1 holds only 2–3 creatures against 6 flat chests
+(`CHESTS_PER_FLOOR`, unrelated to monster count) — even an unlimited
+radius cannot make 2 monsters simultaneously near 6 chests scattered
+across separate rooms. Measured coverage by floor at the shipped radius:
+1→56%, 3→64%, 5→79%, 7→99%, 10→99% — rising with depth as the roster
+grows, not flat as the item's own wording hoped. Disclosed rather than
+chased further: fixing it would mean adding creatures, which is
+explicitly M12's budget, not this item's to spend.
+
 ## Defensive progression (M6)
 
 | Name | Value | Status |

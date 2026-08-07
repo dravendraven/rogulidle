@@ -2,7 +2,7 @@
 // Run them with: python tools/dev-server.py -> http://localhost:8138/run-tests.html
 
 import {
-  HP_GRANT_AMOUNT, ITEM_TABLE, MONSTER_TABLE, OUT_OF_DEPTH_TAIL, PLAYER_HP,
+  CHEST_GUARD_RADIUS, HP_GRANT_AMOUNT, ITEM_TABLE, MONSTER_TABLE, OUT_OF_DEPTH_TAIL, PLAYER_HP,
 } from '../src/sim/balance.js';
 import { newGame, playGame, replayGame } from '../src/sim/game.js';
 import { step, ACTIONS } from '../src/sim/step.js';
@@ -1289,6 +1289,49 @@ test('the guardian replaces a roster member rather than adding one', () => {
         `floor ${level} seed ${seed}: roster size changed (got ${state.monsters.length}, `
         + `expected ${plan.monsters})`);
     }
+  }
+});
+
+// ***** M15 — loot rooms have a guard ***** //
+
+test('chest guard coverage is high at floor 10 and rises with depth', () => {
+  // "High and roughly flat" was the item's hope; measured, floor 1 falls
+  // well short (~56% at this radius) because it holds only 2-3 creatures
+  // against 6 flat chests and this item may only reuse the roster, not add
+  // to it (M12's budget, not this one's) — disclosed in the Result rather
+  // than forced. What DOES hold, and what this test checks: floor 10,
+  // where the roster is plentiful, reaches "high", and coverage rises
+  // rather than falls as the roster grows.
+  const guardedFraction = (level, seeds = 40) => {
+    let guarded = 0;
+    let total = 0;
+    for (let seed = 0; seed < seeds; seed++) {
+      const state = newGame(97000 + level * 1000 + seed, floorPlan(level));
+      for (const chest of state.chests) {
+        total++;
+        if (state.monsters.some((m) => Math.abs(m.pos[0] - chest.pos[0])
+          + Math.abs(m.pos[1] - chest.pos[1]) <= CHEST_GUARD_RADIUS)) guarded++;
+      }
+    }
+    return guarded / total;
+  };
+
+  const fl1 = guardedFraction(1);
+  const fl10 = guardedFraction(10);
+  assert(fl10 >= 0.9, `floor 10 guard coverage ${(100 * fl10).toFixed(0)}% is not "high"`);
+  assert(fl10 > fl1,
+    `floor 10 (${(100 * fl10).toFixed(0)}%) did not exceed floor 1 (${(100 * fl1).toFixed(0)}%)`);
+});
+
+test('a chest guard never empties a small floor\'s spine into the side', () => {
+  // The most exposed pre-existing invariant this item could have broken:
+  // relocating a monster to guard a chest must never cross the spine/side
+  // line, since below MIN_ROSTER_FOR_SIDE every creature is spine by
+  // construction and must stay that way.
+  for (let seed = 0; seed < 20; seed++) {
+    const state = newGame(99000 + seed, floorPlan(1));
+    assertEq(spineShare(state), 1,
+      `seed ${seed}: a chest guard moved a floor-1 creature into a side room`);
   }
 });
 

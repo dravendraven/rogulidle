@@ -5,8 +5,8 @@
 // pool, so changing the order changes every map.
 
 import {
-  CHEST_COUNT, CHEST_DIFFICULTY_SCALE, CHEST_LOOT_RICHER_FAR, CHEST_QUALITY_BY_DEPTH,
-  CHEST_TABLE, ITEM_TABLE, MONSTER_COUNT, MONSTER_DIFFICULTY_SCALE,
+  CHEST_COUNT, CHEST_DIFFICULTY_SCALE, CHEST_GUARD_RADIUS, CHEST_LOOT_RICHER_FAR,
+  CHEST_QUALITY_BY_DEPTH, CHEST_TABLE, ITEM_TABLE, MONSTER_COUNT, MONSTER_DIFFICULTY_SCALE,
   MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE, MONSTER_WEIGHTS,
   PLAYER_HP, PLAYER_XP, SIDE_ACTIVATION_CAP, SIDE_CHEST_BIAS,
   SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE,
@@ -521,6 +521,11 @@ export function populate(state, map, counts = {}) {
   // ships on. Runs AFTER the M3 reskin above so "at or above every other
   // creature" is checked against what the floor actually ended up holding,
   // not assumed from the ceiling alone (M3 can push one monster past it).
+  //
+  // Tracked outside the block so M15 below can leave this one alone —
+  // otherwise "guard the nearest chest" could relocate the shrine's own
+  // guardian away from the shrine.
+  let shrineGuardian = null;
   if (state.monsters.length) {
     const neighbours = [[1, 0], [-1, 0], [0, 1], [0, -1]]
       .map(([dx, dy]) => [state.shrine.pos[0] + dx, state.shrine.pos[1] + dy])
@@ -582,6 +587,72 @@ export function populate(state, map, counts = {}) {
       guardian.activation = guardian.side
         ? Math.min(template.activation, counts.sideActivationCap ?? SIDE_ACTIVATION_CAP)
         : template.activation;
+      shrineGuardian = guardian;
+    }
+  }
+
+  // 8. M15 — docs/backlog.md. Every chest gets a creature within a short
+  // radius, spine included. `SIDE_CHEST_BIAS` already crowds most chests
+  // into side rooms, which the ordinary placement loop already guards —
+  // this only has real work to do on the spine, where nothing else
+  // guarantees a nearby creature. Reuses the roster (relocates the nearest
+  // monster) rather than adding one — the budget is M12's, not this item's.
+  const chestGuardRadius = counts.chestGuardRadius ?? CHEST_GUARD_RADIUS;
+  if (state.monsters.length) {
+    // Nearest-first BFS from `origin`, stopping at `limit` tiles out —
+    // shared by the "is anyone already close enough" check and the
+    // "find somewhere free to put one" search below, so both agree on
+    // exactly what "within radius" means.
+    const withinRadius = (origin, limit) => {
+      const seen = new Set([posKey(origin)]);
+      const out = [origin];
+      let frontier = [origin];
+      for (let d = 0; d < limit && frontier.length; d++) {
+        const next = [];
+        for (const pos of frontier) {
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const n = [pos[0] + dx, pos[1] + dy];
+            const key = posKey(n);
+            if (seen.has(key) || !passable(n[0], n[1])) continue;
+            seen.add(key);
+            out.push(n);
+            next.push(n);
+          }
+        }
+        frontier = next;
+      }
+      return out;
+    };
+
+    for (const chest of state.chests) {
+      const nearby = withinRadius(chest.pos, chestGuardRadius);
+      const nearbySet = new Set(nearby.map(posKey));
+      const hasGuard = state.monsters.some((m) => nearbySet.has(posKey(m.pos)));
+      if (hasGuard) continue;
+
+      // Never cross the spine/side line to guard a chest — that line is
+      // what "small floors put everything on the spine" and the M10 quota
+      // are for, and this item does not get to spend that budget. A target
+      // tile has to be in the CHEST's own zone, and the monster moved there
+      // has to already be FROM that zone; if neither exists, the chest
+      // stays unguarded rather than forcing a zone crossing. Also never the
+      // shrine's own guardian (M14) — this item does not get to reassign it.
+      const chestSide = zones.isSide(chest.pos);
+      const target = nearby.find((pos) => free.has(posKey(pos)) && zones.isSide(pos) === chestSide);
+      if (!target) continue;
+
+      const candidates = state.monsters.filter((m) => m.side === chestSide && m !== shrineGuardian);
+      if (!candidates.length) continue;
+      const nearest = candidates.reduce((closest, m) => {
+        const d = Math.abs(m.pos[0] - chest.pos[0]) + Math.abs(m.pos[1] - chest.pos[1]);
+        return !closest || d < closest.d ? { m, d } : closest;
+      }, null).m;
+
+      free.set(posKey(nearest.pos), nearest.pos);
+      free.delete(posKey(target));
+      nearest.pos = target;
+      nearest.edge = edgeAt(target);
+      // side unchanged by construction — target and monster share a zone.
     }
   }
 

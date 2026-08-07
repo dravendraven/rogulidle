@@ -1,4 +1,5 @@
 import {
+  CHEST_GUARD_RADIUS,
   FLOOR_SPREAD_BASE, FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL, MONSTER_TABLE,
   OUT_OF_DEPTH_CHANCE_BASE, OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_CHANCE_PER_LEVEL,
   OUT_OF_DEPTH_TAIL,
@@ -256,6 +257,9 @@ export function floorParams(level) {
     // than drawing a `drawChance(..., 0)` that always fails — a draw of any
     // kind, even one that never fires, would still perturb the RNG stream.
     outOfDepthChance: OUT_OF_DEPTH_TAIL ? outOfDepthChanceAt(level) : 0,
+    // M15. Flat, like CHESTS_PER_FLOOR above — no per-level growth asked
+    // for, just a fixed "how close counts as guarded".
+    chestGuardRadius: CHEST_GUARD_RADIUS,
     dropChance: DROP_CHANCE,
     weaponScarcity: SCARCITY,
     armourScarcity: SCARCITY,
@@ -295,6 +299,8 @@ export const DEFAULT_MODEL = {
   tierFloorShareBase: TIER_FLOOR_SHARE_BASE,
   tierFloorSharePerLevel: TIER_FLOOR_SHARE_PER_LEVEL,
   tierFloorShareCap: TIER_FLOOR_SHARE_CAP,
+  // M15. Flat, same shape as `chests` above.
+  chestGuardRadius: CHEST_GUARD_RADIUS,
   dropChance: DROP_CHANCE,
   weaponScarcity: SCARCITY,
   armourScarcity: SCARCITY,
@@ -329,6 +335,7 @@ export function makeFloorPlan(model = {}) {
       clusterSize: m.clusterSize,
       tierFloorShare: tierFloorShare(level - 1, m),
       outOfDepthChance: outOfDepthChanceAt(level - 1, m),
+      chestGuardRadius: m.chestGuardRadius,
       dropChance: m.dropChance,
       weaponScarcity: m.weaponScarcity,
       armourScarcity: m.armourScarcity,

@@ -808,3 +808,32 @@ todo o resto (inclusive o M3) já ter decidido, não assumido de antemão.
 combinações de andar/seed (andares 1, 3, 5, 7, 10 — 150 seeds cada):
 sempre exatamente um guardião, sempre no topo ou acima de todo o resto do
 elenco. Ver `docs/backlog.md` M14.
+
+### 13.9 Baú perto de criatura, espinha incluída (M15)
+
+**Não existe no original.** Em Rogule uma sala guarda um baú e nada mais —
+a maior parte do andar é caminhada, e pegar um item que não custa nada não
+é decisão nenhuma.
+
+**Regra nova.** Sem flag, ligado sem condição. Depois de tudo mais decidido
+(inclusive o guardião do santuário, M14), todo baú sem uma criatura viva a
+`CHEST_GUARD_RADIUS` ladrilhos ganha uma: a criatura já existente mais
+próxima é realocada para perto do baú. Nunca cruza a linha espinha/lateral
+(a mesma que M10 e "andares pequenos ficam só na espinha" protegem) — o
+alvo tem que estar na MESMA zona do baú, e só uma criatura já daquela zona
+pode ser movida; sem candidato dos dois lados, o baú fica sem guarda em vez
+de forçar a travessia. Nunca move o guardião do santuário (M14) — esse é
+território de outro item.
+
+**Consequência, medida, não escondida.** `SIDE_CHEST_BIAS` já concentra a
+maioria dos baús em salas laterais, que o povoamento comum já guarda — o
+trabalho real é na espinha. Cobertura sobe com a profundidade em vez de
+ficar plana como a spec original esperava: andar 1 ~56%, andar 3 ~64%,
+andar 5 ~79%, andar 7 ~99%, andar 10 ~99% (`CHEST_GUARD_RADIUS = 8`,
+varrido contra 4/6/10/12). O andar 1 nunca alcança "alto" nesse raio —
+tem só 2-3 criaturas contra 6 baús fixos, e o orçamento de contagem é do
+M12, não deste item; aumentar o raio ajuda um pouco mas não resolve, é
+falta de criatura, não de alcance.
+
+**Estado atual: construído e ligado, sem flag.** Ver `docs/backlog.md`
+M15.

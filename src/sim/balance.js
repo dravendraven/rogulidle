@@ -242,6 +242,20 @@ export const TIER_FLOOR_SHARE_BASE = 0;
 export const TIER_FLOOR_SHARE_PER_LEVEL = 0.08;
 export const TIER_FLOOR_SHARE_CAP = 0.5;
 
+// ***** M15 — loot rooms have a guard, docs/backlog.md M15 ***** //
+// GUESS — "a short radius", per the item's own wording, swept 4/6/8/10/12
+// against measured guard coverage. 4 left floor 1 at 39% and floor 3 at
+// 46% — nowhere near "high". 8 is the point deep floors (7, 10) reach ~99%
+// without going so wide "short" stops meaning anything; shallow floors
+// still fall short at 8 (floor 1 ~56%, floor 3 ~64%) for a DIFFERENT
+// reason radius cannot fix — only 2-3 creatures against 6 flat chests,
+// and this item's own budget is "reuse placement, do not add" (M12's is
+// the count to spend). `SIDE_CHEST_BIAS` already puts most chests in side
+// rooms, which the ordinary placement loop already guards; this constant
+// is what closes the gap on the SPINE, where nothing else guarantees a
+// creature is nearby.
+export const CHEST_GUARD_RADIUS = 8;
+
 // ***** items ***** //
 
 // Pick weight is 1/value, so a HIGH value means a RARE item.

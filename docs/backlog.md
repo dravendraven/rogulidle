@@ -43,7 +43,7 @@ session, skip it.
 | 3 | M13 | Tier floor rises with depth — rats stop appearing deep | REPORTED |
 | 4 | M12 | Raise creature count and cluster size together | REPORTED |
 | 5 | M14 | One top-tier-for-the-floor creature next to the shrine | REPORTED |
-| 6 | M15 | Chests get a creature nearby, spine included | READY |
+| 6 | M15 | Chests get a creature nearby, spine included | REPORTED |
 | 7 | M16 | Bigger rooms, shorter corridors | READY |
 | 8 | X1 | Delete what nothing references | READY |
 | 9 | M4 | Side-room risk/reward spread scales with depth | READY |
@@ -406,7 +406,7 @@ free parameter.
 
 ## M15 · loot rooms have a guard
 
-`map` · `work agent` · **READY**
+`map` · `work agent` · **REPORTED**
 
 Rooms hold a chest and nothing else, so most of a floor is walking. Loot
 that costs nothing to take is not a decision.
@@ -421,6 +421,49 @@ M12's, not this item's.
 
 **Assert.** Fraction of chests with a live creature within N tiles, at
 floors 1, 5, 10. It should be high and roughly flat with depth.
+
+### Result
+
+**Built, no flag, runs last** — `src/sim/spawn.js` step 8, after M14's
+guardian. Every chest without a live creature within `CHEST_GUARD_RADIUS`
+(8, swept 4/6/8/10/12 — see `docs/balance.md`) gets one by relocating the
+nearest existing monster. Reuses the roster only; nothing added.
+
+**Two interaction bugs, both caught by the test suite on the first run,
+not assumed away.** First cut relocated freely, with no zone or guardian
+awareness:
+- `small floors put everything on the spine` (a pre-existing test) broke —
+  guarding a side-room chest could pull a floor-1 monster off the spine,
+  which `MIN_ROSTER_FOR_SIDE` and M10's quota exist specifically to
+  prevent. Fixed: a chest can only be guarded by relocating a monster
+  ALREADY in its own zone, to a target tile in that same zone. No
+  candidate on both sides of that check → the chest stays unguarded rather
+  than forcing a crossing.
+- M14's own `every floor has exactly one guardian` test broke — M15 could
+  relocate the shrine's own guardian to go guard a nearby chest instead.
+  Fixed: the guardian reference is tracked outside M14's block and
+  excluded from M15's candidate pool.
+
+**Assert, measured — and it does not match the item's own hope.** "High
+and roughly flat" does not hold: coverage RISES with depth instead —
+floor 1 ~56%, 3 ~64%, 5 ~79%, 7 ~99%, 10 ~99% (n=40 seeds/floor × 6
+chests). Floor 1 never reaches "high" at any reasonable radius (checked
+up to 12, a third of the 32×32 map) — it holds only 2–3 creatures against
+6 flat chests, and no amount of radius makes 2 monsters simultaneously
+near 6 scattered rooms. Fixing it would mean adding creatures, explicitly
+ruled out ("the budget is M12's, not this item's"). Reported plainly
+rather than picking a radius or a sample that would hide it.
+
+Own tests: floor 10 reaches ≥90% and exceeds floor 1 (the "rises, and is
+high where resources allow it" property that actually holds); a floor-1
+spine-purity check across 20 seeds guards the interaction bug directly, not
+just indirectly through the pre-existing test. 3 new tests, 88/88 total
+(counting the 2 test-suite catches above as part of getting to green, not
+separately).
+
+`docs/rogule-spec.md` §13.9 added. This closes the M11–M15 batch — five
+items, five commits, no measurement requested between them, per the
+owner's batch instruction.
 
 ## M16 · bigger rooms, shorter corridors
 
