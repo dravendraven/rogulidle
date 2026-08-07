@@ -1150,6 +1150,14 @@ creature count is roughly flat and difficulty comes from hit dice, so there
 is no dilution to fight and its tails — out-of-depth, bands — push the CV up
 freely. Ours falls for the opposite reason.
 
+**Group by identity, not just by proximity.** DCSS bands are compositional —
+an orc priest brings orcs, a pack is all hounds — and that buys two things
+spatial clustering alone does not. A same-type group is closer to a single
+draw than a mixed one, so it cuts deeper into the `√n` dilution this item
+exists to fight. And it reads on screen: "a pack of wolves" is a thing,
+while a bat, an ogre and a rat standing together is noise, which is half the
+value in a game whose product is watching. Cost is one draw instead of k.
+
 **Three levers, one budget.** Total challenge growth must stay at 1.343 per
 floor; what changes is where it comes from.
 
@@ -1984,22 +1992,20 @@ ruler cannot answer the questions these would be judged by, and scheduling
 work against a suspect instrument is the mistake the buffer target already
 made once.
 
-### C1 · compositional bands, not just spatial clusters
+Ids keep the feature prefix they would have anywhere else. Whether an item
+is scheduled is what the section and the status say, not what it is called —
+the same way M5 sits ON HOLD and M2 FOLDED without losing their M.
 
-M7 groups creatures **spatially** — k of them near each other. DCSS bands are
-**compositional**: an orc priest brings orcs, a pack is all hounds. The group
-has an identity.
+**Reward placement is not here**, though it came up in the same brainstorm.
+Rogulidle already couples reward to risk — `SIDE_CHEST_BIAS` puts chests in
+guarded side rooms, `CHEST_LOOT_RICHER_FAR` puts the good ones far,
+`CHEST_QUALITY_BY_DEPTH` makes depth buy quality — and `map-design.md`
+already derived the point DCSS gets from hand authorship, that risk and
+reward must roll independently per room or the gamble is a free lunch. The
+design exists; what is missing is evidence it works, and that is **I4**,
+parked. No new item, just a measurement nobody has taken.
 
-Two things that spatial grouping alone does not buy. A same-type group is
-closer to a single draw than a mixed one, so it cuts deeper into the `√n`
-dilution M7 exists to fight. And it reads: "a pack of wolves" is a thing on
-screen, while a bat, an ogre and a rat standing together is noise — which is
-half the value in a game whose product is watching.
-
-Cheap: draw one type, repeat it. Probably belongs inside M7 rather than as
-its own item, since it shares the same budget.
-
-### C2 · layout variety, the way DCSS picks a builder per level
+### M8 · layout variety, the way DCSS picks a builder per level
 
 Nothing in the backlog touches map *structure*, and the arithmetic likes it
 more than most of what is scheduled.
@@ -2021,19 +2027,7 @@ was never written against.
 And it is the only candidate here that changes what is **seen**. Ten floors
 out of the same digger are visually monotonous.
 
-### C3 · reward placement — already designed, needs verifying not designing
-
-Rogulidle already couples reward to risk: `SIDE_CHEST_BIAS` puts chests in
-side rooms, which have guards; `CHEST_LOOT_RICHER_FAR` puts the good ones
-far; `CHEST_QUALITY_BY_DEPTH` makes depth buy quality. And `map-design.md`
-already found the point DCSS gets from hand authorship — that risk and
-reward must roll **independently** per room, or the gamble is a free lunch.
-
-So the design exists. What is missing is evidence it works, which is **I4**
-— parked, measuring whether the bot can tell a good side room from a bad
-one. No new design needed; the parked measurement is the whole gap.
-
-### C4 · tie the drop to the creature that carries it
+### M9 · tie the drop to the creature that carries it
 
 `spawn.js:359` draws a monster's drop from a table that never looks at the
 monster: `drawWeighted(state, 'spawn', monsterWeights)` ignores `template`.
