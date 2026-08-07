@@ -193,28 +193,39 @@ export const CHEST_QUALITY_BY_DEPTH = true;
 
 // ***** the cost model under-prices crowds ***** //
 //
-// GUESS — `campaignCost` sums clean one-on-one duels, and measured against a
-// hero who cannot die (so nothing is selected by dying), on floors with no
-// loot (so the hero never changes), it under-states the real bill by 1.4x to
-// 1.9x — and the error has STRUCTURE:
+// GUESS — SUPERSEDED SHAPE, corrected once, keep reading.
 //
-//     count 2 -> 28 at strength 0.35 : ratio 1.43 -> 1.90   (rises)
-//     strength 0.35 -> 0.80 at count 8 : ratio 1.77 -> 1.31 (falls)
+// The first fix here was `campaignCost *= 1.32 * n^0.106` — multiplicative,
+// no strength term. It was wrong on the strength axis by construction: a
+// factor that only reads `n` cannot fall as strength rises, and re-measured
+// with a tank hero (400 hp, so nothing is selected by dying) it does fall,
+// robustly, across two independent measurements:
 //
-// A calibration error would be flat in both. Rising with the crowd and
-// falling with strength is the signature of a roughly fixed overhead per
-// creature that longer duels dilute — so the shape is `real = modelled +
-// overhead`, not `real = k * modelled`.
+//     count 2 -> 28, strength fixed at 0.35 : raw ratio ~1.73, roughly FLAT
+//     strength 0.5 -> 0.8, count fixed at 8  : raw ratio 1.48 -> 1.22, FALLS
 //
-//     campaignCost *= CROWD_COST_BASE * n^CROWD_COST_EXPONENT
+// That is exactly the shape the original diagnosis called for and the first
+// fix did not implement: real damage is modelled cost PLUS a roughly fixed
+// overhead, not modelled cost TIMES a count-only factor. An overhead that
+// does not grow with strength shrinks as a fraction of a bare cost that
+// DOES grow with strength (bare cost is superlinear in strength — see the
+// exponent note under Strength ramp), which produces exactly the falling
+// ratio measured.
+//
+//     campaignCost += CROWD_COST_OVERHEAD * Σ expectedDamage(monster.xp, 0)
 //
 // Applied to campaignCost ONLY, never to duelCost. The one-on-one model is
 // right; the sum is what is wrong.
 //
-// Fitted at strength 0.35, which is what ships. If STRENGTH_GROWTH is ever
-// switched on, refit — the strength axis moves this the other way.
-export const CROWD_COST_BASE = 1.32;
-export const CROWD_COST_EXPONENT = 0.106;
+// HONEST LIMIT: this is a large improvement, not a perfect fit. A weighted
+// regression against the fitted constant still shows residual structure
+// (z ≈ 2.2 vs count, z ≈ -2.8 vs strength on the fitting data) — smaller by
+// roughly an order of magnitude than the multiplicative form's error, but
+// not zero. One constant is what the CPU budget (this runs inside the bot's
+// decision loop) and the measurement noise both support; chasing the last
+// bit of structure would need either a second term or far more seeds than
+// fit in one sitting.
+export const CROWD_COST_OVERHEAD = 0.75;
 
 // ***** floor spread: making deep floors lotteries ***** //
 //

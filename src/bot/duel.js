@@ -6,8 +6,7 @@
 // while the ogre costs about half again as much.
 
 import {
-  CROWD_COST_BASE, CROWD_COST_EXPONENT, KILLS_PER_XP, MONSTER_SKIP_CHANCE,
-  XP_FROM_KILLS,
+  CROWD_COST_OVERHEAD, KILLS_PER_XP, MONSTER_SKIP_CHANCE, XP_FROM_KILLS,
 } from '../sim/balance.js';
 import { effectiveHp, expectedDamage, weaponDamage } from '../sim/combat.js';
 
@@ -45,12 +44,15 @@ export function duelCost(player, monster) {
 // true regardless, which quietly credited the hero with levelling up
 // mid-campaign after xp growth had been switched off — making every cost
 // this produced optimistic.
-// How much the clean-duel sum under-states a real crowd. See balance.js —
-// measured, structured, and the reason the count-vs-strength sweep was
-// invalid. One `pow` per call, against an O(n^2) loop: free.
-export function crowdFactor(count, on = true) {
-  if (!on || count <= 0) return 1;
-  return CROWD_COST_BASE * Math.pow(count, CROWD_COST_EXPONENT);
+// How much the clean-duel sum under-states a real crowd, as a flat hp
+// overhead — see balance.js for why additive-in-blowSum beat the
+// multiplicative-in-count form this replaced. One multiply and one sum over
+// a roster already in hand, against an O(n^2) loop: free.
+export function crowdOverhead(monsters, on = true) {
+  if (!on || !monsters.length) return 0;
+  let blows = 0;
+  for (const m of monsters) blows += expectedDamage(m.xp, 0);
+  return CROWD_COST_OVERHEAD * blows;
 }
 
 // `crowd` is a flag rather than a constant so the correction can be A/B'd
@@ -78,6 +80,8 @@ export function campaignCost(player, monsters, growsXp = XP_FROM_KILLS, crowd = 
   }
   // The correction lands here and not inside the loop on purpose: the
   // per-duel maths is not what is wrong, the assumption that duels happen
-  // one at a time is.
-  return total * crowdFactor(monsters.length, crowd);
+  // one at a time is. It is measured against the ORIGINAL roster, not
+  // `left` — the overhead is what a crowded floor costs, and shrinks as
+  // creatures die same as `total` does, one roster-worth at a time.
+  return total + crowdOverhead(monsters, crowd);
 }

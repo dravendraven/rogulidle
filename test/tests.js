@@ -18,7 +18,7 @@ import {
 } from '../src/sim/difficulty.js';
 import { monstersAhead, valueByItemName } from '../src/bot/loot.js';
 import { growthOf, summarise, ITEM_VALUE } from '../src/analysis/shape.js';
-import { campaignCost, crowdFactor, duelCost } from '../src/bot/duel.js';
+import { campaignCost, crowdOverhead, duelCost } from '../src/bot/duel.js';
 
 // ***** tiny test harness ***** //
 
@@ -781,8 +781,8 @@ test('spread does not break determinism', () => {
 
 test('the crowd correction is confined to campaignCost', () => {
   // The one-on-one model is right; the SUM is what was wrong. If this ever
-  // leaks into duelCost, single-target decisions get scaled by how many
-  // OTHER creatures exist, which is nonsense.
+  // leaks into duelCost, single-target decisions get an overhead added that
+  // has nothing to do with the single target in front of them.
   const hero = { xp: 3, inventory: [], hp: 10, hpMax: 10, armour: 0, kills: [] };
   const wolf = { xp: 4, hp: 5 };
   const alone = duelCost(hero, wolf).hpLost;
@@ -793,22 +793,44 @@ test('the crowd correction is confined to campaignCost', () => {
 
 test('the crowd correction switches off exactly', () => {
   // Off must reproduce every number measured before it, to the bit — that is
-  // what makes the before/after comparison meaningful at all.
-  assertEq(crowdFactor(20, false), 1, 'the flag did not disable the factor');
-  assertEq(crowdFactor(0, true), 1, 'an empty roster was scaled');
+  // what makes a before/after comparison meaningful at all.
+  const hero = { xp: 3, inventory: [], hp: 10, hpMax: 10, armour: 0, kills: [] };
+  const roster = [{ xp: 4, hp: 5 }, { xp: 3, hp: 4 }, { xp: 2, hp: 3 }];
+  assertEq(crowdOverhead(roster, false), 0, 'the flag did not disable the overhead');
+  assertEq(crowdOverhead([], true), 0, 'an empty roster produced an overhead');
+  assertEq(campaignCost(hero, roster, false, false),
+    campaignCost(hero, roster, false, false), 'not even self-consistent');
 });
 
-test('the crowd correction grows with the crowd', () => {
-  // The whole point: the error had structure in the count. A flat factor
-  // would have been calibration, which the measurement ruled out.
-  let previous = 0;
-  for (const n of [1, 2, 6, 13, 21, 28]) {
-    const f = crowdFactor(n, true);
-    assert(f > previous, `factor did not rise at n=${n}`);
-    previous = f;
-  }
-  // And stays in the range the measurement supports rather than running away.
-  assert(crowdFactor(28, true) < 2.5, 'the factor extrapolates absurdly');
+test('the crowd correction is additive, not multiplicative', () => {
+  // The point of the rewrite: an overhead proportional to the roster's total
+  // blow, added once, rather than a factor that only ever reads headcount.
+  // A rat (blow 0) must therefore add NOTHING, which a multiplicative factor
+  // could never express — it would still scale the whole campaign up.
+  const hero = { xp: 5, inventory: [], hp: 20, hpMax: 20, armour: 0, kills: [] };
+  const rat = { xp: 1, hp: 2 };
+  assertEq(crowdOverhead([rat], true), 0, 'a toothless creature added overhead');
+
+  const wolf = { xp: 4, hp: 5 };
+  const withoutCrowd = campaignCost(hero, [wolf], false, false);
+  const withCrowd = campaignCost(hero, [wolf], false, true);
+  const overhead = crowdOverhead([wolf], true);
+  assert(Math.abs(withCrowd - (withoutCrowd + overhead)) < 1e-9,
+    'the correction is not a plain sum of overhead onto the bare cost');
+});
+
+test('the crowd overhead scales with total roster blow, not headcount alone', () => {
+  // Two rats (blow 0 each) must add as little as one rat; one wolf must add
+  // more than one rat. Headcount-only scaling was exactly the shape that
+  // failed to fit the strength axis.
+  assertEq(crowdOverhead([{ xp: 1, hp: 2 }, { xp: 1, hp: 2 }], true), 0,
+    'two harmless creatures produced overhead');
+  const wolfOverhead = crowdOverhead([{ xp: 4, hp: 5 }], true);
+  const ogreOverhead = crowdOverhead([{ xp: 4, hp: 7 }], true);
+  assertEq(wolfOverhead, ogreOverhead,
+    'same xp, different hp changed the overhead — it should track blow, not hp');
+  assert(crowdOverhead([{ xp: 8, hp: 15 }], true) > wolfOverhead,
+    'a harder-hitting creature did not add more overhead');
 });
 
 // ***** the strength ramp is an instrument, and must stay off ***** //

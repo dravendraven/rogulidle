@@ -72,18 +72,20 @@ having.
 
 ## Crowd correction — the cost model under-prices numbers
 
-> ⚠️ **The ruler changed here.** Every challenge/cost figure recorded ABOVE
-> this section, and in `docs/curve-shape.md`, was measured with the
-> uncorrected model. They are **pre-change** and are not comparable with
-> anything measured after it. Do not read a new measurement against them.
+> ⚠️ **The ruler changed here, TWICE.** Every challenge/cost figure recorded
+> ABOVE this section, and in `docs/curve-shape.md`, was measured with the
+> uncorrected model — **pre-change**. The section below was then itself
+> revised once, from a multiplicative factor to the additive form that
+> ships now; anything measured against the multiplicative form (`1.32 ×
+> n^0.106`) is **also stale**, including a bot A/B taken with it. Only
+> numbers measured against `CROWD_COST_OVERHEAD` below are current.
 
 | Name | Value | Status |
 |---|---|---|
-| `CROWD_COST_BASE` | 1.32 | **INITIAL GUESS** |
-| `CROWD_COST_EXPONENT` | 0.106 | **INITIAL GUESS** |
+| `CROWD_COST_OVERHEAD` | 0.75 | **INITIAL GUESS** |
 
 ```
-campaignCost(roster) *= CROWD_COST_BASE × roster.length ^ CROWD_COST_EXPONENT
+campaignCost(roster) += CROWD_COST_OVERHEAD × Σ expectedDamage(monster.xp, 0)
 ```
 
 Applied to `campaignCost` only, **never to `duelCost`**. The one-on-one model
@@ -127,9 +129,71 @@ falls, because duels against stronger creatures last longer and dilute a
 roughly fixed overhead. So the shape is `real ≈ modelled + overhead`, with
 overhead growing with the crowd and barely with strength.
 
+### Revision — the shape now matches the derivation
+
+The first cut of this section implemented `campaignCost *= 1.32 × n^0.106`:
+multiplicative, no strength term. That was inconsistent with its own
+derivation two paragraphs up, which called for an ADDITIVE overhead — and it
+showed: re-measured with a tank hero (400 hp, nothing selected by dying), the
+count axis was close to flat on its own (raw ratio ≈1.6–1.8 across 2–28
+creatures, no strong trend), but the strength axis fell hard and
+reproducibly, 1.48 → 1.30 → 1.22 across strength 0.5 → 0.8. A pure
+count-only factor cannot express that by construction.
+
+**Corrected to:**
+
+```
+campaignCost += CROWD_COST_OVERHEAD × Σ expectedDamage(monster.xp, 0)
+```
+
+One constant, `CROWD_COST_OVERHEAD = 0.75`, applied once to the roster's
+total blow — not per creature inside the loop, and never to `duelCost`.
+
+**A hypothesis this ruled out.** The natural next question was whether the
+real variable is SIMULTANEITY (how many creatures can attack at once) rather
+than headcount — motivated by the upcoming clustering work, which holds count
+fixed and packs creatures together. Tested directly: same roster, lowest vs
+highest third by a map-crowding measure (mean neighbours within 3 tiles), at
+three count/strength combinations. Real cost differed by only −12%, −1%, +10%
+across the three cases, with the one 2σ result pointing the WRONG way (packed
+cheaper, not more expensive). **Simultaneity is not the variable; headcount
+already is.** This also settles the signature question raised when this
+section was first written — `campaignCost` keeps taking a roster, not
+positions, because the correction has no use for them.
+
+**Final validation, unseen seeds, n=60/cell:**
+
+```
+mon | strn | ratio
+  2 | 0.35 | 1.12 ±0.15
+  9 | 0.35 | 1.03 ±0.07
+ 21 | 0.35 | 1.03 ±0.05
+  8 | 0.50 | 1.04 ±0.06
+  8 | 0.80 | 1.07 ±0.07
+```
+
+Flat on both axes, all within ~1 SE of 1.00 — the criterion the first cut
+failed.
+
+**Honest limit.** A weighted regression against the fitting data still shows
+residual structure (z ≈ 2.2 vs count, z ≈ −2.8 vs strength) — an order of
+magnitude smaller than the multiplicative form's error, not zero. One
+constant is what the CPU budget (this runs inside the bot's decision loop
+every turn) and the measurement noise both support in one sitting; a second
+term would need meaningfully more seeds to fit without overfitting three
+strength points.
+
+**Bot effect, paired seeds, n=40: identical — 15/40 cleared, depth 7.15, both
+arms.** Expected and confirmed rather than assumed: the correction only
+reaches `campaignCost` through `valueByItemName` (gear pricing), never
+through `priceMonsters` (target selection, which is `duelCost` — always
+one-on-one, untouched). Gear-taking was already saturated before this change
+(87% of chests opened regardless of the room's odds, both `docs/map-design.md`
+findings), so there was no decision left for either model shape to move.
+
 **Fitted at strength 0.35**, which is what the game ships. `STRENGTH_GROWTH`
 is off; if it is ever switched on, this fit has to be redone, because the
-strength axis moves the ratio the other way.
+strength axis moves the overhead the other way.
 
 ## Strength ramp — the second way difficulty could grow
 
