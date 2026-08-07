@@ -119,6 +119,10 @@ A supply that is finite and fixed at generation has no such exploit.
 **Armour as a spent second bar, not damage reduction.** Gear buys blows
 absorbed rather than blows softened.
 
+**Room size is not what breaks the spine share — dug percentage is.**
+Bigger rooms push the share up. Raising `dugPercentage` to ROT's own 0.20
+dropped floor 7 to 0.70.
+
 ## Process
 
 **Whoever built a change does not decide whether it worked.** Most of the
@@ -129,6 +133,14 @@ project agent's own numbers, recounted by hand.
 found.** A flag that never reached the engine was caught only because two
 arms came back byte-identical and another instrument had already shown that
 could not be true.
+
+**A dial nobody ever passed is not a dial.** `generateMap`'s
+`dugPercentage` override was documented and dead — no caller ever supplied
+options — until someone tried to use it.
+
+**Reviewing a report cannot find a bug the report does not know about.**
+M14 was reviewed as clean and had a real one; the tests found it, because
+they asserted a property rather than a number.
 
 **A shadow implementation drifts.** Grouping logic built in `src/analysis/`
 to measure grouping stopped describing the engine the moment the engine's

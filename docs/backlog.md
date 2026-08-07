@@ -688,6 +688,58 @@ This was last of the batch by design (`docs/backlog.md`'s own note: "most
 likely to break the spine share M10 fixed"). Stopping here — the checkpoint
 is I8's page, not another reading from me.
 
+### Review — kept. The batch closes
+
+Room area +64%, corridor length −29%, spine share 0.83–0.91 across every
+floor the split applies to. Delivered.
+
+**`generateMap` was never called with options anywhere in the codebase.**
+`game.js` called it with a seed and nothing else, so `dugPercentage`'s
+override parameter was dead code — a dial that looked tunable and was not,
+sitting there long enough that `map-design.md` cites it. Found by trying to
+use it.
+
+**The three were swept together rather than one at a time**, which the item
+asked for and which is the only way to get an answer when they interact.
+
+### My worry was wrong, and it was the third in a row
+
+I wrote that bigger rooms and shorter corridors "push straight back toward
+that warren" and would be the most likely thing to break the spine share.
+Measured: bigger rooms push spine share **up**, not down. The lever is
+`dugPercentage` — swept separately, 0.20 dropped floor 7 to 0.70 — and it
+did not need to move at all.
+
+That is three predictions from me in this batch, all wrong: M10 would give
+back M7's CV gain (it did not), floors 2 and 5 being cheaper was a defect
+(it was noise), and room size would break the spine share (dug percentage
+would have). Each time the answer came from measuring rather than from the
+argument, and each time the argument sounded good.
+
+Worth stating rather than filing away: **my useful contribution here is
+framing questions and catching errors in reports, not predicting
+mechanism.** The mechanism guesses have a poor record and should be written
+as questions for the work to answer, not as expectations it has to overturn.
+
+### It found a bug in M14, which I had just reviewed as clean
+
+Two M3 tests broke — tests with nothing to do with map generation. Instead
+of adjusting them, it traced: M14 computed the guardian's tier as the max of
+the ceiling and *every other* creature's index. When M3's rare reskin landed
+on the very monster M14 then picked as guardian, M14 rebuilt it back down to
+the ordinary ceiling and erased M3's boost. Confirmed at the failing seed —
+forcing M3 to fire produced byte-identical rosters. Fixed by including the
+guardian's own index in the max.
+
+**I reviewed M14 as clean one message earlier.** Reviewing a report cannot
+find a bug the report does not know about, and no amount of reading it more
+carefully would have. The tests found it, and the reason they could is that
+M3's tests asserted a property rather than a number.
+
+`CORRIDOR_LENGTH` was FAITHFUL at `[1,5]` and is now `[1,3]`, recorded as a
+deliberate divergence in `rogule-spec.md` §13.10. Correct handling — it is a
+rule change and it went where rule changes go.
+
 ## X1 · delete what nothing uses
 
 `chore` · `work agent` · **READY**
