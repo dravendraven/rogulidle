@@ -27,7 +27,7 @@ its standing job, which is not a task and so has no row of its own.
 |---|---|---|---|---|---|---|
 | 1 | I7 | The probe survives because it is huge — that dilutes capacity and hides selection | map | metrics | IN FLIGHT | n/a |
 | 2 | I6 | Reward has no instrument, so M9 and M5 cannot be judged at all | map | metrics | READY | n/a |
-| 3 | M3 | Spike never rose — M7 raised lethality by attrition, not by a bigger hit | map | work | READY · the gap M7 left | — |
+| 3 | M3 | Spike never rose — M7 raised lethality by attrition, not by a bigger hit | map | work | IN FLIGHT | — |
 | 4 | M9 | A t-rex and a rat pay the same loot — tie the drop to what you killed | map | work | BLOCKED on I6 | — |
 | 5 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
 | — | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | **DONE** · adopted, flag ON | done |
@@ -687,7 +687,7 @@ spread widened. Measured on the probes.
 
 ## M3 · an out-of-depth tail
 
-`map` · `work agent` · **READY** — fine tuning, only if M7 leaves a gap
+`map` · `work agent` · **IN FLIGHT** — the gap M7 left
 
 `MONSTER_STRENGTH = 0.35` is fixed, so the strongest possible blow is the
 same on floor 1 and floor 10. There is no right tail at all.
