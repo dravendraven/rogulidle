@@ -28,8 +28,8 @@ repeating it in the table only made the queue slower to scan.
 
 | # | id | what gets done | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
-| 1 | M10 | Allocate cluster zones against the mass quota so side rooms stop emptying | map | work | REPORTED | — |
-| 2 | M3 | Sweep OUT_OF_DEPTH_CHANCE_CAP — at 0.15 the tail is too rare to move CV | map | metrics | READY · sweep, then re-verdict | done, no effect |
+| 1 | M10 | Allocate cluster zones against the mass quota so side rooms stop emptying | map | work | REPORTED | done, CV intact |
+| 2 | M3 | Sweep OUT_OF_DEPTH_CHANCE_CAP — at 0.15 the tail is too rare to move CV | map | metrics | READY · sweep, then re-verdict | done, cap ruled out |
 | 3 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | READY | — |
 | 4 | E1 | Expose one resumable turn loop from src/sim so the four copies stop drifting | engine | work | READY | — |
 | 5 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | BLOCKED on M10 | — |
@@ -1273,6 +1273,53 @@ the reading has to say by how much rather than assume it is small.
   constant. `CLUSTER_SIZE = 6` no longer describes what floors actually
   hold, and every argument M7 made was about the real number.
 
+### Metrics reading
+
+Measured at commit `ff708dc` (current HEAD, M10 unflagged and always
+active). `isolatedShape`/`effectiveClusterSizes`
+(`src/analysis/observed-ruler.js`, `src/analysis/clustering.js`), default
+60 seeds/level, `floorPlanFn: M7_ON`.
+
+**Effective cluster size — the constant stops meaning anything past floor
+5.** Floors 1–2 place exactly one cluster of 2, every seed (below
+`MIN_ROSTER_FOR_SIDE`, nothing to cut against). From floor 6 on, size
+spreads wide instead of sitting at 6:
+
+    floor    mean size   distribution (size:n, n=60 seeds' worth of clusters)
+      6        3.97      3:26  4:15  5:14  6:5
+      7        4.21      1:9  2:4  3:12  4:12  5:12  6:22  7:2
+      8        4.29      1:5  2:2  3:17  4:13  5:13  6:14  7:1  8:3
+      9        4.71      1:3  2:4  3:18  4:8  5:13  6:26  7:1  9:2  10:2
+     10        4.87      1:3  2:4  3:16  4:11  5:12  6:44  9:1  12:1
+
+`6` is still the single most common outcome at every floor (it is the cap,
+and the floor where it lands cleanest), but the mean sits well under it
+(3.97–4.87, not 6) and the tail runs both directions — clusters of 1 exist
+(cut on the very first extra member) and one of 12 exists at floor 10 (two
+same-tier clusters that happened to land adjacent and merge under this
+method's own stated failure mode, see the function's header comment; a
+genuine 12 is not otherwise possible at `clusterSize = 6`). Read the mean,
+not the max, as the honest summary — the max is exactly the case this
+method cannot fully distinguish from a real large cluster.
+
+**CV against M7-adopted-without-M10 — no measurable give-back.** There is
+no flag to toggle for the old behaviour (M10 is a direct fix, not a
+variant), so the comparison is against the two readings already on file
+from before M10 existed: the very first M7 reading (`f42f085`, CV growth
+`0.986 ±0.006`) and this session's own M3 reading (`8eb8c39`, taken before
+`929d2f2` built M10, `0.994 ±0.009`). Today's reading, same default seeds,
+same `M7_ON`: **`0.994 ±0.009`** — indistinguishable from both, and
+bit-identical to the `8eb8c39` number to 15 significant figures. That
+exactness was not expected going in and is not fully explained here — `map`
+`/spawn`/`combat` are independent RNG streams by construction (`game.js`'s
+own `makeStreams`), so combat resolution cannot see how many extra
+placement draws a cut consumed, which covers part of it, but not why roster
+composition apparently came out identical too across a sample large enough
+that coincidence is not a credible explanation on its own. Flagged rather
+than pursued further, since the answer the reading needs — did challenge's
+CV move — is unambiguous either way: **it did not move.** M10 redistributes
+zone, not threat, exactly as its own report predicted, and the CV gain M7
+bought is intact.
 
 ## E1 · expose a resumable turn loop from src/sim
 
@@ -1367,6 +1414,48 @@ lane — which is parked.
 missing is a tuning nobody has looked for, and that is a sweep rather than a
 rewrite.
 
+### Metrics reading — the cap sweep
+
+Measured at commit `ff708dc`. `isolatedShape`, default 60 seeds/level,
+`floorPlanFn` built from `makeFloorPlan` with M7's params plus
+`outOfDepthChancePerLevel: OUT_OF_DEPTH_CHANCE_PER_LEVEL` and
+`outOfDepthChanceCap` swept — per "measured on the probes, not the real
+bot," this is the probe reading only; hypothesis two (the bot routing
+around a reskin) is not touched here.
+
+**The cap saturates well inside the range that was worth sweeping.** At
+`perLevel = 0.02` over 10 floors, the RAW chance (`perLevel × floor index`)
+tops out at `0.18` on floor 10 — a cap at `0.30` or `0.50` is provably
+identical to `0.18`, checked directly rather than assumed (`0.18`/`0.30`/
+`0.50` all read `0.18` at floor 10). Swept `{0, 0.05, 0.10, 0.15, 0.18}` —
+`0.15` is shipped, `0` is no-tail-at-all, `0.18` is as far as this dial can
+ever reach.
+
+    cap     CV growth (× / floor, fl 1-10)
+    0       0.994 ±0.009
+    0.05    0.986 ±0.008
+    0.10    0.985 ±0.008
+    0.15    0.984 ±0.008   (shipped)
+    0.18    0.983 ±0.008   (ceiling — raising the cap further cannot move this)
+
+**Answer to hypothesis one: raising the cap is not the fix, at any
+strength this dial can reach.** The trend across the full range is
+monotonic but **backwards** from what would rescue the item — CV growth
+gets slightly LOWER (CV falls a little faster, not slower) as the cap
+rises — and even the two extremes, no-tail vs the hardest this dial can hit,
+are not distinguishable (gap 0.011 ±0.012, z ≈ 0.9, under this project's own
+2σ bar). Floor 10 alone shows the clearest move (CV 0.988 at cap 0 → 0.926
+at cap 0.18) but it is not enough to carry the ladder-wide rate past noise.
+**This rules out `OUT_OF_DEPTH_CHANCE_CAP` specifically** — it does not rule
+out `OUT_OF_DEPTH_CHANCE_PER_LEVEL` or `_BASE`, neither of which this sweep
+touched, so "the tuning is too weak" is narrowed, not closed: the cap was
+never the binding constraint, the per-level ramp might still be.
+
+**Hypothesis two is now the more likely story, by elimination rather than
+by direct evidence** — this reading cannot see the bot at all. `M3` stays
+where its Review 2 left it: not archived, waiting on whichever of (a) a
+`per-level`/`base` sweep on the probes, or (b) the bot lane un-parking to
+test avoidance directly, someone picks up next.
 
 ---
 

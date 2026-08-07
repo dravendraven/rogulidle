@@ -485,3 +485,68 @@ export function botFinishesAndSpike(options = {}) {
     })),
   };
 }
+
+// ***** M10 reading — effective cluster size, post-fix ***** //
+//
+// `CLUSTER_SIZE = 6` is the ROLL, not what a floor ends up holding — M10
+// (docs/backlog.md) cuts a cluster short the moment adding its next member
+// would flip the zone quota, so the constant stopped describing floors the
+// moment M10 landed. `spawn.js` does not tag a monster with which cluster
+// placed it (no field for it, and this file does not add one — that would
+// be touching src/sim/ to answer a question src/sim/ already exposes the
+// answer to another way).
+//
+// What `state.monsters` DOES preserve is PUSH ORDER: `populate()`'s outer
+// loop finishes placing every member of one cluster (the inner `for` over
+// `positions`) before it starts the next, and never interleaves two
+// clusters' pushes. So a cluster is exactly a maximal run of CONSECUTIVE
+// array entries sharing one `template` — same `name` (which pins `xp`/`hp`
+// too, since both come from the same table row). Reading that run length
+// back off the array is the generation's own record of what it did, not a
+// second opinion about it.
+//
+// The one failure mode: two DIFFERENT clusters land back to back in the
+// array and happen to draw the identical monster tier, which merges them
+// into one apparent run. This undercounts the number of clusters and
+// overcounts their size, in the same direction the constant itself was
+// already wrong in — worth naming, not worth chasing further for a reading
+// this cheap to just re-run at a different sample size instead.
+export function effectiveClusterSizes(options = {}) {
+  const {
+    runs = 60, firstSeed = 660000, levels = LEVELS, floorPlanFn = floorPlan,
+  } = options;
+
+  const perLevel = Array.from({ length: levels }, () => []);
+  for (let level = 1; level <= levels; level++) {
+    const plan = floorPlanFn(level);
+    for (let i = 0; i < runs; i++) {
+      const seed = hashSeeds(firstSeed + i, level);
+      const state = newGame(seed, plan);
+      let runLen = 0;
+      let lastName = null;
+      for (const m of state.monsters) {
+        if (m.name === lastName) {
+          runLen++;
+        } else {
+          if (runLen > 0) perLevel[level - 1].push(runLen);
+          runLen = 1;
+          lastName = m.name;
+        }
+      }
+      if (runLen > 0) perLevel[level - 1].push(runLen);
+    }
+  }
+
+  return perLevel.map((sizes, i) => {
+    const counts = new Map();
+    for (const s of sizes) counts.set(s, (counts.get(s) || 0) + 1);
+    return {
+      level: i + 1,
+      clusters: sizes.length,
+      mean: sizes.reduce((a, b) => a + b, 0) / (sizes.length || 1),
+      max: sizes.length ? Math.max(...sizes) : 0,
+      distribution: [...counts.entries()].sort((a, b) => a[0] - b[0])
+        .map(([size, n]) => ({ size, n })),
+    };
+  });
+}

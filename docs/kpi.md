@@ -220,6 +220,39 @@ percentile spike from a rare huge blow). Reskinned monsters read as tankier
 more than harder-hitting: fights run longer, which dilutes the per-turn
 percentiles instead of raising them.
 
+### M3 — cap sweep
+
+Measured at commit `ff708dc`. `isolatedShape`, default 60/level,
+`OUT_OF_DEPTH_CHANCE_CAP` swept while `PER_LEVEL` (0.02) stayed fixed. Full
+write-up in `docs/backlog.md`'s M3 item.
+
+| cap | CV growth (×/floor) |
+|---|---|
+| 0 (no tail) | 0.994 ±0.009 |
+| 0.05 | 0.986 ±0.008 |
+| 0.10 | 0.985 ±0.008 |
+| 0.15 (shipped) | 0.984 ±0.008 |
+| 0.18 (ceiling — `perLevel × floor` never asks for more; 0.30/0.50 checked identical) | 0.983 ±0.008 |
+
+**The cap is not the lever.** Trend across the full reachable range is
+monotonic but in the wrong direction (CV growth drifts lower, not higher),
+and even the two extremes are not distinguishable (z ≈ 0.9). Rules out
+`OUT_OF_DEPTH_CHANCE_CAP` specifically; does not rule out `_PER_LEVEL` or
+`_BASE`, neither swept here.
+
+### M10 — CV after the spine-share fix
+
+Measured at commit `ff708dc`. `isolatedShape`/`effectiveClusterSizes`,
+`floorPlanFn: M7_ON` (M10 ships unflagged, so this is simply "today").
+
+CV growth: **0.994 ±0.009** — bit-identical to this session's own pre-M10
+reading (`8eb8c39`, `0.994 ±0.009`) and consistent with the original M7
+reading (`f42f085`, `0.986 ±0.006`). **M7's CV gain is intact; M10 did not
+give any of it back.** Effective cluster size (mean, not `CLUSTER_SIZE=6`
+the constant) runs 3.97–4.87 from floor 6 on, with a real distribution
+either side rather than sitting at the constant — full per-floor table in
+`docs/backlog.md`.
+
 ## Objective 2 — bot
 
 Parked. Left here so the shape of the file does not have to change when the
