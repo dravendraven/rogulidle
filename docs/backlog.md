@@ -39,12 +39,13 @@ session, skip it.
 | # | id | what gets done | status |
 |---|---|---|---|
 | 1 | M17 | Near-flat roster, ~5 to ~8, with strength carrying the difficulty | READY |
-| 2 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | READY |
-| 3 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
-| 4 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
-| 5 | X1 | Delete what nothing references | READY |
-| 6 | M4 | Side-room risk/reward spread scales with depth | READY |
-| 7 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 2 | U3 | Show killed-xp and xp per turn, instead of the damage stat labelled xp | READY |
+| 3 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | READY |
+| 4 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
+| 5 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
+| 6 | X1 | Delete what nothing references | READY |
+| 7 | M4 | Side-room risk/reward spread scales with depth | READY |
+| 8 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -382,6 +383,50 @@ arithmetic answers.
 question — the last two attempts at it both looked right on paper and both
 were wrong in a way nobody predicted. Build it, look at `run-check.html`,
 and watch a few runs before deciding.
+
+## U3 · show what the hero has killed, and how fast
+
+`work agent` then `ui agent` — engine half first, one line
+
+The screen shows `3 xp` and rising. That number is the hero's **damage
+stat** — Rogule uses `xp` for both a creature's damage and the number over
+its head — and it says nothing about what the run has achieved.
+
+Show instead the **sum of the xp of every creature killed**, and the rate:
+that sum per turn.
+
+### Two things called xp, and this is the trap
+
+The damage stat still matters and still changes. If the screen relabels one
+as the other, the next person to read it will be wrong about which. **Show
+both, named apart** — "damage" for the stat, something else for the score.
+The item does not care what the second word is; it cares that they are not
+both "xp".
+
+### Engine half — `work agent`, one line
+
+`kills` is `push(monster.name)`, and a name is not enough: M3 can reskin a
+creature's stats, so looking the name up in `MONSTER_TABLE` afterwards can
+give the wrong number.
+
+**Do not change the shape of `kills`** — `kills.length` is load-bearing in
+`combat.js`'s modulo grants and in the renderer. Add a counter instead:
+`state.player.xpEarned`, incremented by the dead monster's own `xp` at the
+same place the kill is pushed. One line, no shape change, and it carries
+down the stairs with everything else the hero is.
+
+### Screen half — `ui agent`
+
+Show the total and the rate. The rate is the interesting one: **it says
+whether a run is going somewhere.** A bot grinding rats forever and a bot
+carving through a floor look similar on a kill count and nothing alike on
+xp per turn.
+
+**Also worth putting on `run-check.html`**, where it is a better version of
+"turns between events" — that one counts events without weighting them, and
+this weights them by what was actually killed. The ui agent owns the screen;
+whether it belongs on the check page is the metrics agent's call, so report
+rather than reach.
 
 ## M20 · start and shrine at the two ends of the map
 
