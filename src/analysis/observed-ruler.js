@@ -629,7 +629,7 @@ export function capacityShape(options = {}) {
   } = options;
 
   const rows = Array.from({ length: levels }, (_, i) => ({
-    level: i + 1, power: [], hpMax: [], reached: 0, died: 0,
+    level: i + 1, power: [], hpMax: [], effHp: [], reached: 0, died: 0,
   }));
   const depths = [];
   let cleared = 0;
@@ -645,6 +645,7 @@ export function capacityShape(options = {}) {
       row.reached++;
       row.power.push(heroPower(lvl.arrivedWith));
       row.hpMax.push(lvl.arrivedWith.hpMax);
+      row.effHp.push(effectiveHp(lvl.arrivedWith));
       if (lvl.diedCount) row.died++;
     }
   }
@@ -655,6 +656,13 @@ export function capacityShape(options = {}) {
       reached: r.reached,
       power: summarise(r.power),
       hpMax: summarise(r.hpMax),
+      // hp + armour on arrival — used by run-check.html (Map's difficulty
+      // reading) as the bot-independent "what a hero plausibly has by
+      // here" denominator, in place of the flat PLAYER_HP constant. Needs
+      // `suppressDeath: true, startHero: null` to mean that; under the
+      // default (immortal 400-hp PROBE_HERO) this number describes the
+      // calibration tank, not a real hero, and should not be used that way.
+      effectiveHp: summarise(r.effHp),
       // Only meaningful under suppressDeath — how many of the descents that
       // REACHED this floor had already had a death suppressed getting
       // there. 0 always under the default (PROBE_HERO never dies).

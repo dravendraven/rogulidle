@@ -86,7 +86,7 @@ them in plain language instead of exponents and standard errors.</p>
 <div id="out"></div>
 
 <script type="module">
-import { rewardShape } from './src/analysis/observed-ruler.js';
+import { rewardShape, capacityShape } from './src/analysis/observed-ruler.js';
 import { descentCheck } from './src/analysis/clustering.js';
 import { floorPlan, LEVELS } from './src/sim/dungeon.js';
 import { PLAYER_HP } from './src/sim/balance.js';
@@ -123,7 +123,7 @@ function levelSection(title, lede, cells, flagNode) {
   return s;
 }
 
-function render(reward, counts, dc) {
+function render(reward, counts, dc, cap) {
   $('out').innerHTML = '';
 
   // ***** Product *****
@@ -158,15 +158,23 @@ function render(reward, counts, dc) {
   reward.forEach((r, i) => {
     if (i > 0 && r.challenge.mean < reward[i - 1].challenge.mean) drops.push(r.level);
   });
-  // hp spent as a multiple of PLAYER_HP (10) — the only bot-independent
-  // read of "is this survivable at all". `challenge` comes from the 400-hp
-  // calibration probe clearing the WHOLE roster with no gear, so this is a
-  // pessimistic, bare-hero upper bound, not a death certainty: a real hero
-  // has picked up some gear by here. Still the closest thing on this page
-  // to an absolute difficulty reading, since it never touches the bot.
+  // hp spent as a multiple of a hero's EXPECTED effectiveHp (hp + armour)
+  // on arrival — the bot-independent read of "is this survivable". Not
+  // PLAYER_HP flat: hp itself never grows (no regen), armour does, so a
+  // flat 10 gets more wrong every floor down. The expectation comes from
+  // `capacityShape({ suppressDeath: true, startHero: null })` — the sonda,
+  // real PLAYER_HP base, death suppressed so every run reaches every floor
+  // and nobody is selected out by dying, which would otherwise bias this
+  // optimistic (only survivors, i.e. the luckier builds, would be counted
+  // at the deep floors that matter most). `challenge` is still the 400-hp
+  // calibration probe clearing the WHOLE roster with no gear, so this
+  // stays a pessimistic bound, not a death certainty — but a much less
+  // wrong one than dividing by a constant that cannot reflect armour.
+  const capByLevel = new Map(cap.rows.map((r) => [r.level, r.effectiveHp.mean]));
+  const expectedHp = (level) => capByLevel.get(level) ?? PLAYER_HP;
   const lethal = [];
   reward.forEach((r) => {
-    const ratio = r.challenge.mean / PLAYER_HP;
+    const ratio = r.challenge.mean / expectedHp(r.level);
     if (ratio >= 1) lethal.push({ level: r.level, ratio });
   });
   const costTable = el('table');
@@ -175,10 +183,11 @@ function render(reward, counts, dc) {
       const cheaper = i > 0 && r.challenge.mean < reward[i - 1].challenge.mean;
       return `<td class="${cheaper ? 'no' : ''}">${f(r.challenge.mean, 1)}</td>`;
     }).join('') + '</tr>'
-    + `<tr><td class="direction">× PLAYER_HP (${PLAYER_HP})</td>` + reward.map((r) => {
-      const ratio = r.challenge.mean / PLAYER_HP;
+    + '<tr><td class="direction">× expected hp+armour</td>' + reward.map((r) => {
+      const ratio = r.challenge.mean / expectedHp(r.level);
       return `<td class="direction ${ratio >= 1 ? 'no' : ''}">${f(ratio, 1)}×</td>`;
-    }).join('') + '</tr></tbody>';
+    }).join('') + '</tr>'
+    + '<tr><td class="direction">expected hp+armour</td>' + reward.map((r) => `<td class="direction">${f(expectedHp(r.level), 1)}</td>`).join('') + '</tr></tbody>';
   const costCard = el('div');
   costCard.append(costTable);
   const flagParts = [];
@@ -189,9 +198,9 @@ function render(reward, counts, dc) {
     flagParts.push(el('p', 'flag none', 'No floor is cheaper than the one before it.'));
   }
   if (lethal.length) {
-    flagParts.push(el('p', 'flag', `Bare-hero-lethal (costs ≥1× a fresh hero's full hp, no gear at all): `
-      + `${lethal.map((x) => `floor ${x.level} (${f(x.ratio, 1)}×)`).join(', ')}. `
-      + "Pessimistic bound — a real hero has some gear by then — but this is the map's own difficulty, no bot involved."));
+    flagParts.push(el('p', 'flag', `Costs ≥1× the hp+armour a hero can expect to have by then (sonda, death `
+      + `suppressed, no bot involved): ${lethal.map((x) => `floor ${x.level} (${f(x.ratio, 1)}×)`).join(', ')}. `
+      + 'Still pessimistic — this probe never dies so never loses momentum, and challenge itself assumes zero gear — but far less wrong than a flat PLAYER_HP would be.'));
   }
   const flagNode = el('div', 'subnote');
   for (const p of flagParts) flagNode.append(p);
@@ -213,7 +222,7 @@ function render(reward, counts, dc) {
   const mapCells = [
     cell('success', `cost, floor ${LEVELS} ÷ floor 1`,
       `${f(last / first, 1)}×`,
-      `hp a fixed reference player spends clearing a floor, picking up nothing. Floor 1: ${f(first, 1)} hp, floor ${LEVELS}: ${f(last, 1)} hp — ${f(last / PLAYER_HP, 1)}× a real hero's whole hp bar (${PLAYER_HP}), bare, no gear.`,
+      `hp a fixed reference player spends clearing a floor, picking up nothing. Floor 1: ${f(first, 1)} hp, floor ${LEVELS}: ${f(last, 1)} hp — ${f(last / expectedHp(LEVELS), 1)}× what a hero can expect to have (hp+armour) by floor ${LEVELS}.`,
       'good: higher, AND rising every single step — see below'),
     cell('health', 'creatures per floor',
       `${counts[0]} → ${counts[counts.length - 1]} <span style="font-size:.85rem;color:var(--faint)">(xp ${f(reward[0].meanXp, 1)} → ${f(reward[reward.length - 1].meanXp, 1)})</span>`,
@@ -254,6 +263,7 @@ function render(reward, counts, dc) {
   details.append(el('summary', null, 'sample sizes and what they cost'));
   details.append(el('p', 'smallprint',
     `Map numbers: ${reward[0]?.n ?? '—'}–${Math.max(...reward.map((r) => r.n))} cleared samples per floor (both probes have to clear; a few get discarded). `
+    + `Expected hp+armour: ${cap.runs} more full ten-floor descents, sonda policy, death suppressed so all ${cap.runs} reach every floor. `
     + `Product/Bot numbers: ${dc.runs} full ten-floor descents by the real bot (${dc.totalActions} turns, ${dc.floorAttempts} floor-attempts, ${dc.totalKills} kills, ${dc.fightsStarted} fights started, pooled). `
     + 'No standard errors on this page by design — raise the sample counts above for a steadier read if a number here needs settling properly.'));
   $('out').append(details);
@@ -277,7 +287,20 @@ $('run').addEventListener('click', async () => {
     await new Promise((r) => setTimeout(r, 20));
     const dc = descentCheck({ runs: descentRuns, firstSeed: firstSeed + 700000 });
 
-    render(reward, counts, dc);
+    $('status').textContent = 'playing full descents with the sonda, death suppressed (map difficulty)…';
+    await new Promise((r) => setTimeout(r, 20));
+    // Its own, larger, non-configurable sample: this descent is cheap
+    // (~0.3s/run, no danger-field/pricing math, unlike the bot) and the
+    // number it feeds is noisy at small n in a specific way worth avoiding
+    // — the death-suppressed probe often sits at exactly 0 hp+armour for
+    // stretches (no regen by default), so 2-3 samples can average to a
+    // near-zero that is real noise, not the actual expectation. 15 tames
+    // it for a few seconds instead of tying it to the expensive bot dial.
+    const cap = capacityShape({
+      runs: 15, firstSeed: firstSeed + 1400000, suppressDeath: true, startHero: null,
+    });
+
+    render(reward, counts, dc, cap);
     $('status').textContent = `done in ${((performance.now() - started) / 1000).toFixed(1)}s`;
   } catch (error) {
     $('status').textContent = 'failed: ' + error.message;
