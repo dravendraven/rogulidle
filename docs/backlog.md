@@ -38,7 +38,7 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| 1 | U3 | Show killed-xp and xp per turn, instead of the damage stat labelled xp | IN FLIGHT |
+| 1 | U3 | Show killed-xp and xp per turn, instead of the damage stat labelled xp | REPORTED |
 | 2 | U4 | Lifetime score, awarded only on a full clear, xpEarned over turns | BLOCKED on U3 |
 | 3 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | REPORTED |
 | 4 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
@@ -325,7 +325,7 @@ own commit — and X2 sits after M19 rather than before M18.
 
 ## U3 · show what the hero has killed, and how fast
 
-`work agent` done · `ui agent` — **IN FLIGHT**
+`work agent` done · `ui agent` — **REPORTED**
 
 The screen shows `3 xp` and rising. That number is the hero's **damage
 stat** — Rogule uses `xp` for both a creature's damage and the number over
@@ -366,6 +366,45 @@ xp per turn.
 this weights them by what was actually killed. The ui agent owns the screen;
 whether it belongs on the check page is the metrics agent's call, so report
 rather than reach.
+
+### Result
+
+Three HUD chips replace the old single `xp` one: `dmg` (the untouched
+damage-roll stat, `player.xp`), `xp` (`player.xpEarned`, the work agent's
+engine half), and `xp/turn` (`xpEarned` over a running turn total). Changed
+`src/ui/render.js` (`renderHud`), `src/ui/spectator.js` (added
+`session.turnOffset`, accumulated per floor in the descent loop), and
+`index.html`'s chips row. `docs/backlog.md` is the only other file touched.
+
+**The rate needed a turn total the engine doesn't hand over directly.**
+`state.turn` resets to 0 at every floor while `xpEarned` carries through, so
+`xpEarned / state.turn` would spike right after each floor transition —
+correct on floor 1, meaningless from floor 2 on. `session.turnOffset` banks
+the turn count from floors already finished this run and gets added in. It
+defaults to 0 and only the descent loop touches it, so the legacy
+`?difficulty=` single-floor mode reads correctly with no changes of its own.
+
+**Verified by hand against the live numbers**, not just by eye: killed a
+bat (xp 2) at turn 18 → 2/18 = 0.11, matched the chip exactly; a later kill
+put it at 4/57 = 0.07, also matched. Checked both the descent (`index.html`
+default) and the legacy single-floor mode (`?difficulty=`) in-browser, no
+console errors either way. `run-tests.html`: 89/91 — the 2 failures are
+pre-existing spine-share tests against `src/sim/spawn.js`, from a different
+session's in-flight map work, confirmed unrelated (nothing here touches
+map generation) and present before this change too.
+
+**Also shipped:** the same three chips in `play.html`/`src/ui/play.js` — an
+interactive mode added earlier this session on direct owner request (see
+that commit's message; it deviates from the project's stated
+watch-only premise and the project agent hasn't reviewed it yet). Left the
+old single-`xp` label there would have reintroduced the exact trap this
+item exists to close, on a second page. Its own floor-carry logic had
+independently dropped `xpEarned` across a floor transition — a real bug
+this pass also fixed while it was in the file for the label change.
+
+**Out of scope, reported per the item's own instruction.** Whether
+`xpEarned`/turn belongs on `run-check.html` is the metrics agent's call —
+not touched here.
 
 ## U4 · a lifetime score, earned only by finishing
 
