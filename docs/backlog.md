@@ -417,6 +417,88 @@ deliberately — to whoever owns that file next.
 flipping this flag would move the ground under it. This report is the
 build-and-test checkpoint only.
 
+### Review 1 — conformance. Passes, and one number needs rereading
+
+Conformance only; the verdict waits on the ruler reading. One miss, one
+correction, and one outstanding action that belongs to nobody yet.
+
+**The flag-off guarantee is the strongest this repo has produced.**
+`CLUSTER_SIZE = 1` reproduces the old per-monster loop RNG-exact, with a
+dedicated test that `floorParams`/`floorPlan` come out byte-identical. That
+is better than "off by default" — it is off by *identity*, so the flag
+cannot silently perturb a baseline the way M6's `cloneState` bug nearly did.
+
+**Challenge holds: 1.337 ±0.029 against 1.343 ±0.03.** This is the criterion
+that invalidates everything else, and the arithmetic behind it checks out —
+`1.15 × 1.07^2.356 = 1.349`, and using 2 instead of 2.356 would have
+overshot exactly as it did in the archived sweep.
+
+**MISS: the divergence is not in `rogule-spec.md` §13.** Rogule places
+creatures independently; the engine now anchors a cluster and draws one
+shared tier for all of it. That is a rule change, and §13 is where rule
+changes are recorded — it has §13.1 through §13.4 and no mention of
+clustering. Add it before the reading.
+
+### The mid-build correction is the most valuable thing in this report
+
+The first implementation clustered **position only**, each monster still
+drawing its own tier. Measured CV growth 0.945 against a 0.944 baseline —
+nothing. Rather than ship it or quietly rewrite, the failed version is in
+the report with its number.
+
+That empirically confirms the design note this item carried: **proximity
+alone buys nothing; the group has to be one creature type.** It was an
+argument when I wrote it and it is a measurement now, and the difference
+matters for M8 and anything else that reasons about draws.
+
+### finishes 56.3% is inherited from M6, not caused by M7
+
+The report flags its baseline honestly — M6 was adopted when M7 started, so
+everything was measured with `HP_FROM_KILLS=true` — but stops short of the
+consequence, and it inverts the reading.
+
+    M6 alone, on          56.7%
+    M6 on + M7 on         56.3%
+
+**M7 moved finishes by −0.4 points.** The 3σ overshoot of the band is M6's,
+and M6 is being reverted. Treat 56.3% as evidence about M6, not about M7,
+and expect M7's own finishes to sit near the ~30% baseline once the reversal
+is executed. The formal reading should be taken with `HP_FROM_KILLS=false`
+for exactly this reason.
+
+### CV 0.986 is not "short", it is indistinguishable from the target
+
+Reported as missing `≥1.00`. With CV's standard error running ±0.012–0.014
+on this instrument, 0.986 sits about **one** standard error below 1.00 —
+which is not a miss, it is a number that cannot be told apart from its
+target. The move it *did* make, 0.944 → 0.986, is around 3σ and is real.
+
+That does not make it a pass. It makes the honest statement "reaches the
+target within noise, ambition of 1.05 not approached", and the difference
+matters because the next decision is whether M4 and M3 are still needed.
+
+**And the ceiling argument is right, with a specific cause worth naming.**
+Slowing count to 1.15 leaves floor 10 holding **7 creatures** (measured: 7.0
+mean), so `CLUSTER_SIZE = 6` is already almost the entire floor. There is
+nothing left to group. **The two levers compete for the same material** —
+cutting count is what makes grouping run out of things to do — and that is
+why 3 → 6 → 9 gives 0.954 → 0.986 → 0.993 and stops. Not under-swept.
+
+### Two things outstanding, neither the work agent's
+
+**`HP_FROM_KILLS` is still `true` in `src/sim/balance.js`.** The reversal was
+decided and documented (`ca5c6f9`) but never executed in code, and the work
+agent was right to flag it rather than act on it mid-flight. It is a
+one-line change and it gates the M7 reading, since that reading has to be
+taken against the shipped baseline.
+
+**`src/analysis/clustering.js` is now genuinely divergent, not merely
+duplicated.** I2's version repositions monsters post-hoc, spatial only, and
+disclaims zone-awareness; the engine anchors by zone and shares one tier per
+cluster. They are different mechanisms, so any clustering measurement taken
+through the analysis file no longer describes the flag-on game. That is the
+metrics agent's file and its call.
+
 ## M9 · tie the drop to the creature that carries it
 
 `map` · `work agent` · **BLOCKED on I6** — the owner's preferred direction
