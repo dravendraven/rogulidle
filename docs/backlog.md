@@ -124,6 +124,72 @@ and the four ratios.
 - **The probe is not an instrument for clustering**, despite the original
   brief implying it. See I2.
 
+### Result
+
+Delivered as specified. `src/analysis/observed-ruler.js` — the two frozen
+probes, `isolatedShape` (paired A/B per generated floor) and `builtShape`
+(power/buffer from a real B-only descent) — imports nothing from `src/bot/`.
+`run-ruler.html` is the page. `docs/observed-ruler.md` has the full
+per-floor table, growth rates, standard errors and the four ratios; it is
+the current baseline and `docs/curve-shape.md` now points to it as
+superseded. The one engine change the probes needed — `noPickup`, so A and
+B can differ in pickup alone — is in `src/sim/game.js` and
+`src/sim/step.js`, off by default, nothing else touched.
+
+**Headline numbers** (150 isolated floor-pairs/level, 1500 descents, seed
+base 800000 — see observed-ruler.md for the row-by-row table):
+
+    challenge     ×1.343 ±0.009 / floor   (×14.2 over the ladder)
+    reward (abs)  ×1.310 ±0.113 / floor   (×11.3 over the ladder)
+    power         ×1.029 ±0.022 / floor
+    buffer        ×0.862 ±0.018 / floor
+    CV challenge  ×0.944 ±0.012 / floor   (falls — same direction as the old model)
+    CV reward     ×0.984 ±0.067 / floor
+
+    challenge/power   1.307/floor    challenge/buffer   1.560/floor
+    reward/challenge  0.975/floor, and small — 1-2% of challenge at every depth
+
+**Direct answer.** The observed ruler is built and running, and it does not
+overturn the two headline shape findings from the modelled ruler — CV of
+challenge still falls, buffer is still ~flat — those hold up under real
+play. What it settles is the question it was built for: it cannot misprice
+a crowd the way `campaignCost`'s duel-sum could, because it plays the fight
+instead of pricing it.
+
+**What surprised me.** `reward/challenge` is small AND flat at every depth
+(no floor stands out), not something that grows as chests get richer with
+depth. A policy that never detours for loot barely benefits from what it
+happens to step on — passive pickup is close to free but also close to
+worthless. Matches `bot-strategy.md` §1's "a chest is worth a fraction of
+an item" argument, now measured by play instead of argued from item odds.
+Separately: Sonda B — zero danger-awareness by design — never finished a
+ten-floor descent once in 1500 tries (survival 91% by floor 2, 12% by floor
+5, ~0% by floor 9). Expected for a calibration weight rather than an
+athlete, but it means **power and buffer past floor 7 are not usable
+numbers** (reached ≤ 6) — reported for completeness, not as findings.
+
+**What I could not resolve.**
+- CV of reward is close to meaningless as reported. Reward hovers near zero
+  at most floors, CV divides by that near-zero mean, and the per-floor
+  values swing from about 5 to about 37 in the baseline table with a
+  growth-rate fit barely constrained (±0.067 on 0.984). I reported it
+  because the spec asked for it, but would not build anything on it without
+  a different definition — CV against `|reward|` or against challenge
+  instead of against reward's own mean.
+- Mid-session I cached the probes' exploration pathing between turns for
+  speed (monster-chasing stays uncached every turn, since monsters move —
+  only the terrain-only frontier/shrine leg is reused). This adds one
+  disclosed approximation: once committed to a frontier tile, the probe
+  does not re-check for a closer one revealed en route; monster priority is
+  unaffected, it is still evaluated fresh every turn. Checked the
+  challenge/reward series at n=60 against the committed baseline and it
+  sits inside noise, but this is a spot check, not a proof it never moves
+  an outcome — if a future rerun looks off by a small margin, look here
+  first.
+
+**Out of scope.** Nothing beyond what is already captured in the
+corrections above (clustering → I2/I3).
+
 ## 2 — B1 · which layer is the ping-pong born in
 
 `bot` · `work agent` · **REPORTED**
