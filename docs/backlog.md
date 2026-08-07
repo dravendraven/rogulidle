@@ -43,10 +43,9 @@ session, skip it.
 | 2 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
 | 3 | B7 | Raise STEP_COST_IN_HP so turns cost the bot something | READY · after M19 |
 | 4 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
-| 5 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
-| 6 | X1 | Delete what nothing references | READY |
-| 7 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 8 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 5 | X1 | Delete what nothing references | READY |
+| 6 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
+| 7 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -226,102 +225,6 @@ number for even when that number is boring.
 **Not measured / left off:** nothing from the spec's twelve. The `run-shape.html`
 and `run-curve.html` diagnostics (modelled-cost pages, unrelated method,
 not named in this item) are untouched — not this item's call to remove.
-
-## X2 · bisect the batch
-
-`work agent` · **READY** — before anything else
-
-`run-check.html` at n=20 says finishes is **0/20** and median depth **3.0 of
-10**. Before the M11–M16 batch it was 31%. The game does not work.
-
-Five commits landed without a reading between them and four of them make it
-harder. The numbers cannot say which.
-
-**Deferred by the owner until the map work is done, and that is the better
-call.** M17 replaces M12's count growth outright — 1.22 back down to about
-1.053 — so one of the four changes that hardened the game is about to be
-undone. Bisecting now would be settling a question about a dial that is
-already on its way out, and a half-finished map is not a thing worth
-attributing.
-
-The bisect stays available because each change is still its own commit. If
-the map work ends somewhere good, this item closes unread.
-
-**Do.** Run `run-check.html` at the commit before M12, then at each of M12,
-M13, M14, M15, M16 in turn. Same seed base, same sample. Report finishes and
-median depth at each — that is six runs of about thirty seconds.
-
-**Report where it falls off, not a theory about why.** If it is one commit,
-that commit is the subject. If it is cumulative — each taking a little —
-that is a different and more interesting answer, and it means the batch was
-individually reasonable and collectively wrong.
-
-**Do not fix anything in this item.** Finding the step is the whole job.
-
-**Also worth a number while you are there:** the reversal rate reads 46%
-against 17–21% before. Include it in the same sweep if it is free; it may
-share a cause with the difficulty, or it may not.
-
-### Review of I8 — the page is right, and it says the batch broke the game
-
-Opened it and ran it at n=20. **The page is what was asked for.** Plain
-language, every number carrying its meaning and its good direction, totals
-instead of exponents, tables underneath for detail, 30 seconds to run. The
-monotonicity break is called out by name *and* carries a noise caveat —
-which is exactly right, since M11 proved that particular dip is noise.
-
-One fix: the default is **2 descents**. Median depth and finishes are
-meaningless at n=2, and those are two of the four product numbers. Default
-higher for the descent half, or say on the page that the product and bot
-sections need more.
-
-### What it reports, at n=20, seed base 500000
-
-    PRODUCT   median depth      3.0 of 10       target ~7
-              finishes          0%   (0/20)     was 31% before the batch
-              turns between events  5
-              spread of depths  ±2.7
-
-    MAP       cost fl10 ÷ fl1   25.1×
-              creatures         2 → 12
-              spread in a floor 73% → 57%       still shrinking
-              loot vs cost      16%
-
-    BOT       damage per kill   1.66
-              reversal rate     46%             was 17–21%
-              turns per floor   172
-              lost fights       12 / 250
-
-**The M11–M16 batch made the game unplayable.** Zero runs in twenty reached
-the bottom, and the median run dies on floor 3. Before the batch, finishes
-sat at 31%.
-
-**It also did not fix what it was aimed at.** Spread within a floor still
-shrinks with depth, 73% → 57%. That was the CV problem, and it is still
-there.
-
-**And the reversal rate more than doubled**, 17–21% → 46%. Bigger rooms are
-the obvious suspect — the tactical veto has more places to oscillate between
-when there is no corridor to back into — but that is a guess, and my guesses
-in this batch have a poor record.
-
-### This is the bill for batch mode, and the safety net holds
-
-Five changes, four of which make the game harder, all landed without a
-reading between them. There is no way to say which one did this from the
-numbers alone.
-
-**But each is its own commit, which is exactly why batching was acceptable
-here.** Bisect: `run-check` at the commit before M12, then after each of
-M12, M13, M14, M15, M16. Five runs of thirty seconds each answers it.
-
-**The owner deferred the bisect until the map work finishes**, and the
-reason is better than the one I gave for doing it now: M17 replaces M12's
-count growth, so one of the four hardening changes is about to be reversed
-anyway. Measuring a half-finished map attributes nothing.
-
-The queue continues at M18. The bisect stays available — each change is its
-own commit — and X2 sits after M19 rather than before M18.
 
 ## M20 · start and shrine at the two ends of the map
 

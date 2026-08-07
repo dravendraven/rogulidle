@@ -151,6 +151,14 @@ absorbed rather than blows softened.
 Bigger rooms push the share up. Raising `dugPercentage` to ROT's own 0.20
 dropped floor 7 to 0.70.
 
+**Arithmetic beat the bisect.** A batch of five changes took finishes from
+31% to zero, and a bisect was opened to find which. It was never run: the
+floor-1 arithmetic found it first — the hero starts with no weapon dealing
+0.83 hp a turn, floor 1 costs 6.9 hp of its 10, and 14 of 30 runs die there.
+The bisect was insurance and the insurance was not needed. Keep the
+one-commit-per-change discipline anyway; it is what made the insurance
+available.
+
 ## Process
 
 **Whoever built a change does not decide whether it worked.** Most of the
