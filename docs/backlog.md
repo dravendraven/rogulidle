@@ -57,8 +57,8 @@ its standing job, which is not a task and so has no row of its own.
 
 | # | id | what and why | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
-| 1 | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | REPORTED · blocker | IN FLIGHT |
-| 2 | I5 | The ruler cannot see buffer past floor 6, which is where the target lives | map | metrics | READY · next | n/a |
+| 1 | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | REPORTED · blocker | REPORTED |
+| 2 | I5 | Ruler cannot see buffer past floor 6, and M6 moves the window it is measured in | map | metrics | READY · next, gates M6 | n/a |
 | 3 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | READY · the main route | — |
 | 4 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
 | 5 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
@@ -942,6 +942,34 @@ is a real outcome rather than a failure. What is not acceptable is leaving
 the limitation where it currently sits: true, documented, and quietly
 ignored every time a buffer number gets quoted.
 
+### The asymmetric window, and why it holds up M6's verdict
+
+Answer this one first — it is narrower than the rest of the item and it
+gates a decision that is otherwise ready.
+
+**The change being measured moves the measurement window.** With M6 off, the
+probe dies early: 14 of 1500 descents reach floor 7. With M6 on it carries
+more hp and survives further, so the "on" arm is fitted over a longer ladder
+than the "off" arm. A rate fitted over floors 1–6 in one arm and 1–8 in the
+other is **not paired**, and pairing is the property the whole seed protocol
+exists to protect.
+
+**And the mechanism is depth-dependent, so the truncation is not neutral.**
+The grant is per kill and kills grow with depth — roughly 25 cumulative
+kills by floor 6 against 85 by floor 10, so about +12 hp against +42.
+Extrapolating a floors-1–6 rate out to floor 10 is an assumption, and it is
+an assumption about exactly the region the buffer target is written for.
+
+Which way it cuts is genuinely unknown. Damage per floor grows 1.343 while
+kills grow 1.3, so the grant loses ground on the mean — but the deep floors
+are where both terms are largest and neither has been observed. Nobody can
+say which dominates without looking.
+
+**What is needed is narrow:** either both arms measured over a common window
+so the comparison is paired again, or a statement that the comparison cannot
+be paired and what should be quoted instead. Everything else in I5 can
+follow.
+
 **Out of scope.** Reward still measures incidental pickup rather than what
 the floor holds — I1 review point 4, still open, and why reward has no entry
 in the targets table. Not this item; noted so it is not forgotten twice.
@@ -1637,6 +1665,70 @@ recomputing the z-scores.
 **Not settled here:** whether to accept a higher clear-rate band, accept a
 partially-fixed buffer, or spend a FAITHFUL lever. That is mine, and it
 needs the ruler reading first.
+
+### Ruler reading (metrics agent) — flag off against on
+
+Ran against commit `b13df5f` (work agent's M6 shipment — the only commit
+that exists for this mechanism; nothing has changed it since). Independent
+of the work agent's own sweep above: same instrument
+(`src/analysis/observed-ruler.js`'s `isolatedShape`/`builtShape`), a
+different session, using the `gameOptions`/`dungeonOptions` passthrough the
+work agent added and review 1 already cleared. 120 isolated floor-pairs per
+level, 800 descents per condition, seed base 800000, max 4000 turns.
+
+**Both arms passed explicitly, confirmed before reporting anything.**
+`hpFromKills: false` for off, `hpFromKills: true` for on — the shipped
+rate (`HP_GRANT_PER_KILLS = 2`, `HP_GRANT_AMOUNT = 1`), not a swept value.
+Verified the toggle actually reached the engine rather than trusting the
+default: challenge, `reward/challenge` and CV of challenge come out
+**identical to the digit** between off and on (same `isolatedShape` series
+either way, as the item's own brief predicted — hp does not change how long
+a fight against the 400-hp tank probe lasts), while buffer visibly moves
+(0.842 off → 0.980 on) — a toggle with no effect at all would have left
+buffer flat too, so this is a real state change, not a no-op flag.
+
+```
+                        off (hpFromKills:false)    on (shipped, +1hp/2 kills)
+challenge/power         1.386 ±0.063 / floor        1.171 ±0.038 / floor
+challenge/buffer        1.654 ±0.058 / floor        1.391 ±0.040 / floor
+reward/challenge        0.928 ±0.078 / floor        0.928 ±0.078 / floor   (identical — expected)
+CV challenge             0.941 ±0.014 / floor        0.941 ±0.014 / floor   (identical — expected)
+
+buffer (underlying)      0.842 ±0.031 / floor        0.980 ±0.023 / floor
+power (underlying)       1.004 ±0.046 / floor        1.163 ±0.031 / floor
+reliable floors (n≥50)   1–5                         1–7
+descents fully cleared   0/800                       19/800
+```
+
+Ratios are fit directly on the per-floor ratio series (challenge/power and
+challenge/buffer computed per floor, then log-linear fit), not derived by
+dividing two separately-fit rates, and restricted to floors where power and
+buffer clear `n ≥ 50` (the I1-review convention) — 1–5 off, 1–7 on; the flag
+itself is why more descents survive far enough to be reliable on.
+
+**Confirms the work agent's own reading, direction and magnitude.** Buffer
+rises with the flag on (0.842 → 0.980) but **still falls** — below 1.00,
+short of the ≥1.00 acceptance bar and further from the 1.16 ambition.
+`challenge/power` and `challenge/buffer` both improve (fall) on, consistent
+with power rising alongside buffer. This independently reproduces "shipped,
+buffer target not met."
+
+**Numeric gap against the shipping report, not reconciled.** The work
+agent's own sweep read buffer-on as 0.910 ±0.015 over floors 1–6; this
+reading gets 0.980 ±0.023 over floors 1–7 at the same nominal rate. Off
+matches closely (mine 0.842 ±0.031 vs theirs 0.846 ±0.026, well inside
+noise) — the gap shows up only on. Most likely explanation: the reliable
+window differs (1–7 here against 1–6 there) because a different session's
+seed draw put floor 7 just over the `n ≥ 50` line this time, and floor 7 is
+new territory the off-arm never reaches at all (0/800 cleared) — but this is
+a guess, not confirmed, and it is exactly the kind of small window-dependent
+drift the I1 review already flagged once. Re-running both at a matched
+floor window (1–6 only) would settle whether it is sampling noise or a real
+discrepancy; not done here for time.
+
+**What I could not resolve.** Whether the buffer-on gap (0.980 vs 0.910) is
+noise from the differing floor window or something else worth chasing before
+review 2 reads it. Flagging rather than picking one number to quote.
 
 ---
 
