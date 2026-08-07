@@ -42,11 +42,12 @@ session, skip it.
 | 2 | U3 | Show killed-xp and xp per turn, instead of the damage stat labelled xp | READY |
 | 3 | U4 | Lifetime score, awarded only on a full clear, xpEarned over turns | BLOCKED on U3 |
 | 4 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | READY |
-| 5 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
-| 6 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
-| 7 | X1 | Delete what nothing references | READY |
-| 8 | M4 | Side-room risk/reward spread scales with depth | READY |
-| 9 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 5 | M21 | Deep floors put a creature in the room where the hero lands | READY |
+| 6 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
+| 7 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
+| 8 | X1 | Delete what nothing references | READY |
+| 9 | M4 | Side-room risk/reward spread scales with depth | READY |
+| 10 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -543,6 +544,12 @@ central room and "furthest" is merely moderate.
 flood per room, ten to twenty of them, cheap — and put the hero and the
 shrine at the two ends of the longest pair.
 
+**This also stops the hero spawning in a corridor**, which it can today:
+`pickFree()` takes any walkable tile. Landing at a room centre is a
+consequence of choosing the pair, not a separate change — but implement both
+halves, because doing only the shrine end leaves the corridor spawn in
+place.
+
 ### Two things this costs, and the second is the real one
 
 **Spine share goes up.** A longer mandatory path crosses more rooms, and
@@ -572,6 +579,36 @@ obviously right.
 adjusting the band. It is the same question M16 was told to answer the same
 way, and there the worry turned out to be misplaced — the lever was
 elsewhere. It may be misplaced here too.
+
+## M21 · deep floors have something waiting where you land
+
+`work agent` · **READY** — after M20
+
+The hero lands and has a moment to look around. On floor 1 that is an
+opening; on floor 10 it is a free turn the floor should not be giving away.
+
+**Do.** Make the chance that the spawn room holds a creature rise with
+depth — near zero at the top, near certain at the bottom.
+
+**What it costs the hero, and it is not the creature.** Tier comes from
+`depthAt(pos, 'risk')`, which is distance from the hero, so anything in the
+spawn room is drawn from the *bottom* of that floor's range. The danger is
+not that it is strong — M13's tier floor decides that — it is that the bot
+starts a floor **in contact, with no map**. Fog of war means it has seen
+nothing yet and has to commit before it knows where anything is.
+
+That is the whole reason it is interesting to watch, and also the reason it
+might be too much: a bot that opens floor 10 already fighting has no
+information to route with.
+
+**Do this after M20**, which moves the spawn to a room centre. Placing
+creatures relative to a spawn point that is about to move is work done
+twice.
+
+**Assert.** Share of floors whose spawn room holds a live creature, at 1, 5
+and 10 — near zero, middling, near certain. And `finishes`, because this is
+one more thing making the descent harder at a moment when it is already at
+zero.
 
 ## M19 · pay for the harder opening with loot
 
