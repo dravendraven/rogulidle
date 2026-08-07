@@ -39,6 +39,7 @@ session, skip it.
 | # | id | what gets done | status |
 |---|---|---|---|
 | 1 | M11 | Floor n+1 is never cheaper than floor n | REPORTED |
+| — | I8 | One page saying whether the map is good, in five numbers | READY · parallel |
 | 2 | M13 | Tier floor rises with depth — rats stop appearing deep | READY |
 | 3 | M12 | Raise creature count and cluster size together | READY |
 | 4 | M14 | One top-tier-for-the-floor creature next to the shrine | READY |
@@ -50,12 +51,60 @@ session, skip it.
 
 Items 1–5 are one batch, in that order: one commit each, each with a test
 asserting its own property, no measurement between them. X1 after the batch
-rather than inside it, so a bisect stays readable. One ruler reading at the
-end of all six.
+rather than inside it, so a bisect stays readable.
+
+I8 runs in parallel — different agent, different files — and the end-of-batch
+check is that page rather than a full ruler run.
 
 Closed work is in `docs/project/decisions.md`. Parked and unscheduled is in
 `docs/project/candidates.md`.
 
+
+## I8 · one page that says whether the map is good
+
+`metrics agent` · **READY** — runs in parallel with the M11–M15 batch
+
+`run-ruler.html` reports nine quantities, four ratios, growth exponents and
+standard errors. It is the right tool for settling an argument and the wrong
+one for the question actually being asked, which is **"is the map any
+good?"**
+
+Build a second page — `run-check.html` — that answers that and nothing else.
+
+**Five numbers. No more.**
+
+| shows | means | good direction |
+|---|---|---|
+| cost per floor | hp a fixed reference player spends clearing it | rises, **every step** |
+| creatures per floor | how full the floor is | rises |
+| spread within a floor | how different two floor-7s are from each other | does not shrink with depth |
+| finishes | share of runs the real bot reaches the bottom | somewhere near 1 in 4 |
+| loot vs cost | what a floor's items are worth against what it costs | context only, no target |
+
+**Say what each one means on the page**, in the words above — not "CV
+challenge ×0.994/floor". Anyone opening this should not need the backlog to
+read it.
+
+**Speak in totals, not exponents.** "Floor 10 costs 15× floor 1" is
+readable; "×1.351 per floor" is not. Keep the growth rate as small print if
+it is wanted at all.
+
+**Flag the monotonicity break in red.** Any floor cheaper than the one above
+it gets called out by name — "floor 5 is cheaper than floor 4". That is M11's
+whole subject and it is invisible in a column of growth rates.
+
+**What is deliberately NOT on this page:** capacity, attrition, buffer,
+challenge/power, the four ratios, standard errors, growth exponents. They
+took three attempts to define, need enormous samples to read, and none of
+them ever told anyone whether the game was worth watching. They stay in
+`run-ruler.html` for when a specific argument needs settling.
+
+**Build nothing new to measure with.** Every number above already comes out
+of `observed-ruler.js` or `clustering.js`. This is a presentation, and if a
+number turns out to need new measurement, leave it off and say so.
+
+**Fast enough to actually use.** Default sample small enough to finish in
+seconds. Better a rough number someone runs than a precise one they do not.
 
 ## M11 · floor n+1 is never easier than floor n
 
