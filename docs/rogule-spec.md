@@ -698,6 +698,18 @@ sonda subestima o efeito do agrupamento contra um jogador competente, então
 "desafio se manteve" descreve o instrumento, não uma alegação de que a
 dificuldade não mudou.
 
+**Correção (M10).** Com andares pequenos e `CLUSTER_SIZE` grande, um único
+cluster passou a poder conter o andar inteiro — e então uma única decisão
+de zona decidia tudo, sem chance de correção, o que empurrou floor 7 para
+97% de massa na espinha (teto era 95%). A âncora e o tier continuam sendo
+sorteados uma vez por cluster; o que mudou é que a cota (`spineMass`/
+`sideMass`) agora é reconferida a cada MEMBRO adicionado, não só uma vez
+por cluster — assim que adicionar o próximo membro contrariaria a cota, o
+resto das posições daquele cluster é abandonado e a próxima iteração
+decide a zona de novo, do zero, para o que sobrou. Nenhum sorteio extra é
+gasto nisso — é a mesma aritmética que já decidia a zona entre clusters,
+só reaplicada com mais frequência. Ver `docs/backlog.md` M10.
+
 ### 13.6 Um golpe raro pode vir de fora da profundidade (M3)
 
 **Não existe no original.** Em Rogule o teto de força de um andar

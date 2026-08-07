@@ -402,16 +402,22 @@ export function populate(state, map, counts = {}) {
     });
   };
 
+  // Decided fresh every time it is asked — used both between clusters and,
+  // as of M10, within one, so a cluster large enough to hold the whole
+  // roster cannot single-handedly decide the floor's split.
+  const quotaWantsSide = () => {
+    const running = spineMass + sideMass;
+    return running > 0 ? (sideMass / running) < sideTarget : sideTarget >= 0.5;
+  };
+
   state.monsters = [];
   while (state.monsters.length < monsterCount) {
     if (!free.size) break;
 
-    // Decided once per CLUSTER, not per monster — at clusterSize 1 this is
-    // the same thing, since a cluster of one member is exactly one monster.
-    const running = spineMass + sideMass;
-    const wantSide = running > 0
-      ? (sideMass / running) < sideTarget
-      : sideTarget >= 0.5;
+    // Decided once per CLUSTER-START, not per monster — at clusterSize 1
+    // this is the same thing, since a cluster of one member is exactly one
+    // monster.
+    const wantSide = quotaWantsSide();
 
     // Fall back to the other zone rather than dropping the cluster: a map
     // with no side rooms must still receive its full roster.
@@ -435,7 +441,24 @@ export function populate(state, map, counts = {}) {
     const slot = drawWeighted(state, 'spawn', monsterWeightsAround(index));
     const template = MONSTER_TABLE[slot];
 
-    for (const pos of positions) placeOne(pos, template);
+    // M10 — docs/backlog.md. A cluster big enough to hold the whole roster
+    // (small floor, large CLUSTER_SIZE) used to place every member before
+    // the quota ever got a second chance to correct itself, so the first
+    // zone decision decided the entire floor. Re-checking the quota after
+    // EACH member fixes that without touching the shared tier or the BFS
+    // order: the first member always lands (it is what `actualSide` was
+    // chosen for), but the rest keep coming only while the quota still
+    // wants this zone. As soon as it would rather have the next member in
+    // the other zone, the remaining positions are abandoned — the next
+    // loop iteration re-decides the zone fresh and starts a new cluster for
+    // whatever remains. No extra draw: this is the same arithmetic
+    // `quotaWantsSide` above, just re-run per member instead of once.
+    let placedInThisCluster = 0;
+    for (const pos of positions) {
+      if (placedInThisCluster > 0 && quotaWantsSide() !== actualSide) break;
+      placeOne(pos, template);
+      placedInThisCluster++;
+    }
   }
 
   // 6. M3 — docs/backlog.md, "the gap M7 left". A RARE, INDEPENDENT roll,

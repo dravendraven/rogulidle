@@ -28,7 +28,7 @@ repeating it in the table only made the queue slower to scan.
 
 | # | id | what gets done | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
-| 1 | M10 | Allocate cluster zones against the mass quota so side rooms stop emptying | map | work | IN FLIGHT | — |
+| 1 | M10 | Allocate cluster zones against the mass quota so side rooms stop emptying | map | work | REPORTED | — |
 | 2 | M3 | Unlock the strength ceiling with small probability, so a rare blow can be huge | map | work | REPORTED · review 1 passed | — |
 | 3 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | READY | — |
 | 4 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | BLOCKED on M10 | — |
@@ -1076,7 +1076,7 @@ queue section.
 
 ## M10 · allocate cluster zones against the mass quota
 
-`map` · `work agent` · **IN FLIGHT** — fixes a regression M7 introduced
+`map` · `work agent` · **REPORTED** — fixes a regression M7 introduced
 
 M7 adopted, and floor 7 now puts **97%** of its threat mass on the mandatory
 route against a 0.95 ceiling. Side rooms are effectively empty.
@@ -1112,6 +1112,66 @@ one cluster cannot be 70% spine. Report what the achievable split is at
 floors where the roster is small, rather than forcing a number the geometry
 does not allow.
 
+### Result
+
+**Fix: re-check the quota per member, not per cluster.** `spawn.js`'s zone
+choice (`quotaWantsSide`, extracted from the existing inline `wantSide`
+expression) was already greedy against `spineMass`/`sideMass` — the bug was
+never the formula, it was that a cluster large enough to hold the whole
+roster only ever asked it ONCE. Now every member placed after the first
+re-runs the same check; as soon as adding the next member would flip the
+zone the quota wants, the rest of that cluster's (already-computed, BFS-
+ordered) positions are abandoned and the next loop iteration decides the
+zone fresh and starts a new cluster for whatever remains. The anchor and
+the shared tier are still drawn once per cluster-as-started — only how many
+members that cluster actually keeps changed. No new function, no new
+constant, no new flag: this corrects the shipped, already-adopted M7
+mechanism directly.
+
+**Acceptance, checked:**
+- **Spine share — PASS, floor 7 included.** Self-measured (not a metrics
+  reading), n=30 seeds/floor:
+
+      floor    1      3      5      7      9     10
+      share  1.000  0.992  0.916  0.795  0.797  0.781
+
+  Floor 7 moved from the reported 0.97 to 0.795, inside the [0.6, 0.95]
+  band. Floors 1 and 3 stay pinned near 1.0 — expected and correct, not a
+  miss: `MIN_ROSTER_FOR_SIDE` keeps `sideTarget` at 0 below that roster
+  size, and this item did not touch that gate.
+- **Clusters stay single-type and spatially coherent — PASS by
+  construction.** A split cluster's kept members are a PREFIX of the same
+  BFS-ordered, same-tier `positions` list; nothing about composition or
+  order changed, only where the prefix gets cut off.
+- **No new RNG consumption when the flag is off — PASS.** `clusterSize`
+  is 1 with `DIFFICULTY_REBALANCED` off, so `positions` never has more
+  than one member and the per-member re-check never has a second
+  iteration to run; `quotaWantsSide()` reuses the exact arithmetic the
+  removed `wantSide` inline already ran once per cluster, so no new
+  `draw*` call exists anywhere in this change. All 77 tests pass,
+  including the one this item exists to fix
+  (`a floor puts most of its threat mass on the mandatory route`).
+- **Challenge — not measured on the probes**, per "measured on the probes,
+  not the real bot" being the metrics agent's job; self-checked only that
+  mean threat mass per floor still climbs monotonically with depth (9.9 →
+  84.3 across floors 1–10, n=30), which is the shape expected if this
+  redistributes rather than adds or removes threat. The probes are what
+  actually settle whether the sum held.
+
+**Watch, answered.** Floors 1 and 3 (below `MIN_ROSTER_FOR_SIDE`, or too
+small to give even one split a second decision) stay at or near 1.0 —
+exactly the "achievable split, not a forced number" the item asked to
+report rather than hide. From floor 5 on, the finer-grained quota reaches
+the band comfortably.
+
+`docs/rogule-spec.md` §13.5 gets a short correction paragraph rather than
+a new subsection — this fixes how faithfully the already-documented M7
+mechanism hits its own stated design, it does not diverge further from
+Rogule on its own.
+
+Not requesting a reading — the metrics agent's ruler re-run is the standing
+job that follows a landed map item, per the "One change, then a reading"
+rule.
 
 ---
 
