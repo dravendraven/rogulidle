@@ -40,12 +40,13 @@ session, skip it.
 |---|---|---|---|
 | 1 | M17 | Near-flat roster, ~5 to ~8, with strength carrying the difficulty | READY |
 | 2 | U3 | Show killed-xp and xp per turn, instead of the damage stat labelled xp | READY |
-| 3 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | READY |
-| 4 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
-| 5 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
-| 6 | X1 | Delete what nothing references | READY |
-| 7 | M4 | Side-room risk/reward spread scales with depth | READY |
-| 8 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 3 | U4 | Lifetime score, awarded only on a full clear, xpEarned over turns | BLOCKED on U3 |
+| 4 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | READY |
+| 5 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
+| 6 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
+| 7 | X1 | Delete what nothing references | READY |
+| 8 | M4 | Side-room risk/reward spread scales with depth | READY |
+| 9 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -427,6 +428,50 @@ xp per turn.
 this weights them by what was actually killed. The ui agent owns the screen;
 whether it belongs on the check page is the metrics agent's call, so report
 rather than reach.
+
+## U4 · a lifetime score, earned only by finishing
+
+`ui agent` · **BLOCKED on U3's engine half** — one line, then this is all screen
+
+Runs loop forever and **nothing accumulates**. Run 47 has the same
+consequence as run 1, which is the whole of it: a loop, not a sequence. The
+project is called Rogul**idle** and there is currently nothing idle in it.
+
+**Do.** When a run clears all ten floors, award permanent score:
+
+    award = xpEarned / (turns × 0.01)
+
+Keep a lifetime total across runs, and show it. Nothing else changes.
+
+**Only a full clear pays.** That is what makes the formula safe: a rate on
+its own is maximised by dying early after a fast start, and the completion
+gate removes that entirely — you cannot score by not finishing. It also
+gives the horse race a stake, which is the point.
+
+**Score only, not power.** Nothing bought, nothing unlocked, no effect on
+any run. That keeps determinism intact — `seed = same run, always` is the
+strongest rule in this repo, and a score that changes future runs breaks it.
+Whether it should ever buy power is a separate and much harder question;
+this item deliberately does not open it.
+
+**Storage lives in `src/ui/`.** `localStorage`, and never anywhere near
+`src/sim/` — `step()` takes no storage access and that boundary already
+does half the work here. Include a way to reset it.
+
+**Show three things:** the lifetime total, what the last clear paid, and how
+many clears there have been. The award alone is meaningless without knowing
+how rare it is.
+
+### Two practical notes
+
+**Nothing will ever be awarded right now.** `finishes` reads 0/20 — the map
+work has to land before this is visible at all. Build a way to verify it
+without waiting: force a clear, or feed it a synthetic finished run.
+
+**Rough size, so a wrong magnitude is obvious.** A cleared descent runs
+around 1700 turns and kills maybe 200 xp worth of creatures, so an award
+lands near **12**. If it comes out at 0.1 or 4000, something is wrong with
+the units rather than with the run.
 
 ## M20 · start and shrine at the two ends of the map
 
