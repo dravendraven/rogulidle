@@ -94,6 +94,13 @@ exists and what the alternative cost.
   what's in the way — and the real damage taken is the ruler, not a duel
   formula. See docs/observed-ruler.md for the baseline and what this
   instrument cannot answer (map clustering needs its own).
+- `/run-check.html` — **"is the map good?" in five numbers, nothing else.**
+  Cost per floor, creatures per floor, spread within a floor, finishes and
+  loot vs cost, each explained in plain language on the page and a small
+  default sample tuned to finish in seconds. Flags any floor cheaper than
+  the one before it by name. For settling an actual argument with growth
+  rates and standard errors, that's still run-ruler.html — this is the
+  quick look before reaching for it.
 - `/run-batch.html` — older single-floor sweeper, still useful for bot flags
 - `/run-curve.html` — **superseded.** It reads the MODELLED net challenge
   from `src/analysis/curve.js`, which prices clean 1v1 duels and so read

@@ -38,7 +38,7 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| 1 | I8 | One page saying whether the map is good, in five numbers | IN FLIGHT |
+| 1 | I8 | One page saying whether the map is good, in five numbers | REPORTED |
 | 2 | M11 | Floor n+1 is never cheaper than floor n | REPORTED |
 | 3 | M13 | Tier floor rises with depth — rats stop appearing deep | REPORTED |
 | 4 | M12 | Raise creature count and cluster size together | READY |
@@ -64,7 +64,7 @@ Closed work is in `docs/project/decisions.md`. Parked and unscheduled is in
 
 ## I8 · one page that says whether the map is good
 
-`metrics agent` · **IN FLIGHT** — runs in parallel with the M11–M15 batch
+`metrics agent` · **REPORTED** — runs in parallel with the M11–M15 batch
 
 `run-ruler.html` reports nine quantities, four ratios, growth exponents and
 standard errors. It is the right tool for settling an argument and the wrong
@@ -107,6 +107,54 @@ number turns out to need new measurement, leave it off and say so.
 
 **Fast enough to actually use.** Default sample small enough to finish in
 seconds. Better a rough number someone runs than a precise one they do not.
+
+### Result
+
+Built `run-check.html`. Five cards, five numbers, each with its meaning and
+good direction written in the words from the spec table, right on the page.
+
+**All five come from what already exists — nothing new to measure.**
+`rewardShape` (`observed-ruler.js`) alone supplies three of the five: its
+`challenge` column is cost per floor, `challenge.cv` (already computed by
+`summarise`, just never surfaced before) is spread within a floor, and
+`reward.mean / challenge.mean` is loot vs cost. Creatures per floor is
+`floorPlan(level).monsters` — a generation-time read, no play at all.
+Finishes is `botFinishesAndSpike` (`clustering.js`), unchanged. No
+`floorPlanFn` override anywhere: M7/M10/M11/M13 all ship unflagged now, so
+plain `floorPlan` already is the shipped map — reusing `M7_ON` here would
+have been reading a frozen, increasingly stale snapshot instead of asking
+the game what it currently does.
+
+**Speed cost more than I expected to give up.** `botFinishesAndSpike` is
+the one real bottleneck — about 1s/run, a full ten-floor bot descent, and
+nothing about that is compressible without changing what "finishes" means.
+Timed directly: 150 runs (`run-ruler.html`'s own convention) is 60–100s;
+even 20 was 22s. Landed on 8 samples/floor for cost·spread·loot (~3s) and
+**6 descents** for finishes (~6s), total **≈9s** on this machine, measured
+by clicking the button, not estimated. 6 descents makes "finishes" close to
+useless as a precise number (n=6 → a single run swings it by ~17 points)
+but the page labels its own `n=` plainly and both sample sizes are inputs,
+not constants — raise them for a steadier read, same tradeoff `run-ruler.html`
+always had, just defaulted the other direction here.
+
+**The red flag needed a caveat, not a bigger sample.** At 8 samples/floor,
+`challenge`'s CV runs 46–190%, so the SE on a single floor's mean is large
+enough that adjacent floors swap order from noise alone most runs — I
+watched 4 of 10 floors flag as "cheaper" on a completely ordinary sample
+while building this. Raising the sample to make the flag reliable would
+have meant abandoning "seconds" for the one number the item calls out by
+name as the whole point of the page. Kept the small sample and added a line
+to the flag itself when it fires: this can be noise at this size, raise the
+count or check run-ruler.html before treating it as a finding. Speed was
+the explicit instruction over precision; this is what honoring that costs,
+stated rather than hidden.
+
+**Loot vs cost reads noisy and mostly small** (0–43% in one run) — expected,
+not investigated further: it is marked context-only in the spec, and I6's
+own report already found reward's CV far higher than challenge's.
+
+**Not measured / left off:** nothing. All five numbers in the spec table
+have a card; nothing needed a new instrument.
 
 ## M11 · floor n+1 is never easier than floor n
 
