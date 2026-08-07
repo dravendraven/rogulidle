@@ -41,10 +41,9 @@ tiebreaker; three things outrank it.
   useful once M6 is settled. That is why an objective-2 item outranks an
   objective-1 item here.
 
-This ordering is contingent on M6. Decide it and M3–M5 leave MEASURE ONLY,
-become adoptable, and rise above the whole bot track. The map queue sits
-where it sits because objective 1 is blocked on the owner, not because it is
-worth less.
+This ordering was contingent on M6, which is now decided. The map lane
+therefore runs first: M6 → M3 → M4 → M5, re-measuring the ratios after each
+one rather than after the set.
 
 **The work agent takes one track at a time, in batches.** Do not interleave
 map and bot items.
@@ -68,16 +67,16 @@ normal and does not mean the item changed.
 
 | # | id | what and why | feature | agent | status |
 |---|---|---|---|---|---|
-| 1 | M6 | Buffer FALLS while difficulty rises — variance work is unsafe until this is settled | map | owner | NEEDS DECISION |
+| 1 | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | READY · now |
 | 2 | I1 | Model ruler misprices crowds — replace it with two frozen probes that play | map | metrics | REPORTED · 2 fixes |
-| 3 | B4 | Bot values darkness at zero, so it never explores for reward | bot | work | READY · now |
-| 4 | I2 | Clustering may change lethality, not cost — retest with a normal hero | map | metrics | READY · next |
-| 5 | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | BLOCKED on B1 |
-| 6 | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | BLOCKED on B2 |
+| 3 | I2 | Clustering may change lethality, not cost — retest with a normal hero | map | metrics | READY · next |
+| 4 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY |
+| 5 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY |
+| 6 | M5 | Best item is axe +2, so no reward is ever an event | map | work | READY |
 | 7 | I4 | Bot may open more bad side rooms than good — is that real? | bot | metrics | READY |
-| 8 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | MEASURE ONLY |
-| 9 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | MEASURE ONLY |
-| 10 | M5 | Best item is axe +2, so no reward is ever an event | map | work | MEASURE ONLY |
+| 8 | B4 | Bot values darkness at zero, so it never explores for reward | bot | work | READY · after the map batch |
+| 9 | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | BLOCKED on B1 |
+| 10 | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | BLOCKED on B2 |
 | 11 | I3 | No ruler sees clustering — build one measuring lethality, not cost | map | metrics | BLOCKED on I2 |
 | 12 | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | BLOCKED on I3 |
 | 13 | B6 | Fix side-room discrimination, once I4 shows the inversion is real | bot | work | BLOCKED on I4 |
@@ -88,21 +87,25 @@ Archived: the count→strength route. Measured, does not pay. See the end.
 
 Two agents run at once, so the single rank is a flattening of two lanes:
 
-    work agent      B4 → B2 → B3  ‖  then M6 → M3 → M4 → M5
+    work agent      M6 → M3 → M4 → M5  ‖  then B4 → B2 → B3
     metrics agent   I1 fixes → I2 → I4 → I3
-    owner           M6
+
+**M6 is decided and the map lane opens.** The owner accepted the divergence
+from Rogule: the hero gets growing maximum capacity, because a falling
+buffer turns the variance programme into sudden death. M3–M5 leave MEASURE
+ONLY and become adoptable, and the map lane runs before the bot lane —
+inverting the previous order, which existed only because objective 1 was
+blocked.
+
+Re-read the ratios on the probes **after each** of M6, M3, M4 and M5.
+Stacked and measured once they cannot be told apart, and at least one of the
+four probably does not pay.
 
 **REPORTED rows are ranked by work remaining, not by importance.** I1 sits
 high because two cheap fixes are outstanding (refit over floors 1–6, correct
 the buffer reading — neither needs a new run). B1 sits last because nothing
 remains but review; its answer, "tactical veto", already landed and inverted
 the premise B2 and B3 were sketched against.
-
-**Why M6 is first and unstartable.** The observed ruler found the buffer
-*falling* rather than flat, which turns the variance programme from an
-improvement into a way of building sudden death. It is a decision, not a
-task, and it gates the whole map lane — which is why M3–M5 are MEASURE ONLY
-rather than ready.
 
 ## How to use this file
 
@@ -220,11 +223,33 @@ comparable.
 Current reading, from the observed ruler (I1) after review. Numbers from the
 modelled ruler are superseded and not comparable:
 
-    challenge/power    ≥1.307   a FLOOR — survivor selection inflates power
-    challenge/buffer    1.560   a mistake gets much more expensive with depth
-    CV challenge        0.944   WRONG, falls where it should rise   -> M2..M5
-    buffer              falls   WRONG, DCSS grows 1.16              -> M6
-    reward/challenge      —     no instrument answers this yet
+                       DCSS    rogulidle
+    challenge/power    0.95     ≥1.307   inverted, and DELIBERATE — see below
+    CV challenge       1.14      0.944   inverted, WRONG    -> M2..M5
+    buffer             1.16      falls   inverted, WRONG    -> M6
+    challenge/buffer   1.11      1.560   same sign, 5× steeper — follows buffer
+    reward/challenge     —         —     no instrument answers this yet
+
+The rogulidle column is the observed ruler (I1) after review; the DCSS column
+is derived from attribute scales rather than observed play, so treat it as an
+estimate of shape, never as a number to hit exactly.
+
+**Decided: match CV and buffer, leave challenge/power alone.**
+
+`challenge/power` inverted is a **format parameter, not a defect**. DCSS runs
+0.95 — the average fight gets easier with depth — because it has 27 floors
+and a win condition to reach, so its drama lives in the tail and it has room
+for the tail to happen. Rogulidle is a ten-floor race that has to end, at
+around 30% clear.
+
+Copying 0.95 into ten floors gives `0.95⁹ = 0.63`: floor ten lands 37%
+lighter on the hero than floor one, the hero walks the bottom, and the clear
+rate goes to nearly 100%. The horse race dies. Matching that index honestly
+would mean lengthening the descent, which is a different project from the one
+in this queue.
+
+So two of the three inversions are targets and the third is left where it is.
+Revisit only if the floor count itself is ever reconsidered.
 
 Two cautions attached to that block, both from the I1 review:
 
@@ -570,7 +595,7 @@ B4's effect on the reversal rate before concluding B3 still has work to do.
 
 ## M3 · an out-of-depth tail
 
-`map` · `work agent` · **MEASURE ONLY — do not switch on; adoption waits on M6**
+`map` · `work agent` · **READY** — runs after M6 lands, and is re-measured on its own
 
 `MONSTER_STRENGTH = 0.35` is fixed, so the strongest possible blow is the
 same on floor 1 and floor 10. There is no right tail at all.
@@ -594,7 +619,7 @@ distribution of damage per blow, not its mean. The tail is what kills.
 
 ## M4 · scale the side-room bonus with depth
 
-`map` · `work agent` · **MEASURE ONLY — do not switch on; adoption waits on M6**
+`map` · `work agent` · **READY** — runs after M6 lands, and is re-measured on its own
 
 `SIDE_ROOM_DEPTH_BONUS = 0.35` is fixed, so the only structural variance in
 the game is constant across the descent.
@@ -610,7 +635,7 @@ spread widened. Measured on the probes.
 
 ## M5 · a reward tail
 
-`map` · `work agent` · **MEASURE ONLY — do not switch on; adoption waits on M6**
+`map` · `work agent` · **READY** — runs after M6 lands, and is re-measured on its own
 
 The best item is `axe +2`. There is nothing rare enough to be an event, so
 reward variance is bounded from above by the table itself.
@@ -742,7 +767,7 @@ attempting a fifth.
 
 ## M6 · defensive progression
 
-`map` · unassigned · **NEEDS DECISION**
+`map` · `work agent` · **READY** — decided, see "The decision" below
 
 Progression is **entirely offensive**, and the value table says why:
 
@@ -765,8 +790,66 @@ has a shrinking capacity to survive the spike at the exact moment the spike
 appears. Building variance first means building the failure mode and then
 discovering it.
 
-That is why M3–M5 are MEASURE ONLY. Run them, learn what they move, leave
-them off.
+That is why M6 runs before M3–M5 rather than after them.
+
+### The decision
+
+**Taken: the hero gets growing maximum capacity, accepting the divergence
+from Rogule.** Alongside it, `challenge/power` is deliberately left where it
+is — see the ratio block near the top for why copying DCSS's 0.95 into a
+ten-floor race collapses the clear rate.
+
+**Capacity, not refill — this is the whole point.** Potions and shields
+refill the bar; neither raises its ceiling. `PLAYER_HP` is fixed at 10, so
+the ceiling never moves and the buffer keeps falling however generous loot
+gets. Only a growing maximum inverts the sign. Every option that does not
+touch the ceiling was considered and rejected on exactly this ground.
+
+**Shape: mirror the xp progression that already exists.** Rogule grants
+1 xp per 2 kills, and xp *is* the damage stat — so "killing makes you
+gradually stronger" is already the game's progression idiom. Add the
+defensive half of it: a new constant granting max hp per N kills. One
+number, the same shape, the same pacing. Not a new system bolted on.
+
+**It must grant current hp as well as maximum, and that is not an
+afterthought.** There is no regeneration, so a hero that gains ceiling
+without gaining hp arrives at each floor just as hurt as before, and the
+*measured* buffer barely moves — the number is taken from the hero on
+arrival, not from its theoretical maximum.
+
+That makes this partly a healing mechanic, which the project deliberately
+removed (spec §13.1). The difference is the one that motivated removing it:
+the original healed with **time**, so a bot could camp in a cold corner and
+top up forever, and capping it was "machinery guarding a resource we did not
+want to exist". Healing earned by **kills** cannot be camped — the supply is
+finite, fixed at generation, and spending it costs the fight. Same resource,
+no exploit, no cap needed.
+
+**Acceptance.**
+- Buffer stops falling. Target is DCSS-like growth, around 1.16 per floor;
+  with challenge at 1.343 that puts `challenge/buffer` near 1.16, against
+  DCSS's 1.11 and today's 1.560.
+- Mean challenge per floor unchanged inside noise. This item adds capacity;
+  it does not re-tune difficulty.
+- Clear rate does not blow up — see the interaction below.
+
+**How to measure.** Buffer and the ratios on the **probes**, over floors 1–6
+where n is usable. Clear rate on the **real bot**, as a bound rather than a
+target. Paired seeds, confirmed on seeds not used for tuning.
+
+**Interaction to bound, not to ignore.** Power is `effectiveHp × expected
+damage`, so raising hp raises power too, and `challenge/power` will fall
+toward DCSS's 0.95 as a side effect. That direction is fine in itself — but
+it is exactly the movement that was just decided against, because it lifts
+the clear rate. Report `challenge/power` and the real bot's clear rate
+alongside the buffer numbers. If the clear rate leaves its band, the fix is
+a smaller hp grant, not a difficulty change: difficulty is calibrated and
+this item is not licensed to move it.
+
+**Fidelity note.** `PLAYER_HP` is FAITHFUL and this diverges from Rogule
+knowingly. Record it in `docs/rogule-spec.md` §13 with the other deliberate
+divergences, with the reason: without it the buffer falls, and a falling
+buffer turns the variance programme into sudden death.
 
 **Why it needs a decision rather than a spec.** The levers are `PLAYER_HP`
 (FAITHFUL, 10), regeneration (deliberately removed, spec §13.1), and item
