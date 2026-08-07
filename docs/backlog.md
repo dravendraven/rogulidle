@@ -60,7 +60,7 @@ normal and does not mean the item changed.
 | 4 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning |
 | — | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | FOLDED into M7 |
 | — | M5 | Best item is axe +2, so no reward is ever an event | map | work | ON HOLD · no instrument |
-| — | I3 | Settle clustering's sign test; spike and CV wait for M2 to exist | map | metrics | REPORTED |
+| — | I3 | Settle clustering's sign test; spike and CV wait for M2 to exist | map | metrics | **DONE** |
 | — | B1 | Ping-pong is the ugliest visible defect — find which layer creates it | bot | work | PARKED · reported |
 | — | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | PARKED |
 | — | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | PARKED |
@@ -926,6 +926,19 @@ Get this wrong and the budget silently stops being constant.
 landed and its reading taken first. Paired seeds, confirmed on seeds not
 used for tuning.
 
+**Also settle the mechanism here — it is I3's unanswered question 2.**
+Grouping's rationale is that adjacent creatures strike in the same turn, so
+damage per *turn* rises while damage per *blow* stays capped. I2 found no
+consistent gap in worst-single-turn damage, and its own diagnosis is
+probably right: a mean is the wrong statistic for a tail, and "adjacent" is
+not "landed a blow" at 5/6 each.
+
+So report **p95 and p99 of per-turn damage taken**, not a mean, flag off
+against on. Spike moves → grouping delivers the shrinking reaction window it
+was chosen for. Spike flat while lethality still rises → it is working by
+attrition, which is a difficulty increase rather than a shape change, and
+grouping's share of the budget has to be re-argued rather than assumed.
+
 **Two things to watch.**
 
 The 11-row `MONSTER_TABLE` is FAITHFUL and its ceiling is the hard limit on
@@ -1069,7 +1082,7 @@ hide the pathological case surviving intact.
 
 ## I3 · settle clustering's mechanism and its effect on CV
 
-`map` · `metrics agent` · **REPORTED** — rescoped after I2, then cut back to Q1 only
+`map` · `metrics agent` · **DONE** — Q1 answered; Q2 and Q3 rehomed into M7
 
 I2 left clustering **leaning positive on lethality but unexplained**, and
 that is not enough to design M2 against. The original scope — "build a
@@ -1176,6 +1189,50 @@ miscount once and worth a second pass before it gets quoted elsewhere.
 **What I could not resolve / out of scope.** Nothing new. Cluster size 3
 and the spine/side simplification were already disclosed in I2 and are
 unchanged here; question 2 and 3 wait for M2 as scoped above.
+
+### Review — DONE, questions 2 and 3 rehomed into M7
+
+Accepted. Direction settled: grouping raises lethality, and that is enough
+to justify grouping being one of M7's three levers.
+
+**The count correction is the most valuable thing in this report, and the
+error was mine.** The I2 review asserted "8 positive, 2 tied" and computed
+p ≈ 0.008 from it. Recounted against the published table, floor 6 is also
+tied at 1.7% = 1.7%, so it is 7 positive, 3 tied, and the correct two-sided
+exact figure is **p = 0.0156**. Arithmetic checked: 2 × (1/2)⁷ = 0.0156.
+
+The conclusion survives, which is exactly why it would have been easy to
+carry the wrong number forward. Catching a project agent's number by
+recounting it by hand, and reporting it when the answer does not change, is
+the behaviour that keeps this backlog worth reading.
+
+**Two caveats on the p-value, neither changing the direction.**
+
+The three ties are almost certainly resolution artefacts rather than true
+zeros: at 60 seeds per condition, death rates move in steps of 1/60 = 1.67%,
+so any gap smaller than one step is invisible. Dropping ties is the standard
+treatment and it makes the test **conservative** here, not generous.
+
+And the sign test was chosen *after* seeing that the directions looked
+consistent, which makes 0.0156 optimistic as a strict inferential claim.
+That is not a flaw in the analysis — it is why the honest reading is the one
+the report already gives: a direction, not a verdict. Quote it as such.
+
+**Independence by construction is the right standard here.** Each floor
+comes from its own `newGame(hashSeeds(...))` with separate rng streams and no
+shared mutable state, which is the same argument the project already relies
+on for map, spawn and combat stream separation. Re-deriving it empirically
+would have cost more than it settled.
+
+**Scope discipline was handled well.** The cut to question 1 landed
+mid-item, and the in-progress work on 2 and 3 was reverted rather than left
+dormant. Dormant half-built instruments are how a shadow implementation
+appears, which is the thing the new rule exists to prevent.
+
+**Questions 2 and 3 do not wait for a revived M2.** M2 folded into M7, so
+they belong to M7's reading: the CV question is already in its acceptance,
+and the per-turn damage percentile has been added to it so the spike-versus-
+attrition mechanism gets settled when grouping actually lands in the engine.
 
 ## M2 · clustering
 
@@ -1340,6 +1397,101 @@ buffer turns the variance programme into sudden death.
 values (partly FAITHFUL). Moving any of them costs fidelity to Rogule, and
 `CLAUDE.md` is explicit that values marked FAITHFUL should not change
 without a reason. That is the owner's call, not a measurement.
+
+### Result
+
+**Shipped:** `HP_FROM_KILLS = true`, `HP_GRANT_PER_KILLS = 2`,
+`HP_GRANT_AMOUNT = 1` (`docs/balance.md` "Defensive progression (M6)").
+Mechanism in `src/sim/combat.js` `playerAttacks`, same modulo-on-kill-count
+shape as the xp grant right above it, both `hpMax` and current `hp` rise
+together. Threaded through exactly like `xpFromKills` already was:
+`src/sim/game.js`, `src/sim/dungeon.js`, and — this is the bug the tests
+caught — `src/sim/step.js`'s `cloneState`, which dropped `hpFromKills` on
+every turn after the first and silently fell back to the default. Four new
+tests in `test/tests.js`; 64/64 pass. `docs/rogule-spec.md` §13.4 records
+the divergence.
+
+**Instrument note, disclosed as required.** `src/analysis/observed-ruler.js`
+(the metrics agent's frozen I1 probe) had no options plumbing at all — I
+added `gameOptions` to `isolatedShape` and `dungeonOptions` to `builtShape`,
+both empty-by-default passthroughs merged last, so every number in
+`docs/observed-ruler.md` reproduces unchanged when omitted (confirmed: the
+`hpFromKills:false` reading below reproduces the committed buffer figure,
+0.846 ±0.026 against the committed 0.855 ±0.023, within noise). This is a
+plumbing extension, not a redefinition — what buffer/power/challenge *mean*
+did not change. Flagging it here per the "never changes what a metric means
+without saying so explicitly" rule, since I is not my file.
+
+**Direct answer: the acceptance criteria are not jointly satisfiable by this
+lever, and I did not pick a side silently.** Swept the grant rate
+(hp per kill, via `HP_GRANT_PER_KILLS` at fixed `AMOUNT=1`) from 0 to the
+spec-mandated cadence:
+
+```
+rate (hp/kill)   buffer ×/floor, fl 1-6      real-bot clear rate (paired, n=150 unless noted)
+0     (off)      0.846 ±0.026                 46/150 = 30.7% ±3.8
+0.125 (per=8)    0.857 ±0.022   z=0.32 n.s.    67/150 = 44.7% ±4.1   z=2.5 vs off
+0.25  (per=4)    0.895 ±0.022   z=1.44 n.s.    n=80, different sample, 48.0%
+0.5   (per=2)    0.910 ±0.015   z=2.13 REAL    85/150 = 56.7% ±4.0   z=4.7 vs off   <- SHIPPED
+```
+
+(z's for buffer are against the off baseline, pooled SE; CLAUDE.md's own
+2σ bar is what "n.s." / "REAL" apply.)
+
+**Buffer:** only the shipped rate clears 2σ, and it still *falls* — 0.910,
+not the ~1.16 target, not even flat. **Clear rate:** every tested rate
+moves it, including one (0.125) that moves NOTHING detectable in buffer.
+That last point is the headline finding — it means the real bot's clear
+rate is a more sensitive detector of marginal hp than the buffer probe is,
+so "shrink the grant until clear rate stops moving" and "shrink the grant
+until buffer still shows an effect" pull in the same direction but never
+meet: by the time a rate is small enough to leave clear rate alone, it has
+already stopped doing anything measurable to buffer either.
+
+`challenge/power` did **not** turn out to be the binding constraint the
+brief's interaction note expected: it moved from ≈1.354 to ≈1.258 at the
+shipped rate (challenge 1.343 fixed, power fl1-6 off 0.992→on 1.068) —
+nowhere near DCSS's 0.95. The real bot's clear rate moved far more than
+that ratio's shift would predict; the dumb probe under-reacts relative to
+the smart bot.
+
+**Shipped at the only point with a real buffer effect, not because it meets
+the item's own bar — it does not.** Clear rate nearly doubles (30.7% →
+56.7%), which by "does not blow up" is a breach on its own terms. Reported
+plainly rather than picking a smaller rate to make the clear-rate number
+look better while quietly delivering a buffer change indistinguishable from
+zero, or picking a larger one to hit the buffer target while hiding how far
+clear rate would move.
+
+**What surprised me.** The asymmetry above — that a grant too small to
+register on the buffer probe still moves the real bot's clear rate by 14
+points, significantly. I expected the two measurements to at least be
+comparably sensitive since they are both reading the same mechanism; they
+are not, by a wide margin.
+
+**What I could not settle.**
+- Whether the asymmetry is because Sonda B (dumb, danger-blind) simply
+  dies from bad decisions regardless of hp margin while the real bot
+  operates near a survival threshold where small margins compound over
+  ten floors — plausible, not verified. Would need a middle instrument
+  between the two to isolate.
+- Whether a **second lever** (e.g. `PLAYER_HP` itself, or item values —
+  both explicitly out of this item's licence per "Why it needs a decision
+  rather than a spec") could reach the buffer target without the clear-rate
+  cost this one carries. Not tested — those levers cost fidelity and are
+  the owner's call, not mine to spend against a measurement.
+- The "n.s." rate=0.25 point used n=80 on a different seed range than the
+  n=150 points (930000-family vs 940000-family) — not a like-for-like
+  comparison with the other three rows. Directionally consistent with the
+  bracket, not re-run at n=150 for time.
+
+**Out of scope, for the project agent to evaluate.** The buffer target and
+the clear-rate band are in genuine tension at every tested point, not just
+at the extremes — this is a NEEDS-DECISION-shaped problem sitting inside an
+item marked DECIDED. Three ways out, none of them mine to pick: accept a
+higher clear-rate band, accept buffer only partially fixed (what is
+shipped), or spend a FAITHFUL lever (`PLAYER_HP`, item values) that this
+item was explicitly not licensed to touch.
 
 ---
 
