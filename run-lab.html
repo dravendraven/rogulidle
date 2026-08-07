@@ -36,6 +36,10 @@
   th, td { text-align:right; padding:.3rem .5rem; border-bottom:1px solid var(--line); white-space:nowrap; }
   th:first-child, td:first-child { text-align:left; }
   th { color:var(--dim); font-weight:600; }
+  /* Marks a header as carrying an explanation. Without the underline nobody
+     discovers the tooltip, which is the usual way these go unread. */
+  th[title] { cursor:help; text-decoration:underline dotted var(--faint); text-underline-offset:3px; }
+  th[title]:hover { color:var(--accent); }
   td.thin { color:var(--faint); }
   .bar { display:inline-block; height:9px; background:var(--good); border-radius:2px; vertical-align:middle; }
   .bar.mid { background:var(--warn); }
@@ -400,13 +404,44 @@ loadDefaults();
 
 /* ---------------------- results ---------------------- */
 
+// Label and hover text, in table order. Half these columns are context and
+// half are outcomes, and nothing on screen says which — so the tooltip has
+// to, or the reader has to already know.
+const COLUMNS = [
+  ['floor',
+    'Depth. Floor 1 is where every hero starts; the last floor is the one that ends the dungeon.'],
+  ['creatures',
+    'How many creatures the generator was told to place. This IS the difficulty dial — everything else follows from it.'],
+  ['covers',
+    'Plants, rocks and wood blocks placed on the floor. Opening one costs 2 turns and may hold a weapon or a shield. Never a potion.'],
+  ['threat mass',
+    'Sum of hp x (xp-1) over the roster, which is what actually predicts the hp cost of clearing a floor. Summing xp does not: six rats and one genie both total 6, and one costs nothing.'],
+  ['reached',
+    'How many heroes got this deep at all — the sample size for the whole row. Deep floors rest on few runs, so treat their numbers gently.'],
+  ['survived',
+    'Of the heroes who reached this floor, the share who left it alive (by the shrine or by running out of turns).'],
+  ['stalled',
+    'Floors that hit the turn limit with the hero alive but the shrine unreached — the run neither won nor died, it ran out of clock. A few means the bot dithered, usually its known ping-pong bug. Many means the turn budget is too small for floors this size, and those rows are measuring the limit rather than the floor.'],
+  ['capacity in',
+    'hp + armour the hero walked in with, BEFORE looting anything here. The column to watch: if it climbs faster than damage, the hero is outgrowing the dungeon and deeper floors get easier no matter how crowded.'],
+  ['gear in',
+    'Weapons and shields carried down the stairs, counted on arrival. The hero\'s only progression — xp is frozen.'],
+  ['damage',
+    'Total damage the floor landed on the hero, counting blows the armour bar soaked. This is the floor\'s price.'],
+  ['kills',
+    'Creatures killed on THIS floor, not the lifetime tally. Compare it against the creatures column to see how much of the floor was actually cleared.'],
+  ['turns',
+    'Steps taken on this floor. Rogule scores on fewest steps, so this is the tiebreaker among heroes who all survive.'],
+  ['net challenge',
+    'damage / capacity in. 1.00 means the floor cost exactly everything the hero brought to it. A hero can pass 1.00 and live by drinking a potion found here, since capacity is measured on arrival. Should RISE with depth — that is the whole requirement.'],
+];
+
 function render(result) {
   const worst = Math.max(1, ...result.rows.map((r) => r.netChallenge));
 
-  const head = ['floor','creatures','covers','threat mass','reached','survived',
-    'stalled','capacity in','gear in','damage','kills','turns','net challenge'];
   const table = document.createElement('table');
-  table.innerHTML = `<thead><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr></thead>`;
+  table.innerHTML = `<thead><tr>${COLUMNS.map(([label, tip]) =>
+    `<th title="${tip.replace(/"/g, '&quot;')}">${label}</th>`).join('')}</tr></thead>`;
   const body = document.createElement('tbody');
 
   for (const r of result.rows) {
@@ -472,10 +507,8 @@ function render(result) {
 
   const note = document.createElement('p');
   note.className = 'note';
-  note.textContent = 'Columns marked faint are context, not outcomes. '
-    + '"stalled" counts floors that hit the turn limit without a death or a '
-    + 'shrine — a handful is the bot dithering, a lot means the turn budget '
-    + 'is too tight for floors this size.';
+  note.innerHTML = 'Hover any <span style="text-decoration:underline dotted">column header</span> '
+    + 'for what it means. Faint columns are context; the rest are outcomes.';
   $('out').append(note);
 }
 
