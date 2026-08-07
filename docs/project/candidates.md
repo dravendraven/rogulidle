@@ -351,3 +351,87 @@ Cheap to change — centre the drop's weight on the creature's own table index,
 the same way the creature itself is chosen. But it moves reward, and reward
 is the one quantity with **no instrument at all**; M5 is ON HOLD for exactly
 that reason. Building here means moving a number nobody can read.
+
+## Discarded
+
+### M22 — two routes to the shrine
+
+Dropped by the owner before it was started. Nothing was measured against it.
+
+The reasoning is worth keeping because two pieces of it are true regardless.
+**A fork only poses a question if being short is worth something** — the bot
+reads Belief only, `belief.shrine` is null until seen, and with turns nearly
+free the quiet branch always wins. That dependency became `B7`.
+
+And **raising `dugPercentage` is the lever that creates alternate routes** —
+M16 measured it (0.20 drops floor 7's spine share to 0.70) and treated it as
+the thing to avoid. Under any future branch design that is the mechanism,
+not the hazard. The measurement is already done; only its sign would change.
+
+## M22 · two routes to the shrine, told apart by what is in them
+
+`work agent` · **NEEDS DECISION first — see the dependency**
+
+Instead of a single mandatory route with dead-end detours hanging off it,
+give the floor a **fork**: two ways to the shrine, one short and populated,
+one long and quiet. The decision stops being "is this side room worth a
+round trip" and becomes "which way do I go", which is legible on screen in a
+way a detour never is.
+
+It is compatible with the shrine being the furthest room — distance and
+branching are independent.
+
+### The dependency that decides whether this works at all
+
+**The bot cannot see down either branch, and has no reason to prefer the
+short one.** It reads `Observation`/`Belief` only, and `belief.shrine` is
+null until it has actually seen the shrine — so at a fork it does not know
+where the exit is, how long either branch runs, or what is in them.
+
+What it *can* see, once M16's bigger rooms are in play, is **creatures at
+the mouth of the populated branch**. So the visible choice is "walk toward
+what I can see is dangerous" against "walk toward what I cannot see".
+
+And with `STEP_COST_IN_HP = 0.01`, **turns are nearly free**, so it will
+always take the quiet one. The long safe branch wins every time and the
+short dangerous one is never used — the same "nobody takes the detour"
+problem in a new shape.
+
+**So this needs turns to cost something first — that is `B7`.** That is the idea that came
+up under the xp-per-turn discussion and was never written down: the bot
+dawdles — 162 turns a floor, 47% reversal — because nothing charges it for
+time. Branching without a clock is a fork where one side is always correct.
+
+**That decision comes before this item, not inside it.**
+
+### What it does to the rest of the map queue
+
+**It obsoletes `M4`.** Side rooms as currently defined stop existing; there
+is nothing to scale the spread of.
+
+**It may resolve `M20`'s spine-share breach for free.** A room is spine
+because the mandatory path crosses it — with two routes, neither is fully
+mandatory, so the spine set shrinks on its own. The 95/5 split M20 produced
+could come back toward the 70/30 the design asks for, without touching M20.
+
+**It reuses a lever M16 already measured, in the opposite direction.** M16
+found that raising `dugPercentage` to ROT's 0.20 drops floor 7's spine share
+to 0.70, and treated that as the thing to avoid. **Under a branch design
+that is the mechanism you want** — more connections mean more than one way
+through. The measurement is already done; only its sign changes.
+
+`M19`, `M21` and `M16` are unaffected.
+
+### What to build, once the clock question is settled
+
+- Map generation that produces a genuine second route to the shrine, most
+  likely by putting `dugPercentage` back up.
+- `spine.js` reworked. "On the shortest path" stops meaning anything useful;
+  what matters is which rooms are on *some* route and which are on neither.
+- Threat distributed so the branches **differ in character rather than
+  merely existing** — one short and populated, one long and quiet. Two
+  identical branches are a coin flip, not a choice.
+
+**Assert.** Both branches actually reach the shrine. They differ measurably
+in length and in threat. And the one that matters: **how often the bot takes
+each.** If it is 95/5, the fork is decoration.
