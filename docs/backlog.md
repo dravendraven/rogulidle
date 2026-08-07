@@ -58,10 +58,9 @@ its standing job, which is not a task and so has no row of its own.
 | # | id | what and why | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
 | 1 | I5 | Does the probe under-read hp? Design says too hard, product says too easy | map | metrics | IN FLIGHT · now the highest-value item | n/a |
-| 2 | U1 | The screen plays one synthetic floor, not the descent everything is designed around | product | ui | REPORTED | n/a |
-| 3 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | READY · the main route | — |
-| 4 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
-| 5 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
+| 2 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | READY · the main route | — |
+| 3 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
+| 4 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
 | — | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | **DONE** · adopted provisionally | done |
 | — | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | FOLDED into M7 | — |
 | — | M5 | Best item is axe +2, so no reward is ever an event | map | work | ON HOLD · no instrument | — |
@@ -915,103 +914,6 @@ value. What is missing is an estimate of how many chests a dark region holds
 
 **Interaction with B3.** B4 may resolve the ping-pong on its own. Measure
 B4's effect on the reversal rate before concluding B3 still has work to do.
-
-## U1 · the spectator watches a different game than the one being designed
-
-`product` · `ui agent` · **REPORTED**
-
-`index.html` does not play a descent. It plays **one synthetic floor**,
-picked by the difficulty dial — `difficultyToParams(dial)` in
-`src/ui/spectator.js` builds a standalone floor at some depth, and the run
-ends when that floor ends.
-
-**Everything in this backlog is about a ten-floor descent.** Buffer falling
-across the ladder, CV collapsing with depth, finishes, the whole curve. None
-of it is visible on the only screen anyone actually watches. The owner
-cannot see the product, and neither can anyone judging whether a change made
-the game better to watch — which is the broad goal all of this serves.
-
-The banner text is evidence of how long this has been true: "leaves only
-once all five are dead", "winning a little under 3 runs in 5". That is
-single-floor language describing a bot and a rule set that have both moved
-on.
-
-**What it should do.**
-
-- Run the real descent, floors 1 to 10, using `playDungeon` in
-  `src/sim/dungeon.js` — the same entry point the batch runner and the ruler
-  already use, so what is watched is what is measured.
-- Drop the difficulty dial from the main view. It selects a synthetic floor
-  and has no meaning in a descent. Keep `?difficulty=` working if it is
-  cheap, as a lab affordance; do not keep the slider.
-- Show, per run, **which floor the hero reached**, and keep the last several
-  visible. That log is the readable form of `finishes` — the bound named in
-  the targets table — and seeing the distribution of depths is worth more
-  than seeing one number.
-- Show current floor during the run.
-- Rewrite the banner to describe what is actually being watched.
-
-**Acceptance.** A run visibly descends, the reached floor is recorded per
-run and the recent history is on screen, and nothing in `src/sim/` or
-`src/bot/` changed to make it work — if the descent cannot be driven from
-the existing entry point, report that rather than reaching into the engine.
-
-**Why it is worth doing now rather than later.** It costs little, it does not
-touch the map or bot lanes, and it is the only way the owner can form an
-opinion about whether the curve work is producing a better spectacle. Sub-
-goal 3 says a run should read like a horse race; nobody can check that on a
-screen showing one floor.
-
-### Result
-
-`index.html` now runs `playDungeon` (`src/sim/dungeon.js`) by default —
-floors 1 to 10 in one continuous session, replaying each floor's recorded
-run in turn with `replayGame`. Nothing in `src/sim/` or `src/bot/` changed;
-`playDungeon` already returned everything needed (a `replay` per floor, plus
-`cleared`/`depth`/`killedBy` for the whole descent), so this was a pure
-`src/ui/` change. Changed: `src/ui/spectator.js` (new `runDescentForever`
-alongside the old `runForever`), `src/ui/render.js` (added `renderHistory`;
-the tally line is now caller-supplied text instead of hardcoded to the
-single-floor W/L/timeout vocabulary), `index.html` (dial markup removed, a
-`#floor` chip and a `#history` strip added, banner rewritten), `style.css`
-(dial rules removed, `.history`/`.history-chip` added).
-
-**Difficulty dial.** Removed from the page entirely — no slider markup. `?
-difficulty=` still works exactly as before: it runs the untouched legacy
-`runForever` loop (one synthetic floor via `difficultyToParams`), just
-without the now-deleted dial UI reflecting its value. Cheap, as asked —
-same code path, just no longer wired to a control.
-
-**Per-run history and current floor.** A `#floor` chip shows `floor N / 10`
-during play, updated once per floor. A `#history` strip keeps the last 12
-runs, newest first, each a chip of `<depth reached><icon>` (⛩️ cleared, 💀
-died, 🕳️ timed out) — the readable form of `finishes` the item asked for.
-Tally line reads `cleared/played` for the descent; the old `W · L · timeout`
-line is preserved verbatim for legacy mode.
-
-**Banner.** Rewritten to describe the mechanism (hp-priced routing, gear
-gathering, monster avoidance, floor-to-floor carry) without quoting a win
-rate or a kill-everything rule that will go stale the next time the bot or
-the rules change — that staleness is exactly what this item was raised
-against, so I deliberately left numbers out rather than putting in a
-number that will rot the same way.
-
-**Verified in-browser** (temporary server on a spare port, not the shared
-8141 — another session had that one): a full descent carries hp/xp/kills/
-inventory across floors, the floor chip advances 1→10, a death mid-descent
-and a full clear both produced correct summary cards and history chips
-(`5💀`, `10⛩️` observed in one session), and `?difficulty=` still drives the
-old single-floor loop with no console errors. `run-tests.html` still reports
-all 64 engine tests passing (untouched).
-
-**What I could not verify.** Full 10-floor descents take a while to watch
-even at 8× — I confirmed floor advancement and one clear plus one death by
-letting several runs play out, not by exhaustively checking every floor
-transition frame-by-frame.
-
-**Out of scope, reported rather than done.** None — the engine already
-exposed everything the screen needed; no reaching into `src/sim/` or
-`src/bot/` was required.
 
 ## I5 · the ruler cannot see the buffer where the target lives
 
@@ -2107,3 +2009,146 @@ extreme means two creatures on every floor — a dungeon that never grows.
 the sweep is what exposed the ruler being wrong: modelled cost held constant
 (×10.5 against ×9.8) while win rate moved 12–13 points across two
 independent seed families.
+
+---
+
+# UI work
+
+Not part of the ranked queue, and deliberately so.
+
+Every item in that queue serves objective 1 or 2 and is judged by a number:
+an acceptance figure, a ruler reading, a two-pass review. UI serves the broad
+goal directly and is judged by **looking at it**. Running it through the same
+machinery would mean inventing acceptance numbers for things whose whole
+point is that you can see whether they work.
+
+The claim protocol buys nothing here either. It exists to stop two sessions
+starting the same item, and the ui agent writes to `src/ui/`, `index.html`
+and `style.css` — which nobody else touches.
+
+So UI items live here: what and why, then the result, with no rank, no
+targets and no reading. Kept in this file rather than a separate one so
+there is still only one place to look.
+
+## U1 · the spectator watches a different game than the one being designed
+
+`product` · `ui agent` · **REPORTED**
+
+`index.html` does not play a descent. It plays **one synthetic floor**,
+picked by the difficulty dial — `difficultyToParams(dial)` in
+`src/ui/spectator.js` builds a standalone floor at some depth, and the run
+ends when that floor ends.
+
+**Everything in this backlog is about a ten-floor descent.** Buffer falling
+across the ladder, CV collapsing with depth, finishes, the whole curve. None
+of it is visible on the only screen anyone actually watches. The owner
+cannot see the product, and neither can anyone judging whether a change made
+the game better to watch — which is the broad goal all of this serves.
+
+The banner text is evidence of how long this has been true: "leaves only
+once all five are dead", "winning a little under 3 runs in 5". That is
+single-floor language describing a bot and a rule set that have both moved
+on.
+
+**What it should do.**
+
+- Run the real descent, floors 1 to 10, using `playDungeon` in
+  `src/sim/dungeon.js` — the same entry point the batch runner and the ruler
+  already use, so what is watched is what is measured.
+- Drop the difficulty dial from the main view. It selects a synthetic floor
+  and has no meaning in a descent. Keep `?difficulty=` working if it is
+  cheap, as a lab affordance; do not keep the slider.
+- Show, per run, **which floor the hero reached**, and keep the last several
+  visible. That log is the readable form of `finishes` — the bound named in
+  the targets table — and seeing the distribution of depths is worth more
+  than seeing one number.
+- Show current floor during the run.
+- Rewrite the banner to describe what is actually being watched.
+
+**Acceptance.** A run visibly descends, the reached floor is recorded per
+run and the recent history is on screen, and nothing in `src/sim/` or
+`src/bot/` changed to make it work — if the descent cannot be driven from
+the existing entry point, report that rather than reaching into the engine.
+
+**Why it is worth doing now rather than later.** It costs little, it does not
+touch the map or bot lanes, and it is the only way the owner can form an
+opinion about whether the curve work is producing a better spectacle. Sub-
+goal 3 says a run should read like a horse race; nobody can check that on a
+screen showing one floor.
+
+### Result
+
+`index.html` now runs `playDungeon` (`src/sim/dungeon.js`) by default —
+floors 1 to 10 in one continuous session, replaying each floor's recorded
+run in turn with `replayGame`. Nothing in `src/sim/` or `src/bot/` changed;
+`playDungeon` already returned everything needed (a `replay` per floor, plus
+`cleared`/`depth`/`killedBy` for the whole descent), so this was a pure
+`src/ui/` change. Changed: `src/ui/spectator.js` (new `runDescentForever`
+alongside the old `runForever`), `src/ui/render.js` (added `renderHistory`;
+the tally line is now caller-supplied text instead of hardcoded to the
+single-floor W/L/timeout vocabulary), `index.html` (dial markup removed, a
+`#floor` chip and a `#history` strip added, banner rewritten), `style.css`
+(dial rules removed, `.history`/`.history-chip` added).
+
+**Difficulty dial.** Removed from the page entirely — no slider markup. `?
+difficulty=` still works exactly as before: it runs the untouched legacy
+`runForever` loop (one synthetic floor via `difficultyToParams`), just
+without the now-deleted dial UI reflecting its value. Cheap, as asked —
+same code path, just no longer wired to a control.
+
+**Per-run history and current floor.** A `#floor` chip shows `floor N / 10`
+during play, updated once per floor. A `#history` strip keeps the last 12
+runs, newest first, each a chip of `<depth reached><icon>` (⛩️ cleared, 💀
+died, 🕳️ timed out) — the readable form of `finishes` the item asked for.
+Tally line reads `cleared/played` for the descent; the old `W · L · timeout`
+line is preserved verbatim for legacy mode.
+
+**Banner.** Rewritten to describe the mechanism (hp-priced routing, gear
+gathering, monster avoidance, floor-to-floor carry) without quoting a win
+rate or a kill-everything rule that will go stale the next time the bot or
+the rules change — that staleness is exactly what this item was raised
+against, so I deliberately left numbers out rather than putting in a
+number that will rot the same way.
+
+**Verified in-browser** (temporary server on a spare port, not the shared
+8141 — another session had that one): a full descent carries hp/xp/kills/
+inventory across floors, the floor chip advances 1→10, a death mid-descent
+and a full clear both produced correct summary cards and history chips
+(`5💀`, `10⛩️` observed in one session), and `?difficulty=` still drives the
+old single-floor loop with no console errors. `run-tests.html` still reports
+all 64 engine tests passing (untouched).
+
+**What I could not verify.** Full 10-floor descents take a while to watch
+even at 8× — I confirmed floor advancement and one clear plus one death by
+letting several runs play out, not by exhaustively checking every floor
+transition frame-by-frame.
+
+**Out of scope, reported rather than done.** None — the engine already
+exposed everything the screen needed; no reaching into `src/sim/` or
+`src/bot/` was required.
+
+### Review — DONE
+
+Accepted, and checked the way a UI item should be: by opening it. The screen
+now reads `floor 1 / 10`, carries a "recent runs — how far the descent got"
+strip, tallies `cleared/played`, and floor one holds two creatures, which is
+`monsters(1) = 2`. The dial is gone.
+
+**The boundary held with nothing to spare.** `playDungeon` already returned a
+replay per floor plus `cleared`/`depth`/`killedBy`, so this was a pure
+`src/ui/` change with nothing reported out of scope. That is the outcome the
+role split is for.
+
+**The banner decision was better than the brief.** The item asked for it to
+be rewritten; the agent noticed that putting a fresh win rate in would
+reproduce exactly the failure the item was raised against, and left numbers
+out on purpose. The old banner went stale because it quoted "3 runs in 5" —
+a number that rots every time the bot or the rules move. Describing the
+mechanism instead is the fix; quoting a fresher number would have been the
+same bug with a later expiry date.
+
+**Kept honestly:** the legacy single-floor loop is still reachable through
+`?difficulty=`, unwired from any control, which is what "cheap, if cheap"
+asked for. And the verification is stated for what it was — several runs
+watched through, including one clear and one death, rather than every floor
+transition checked.
