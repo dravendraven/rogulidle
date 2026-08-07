@@ -29,7 +29,7 @@ repeating it in the table only made the queue slower to scan.
 | # | id | what gets done | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
 | 1 | M10 | Allocate cluster zones against the mass quota so side rooms stop emptying | map | work | REPORTED | — |
-| 2 | M3 | Unlock the strength ceiling with small probability, so a rare blow can be huge | map | work | REPORTED · review 1 passed | — |
+| 2 | M3 | Sweep OUT_OF_DEPTH_CHANCE_CAP — at 0.15 the tail is too rare to move CV | map | metrics | READY · sweep, then re-verdict | done, no effect |
 | 3 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | READY | — |
 | 4 | E1 | Expose one resumable turn loop from src/sim so the four copies stop drifting | engine | work | READY | — |
 | 5 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | BLOCKED on M10 | — |
@@ -1316,6 +1316,56 @@ import the loop, import `makeBot`, derive the rollout seed through
 
 Serves neither objective directly. It is debt, and it is the kind that has
 already cost something once.
+
+
+### Review 2 — NOT adopted at this tuning. Flag stays off
+
+    median damage        unchanged            PASS
+    CV of challenge      unmoved, z = 0.8     FAIL — this was the point
+    finishes             20.0% → 15.3%        harder, z = −1.1, not significant
+    spike reaching hero  does not             FAIL, and measured awkwardly
+
+**The catch on the way is worth more than the reading.** `clustering.js`
+never threaded `outOfDepthChance` into the counts it builds per floor, so
+the real-bot arm silently read "off" whatever it was told. It was caught
+because the two arms came back byte-identical and `isolatedShape` had
+already shown that could not be true — **two instruments checked against
+each other**, which is the only way that class of bug gets found.
+
+### Why it did not work, and the two answers are different
+
+**The spike comparison is compositionally confounded.** Conditioned on
+combat-adjacent turns, the combat-turn *sample nearly doubles* between arms —
+reskinned monsters are tankier, so fights run longer. Percentiles taken over
+a changed denominator are not comparing like with like, and the slight fall
+is at least partly that. Third time this particular statistic has been
+awkward to take.
+
+**Hypothesis one: the tuning is simply too weak.** At
+`OUT_OF_DEPTH_CHANCE_CAP = 0.15`, roughly one floor-10 visit in seven gets
+**one** creature reskinned, on a floor that now holds about seven. One
+stronger draw on 15% of floors is a small variance contribution, and z = 0.8
+is what "too small to see at this n" looks like. All three constants are
+marked INITIAL GUESS and the work agent explicitly asked for the probes to
+set the cap rather than guessing. **Nobody has swept it.**
+
+**Hypothesis two: the bot routes around it.** `refuseLostFights` stops the
+bot starting a fight it prices as lost, so a monster reskinned near the top
+of the table is a monster it declines. The blow gets bigger and never lands.
+If that is what is happening, M3 cannot work against this bot at all, and
+the difference shows on screen as *the bot avoiding something scary* rather
+than nearly dying to it — a different product from the one the item was
+written for.
+
+The two are separable and one is cheap. **Sweep the cap first.** If CV moves
+at a higher cap, hypothesis one was right and the question becomes what cap
+costs an acceptable amount of finishes. If it does not move at any cap the
+tail is still worth having, hypothesis two is live, and M3 waits on the bot
+lane — which is parked.
+
+**Not archived.** Its mechanism is built, tested, RNG-clean and off. What is
+missing is a tuning nobody has looked for, and that is a sweep rather than a
+rewrite.
 
 
 ---
