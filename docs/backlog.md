@@ -41,8 +41,8 @@ session, skip it.
 | 1 | U3 | Show killed-xp and xp per turn, instead of the damage stat labelled xp | READY |
 | 2 | U4 | Lifetime score, awarded only on a full clear, xpEarned over turns | BLOCKED on U3 |
 | 3 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | READY |
-| 4 | M21 | Deep floors put a creature in the room where the hero lands | READY |
-| 5 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
+| 4 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
+| 5 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
 | 6 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
 | 7 | X1 | Delete what nothing references | READY |
 | 8 | M4 | Side-room risk/reward spread scales with depth | READY |
@@ -535,9 +535,14 @@ That is the whole reason it is interesting to watch, and also the reason it
 might be too much: a bot that opens floor 10 already fighting has no
 information to route with.
 
-**Do this after M20**, which moves the spawn to a room centre. Placing
-creatures relative to a spawn point that is about to move is work done
-twice.
+**Blocked on M19, not just ordered after it.** `run-check` at n=30 says
+**14 of 30 runs die on floor 1** and 24 of 30 by floor 2. Putting a creature
+where the hero lands, before the hero can survive landing, is piling onto a
+wall. M19 has to make the opening survivable first — then this becomes a
+real escalation instead of a second lock on the same door.
+
+Also after M20, which moves the spawn to a room centre. Placing creatures
+relative to a spawn point that is about to move is work done twice.
 
 **Assert.** Share of floors whose spawn room holds a live creature, at 1, 5
 and 10 — near zero, middling, near certain. And `finishes`, because this is
