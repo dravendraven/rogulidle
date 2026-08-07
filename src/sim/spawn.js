@@ -574,8 +574,11 @@ export function populate(state, map, counts = {}) {
     }
 
     if (guardian) {
+      // Includes the guardian's OWN current index, not just everyone
+      // else's — M3's rare reskin can land on the very monster that ends
+      // up chosen as guardian, and without this the max-of-OTHERS below
+      // would silently downgrade it back to the ordinary ceiling.
       const maxOtherIndex = state.monsters
-        .filter((m) => m !== guardian)
         .reduce((max, m) => Math.max(max, MONSTER_TABLE.findIndex((t) => t.name === m.name)), 0);
       const guardIndex = Math.min(MONSTER_TABLE.length - 1, Math.max(ceilingIndex, maxOtherIndex));
       const template = MONSTER_TABLE[guardIndex];

@@ -1,6 +1,7 @@
 // Building and driving a whole run. Spec: docs/rogule-spec.md.
 
 import { generateMap } from './mapgen.js';
+import { MAP_SIZE } from './balance.js';
 import { hashSeeds, seedFromString } from './rng.js';
 import { populate } from './spawn.js';
 import { step } from './step.js';
@@ -44,7 +45,15 @@ export function newGame(seed, counts = {}) {
     noPickup: counts.noPickup,
   };
 
-  state.map = generateMap(state.rng.map);
+  // M16 — docs/backlog.md. Passthrough so a sweep can ask "what if" without
+  // editing balance.js; unset fields fall through to generateMap's own
+  // defaults, which read the shipped constants.
+  state.map = generateMap(state.rng.map, MAP_SIZE, {
+    corridorLength: counts.corridorLength,
+    roomWidth: counts.roomWidth,
+    roomHeight: counts.roomHeight,
+    dugPercentage: counts.dugPercentage,
+  });
   populate(state, state.map, counts);
 
   // Carrying a player in from the floor above. The position always comes

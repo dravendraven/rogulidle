@@ -2,7 +2,8 @@
 // Run them with: python tools/dev-server.py -> http://localhost:8138/run-tests.html
 
 import {
-  CHEST_GUARD_RADIUS, HP_GRANT_AMOUNT, ITEM_TABLE, MONSTER_TABLE, OUT_OF_DEPTH_TAIL, PLAYER_HP,
+  CHEST_GUARD_RADIUS, HP_GRANT_AMOUNT, ITEM_TABLE, MIN_ROSTER_FOR_SIDE, MONSTER_TABLE,
+  OUT_OF_DEPTH_TAIL, PLAYER_HP,
 } from '../src/sim/balance.js';
 import { newGame, playGame, replayGame } from '../src/sim/game.js';
 import { step, ACTIONS } from '../src/sim/step.js';
@@ -1332,6 +1333,40 @@ test('a chest guard never empties a small floor\'s spine into the side', () => {
     const state = newGame(99000 + seed, floorPlan(1));
     assertEq(spineShare(state), 1,
       `seed ${seed}: a chest guard moved a floor-1 creature into a side room`);
+  }
+});
+
+// ***** M16 — bigger rooms, shorter corridors ***** //
+
+test('rooms are bigger than the old default, and spine share holds in band', () => {
+  // Room area straight from the shipped map — the same generateMap() the
+  // real game calls, not a fresh ROT.Digger instance. The old default (no
+  // roomWidth/roomHeight passed at all) measured ~22 tiles/room; this only
+  // has to clear that by a wide margin, not hit an exact number.
+  const roomArea = (r) => (r.x2 - r.x1 + 1) * (r.y2 - r.y1 + 1);
+  let areaSum = 0;
+  let areaN = 0;
+  for (let seed = 0; seed < 30; seed++) {
+    const state = newGame(910000 + seed, floorPlan(5));
+    for (const r of state.map.rooms) { areaSum += roomArea(r); areaN++; }
+  }
+  const meanArea = areaSum / areaN;
+  assert(meanArea >= 30, `mean room area ${meanArea.toFixed(1)} did not clear the old ~22-tile default`);
+
+  // Below MIN_ROSTER_FOR_SIDE the split is not attempted at all — spine
+  // share pinned at 1 there is correct, not a band violation (see "small
+  // floors put everything on the spine"). Only check the band where the
+  // split is actually asked for.
+  for (let level = 1; level <= 10; level++) {
+    if (floorPlan(level).monsters < MIN_ROSTER_FOR_SIDE) continue;
+    let total = 0;
+    const n = 25;
+    for (let seed = 0; seed < n; seed++) {
+      total += spineShare(newGame(920000 + level * 1000 + seed, floorPlan(level)));
+    }
+    const mean = total / n;
+    assert(mean >= 0.6 && mean <= 0.95,
+      `floor ${level} spine share ${mean.toFixed(2)} fell outside the [0.6, 0.95] band`);
   }
 });
 

@@ -8,7 +8,9 @@
 // everything after generation uses our own streams (rng.js).
 
 import * as ROT from 'https://cdn.jsdelivr.net/npm/rot-js@2.2.0/+esm';
-import { MAP_SIZE, CORRIDOR_LENGTH, MAP_DUG_PERCENTAGE } from './balance.js';
+import {
+  MAP_SIZE, CORRIDOR_LENGTH, MAP_DUG_PERCENTAGE, ROOM_HEIGHT, ROOM_WIDTH,
+} from './balance.js';
 
 // Tiles the player and monsters may walk on. FAITHFUL engine.cljs:321.
 const WALKABLE = ['room', 'door', 'corridor'];
@@ -70,7 +72,11 @@ export function generateMap(mapSeed, size = MAP_SIZE, options = {}) {
   ROT.RNG.setSeed(mapSeed);
 
   const digger = new ROT.Map.Digger(size, size, {
-    corridorLength: CORRIDOR_LENGTH,
+    corridorLength: options.corridorLength ?? CORRIDOR_LENGTH,
+    // M16 — previously unset, so ROT's own defaults applied and nobody had
+    // chosen them.
+    roomWidth: options.roomWidth ?? ROOM_WIDTH,
+    roomHeight: options.roomHeight ?? ROOM_HEIGHT,
     // Fewer, smaller rooms than ROT's default 0.2, so the floor reads as a
     // route with rooms hanging off it instead of a warren where every way
     // through is equivalent. The spine/side design needs there to BE a

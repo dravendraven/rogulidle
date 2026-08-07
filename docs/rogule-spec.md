@@ -837,3 +837,47 @@ falta de criatura, não de alcance.
 
 **Estado atual: construído e ligado, sem flag.** Ver `docs/backlog.md`
 M15.
+
+### 13.10 Salas maiores, corredores mais curtos (M16)
+
+**Existe no original, com números diferentes.** `CORRIDOR_LENGTH` era
+FAITHFUL (`[1, 5]`, `generator.cljs:146`) e passa a ser divergência
+deliberada: `[1, 3]`. Tamanho de sala nunca foi escolhido — `mapgen.js`
+não passava `roomWidth` nem `roomHeight` para o Digger do ROT, então os
+padrões do próprio ROT (`[3,9]` × `[3,5]`) valiam sem ninguém ter decidido
+isso.
+
+**Problema no original.** O andar lia como corredores com salas penduradas,
+não salas com corredores entre elas. I2 também achou que agrupamento
+(M7) só vira alavanca de verdade onde o mapa impede o bot de escapar — num
+corredor ele recua e luta um de cada vez, desfazendo por geometria o
+mecanismo que o M7 depende de manter.
+
+**Regra nova.** Sem flag, ligado sem condição. `ROOM_WIDTH = [5, 9]`,
+`ROOM_HEIGHT = [4, 7]` (novos, `balance.js`), `CORRIDOR_LENGTH = [1, 3]`
+(era `[1, 5]`). `MAP_DUG_PERCENTAGE` ficou em 0,15 — não precisou se mover
+com o resto, verificado por medição, não assumido de antemão.
+
+**A restrição que importava: espinha não podia sair da faixa.** M10
+consertou espinha/lateral recentemente, e salas maiores empurram na
+direção contrária, do aviso do próprio `map-design.md` sobre o 0,2
+original do ROT ("normalmente havia vários caminhos equivalentes"). Varrido
+contra a preocupação: medido que salas maiores por si só EMPURRAM a
+espinha para cima (mais previsível, menos guerra), não para baixo — o
+risco citado no item não se confirmou nessa direção. O que de fato reduz a
+espinha é `dugPercentage` mais alto, não o tamanho das salas.
+
+**Um bug achado pelo próprio conjunto de testes, não escondido.** Duas
+falhas do M3 apareceram ao trocar o mapa: `M14` recalculava o índice do
+guardião como `max(ceilingIndex, maior índice de TODOS OS OUTROS)`, o que
+sub-repetidamente apagava o sorteio raro do M3 sempre que a vítima do M3
+acabava virando o próprio guardião — o M14 rodava depois do M3 e baixava o
+tier de volta ao teto comum. Corrigido: o cálculo agora inclui o índice
+ATUAL do próprio guardião, não só o dos outros, então nunca rebaixa o que
+já estava lá. Bug pré-existente do M14, só exposto pela mudança de mapa
+deste item — corrigido aqui porque foi aqui que apareceu.
+
+**Estado atual: construído e ligado, sem flag.** Medido, n=100/config: área
+média de sala 21,9 → 35,8 (+64%), comprimento médio de corredor 2,69 →
+1,91 (−29%). Espinha em faixa em todo andar onde o split é tentado (andar
+4 em diante, `MIN_ROSTER_FOR_SIDE`). Ver `docs/backlog.md` M16.

@@ -44,7 +44,7 @@ session, skip it.
 | 4 | M12 | Raise creature count and cluster size together | REPORTED |
 | 5 | M14 | One top-tier-for-the-floor creature next to the shrine | REPORTED |
 | 6 | M15 | Chests get a creature nearby, spine included | REPORTED |
-| 7 | M16 | Bigger rooms, shorter corridors | READY |
+| 7 | M16 | Bigger rooms, shorter corridors | REPORTED |
 | 8 | X1 | Delete what nothing references | READY |
 | 9 | M4 | Side-room risk/reward spread scales with depth | READY |
 | 10 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
@@ -595,7 +595,7 @@ matters. The item's "roughly flat" was my guess, not a requirement.
 
 ## M16 · bigger rooms, shorter corridors
 
-`work agent` · **READY** — last of the batch
+`work agent` · **REPORTED** — last of the batch
 
 The floor reads as corridors with rooms attached. It should read as rooms
 with corridors between them.
@@ -628,6 +628,65 @@ clustering bite. It also gives M12's extra creatures somewhere to be.
 
 **Assert.** Mean room area and mean corridor length, before and after.
 Spine share per floor, still in band. Tests green.
+
+### Result
+
+**Plumbing had to be built before anything could be swept.** `generateMap`
+was never actually called with an options object anywhere in the codebase
+— `game.js` called `generateMap(state.rng.map)`, full stop, so
+`dugPercentage`'s existing override parameter was dead code. Added
+`roomWidth`/`roomHeight`/`corridorLength`/`dugPercentage` as a passthrough
+from `newGame`'s `counts` through to `generateMap`, same shape as every
+other dial.
+
+**Swept 32×32/ROT.Digger directly, room size against corridor length
+against dugPercentage together** (not one at a time — the item's own
+warning that they interact), n=60–100 per config. Landed on `ROOM_WIDTH =
+[5, 9]`, `ROOM_HEIGHT = [4, 7]` (both new — previously unset, ROT's own
+default silently applied), `CORRIDOR_LENGTH = [1, 3]` (was FAITHFUL
+`[1, 5]`, now a deliberate divergence — `docs/rogule-spec.md` §13.10).
+`MAP_DUG_PERCENTAGE` stayed at 0.15, checked rather than assumed to need
+moving.
+
+**Room area 21.9 → 35.8 (+64%), corridor length 2.69 → 1.91 (−29%).**
+
+**The item's own worry did not confirm — measured, not assumed.** Bigger
+rooms alone PUSH spine share UP (toward less warren, not more): every
+config with `[5,9]×[4,7]` rooms landed 0.79–1.00 across the floors
+checked, comfortably inside `[0.6, 0.95]` and if anything closer to the
+ceiling than the floor. What actually pushes spine share down is raising
+`dugPercentage` (swept separately to confirm: 0.20 dropped floor 7 to
+0.70) — consistent with the original `map-design.md` note about ROT's own
+0.2 default, but the LEVER is dug percentage, not room size, and dug
+percentage did not need to move. Spine share at the shipped config, floors
+4–10 (below `MIN_ROSTER_FOR_SIDE` the split is not attempted and 1.0 is
+correct, not a band check): 0.91, 0.91, 0.83, 0.84, 0.87, 0.86, 0.83 — all
+in band.
+
+**A pre-existing M14 bug, found here and fixed here, not just flagged.**
+Changing the map shape broke two M3 tests that have nothing to do with map
+generation (`forcing the roll to fire did not change any monster's tier`,
+and the reached-the-top-of-the-table rate dropping below its 70%
+threshold). Traced, not assumed: M14's guardian tier was `max(ceilingIndex,
+highest index among every OTHER creature)` — when M3's rare reskin landed
+on the SAME monster M14 later picked as guardian, M14 (running after M3)
+silently rebuilt it back down to the ordinary ceiling, erasing M3's boost.
+Confirmed directly at the failing seed: `before` and `after` (M3 forced to
+fire) produced byte-identical rosters. Fixed by including the guardian's
+own current index in the max, not just everyone else's — it can now only
+go up, never back down. Both M3 tests pass again, untouched, because the
+bug was in M14, not in them.
+
+**Assert, checked:** room area and corridor length reported above,
+measured directly against `ROT.Map.Digger`, not modelled. Spine share
+tested in-suite (`rooms are bigger than the old default, and spine share
+holds in band`) at every floor the split applies to. All tests green —
+89/89, the 2 that broke mid-build fixed at the root cause, not patched
+around.
+
+This was last of the batch by design (`docs/backlog.md`'s own note: "most
+likely to break the spine share M10 fixed"). Stopping here — the checkpoint
+is I8's page, not another reading from me.
 
 ## X1 · delete what nothing uses
 

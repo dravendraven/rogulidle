@@ -7,7 +7,22 @@
 // ***** world ***** //
 
 export const MAP_SIZE = 32;              // FAITHFUL ui.cljs:26
-export const CORRIDOR_LENGTH = [1, 5];   // FAITHFUL generator.cljs:146
+
+// ***** M16 — bigger rooms, shorter corridors, docs/backlog.md M16 ***** //
+// DIVERGENCE, not FAITHFUL any more — was `[1, 5]` from generator.cljs:146.
+// Shortened deliberately so the floor reads as rooms with corridors
+// between them, not corridors with rooms attached (docs/rogule-spec.md
+// §13.10). Swept 1/2/3/4/5 alongside room size and dugPercentage — see
+// docs/balance.md for the numbers, since the three interact and cannot be
+// picked alone.
+export const CORRIDOR_LENGTH = [1, 3];
+
+// GUESS — `mapgen.js` passed neither `roomWidth` nor `roomHeight` to ROT's
+// Digger before this, so ROT's own defaults ([3,9] x [3,5]) applied and
+// nobody had chosen them. Raised for the same reason CORRIDOR_LENGTH
+// shrank above.
+export const ROOM_WIDTH = [5, 9];
+export const ROOM_HEIGHT = [4, 7];
 
 // GUESS — how much of the grid the digger hollows out. ROT's default is
 // 0.2; lowering it digs fewer and smaller rooms, which is what makes the

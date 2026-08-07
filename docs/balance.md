@@ -434,7 +434,9 @@ being a copy. Values marked **INITIAL GUESS** are ours and are what P4 tunes.
 | Name | Value | Status |
 |---|---|---|
 | `MAP_SIZE` | 32 × 32 | FAITHFUL (`ui.cljs:26`) |
-| `CORRIDOR_LENGTH` | `[1, 5]` | FAITHFUL (`generator.cljs:146`) |
+| `CORRIDOR_LENGTH` | `[1, 3]` | was FAITHFUL `[1, 5]` (`generator.cljs:146`); **DIVERGENCE since M16** |
+| `ROOM_WIDTH` | `[5, 9]` | **NEW since M16** — was unset, ROT's own default applied |
+| `ROOM_HEIGHT` | `[4, 7]` | **NEW since M16** — was unset, ROT's own default applied |
 | `VISIBLE_DIST` | 9 | FAITHFUL (`ui.cljs:27`) |
 | `CLEAR_DIST` | 7 | FAITHFUL (`ui.cljs:29`) — cosmetic only |
 | `CHEST_COUNT` | 15 | FAITHFUL (`generator.cljs:326`) |
@@ -627,6 +629,39 @@ across separate rooms. Measured coverage by floor at the shipped radius:
 grows, not flat as the item's own wording hoped. Disclosed rather than
 chased further: fixing it would mean adding creatures, which is
 explicitly M12's budget, not this item's to spend.
+
+## Bigger rooms, shorter corridors (M16) — structural, on unconditionally
+
+See the World table above for the three values. No flag — plumbing
+(`roomWidth`/`roomHeight`/`corridorLength`/`dugPercentage`) added to
+`generateMap`/`newGame` so this could be swept at all; previously
+`generateMap` was never called with an options object anywhere, so
+`dugPercentage`'s own override was dead code.
+
+**Swept together, not picked alone** — 32×32 map, ROT.js Digger, n=100:
+
+| config | room area | corridor length |
+|---|---|---|
+| old (unset room size, `[1,5]` corridors) | 21.9 | 2.69 |
+| **shipped** (`[5,9]×[4,7]` rooms, `[1,3]` corridors) | 35.8 | 1.91 |
+
+Spine share checked at every floor where the split is attempted
+(`MIN_ROSTER_FOR_SIDE` and up): stayed in `[0.6, 0.95]` at the shipped
+config — floors 4–10 ran 0.83–0.91. Bigger rooms alone, measured, PUSH
+spine share UP (less warren, not more) — the risk the item worried about
+did not materialise from room size; raising `dugPercentage` is what
+would have caused it, and it stayed at 0.15, unmoved.
+
+**A pre-existing M14 bug, found by this item's map change and fixed here,
+not just noted.** `M14`'s guardian tier was computed as `max(ceilingIndex,
+highest index among every OTHER creature)`, which silently downgraded the
+guardian back to the ordinary ceiling whenever M3's rare reskin happened to
+land on the same monster M14 later chose as guardian — M14 ran after M3
+and never checked the guardian's own pre-existing tier. Caught because the
+new map shape changed which seeds hit that overlap, breaking two M3 tests
+that were unrelated to M16's own map-generation change. Fixed: the
+guardian's own current index now counts too, so it is never rebuilt lower
+than it already was.
 
 ## Defensive progression (M6)
 
