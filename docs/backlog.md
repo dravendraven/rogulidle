@@ -117,15 +117,24 @@ Sub-goal 3 decomposes into three things that can be measured:
   combat dice. All dice means the viewer cannot read anything; all map means
   the run was decided at generation.
 
-**Sub-goal 3 is the integration test.** Sub-goals 1 and 2 are measured in
-isolation, on frozen probes and on bot internals — deliberately, so that
-neither contaminates the other. Sub-goal 3 is the only one measured with the
-real bot playing the real map, and it is the only one that can tell you the
-other two added up to something.
+**Sub-goal 3 is an integration test, and must never be optimised directly.**
+1 and 2 are causes; 3 is an effect. It is measured with the real bot playing
+the real map, so it is the only thing that can tell you the other two added
+up — and it is the only one that cannot tell you what to do about it.
 
-Nothing in the queue currently serves sub-goal 3 directly. That is a gap,
-and it is deliberate for now: measuring it against a bot with known defects
-would measure the defects.
+Two reasons it must not become a target:
+
+- **It can sit at its number while the game is bad.** A dumb bot reaching
+  the bottom one run in ten looks random rather than dramatic, and a flat
+  curve is boring at any clear rate. Hitting the number proves nothing on
+  its own.
+- **The number is trivially reachable.** Any clear rate can be dialled in by
+  moving creature count alone, learning nothing. Aiming at sub-goal 3
+  directly is the fastest way to hit it for the wrong reason.
+
+So it stays a falsifier: it can say the sum failed, never what to fix.
+Nothing in the queue serves it, deliberately — and measuring it against a
+bot with known defects would measure the defects.
 
 ## The problem all of this serves
 
