@@ -46,7 +46,7 @@ its standing job, which is not a task and so has no row of its own.
 | — | I1 | Model ruler misprices crowds — replace it with two frozen probes that play | map | metrics | **DONE** | n/a |
 | — | I2 | Clustering may change lethality, not cost — retest with a normal hero | map | metrics | **DONE** | n/a |
 
-    work agent      M7 (in flight) → M9 (waits on I6) → M4 and M3 if needed
+    work agent      M7 reported → M9 (waits on I6) → M4 and M3 if needed
     metrics agent   I7 → I6, plus the ruler re-run after each landing
     ui agent        idle
 
@@ -100,7 +100,7 @@ before starting, and report against its acceptance criteria — not against
 your own sense of finished.
 
 **Claim it first.** Before any other action, set your item to IN FLIGHT in
-both the queue table and its heading, and commit that on its own. Three
+both the queue table and its heading, and commit that on its own. Four
 sessions share this repo and cannot see each other; an unclaimed item is one
 that two agents can start at the same time, and the second to notice will
 have wasted the whole pass. Claiming costs one commit.
@@ -332,6 +332,82 @@ built by I2 to measure grouping and now holds placement logic outside the
 engine. When this lands, either the analysis file calls the engine's
 placement or the difference is written down deliberately. Silent drift means
 every clustering measurement stops describing the game.
+
+### Result
+
+**Built, flag off, exactly as instructed — no metrics-agent reading
+requested.** M6 was already adopted (`HP_FROM_KILLS=true`) so the baseline
+includes it. `DIFFICULTY_REBALANCED=false` in `src/sim/difficulty.js`;
+72/72 tests pass with the flag off, and a dedicated test confirms
+`floorParams`/`floorPlan` are byte-identical to before M7 in that state.
+
+**Mechanism, all three levers behind the one flag.**
+- `MONSTER_GROWTH_REBALANCED = 1.15` (count), replacing 1.3.
+- `STRENGTH_GROWTH_REBALANCED = 1.07` (strength), sized against the
+  corrected exponent 2.356 from the archived sweep, not 2.
+- `CLUSTER_SIZE = 6` (grouping) — `src/sim/spawn.js` now decides a zone and
+  an anchor once per cluster, draws **one** shared tier for the whole
+  cluster from the anchor's depth, then places every member nearest-tile
+  first via a new zone-filtered BFS (`clusterAround`), same RNG stream and
+  same side/spine rules as before. `CLUSTER_SIZE=1` reproduces the old
+  per-monster independent loop exactly (verified, RNG-exact). Because the
+  tier is drawn once per cluster rather than once per monster, a cluster is
+  always one creature type — this satisfies "group by identity, not just
+  proximity" from the design note above, not only spatial packing.
+
+**Acceptance, checked against what this instruction allowed measuring:**
+- **Challenge holds the budget — PASS.** 1.337 ±0.029 against the required
+  1.343 ±0.03. This is the criterion that invalidates everything else if it
+  fails; it did not fail.
+- **CV of challenge — SHORT.** Rose 0.944 → 0.986 per floor (target ≥1.00,
+  ambition 1.05). Not reached, and not still climbing: swept `CLUSTER_SIZE`
+  3 → 6 → 9 and got 0.954 → 0.986 → 0.993, sharply diminishing. Floors at
+  or below nominal `CLUSTER_SIZE` are already "one cluster" under the
+  slowed count law, and past that point a bigger cluster has nothing left
+  to absorb — this looks like a structural ceiling on how far grouping
+  alone can move CV once count growth is this slow, not a value that was
+  under-swept. Landing on 6 as the best point on that curve.
+- **Floors stay populated.** Self-measured (real bot, paired seeds,
+  flag-on, `CLUSTER_SIZE=6`, n=80 at floor 1, n=64 at floor 5, n=48 at
+  floor 10 — sample shrinks with reached depth): floor 1 mean 2.0, floor 5
+  mean 3.0, floor 10 mean 7.0. No degenerate corner.
+- **`challenge/power` and finish-rate band — not measured formally.** Out
+  of scope for this report per the "build and stop" instruction. A
+  work-agent self spot-check (n=80, real bot, flag on, **not** a
+  metrics-agent reading) came back at 56.3% ±5.5, well above the 15–40%
+  acceptance band on the same probe M6 used — roughly 3σ over the upper
+  edge. Flagging this as a strong prior for whoever runs the formal
+  reading, not as a finding in its own right: single spot-check, one
+  sample, and it says nothing about *why* (could be the slower count law,
+  the clustering, or bot behaviour against clusters — unseparated).
+- **p95/p99 of per-turn damage, "settle the mechanism" — not measured.**
+  Same reason: out of scope for a build-and-stop report.
+
+**Mid-build correction, disclosed.** First implementation clustered
+*position only* — every monster in a cluster still drew its own tier
+independently. Measured CV growth at 0.945, indistinguishable from
+baseline's 0.944: proximity alone bought nothing. This is what the design
+note's "group by identity, not just by proximity" was warning about, and I
+had built the "just by proximity" version anyway. Fixed by moving the tier
+draw to once per cluster (above); CV growth rose to 0.954 at the same
+`CLUSTER_SIZE=3`, and further with the size sweep. Not told this would
+happen — found it by measuring, which is why the mid-build number is
+recorded rather than only the final one.
+
+**Reconcile the shadow implementation — flagging, not fixing.**
+`src/analysis/clustering.js` (I2's) repositions monsters post-hoc, spatial
+only, and explicitly disclaims zone-awareness. The engine's placement above
+is zone-aware and draws one shared tier per cluster. These are genuinely
+different mechanisms now, not just different code paths to the same
+result — a clustering measurement taken through `clustering.js` will not
+describe what the flag-on engine actually does. Not my file to change
+(`src/analysis/` is metrics agent territory); leaving the decision — make
+`clustering.js` call the engine's placement, or document the divergence
+deliberately — to whoever owns that file next.
+
+**Not requesting a reading.** I5 is mid-measurement on the current game;
+flipping this flag would move the ground under it. This report is the
+build-and-test checkpoint only.
 
 ## M9 · tie the drop to the creature that carries it
 
