@@ -38,23 +38,25 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| 1 | M11 | Floor n+1 is never cheaper than floor n | REPORTED |
-| — | I8 | One page saying whether the map is good, in five numbers | READY · parallel |
-| 2 | M13 | Tier floor rises with depth — rats stop appearing deep | READY |
-| 3 | M12 | Raise creature count and cluster size together | READY |
-| 4 | M14 | One top-tier-for-the-floor creature next to the shrine | READY |
-| 5 | M15 | Chests get a creature nearby, spine included | READY |
-| 6 | X1 | Delete what nothing references | READY |
-| 7 | M9 | A monster's drop comes from its own tier | READY |
-| 8 | M4 | Side-room risk/reward spread scales with depth | READY |
-| 9 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 1 | I8 | One page saying whether the map is good, in five numbers | READY · start now |
+| 2 | M11 | Floor n+1 is never cheaper than floor n | REPORTED |
+| 3 | M13 | Tier floor rises with depth — rats stop appearing deep | READY |
+| 4 | M12 | Raise creature count and cluster size together | READY |
+| 5 | M14 | One top-tier-for-the-floor creature next to the shrine | READY |
+| 6 | M15 | Chests get a creature nearby, spine included | READY |
+| 7 | X1 | Delete what nothing references | READY |
+| 8 | M9 | A monster's drop comes from its own tier | READY |
+| 9 | M4 | Side-room risk/reward spread scales with depth | READY |
+| 10 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
-Items 1–5 are one batch, in that order: one commit each, each with a test
+**I8 first, and it runs alongside everything else** — different agent,
+different files, and it is what the batch gets checked with when it lands.
+
+Items 2–6 are one batch, in that order: one commit each, each with a test
 asserting its own property, no measurement between them. X1 after the batch
 rather than inside it, so a bisect stays readable.
 
-I8 runs in parallel — different agent, different files — and the end-of-batch
-check is that page rather than a full ruler run.
+The end-of-batch check is I8's page rather than a full ruler run.
 
 Closed work is in `docs/project/decisions.md`. Parked and unscheduled is in
 `docs/project/candidates.md`.
