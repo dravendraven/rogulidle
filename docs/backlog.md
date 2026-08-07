@@ -51,7 +51,7 @@ repeating it in the table only made the queue slower to scan.
 | — | I2 | Retest clustering with a mortal hero, measuring lethality instead of cost | map | metrics | **DONE** | n/a |
 
     work agent      M10 (M7 regression) → M9 (waits on I6) → M4 after M10
-    metrics agent   idle — the ruler re-run after each landing
+    metrics agent   read M10, then M3
     ui agent        idle
 
 **The bot lane is PARKED by owner decision** — the focus is map design
@@ -1172,6 +1172,54 @@ Rogule on its own.
 Not requesting a reading — the metrics agent's ruler re-run is the standing
 job that follows a landed map item, per the "One change, then a reading"
 rule.
+
+### Review 1 — conformance. Passes, with one thing the reading must check
+
+**The diagnosis is sharper than the one I wrote.** I assumed the zone was
+rolled independently per cluster and needed to be allocated against the
+quota instead. It was already greedy against `spineMass`/`sideMass` — the
+formula was never wrong. The bug was **granularity**: a cluster big enough
+to hold the whole roster asked the right question exactly once. Re-checking
+per member and cutting the cluster where the answer flips is a smaller and
+better fix than the one the item specified.
+
+**No flag is correct here, and it is worth stating as a rule.** Every map
+item ships behind an off-by-default flag — but M10 repairs a defect in an
+already-adopted mechanism, and flagging a bug fix means shipping the bug by
+default. **Fixes to adopted mechanisms do not get flags.** The exception is
+narrow: it applies when the change makes an adopted mechanism hit its own
+documented design, not when it changes what that design is.
+
+Spine share at floor 7 goes 0.97 → 0.795, inside the band. Floors 1 and 3
+staying near 1.0 is `MIN_ROSTER_FOR_SIDE` doing its job, correctly reported
+as an achievable limit rather than massaged into looking like a pass.
+Single-type and coherence hold by construction — kept members are a prefix
+of the same BFS-ordered, same-tier list. No new RNG draw exists anywhere,
+verified rather than asserted. 77/77.
+
+### The risk: this may give back part of M7's CV gain
+
+Cutting a cluster short when the quota flips means **effective cluster size
+is now variable and smaller than `CLUSTER_SIZE`**. M7's whole mechanism was
+fewer independent draws per floor — twelve creatures in four clusters are
+four draws, not twelve — and splitting a cluster adds a draw back.
+
+Floor 7 is the clearest case: about four creatures, previously one cluster,
+now at least two so the quota can be met. That is one extra draw on a floor
+that only had one, and CV goes as `1/√draws`.
+
+Nothing here is wrong — the spine share had to be fixed and this is the
+right fix. But **M7 and M10 pull against each other by construction**, and
+the reading has to say by how much rather than assume it is small.
+
+**For the reading, on top of the standing four:**
+- **CV of challenge**, against M7-adopted-without-M10. If it fell back
+  toward 0.94, the two changes need balancing against each other rather
+  than both simply kept.
+- **Effective cluster size per floor** — mean and distribution, not the
+  constant. `CLUSTER_SIZE = 6` no longer describes what floors actually
+  hold, and every argument M7 made was about the real number.
+
 
 ---
 
