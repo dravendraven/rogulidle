@@ -152,11 +152,34 @@ clustering, so grouping logic now exists in `src/analysis/clustering.js`
 outside the engine — inside its boundary, and still a shadow that M2 has to
 reconcile.
 
+**Review happens in two passes, and the first one costs nothing.**
+
+    work reports
+      ↓
+    review 1   implementation and conformance — immediate, nothing measured
+      ↓
+    metrics    the ruler reading, flag off against on
+      ↓
+    review 2   verdict against the targets → DONE, or returned
+
+The first pass checks the things that decide whether a measurement would
+even mean anything: is it behind an off-by-default flag, does it do what the
+spec said rather than something adjacent, did the constant land in
+`balance.md` as an INITIAL GUESS before `balance.js`, and was any divergence
+from Rogule recorded in `rogule-spec.md` §13.
+
+M6 is the example. Its spec turns on granting **current** hp alongside the
+maximum — without that the hero still arrives at each floor as hurt as
+before and the measured buffer barely moves, because the number is taken on
+arrival rather than from the ceiling. Building only the ceiling would
+measure clean and mean nothing. That is a one-minute read, and it saves 1500
+descents aimed at the wrong thing.
+
 **The re-run is a standing job, not a task.** It needs no prompt. When a map
-item lands, the metrics agent re-runs the observed ruler and appends the
-reading to that item's `### Result` block — the four ratios with the flag off
-and on, with standard errors and the commit each ran against. Then it goes
-back to whatever it was doing.
+item lands and clears the first pass, the metrics agent re-runs the observed
+ruler and appends the reading to that item's `### Result` block — the four
+ratios with the flag off and on, with standard errors and the commit each
+ran against. Then it goes back to whatever it was doing.
 
 Three parties, on purpose: the work agent builds the change, the metrics
 agent measures it, the project agent reads it. Two of those must not be the
