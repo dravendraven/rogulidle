@@ -58,8 +58,8 @@ normal and does not mean the item changed.
 | 2 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY |
 | 3 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY |
 | 4 | M5 | Best item is axe +2, so no reward is ever an event | map | work | READY |
-| 5 | I3 | Clustering leans lethal but unexplained — spike or attrition, and does CV move? | map | metrics | IN FLIGHT |
-| 6 | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | BLOCKED on I3 |
+| 5 | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | READY · last of the four |
+| — | I3 | Settle clustering's sign test; spike and CV wait for M2 to exist | map | metrics | IN FLIGHT · part 1 only |
 | — | B1 | Ping-pong is the ugliest visible defect — find which layer creates it | bot | work | PARKED · reported |
 | — | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | PARKED |
 | — | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | PARKED |
@@ -81,8 +81,23 @@ restarts. Do not pick up a PARKED item without the owner saying so.
 
 That leaves one loop, and it is deliberately serial:
 
-    work agent      M6 → M3 → M4 → M5
-    metrics agent   I3, then re-run the ruler after EACH of the four
+    work agent      M6 → M3 → M4 → M5 → M2
+    metrics agent   I3 part 1, then re-run the ruler after EACH of the five
+
+**M2 goes last, not first, and the dependency between it and I3 has
+inverted.** It used to be that I3 decided whether M2 was worth building.
+Under the flag protocol nothing can be pre-screened, so I3's spike and CV
+questions now need M2 to exist — M2 gates I3, not the other way round.
+
+With pre-screening gone, the ordering criterion becomes cost to build. M2 is
+the most expensive of the five (placement logic in `spawn.js`, plus
+reconciling the shadow implementation in `src/analysis/`) and rests on the
+weakest evidence — `z = 1.62`, with the mechanism unestablished. M3 is the
+cheapest and its mechanism is not in doubt.
+
+There is also a real chance M3–M5 fix the CV on their own. If they do, M2
+may not need to exist at all, and building it first would have been paying
+the largest bill to find that out.
 
 **One change, then a reading, then the next.** M6 and M3–M5 all aim at the
 same two ratios by different routes, and stacked into one measurement they
@@ -904,6 +919,12 @@ agent measures the real game and does not build variants to study them —
 see "Every map item ships behind an off-by-default flag" above. Questions 2
 and 3 need clustering to exist in `src/sim/`, so they wait for M2 to build
 it switched off, and then get measured on against off.
+
+Note the inversion: this item was written to decide whether M2 was worth
+building, and now M2 has to exist before most of it can be answered. That
+is the flag protocol working as intended, not a mistake — the cost of
+never pre-screening is that the cheap question comes after the build rather
+than before it. M2 is last of the five map items, so this will wait a while.
 
 Question 1 stands because it re-analyses data already collected — but say
 plainly in the result that it describes the instrument's clustering, which
