@@ -174,8 +174,9 @@ function render(reward, counts, dc) {
     const drop = i > 0 && c < counts[i - 1];
     return `<td class="${drop ? 'no' : ''}">${c}</td>`;
   }).join('');
+  const xpRow = reward.map((r) => `<td>${f(r.meanXp, 1)}</td>`).join('');
   const creatureTable = `<table><thead><tr><th>floor</th>${counts.map((_, i) => `<th>${i + 1}</th>`).join('')}</tr></thead>`
-    + `<tbody><tr><td>count</td>${creatureRow}</tr></tbody></table>`;
+    + `<tbody><tr><td>count</td>${creatureRow}</tr><tr><td>mean xp</td>${xpRow}</tr></tbody></table>`;
 
   const spreadTable = `<table><thead><tr><th>floor</th>${reward.map((r) => `<th>${r.level}</th>`).join('')}</tr></thead>`
     + `<tbody><tr><td>spread</td>${reward.map((r) => `<td>${pct(r.challenge.cv)}</td>`).join('')}</tr></tbody></table>`;
@@ -188,8 +189,10 @@ function render(reward, counts, dc) {
       `${f(last / first, 1)}×`,
       `hp a fixed reference player spends clearing a floor, picking up nothing. Floor 1: ${f(first, 1)} hp, floor ${LEVELS}: ${f(last, 1)} hp.`,
       'good: higher, AND rising every single step — see below'),
-    cell('health', 'creatures per floor', `${counts[0]} → ${counts[counts.length - 1]}`,
-      'How full the floor is.', 'good: rises'),
+    cell('health', 'creatures per floor',
+      `${counts[0]} → ${counts[counts.length - 1]} <span style="font-size:.85rem;color:var(--faint)">(xp ${f(reward[0].meanXp, 1)} → ${f(reward[reward.length - 1].meanXp, 1)})</span>`,
+      'How full the floor is, and how strong its roster reads on average (mean xp, straight off generation — not a modelled score).',
+      'good: count rises; mean xp rises too, or at least holds, once M13-style tier floors are in play'),
     cell('health', 'spread within a floor', `${pct(reward[0].challenge.cv)} → ${pct(reward[reward.length - 1].challenge.cv)}`,
       'How different two runs of the same floor number are from each other.', 'good: does not shrink with depth'),
     cell('health', 'loot against cost',

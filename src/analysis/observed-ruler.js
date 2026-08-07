@@ -740,8 +740,13 @@ function driveReward(seed, plan, maxTurns, gameOptions = {}) {
   const damage = state.log
     .filter((e) => e.type === 'attack' && e.target === 'player')
     .reduce((sum, e) => sum + e.damage, 0);
+  // Mean xp of the roster `scan` already generated — free, since `scan` was
+  // already made to read the loot manifest above; no extra newGame call.
+  const meanXp = scan.monsters.length
+    ? scan.monsters.reduce((sum, m) => sum + m.xp, 0) / scan.monsters.length
+    : 0;
   return {
-    clearedAll, damage, potionsHeld: potionQueue.length, gearHeld: gear.length,
+    clearedAll, damage, potionsHeld: potionQueue.length, gearHeld: gear.length, meanXp,
   };
 }
 
@@ -764,6 +769,7 @@ export function rewardShape(options = {}) {
     const reward = [];
     const gearCount = [];
     const potionCount = [];
+    const xpSamples = [];
     let discardedA = 0;
     let discardedR = 0;
 
@@ -777,6 +783,7 @@ export function rewardShape(options = {}) {
       reward.push(a.damage - r.damage);
       gearCount.push(r.gearHeld);
       potionCount.push(r.potionsHeld);
+      xpSamples.push(r.meanXp);
     }
 
     rows.push({
@@ -791,6 +798,12 @@ export function rewardShape(options = {}) {
       // floor actually generated — not a statistic anyone should plot.
       meanGear: gearCount.reduce((s, x) => s + x, 0) / (gearCount.length || 1),
       meanPotions: potionCount.reduce((s, x) => s + x, 0) / (potionCount.length || 1),
+      // Mean xp of the roster THIS floor generated (not the hero's own xp) —
+      // a free read off the same manifest scan `driveReward` already does,
+      // no extra play. Companion to `nominal` (creature count): count says
+      // how full a floor is, this says how strong what's on it reads on
+      // average, straight off generation rather than a modelled duel score.
+      meanXp: xpSamples.reduce((s, x) => s + x, 0) / (xpSamples.length || 1),
     });
   }
   return rows;
