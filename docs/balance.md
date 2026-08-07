@@ -451,23 +451,23 @@ Five monsters on a 32×32 map is very sparse — see spec §10.2.
 | `PLAYER_XP` | 3 | FAITHFUL (`generator.cljs:26`) |
 | `XP_PER_KILLS` | 1 xp every 2 kills | FAITHFUL (`engine.cljs:272`) |
 
-## Difficulty rebalance (M7) — off by default, budget-neutral by design
+## Difficulty rebalance (M7) — ADOPTED, flag ON
 
 | Name | Value | Status |
 |---|---|---|
-| `DIFFICULTY_REBALANCED` | `false` | **OFF by default** — built and self-tested, no reading requested yet. See `docs/backlog.md` M7 |
-| `MONSTER_GROWTH_REBALANCED` | 1.15 | **INITIAL GUESS**, one of three levers sharing one budget |
-| `STRENGTH_GROWTH_REBALANCED` | 1.07 | **INITIAL GUESS**, sized against the corrected exponent 2.356 (see "Strength ramp" above) |
+| `DIFFICULTY_REBALANCED` | `true` | **ADOPTED** — Review 2. See `docs/backlog.md` M7 |
+| `MONSTER_GROWTH_REBALANCED` | 1.15 | ADOPTED, one of three levers sharing one budget |
+| `STRENGTH_GROWTH_REBALANCED` | 1.07 | ADOPTED, sized against the corrected exponent 2.356 (see "Strength ramp" above) |
 | `CLUSTER_SIZE` | 6 | **SETTLED** — swept 3→6→9, diminishing returns past 6 (see backlog M7) |
 
 Live in `src/sim/difficulty.js` beside `MONSTER_GROWTH` and
 `STRENGTH_GROWTH`, following the same convention already set there.
 
 One flag, three levers, moved together because they are one budget and
-cannot be attributed apart (`docs/backlog.md` M7). With the flag off,
-`floorParams`/`floorPlan` are byte-identical to today: `MONSTER_GROWTH`
-(1.3), `STRENGTH_GROWTH` (1.0, i.e. no ramp), cluster size 1 (one monster
-per placement draw, same as no clustering at all).
+cannot be attributed apart (`docs/backlog.md` M7). With the flag on,
+`floorParams`/`floorPlan` read `MONSTER_GROWTH_REBALANCED` (1.15),
+`STRENGTH_GROWTH_REBALANCED` (1.07) and `CLUSTER_SIZE` (6) in place of
+`MONSTER_GROWTH` (1.3), flat strength, and independent per-monster draws.
 
 **Count grows slower** (1.3 → 1.15), cutting the CV-diluting effect of many
 independent draws (`CV = CV_single / √n`). **Strength now ramps** (1.0 →
@@ -482,11 +482,13 @@ reproduces the current per-monster independent draw exactly (verified: with
 the flag off, the cluster loop degenerates to one draw per monster with no
 extra RNG consumption).
 
-Self-measured before shipping the flag off — see `docs/backlog.md` M7 for
-the full run, method, and what it does and does not settle. Headline
-numbers: challenge growth held at 1.337 ±0.029 (target 1.343 ±0.03, PASS);
-CV of challenge rose from 0.944 to 0.986 (target ≥1.00, SHORT — diminishing
-returns past `CLUSTER_SIZE` 6, see backlog).
+See `docs/backlog.md` M7 for the full build and measurement history.
+Adopted numbers (Review 2): CV of challenge 0.941 → 0.986 per floor (~3σ
+move, within 1σ of the ≥1.00 target); challenge/power and finishes both
+held their bands. Challenge read unchanged on the probe (1.341 → 1.337)
+while real-bot finishes fell 11.3 points — the probe under-reads
+clustering's effect on a competent player, so "challenge held" describes
+the instrument, not a claim that difficulty is unchanged.
 
 ## Defensive progression (M6)
 

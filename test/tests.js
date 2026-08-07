@@ -14,7 +14,7 @@ import { classifyRooms, spineShare } from '../src/sim/spine.js';
 import { itemWeights } from '../src/sim/spawn.js';
 import { floorPlan } from '../src/sim/dungeon.js';
 import {
-  floorParams, floorStrength, monstersAt, saturatedAt,
+  floorParams, floorStrength, makeFloorPlan, monstersAt, saturatedAt,
   CLUSTER_SIZE, DIFFICULTY_REBALANCED, MONSTER_GROWTH, MONSTER_GROWTH_REBALANCED,
   MONSTER_STRENGTH, STRENGTH_GROWTH, STRENGTH_GROWTH_REBALANCED,
 } from '../src/sim/difficulty.js';
@@ -926,18 +926,18 @@ test('saturation is reported at the floor the table actually runs out', () => {
   assert(floorStrength(at - 2, fast) < 1, 'saturation was reported a floor late');
 });
 
-// ***** M7 — the difficulty rebalance, and it must stay off ***** //
+// ***** M7 — the difficulty rebalance, ADOPTED (docs/backlog.md M7, Review 2) ***** //
 
-test('the rebalance is a no-op at its shipped value', () => {
-  // Mirrors the strength-ramp guard immediately above, for the same reason:
-  // this is a measuring instrument, not a shipped change, and every number
-  // taken before it existed has to keep describing the game.
-  assertEq(DIFFICULTY_REBALANCED, false, 'DIFFICULTY_REBALANCED is no longer off by default');
+test('the rebalance is adopted at its shipped value', () => {
+  // Mirrors the strength-ramp guard above, flipped: DIFFICULTY_REBALANCED
+  // is now the shipped default, and floorParams should read the rebalanced
+  // constants at every level, not the pre-M7 ones.
+  assertEq(DIFFICULTY_REBALANCED, true, 'DIFFICULTY_REBALANCED is no longer adopted by default');
   for (let level = 0; level < 10; level++) {
     const p = floorParams(level);
-    assertEq(p.clusterSize, 1, `floor ${level + 1} clustered with the flag off`);
-    assertEq(p.monsters, monstersAt(2, MONSTER_GROWTH, level),
-      `floor ${level + 1} used the rebalanced count growth with the flag off`);
+    assertEq(p.clusterSize, CLUSTER_SIZE, `floor ${level + 1} did not use the adopted cluster size`);
+    assertEq(p.monsters, monstersAt(2, MONSTER_GROWTH_REBALANCED, level),
+      `floor ${level + 1} did not use the rebalanced count growth`);
   }
 });
 
@@ -966,13 +966,20 @@ test('the rebalanced strength ramp does not saturate before floor 10', () => {
 });
 
 test('clustering with size 1 reproduces independent placement exactly', () => {
-  // The strongest form of "off means off": two floors, same seed, one asked
-  // for clusterSize 1 explicitly and one left it at the (also 1) default —
-  // must be byte-identical, monster for monster, position for position.
-  const withDefault = newGame(51015, floorPlan(5));
-  const withExplicit1 = newGame(51015, { ...floorPlan(5), clusterSize: 1 });
-  assertEq(JSON.stringify(withDefault.monsters), JSON.stringify(withExplicit1.monsters),
-    'an explicit clusterSize of 1 changed generation');
+  // The default clusters now that M7 is adopted (CLUSTER_SIZE=6), so this
+  // no longer compares against "the default" — it compares two independent
+  // constructions of "no clustering" at the shipped growth/strength:
+  // floorPlan's shipped path with clusterSize overridden to 1, against
+  // makeFloorPlan's general path fed the same adopted constants. Must be
+  // byte-identical, monster for monster, position for position.
+  const viaShipped = { ...floorPlan(5), clusterSize: 1 };
+  const viaGeneral = makeFloorPlan({
+    clusterSize: 1, monsterGrowth: MONSTER_GROWTH_REBALANCED, strengthGrowth: STRENGTH_GROWTH_REBALANCED,
+  })(5);
+  const a = newGame(51015, viaShipped);
+  const b = newGame(51015, viaGeneral);
+  assertEq(JSON.stringify(a.monsters), JSON.stringify(b.monsters),
+    'clusterSize 1 diverged between floorPlan and makeFloorPlan');
 });
 
 test('clustering pulls monsters together without changing how many spawn', () => {

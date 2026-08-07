@@ -115,8 +115,15 @@ export function saturatedAt(model = {}, levels = 10) {
 //
 // ONE FLAG, THREE LEVERS, moved together because they share one budget and
 // cannot be attributed apart: move one and the other two must move to hold
-// challenge fixed. Off by default — self-tested, not yet adopted.
-export const DIFFICULTY_REBALANCED = false;
+// challenge fixed.
+//
+// ADOPTED (docs/backlog.md M7, Review 2): CV moved 0.941 → 0.986 per floor,
+// about 3σ and within one standard error of the ≥1.00 target; challenge/power
+// and finishes both held their bands. Review 2 also recorded that the probe
+// under-reads clustering's effect on a competent player — challenge read
+// unchanged while real-bot finishes fell 11.3 points — so "challenge held"
+// describes the instrument, not a claim that difficulty is unchanged.
+export const DIFFICULTY_REBALANCED = true;
 
 // Slower than MONSTER_GROWTH (1.3), cutting the dilution at its source —
 // fewer draws means less to dilute with.
