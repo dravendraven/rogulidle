@@ -38,7 +38,7 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| 1 | I8 | One page saying whether the map is good, in five numbers | READY · start now |
+| 1 | I8 | One page saying whether the map is good, in five numbers | IN FLIGHT |
 | 2 | M11 | Floor n+1 is never cheaper than floor n | REPORTED |
 | 3 | M13 | Tier floor rises with depth — rats stop appearing deep | REPORTED |
 | 4 | M12 | Raise creature count and cluster size together | READY |
@@ -64,7 +64,7 @@ Closed work is in `docs/project/decisions.md`. Parked and unscheduled is in
 
 ## I8 · one page that says whether the map is good
 
-`metrics agent` · **READY** — runs in parallel with the M11–M15 batch
+`metrics agent` · **IN FLIGHT** — runs in parallel with the M11–M15 batch
 
 `run-ruler.html` reports nine quantities, four ratios, growth exponents and
 standard errors. It is the right tool for settling an argument and the wrong
