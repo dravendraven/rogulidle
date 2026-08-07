@@ -57,12 +57,12 @@ its standing job, which is not a task and so has no row of its own.
 
 | # | id | what and why | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
-| 1 | I5 | Does the probe under-read hp? Design says too hard, product says too easy | map | metrics | REPORTED | n/a |
+| 1 | I6 | Reward has no instrument, so M9 and M5 cannot be judged at all | map | metrics | READY · now | n/a |
 | 2 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | IN FLIGHT | — |
-| 3 | I6 | Reward has no instrument, so M9 and M5 cannot be judged at all | map | metrics | READY · after I5 | n/a |
-| 4 | M9 | A t-rex and a rat pay the same loot — tie the drop to what you killed | map | work | BLOCKED on I6 | — |
-| 5 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
-| 6 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
+| 3 | M9 | A t-rex and a rat pay the same loot — tie the drop to what you killed | map | work | BLOCKED on I6 | — |
+| 4 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
+| 5 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
+| — | I5 | Buffer is two quantities — capacity and attrition — and its sign flip is selection | map | metrics | **DONE** | n/a |
 | — | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | **DONE** · built, flag OFF | done |
 | — | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | FOLDED into M7 | — |
 | — | M5 | Best item is axe +2, so no reward is ever an event | map | work | ON HOLD · no instrument | — |
@@ -1192,6 +1192,76 @@ manufactured here.
 §13 and the M6 targets language were written against the old, single-
 quantity buffer; whichever number ends up carrying a target, the prose
 describing it will need to say which.
+
+### Review — DONE, with one number reread
+
+The split was the right idea and it produced the finding this whole thread
+was missing. **Buffer's sign flip is selection, not forgiveness** — "depth
+does not make the game more forgiving, it makes the buffer sample more
+exclusive" is the sentence that resolves the incoherence Review 2 of M6
+could not, and it is worth more than the instrument that produced it.
+
+The boundary call was right too. Reimplementing the descent loop locally
+rather than adding a hook to `dungeon.js` follows the rule this file settled
+after the M6 passthrough episode, and it did not block on asking.
+
+**The confound: capacity and attrition differ in TWO variables, not one.**
+
+The gap between capacity's power (×1.048) and the mortal sample's (×1.243)
+is attributed entirely to survivor selection. It cannot be — the two
+measurements differ in mortality **and** in starting hp. `PROBE_HERO` carries
+**400 hp**; the mortal descent starts at `PLAYER_HP = 10`.
+
+That matters because a growth *rate* is not scale-invariant. M6 grants about
++42 hp across a full descent:
+
+    on a 400 hp base    442/400  = ×1.105 total  = ×1.011 per floor
+    on a  10 hp base     52/10   = ×5.2   total  = ×1.20  per floor
+
+The measured `hpMax ×1.008` is that first line almost exactly. **Capacity's
+growth rate is very largely an artifact of the probe's 400 hp base**, and
+the same mechanism would read roughly twenty times steeper on a real hero.
+So the ×1.19/floor "selection effect" is selection *plus* base dilution, in
+unknown proportion.
+
+**The fix is cheap and separates them.** Immortality and starting hp are
+independent, and the probe currently conflates them — it survives *because*
+it is huge. Suppress death directly, as a flag, and start the probe at
+`PLAYER_HP`. Then capacity carries no selection and no base artifact, and
+subtracting it from the mortal series isolates selection cleanly.
+
+**Second thing to carry forward: the instrument's reach depends on the
+change being measured.** Every floor cleared n ≥ 50 only because
+`HP_FROM_KILLS` was on. That flag is now back off by owner decision, so the
+window reverts to roughly 1–6 and the finding "buffer rises over 1–10"
+cannot be reproduced against the shipped game. Not an error — it is
+disclosed — but the number should never be quoted without the condition
+attached.
+
+### The target question, answered
+
+I5 asks which of capacity, attrition or the old combined buffer should carry
+a `≥1.00`-shaped target. **None of them should**, and that is the project
+agent's error to undo rather than a gap in this item.
+
+`buffer ≥ 1.00` was a DCSS figure derived for a real player, applied to a
+probe reading. Absolute targets on this instrument were never sound, and the
+confound above is a second reason: a growth rate that moves twenty-fold with
+the probe's starting hp is not a quantity anyone can set an absolute bar on.
+
+The replacement is comparative, and the split makes it sayable:
+
+    capacity     grows, measured with death suppressed at PLAYER_HP
+    attrition    reported beside it, with the survivor bias declared
+    buffer       kept as their difference, quoted only with its window
+
+No borrowed absolutes. A change is judged by whether capacity rises and
+attrition does not outrun it, against the same measurement on the same
+window — which is what every map item was actually being judged on anyway,
+underneath a number that could not support it.
+
+The targets table and `rogule-spec.md` §13 both describe the old single
+quantity and need rewriting to match. That is mine, not this item's.
 
 ## M7 · move difficulty off count, onto strength and grouping
 
