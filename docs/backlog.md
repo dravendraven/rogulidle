@@ -940,6 +940,21 @@ groups — waking one wakes its neighbours.
 Unlike M3–M5 this one is **not** probe-measurable: the effect is on
 lethality, and the probes cannot die.
 
+**A shadow implementation already exists, and reconciling it is part of this
+item.** I2 built `src/analysis/clustering.js`, which generates the roster
+with the shipped `populate()` and then rewrites monster positions into
+clusters. That was correct for an instrument — it changed nothing in
+`src/sim/` — but it means the grouping logic now lives outside the engine.
+
+When M2 lands, the two must not drift apart in silence, because the moment
+they do, every clustering measurement stops describing the game. Either the
+analysis file calls the engine's placement, or the difference between them
+is written down deliberately. Decide which, and say so.
+
+Note also what the instrument's version ignores by design: the spine/side
+split, and cluster size fixed at 3. Those are M2's to settle, not carried
+over as defaults.
+
 ## B5 · crowd blindness in the bot
 
 `bot` · `work agent` · **BLOCKED on M2**
