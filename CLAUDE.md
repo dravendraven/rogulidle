@@ -11,6 +11,8 @@ Read, in this order:
    behaviour. Deliberate divergences are in its §13.
 2. `docs/bot-strategy.md` — what the bot is trying to do and why.
 3. `docs/balance.md` — the single source of truth for ALL tuning numbers.
+4. `docs/curve-shape.md` — what the difficulty, power, reward and buffer
+   curves actually measure out as, and how each was defined.
 
 Design questions get answered from those docs or by asking the owner, never
 by inventing defaults.
@@ -56,6 +58,8 @@ files rather than deleted — see `SIDE_ACTIVATION_CAP` in balance.js and
 - `/run-tests.html` — check the rules (46 tests)
 - `/run-lab.html` — **the main instrument.** Every dial, the formulas they
   feed rendered from balance.js, and the descent measured on demand
+- `/run-shape.html` — diagnostic only: the six curve quantities per floor,
+  their growth rates and the four ratios. Changes nothing, just looks
 - `/run-batch.html` — older single-floor sweeper, still useful for bot flags
 - `/run-curve.html` — **superseded.** It reads the MODELLED net challenge
   from `src/analysis/curve.js`, which prices clean 1v1 duels and so read

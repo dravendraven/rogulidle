@@ -2,7 +2,7 @@
 // Run them with: python tools/dev-server.py -> http://localhost:8138/run-tests.html
 
 import {
-  MONSTER_TABLE, PLAYER_HP,
+  ITEM_TABLE, MONSTER_TABLE, PLAYER_HP,
 } from '../src/sim/balance.js';
 import { newGame, playGame, replayGame } from '../src/sim/game.js';
 import { step, ACTIONS } from '../src/sim/step.js';
@@ -14,6 +14,7 @@ import { classifyRooms, spineShare } from '../src/sim/spine.js';
 import { itemWeights } from '../src/sim/spawn.js';
 import { floorPlan } from '../src/sim/dungeon.js';
 import { monstersAhead, valueByItemName } from '../src/bot/loot.js';
+import { growthOf, summarise, ITEM_VALUE } from '../src/analysis/shape.js';
 
 // ***** tiny test harness ***** //
 
@@ -770,6 +771,49 @@ test('spread does not break determinism', () => {
   const b = newGame(31415, floorPlan(9));
   assertEq(a.monsters.length, b.monsters.length, 'same seed gave different sizes');
   assertEq(JSON.stringify(a.monsters), JSON.stringify(b.monsters), 'rosters differ');
+});
+
+// ***** curve-shape diagnostics ***** //
+//
+// growthOf is the one piece of real maths the shape report rests on: every
+// one of the six quantities is compared through it, so an error here would
+// be invisible and would contaminate all six at once.
+
+test('growth is recovered exactly from a known geometric series', () => {
+  for (const ratio of [1.3, 1.0, 0.78]) {
+    const series = Array.from({ length: 10 }, (_, i) => 5 * Math.pow(ratio, i));
+    const got = growthOf(series).perFloor;
+    assert(Math.abs(got - ratio) < 1e-9,
+      `ratio ${ratio}: recovered ${got}`);
+  }
+});
+
+test('growth ignores zeroes rather than returning nonsense', () => {
+  // A floor can legitimately hold no loot at all. log(0) would poison the
+  // whole fit, so those points are dropped and the count is reported.
+  const g = growthOf([0, 4, 8, 16, 32]);
+  assert(Math.abs(g.perFloor - 2) < 1e-9, 'growth was distorted by the zero');
+  assertEq(g.n, 4, 'the dropped point was not reported');
+});
+
+test('summarise reports the spread as CV, not raw variance', () => {
+  // Raw variance grows when the mean grows, which would make every deep
+  // floor look more random purely because it is bigger.
+  const small = summarise([1, 2, 3]);
+  const big = summarise([100, 200, 300]);
+  assert(big.sd > small.sd, 'the scaled-up series should have a bigger sd');
+  assert(Math.abs(big.cv - small.cv) < 1e-9, 'CV must be scale-free');
+});
+
+test('no item is valued as reward without a mechanical effect', () => {
+  // Collectibles are gone, but the guard stays: adding one back must not
+  // silently inflate what a floor looks like it is paying.
+  for (const item of ITEM_TABLE) {
+    const worth = ITEM_VALUE.get(item.name) || 0;
+    const does = (item.dmg || 0) + (item.armour || 0) + (item.heal || 0);
+    if (does === 0) assertEq(worth, 0, `${item.name} has no effect but is valued`);
+    else assert(worth > 0, `${item.name} has an effect but is valued at zero`);
+  }
 });
 
 // ***** run it ***** //
