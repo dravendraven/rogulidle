@@ -41,10 +41,11 @@ session, skip it.
 | 1 | I8 | One page: three levels, twelve numbers, success and health | REPORTED |
 | 2 | M18 | The rat gets a real attack and a real chase radius | READY |
 | 3 | M17 | Near-flat roster, ~5 to ~8, with strength carrying the difficulty | READY |
-| 4 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
-| 5 | X1 | Delete what nothing references | READY |
-| 6 | M4 | Side-room risk/reward spread scales with depth | READY |
-| 7 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 4 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | READY |
+| 5 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
+| 6 | X1 | Delete what nothing references | READY |
+| 7 | M4 | Side-room risk/reward spread scales with depth | READY |
+| 8 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -326,6 +327,54 @@ arithmetic answers.
 question — the last two attempts at it both looked right on paper and both
 were wrong in a way nobody predicted. Build it, look at `run-check.html`,
 and watch a few runs before deciding.
+
+## M20 · start and shrine at the two ends of the map
+
+`work agent` · **READY**
+
+**Half of this already exists.** The shrine goes in the room furthest from
+the hero, by walkable path length — and that is already a deliberate
+divergence, since Rogule sorts by the path *vector* rather than its length
+(`spec §9.1`), which scattered the shrine into an arbitrary room.
+
+**What does not exist is choosing the pair.** The hero is dropped on a
+random free tile first (`pickFree()`), and only then does the shrine take
+the room furthest from wherever that happened to be. Land the hero in a
+central room and "furthest" is merely moderate.
+
+**Do.** Compute walkable distance between every pair of room centres — one
+flood per room, ten to twenty of them, cheap — and put the hero and the
+shrine at the two ends of the longest pair.
+
+### Two things this costs, and the second is the real one
+
+**Spine share goes up.** A longer mandatory path crosses more rooms, and
+every room it crosses is spine. That number sits at 0.83–0.91 today against
+a 0.95 ceiling — M10 exists because it broke once already. This pushes
+directly at it, and there may not be room.
+
+**It removes a source of floor-to-floor variance.** Today the descent length
+varies with where the hero happens to land; fixing it to the maximum makes
+every floor the same shape. That variance is exactly what CV measures, and
+CV is the one number this project actually won.
+
+So this trades **variety between floors** for **consistency within one**.
+Both are defensible and they are genuinely opposed — the item is worth
+building to see the size of the trade, not because the direction is
+obviously right.
+
+**Assert.**
+- Hero and shrine are the furthest-apart pair of rooms, verified directly.
+- Path length hero→shrine, mean and spread, before and after. The spread
+  falling is the cost, and it should be reported rather than only the mean
+  rising.
+- Spine share per floor, still inside `[0.6, 0.95]`.
+- CV of challenge, before and after.
+
+**If spine share leaves the band**, say so with the numbers rather than
+adjusting the band. It is the same question M16 was told to answer the same
+way, and there the worry turned out to be misplaced — the lever was
+elsewhere. It may be misplaced here too.
 
 ## M19 · pay for the harder opening with loot
 
