@@ -1975,6 +1975,93 @@ game — and this rate gets re-read against whatever replaces it.
 
 ---
 
+## Candidates — recorded, not scheduled
+
+Ideas with a reason attached, waiting for a slot. Nothing here has an
+acceptance number yet; several would not survive contact with one. They sit
+here rather than in the queue because **I5 is unresolved** — it may show the
+ruler cannot answer the questions these would be judged by, and scheduling
+work against a suspect instrument is the mistake the buffer target already
+made once.
+
+### C1 · compositional bands, not just spatial clusters
+
+M7 groups creatures **spatially** — k of them near each other. DCSS bands are
+**compositional**: an orc priest brings orcs, a pack is all hounds. The group
+has an identity.
+
+Two things that spatial grouping alone does not buy. A same-type group is
+closer to a single draw than a mixed one, so it cuts deeper into the `√n`
+dilution M7 exists to fight. And it reads: "a pack of wolves" is a thing on
+screen, while a bat, an ogre and a rat standing together is noise — which is
+half the value in a game whose product is watching.
+
+Cheap: draw one type, repeat it. Probably belongs inside M7 rather than as
+its own item, since it shares the same budget.
+
+### C2 · layout variety, the way DCSS picks a builder per level
+
+Nothing in the backlog touches map *structure*, and the arithmetic likes it
+more than most of what is scheduled.
+
+**Layout is floor-level variance.** A cave floor and a corridor floor cost
+very different amounts with the same roster — open ground lets several
+creatures engage at once, a corridor forces them into a queue. That is one
+draw per floor, and floor-level draws do not dilute with `n`. It is the same
+class as M4 and precisely the class M3 is not.
+
+It also amplifies M7. In an open cave the bot **cannot** un-group a cluster
+by backing into a corridor — which is the caveat I2's review raised, that
+grouping only becomes a lever where the map prevents the escape.
+
+Not expensive: ROT.js already ships Digger, Uniform, Cellular and Rogue. The
+risk is whether `spine.js`'s spine/side classification survives layouts it
+was never written against.
+
+And it is the only candidate here that changes what is **seen**. Ten floors
+out of the same digger are visually monotonous.
+
+### C3 · reward placement — already designed, needs verifying not designing
+
+Rogulidle already couples reward to risk: `SIDE_CHEST_BIAS` puts chests in
+side rooms, which have guards; `CHEST_LOOT_RICHER_FAR` puts the good ones
+far; `CHEST_QUALITY_BY_DEPTH` makes depth buy quality. And `map-design.md`
+already found the point DCSS gets from hand authorship — that risk and
+reward must roll **independently** per room, or the gamble is a free lunch.
+
+So the design exists. What is missing is evidence it works, which is **I4**
+— parked, measuring whether the bot can tell a good side room from a bad
+one. No new design needed; the parked measurement is the whole gap.
+
+### C4 · tie the drop to the creature that carries it
+
+`spawn.js:359` draws a monster's drop from a table that never looks at the
+monster: `drawWeighted(state, 'spawn', monsterWeights)` ignores `template`.
+**Killing a t-rex and killing a rat pay the same expected loot.**
+
+In DCSS a monster's loot *is* its equipment — the orc warrior is dangerous
+because it carries an axe, and the axe is what you get. Risk and reward are
+the same object, so "is this fight worth it" is answerable by looking at the
+monster. Here the payment does not know what you killed.
+
+**And the share this affects grows with depth.** Chests are flat at 6 while
+drops scale with creature count:
+
+    floor 1     78% chest,  22% drop
+    floor 10    26% chest,  74% drop
+
+Every deliberate reward decision in the map design applies to **chests
+only** — so the designed channel shrinks to a quarter of the loot exactly
+where the design was meant to matter most, and the growing majority is
+undifferentiated. This is also the likeliest reason the probe reads
+`reward/challenge` as flat and about 1% of challenge: what it steps over
+deep down is mostly generic drop.
+
+Cheap to change — centre the drop's weight on the creature's own table index,
+the same way the creature itself is chosen. But it moves reward, and reward
+is the one quantity with **no instrument at all**; M5 is ON HOLD for exactly
+that reason. Building here means moving a number nobody can read.
+
 ## Archived
 
 ### The count→strength route — UNARCHIVED, see M7
