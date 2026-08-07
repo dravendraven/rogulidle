@@ -206,6 +206,27 @@ export const MONSTER_WEIGHTS = [
   [0, 6], [1, 2], [-1, 2], [2, 1], [-2, 1],
 ];
 
+// ***** M3 — an out-of-depth tail, docs/backlog.md M3 ("the gap M7 left") ***** //
+// The per-floor ceiling (`difficultyScale` in spawn.js) never reaches the
+// table's true top within the descent — `saturatedAt` on the M7-adopted
+// ramp stays under 1.0 through floor 10 — so the strongest possible blow is
+// frozen well below `t-rex`, and M7 raised lethality by ATTRITION (more
+// creatures acting together) rather than by a bigger single hit. This is a
+// RARE, INDEPENDENT roll — separate from the per-cluster tier draw — that
+// can reach the table's true top regardless of local depth. Off by
+// default — self-tested, not yet adopted.
+export const OUT_OF_DEPTH_TAIL = false;
+
+// GUESS — zero on floor 1 by design: nothing is "out of depth" yet at the
+// very top of the dungeon. Grows with depth and stays capped well under
+// certainty, because this is a TAIL — the median floor must never feel it,
+// only the rare one. `PLAYER_HP` is 10 with no regeneration and damage is
+// `0..xp-1`, so a `t-rex` (xp 10) can take nearly a full health bar in one
+// blow — the cap keeps that a rare shock, not a routine one.
+export const OUT_OF_DEPTH_CHANCE_BASE = 0;
+export const OUT_OF_DEPTH_CHANCE_PER_LEVEL = 0.02;
+export const OUT_OF_DEPTH_CHANCE_CAP = 0.15;
+
 // ***** items ***** //
 
 // Pick weight is 1/value, so a HIGH value means a RARE item.

@@ -30,7 +30,7 @@ repeating it in the table only made the queue slower to scan.
 |---|---|---|---|---|---|---|
 | 1 | I7 | Measure capacity with death suppressed at PLAYER_HP, not on a 400 hp probe | map | metrics | IN FLIGHT | n/a |
 | 2 | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | READY | n/a |
-| 3 | M3 | Unlock the strength ceiling with small probability, so a rare blow can be huge | map | work | IN FLIGHT | — |
+| 3 | M3 | Unlock the strength ceiling with small probability, so a rare blow can be huge | map | work | REPORTED | — |
 | 4 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | BLOCKED on I6 | — |
 | 5 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | READY · fine tuning | — |
 | — | M7 | Move difficulty off creature count onto strength and same-type clusters | map | work | **DONE** · adopted, flag ON | done |
@@ -690,7 +690,7 @@ spread widened. Measured on the probes.
 
 ## M3 · an out-of-depth tail
 
-`map` · `work agent` · **IN FLIGHT** — the gap M7 left
+`map` · `work agent` · **REPORTED** — the gap M7 left
 
 `MONSTER_STRENGTH = 0.35` is fixed, so the strongest possible blow is the
 same on floor 1 and floor 10. There is no right tail at all.
@@ -711,6 +711,78 @@ not tune to it.
 damage is `0..xp−1`. Near the top of the table one blow can take almost
 everything. The reaction window must shrink, not vanish — report the
 distribution of damage per blow, not its mean. The tail is what kills.
+
+### Result
+
+**Baseline: M7 adopted in code, not just docs.** `DIFFICULTY_REBALANCED`
+was `true` in `docs/balance.md`/backlog (Review 2, `7cc3ff4`) but still
+`false` in `src/sim/difficulty.js` — the same docs-precedes-code gap as the
+earlier `HP_FROM_KILLS` case. Executed the flip (`25f45a1`) so this item's
+baseline actually includes M7, per instruction. Two tests asserting the old
+off-by-default behaviour were updated the same way as before (one now
+asserts the adopted constants, one compares two independent constructions
+of "no clustering" instead of against a default that no longer means
+`clusterSize 1`).
+
+**DISCLOSED, NOT FIXED, out of scope for this item:** executing that flip
+surfaced a real regression — `a floor puts most of its threat mass on the
+mandatory route` (floor 7, 12 seeds) now reads mean spine share 0.97,
+above the 0.95 "side rooms are not empty" ceiling. Confirmed by reverting
+the flag that clustering causes it: with `CLUSTER_SIZE=6` and small
+rebalanced rosters, one shared zone-per-cluster draw can decide most of a
+floor's placement in a single roll, concentrating threat instead of
+splitting it per the map design's target. Left failing on purpose — not a
+design decision the work agent makes unilaterally, and unrelated to M3's
+own mechanism. 76/77 tests pass for that reason; the one failure is this,
+not M3.
+
+**Built, flag off.** `OUT_OF_DEPTH_TAIL = false` in `src/sim/balance.js`.
+After a floor finishes populating, a chance — zero on floor 1, growing
+(capped) with depth via `outOfDepthChanceAt` in `src/sim/difficulty.js`,
+mirroring `floorSpread`'s shape — decides whether ONE already-placed
+monster gets reskinned into a tier drawn near the table's true top (same
+position, zone, drop; only its own stats change). Reskinning rather than
+adding keeps the roster size untouched. With the flag off the chance is
+always 0 and `spawn.js` skips the roll entirely, rather than drawing a
+`drawChance(..., 0)` that can never fire but would still consume an RNG
+value — verified RNG-identical to before this item existed (`zero chance
+draws nothing extra`). 5 new tests, 76/77 total (see above).
+
+**Self-tested (work agent, NOT a metrics-agent reading), n=200 paired
+seeds per floor, flag off vs on:**
+
+    floor   count off/on      mass off/on       chance
+      1     2.00 / 2.00       10.0 / 10.0       0.000
+      5     3.01 / 3.01       23.8 / 29.6       0.080
+     10     7.04 / 7.04      118.7 / 132.5      0.150
+
+    max single blow (xp-1), off vs on:
+      1   p50 2/2   p90 2/2   p99 3/3   max 3/3
+      5   p50 2/2   p90 3/3   p99 4/9   max  4/9
+     10   p50 3/3   p90 4/9   p99 5/9   max  5/9
+
+**Median holds exactly** (count identical to 2 decimals at every floor
+checked, p50 damage identical) — the acceptance criterion's first clause.
+**The tail moves**, and moves toward the table's actual top (`t-rex`,
+xp 10) rather than a partial climb.
+
+**Worth flagging for the calibration reading, not fixed here:** floor 10's
+p90 shows the spike (4 → 9), not just p99. At `OUT_OF_DEPTH_CHANCE_CAP =
+0.15`, roughly 1 in 7 floor-10 visits gets the reskin — arguably too
+frequent to read as "rare" by the time it reaches the 90th percentile
+rather than staying below p95. Floor 5 (chance 0.08) looks more like the
+intended shape — only p99 and the max move. All three chance constants are
+marked `INITIAL GUESS`; whether the cap needs to come down is exactly the
+kind of thing the probes should decide, not a work-agent guess.
+
+**Not measured, per the explicit "flag off, then stop" instruction:** CV
+per floor and the challenge/power interaction (need the probes), and real
+finish rate. Also not attempted: distinguishing whether this addresses I2's
+unsettled attrition-vs-spike question from M7 Review 2 — that needs the
+same conditioned-on-combat-turns statistic Review 2 asked for, on the
+probes, flag off against on.
+
+Not requesting a reading — the metrics agent's is what decides this.
 
 ---
 

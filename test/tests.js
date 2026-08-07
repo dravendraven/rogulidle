@@ -2,7 +2,7 @@
 // Run them with: python tools/dev-server.py -> http://localhost:8138/run-tests.html
 
 import {
-  HP_GRANT_AMOUNT, ITEM_TABLE, MONSTER_TABLE, PLAYER_HP,
+  HP_GRANT_AMOUNT, ITEM_TABLE, MONSTER_TABLE, OUT_OF_DEPTH_TAIL, PLAYER_HP,
 } from '../src/sim/balance.js';
 import { newGame, playGame, replayGame } from '../src/sim/game.js';
 import { step, ACTIONS } from '../src/sim/step.js';
@@ -14,7 +14,7 @@ import { classifyRooms, spineShare } from '../src/sim/spine.js';
 import { itemWeights } from '../src/sim/spawn.js';
 import { floorPlan } from '../src/sim/dungeon.js';
 import {
-  floorParams, floorStrength, makeFloorPlan, monstersAt, saturatedAt,
+  floorParams, floorStrength, makeFloorPlan, monstersAt, outOfDepthChanceAt, saturatedAt,
   CLUSTER_SIZE, DIFFICULTY_REBALANCED, MONSTER_GROWTH, MONSTER_GROWTH_REBALANCED,
   MONSTER_STRENGTH, STRENGTH_GROWTH, STRENGTH_GROWTH_REBALANCED,
 } from '../src/sim/difficulty.js';
@@ -1044,6 +1044,72 @@ test('a cluster too big for the map degrades instead of hanging or crashing', ()
   // terminate and place SOME monsters, not spin or throw.
   const state = newGame(62000, { ...floorPlan(3), clusterSize: 999 });
   assert(state.monsters.length > 0, 'no monsters placed at all with an oversized cluster');
+});
+
+// ***** M3 — an out-of-depth tail, and it must stay off ***** //
+
+test('the tail is a no-op at its shipped value', () => {
+  // Mirrors the M7 no-op guard: a measuring instrument, not a shipped
+  // change, until it is adopted.
+  assertEq(OUT_OF_DEPTH_TAIL, false, 'OUT_OF_DEPTH_TAIL is no longer off by default');
+  for (let level = 0; level < 10; level++) {
+    assertEq(floorParams(level).outOfDepthChance, 0,
+      `floor ${level + 1} carried a nonzero out-of-depth chance with the flag off`);
+  }
+});
+
+test('zero chance draws nothing extra', () => {
+  // The strongest form of "off means off": omitting outOfDepthChance and
+  // passing it explicitly as 0 must be RNG-identical, monster for monster —
+  // proof that a chance of 0 skips the roll rather than making a draw that
+  // always fails. If this ever regresses, every floor after this one in a
+  // dungeon shifts, because the whole rest of that floor's RNG stream moves.
+  const withOmitted = newGame(63000, floorPlan(6));
+  const withZero = newGame(63000, { ...floorPlan(6), outOfDepthChance: 0 });
+  assertEq(JSON.stringify(withOmitted.monsters), JSON.stringify(withZero.monsters),
+    'an explicit outOfDepthChance of 0 changed generation');
+});
+
+test('the chance grows with depth and stays capped', () => {
+  assertEq(outOfDepthChanceAt(0), 0, 'floor 1 is not zero — nothing should be out of depth yet');
+  const nine = outOfDepthChanceAt(9);
+  assert(nine > outOfDepthChanceAt(0), 'chance did not grow from floor 1 to floor 10');
+  assert(nine <= 0.15 + 1e-9, `chance ${nine} exceeded its cap`);
+  assertEq(outOfDepthChanceAt(50), outOfDepthChanceAt(9),
+    'chance kept climbing past its cap on a very deep floor');
+});
+
+test('a fired roll swaps one monster without changing the roster size', () => {
+  // outOfDepthChance: 1 forces the roll to fire every time — the
+  // deterministic case, for a test that does not depend on luck.
+  const before = newGame(64000, floorPlan(5));
+  const after = newGame(64000, { ...floorPlan(5), outOfDepthChance: 1 });
+  assertEq(after.monsters.length, before.monsters.length,
+    'a fired roll changed how many monsters spawned');
+  const beforeXp = before.monsters.map((m) => m.xp).sort();
+  const afterXp = after.monsters.map((m) => m.xp).sort();
+  assert(JSON.stringify(beforeXp) !== JSON.stringify(afterXp),
+    'forcing the roll to fire did not change any monster\'s tier');
+});
+
+test('a fired roll reaches near the top of the table', () => {
+  // monsterWeightsAround(top) puts most of its weight on the top slot and
+  // its two neighbours below — so on floor 5, where the normal per-cluster
+  // draw cannot reach that high on its own (difficultyScale is nowhere near
+  // 1 that shallow), a forced roll should still land there almost every
+  // time. Checking the floor's own max xp rather than diffing against an
+  // unforced roll sidesteps having to identify which monster was the one
+  // that got swapped.
+  const threshold = MONSTER_TABLE[MONSTER_TABLE.length - 3].xp;
+  let reached = 0;
+  const seeds = 20;
+  for (let seed = 0; seed < seeds; seed++) {
+    const after = newGame(65000 + seed, { ...floorPlan(5), outOfDepthChance: 1 });
+    const maxXp = Math.max(...after.monsters.map((m) => m.xp));
+    if (maxXp >= threshold) reached++;
+  }
+  assert(reached >= seeds * 0.7,
+    `only ${reached}/${seeds} forced rolls reached near the table's top`);
 });
 
 // ***** curve-shape diagnostics ***** //

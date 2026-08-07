@@ -686,11 +686,48 @@ posição, com cada criatura ainda sorteando seu próprio tipo, não move o CV
 nada (medido 0,945 contra uma base de 0,944) — a proximidade sozinha não
 compra nada; o grupo precisa ser um tipo só.
 
-**Estado atual: construído, `DIFFICULTY_REBALANCED = false`.** Com a flag
-desligada o motor é byte-idêntico ao de antes do M7. Ver `docs/backlog.md`
-M7 para os números medidos — desafio dentro do orçamento (1,337 ±0,029
-contra a meta de 1,343 ±0,03), CV subiu de 0,944 para 0,986 por andar
-(dentro do ruído da meta de ≥1,00, ambição de 1,05 não alcançada), e um
-teto estrutural em torno de `CLUSTER_SIZE = 6`: com a contagem já mais
-lenta, o andar 10 chega a apenas 7 criaturas, então um cluster de 6 já é
-quase o andar inteiro e não sobra o que agrupar.
+**Estado atual: ADOTADO, `DIFFICULTY_REBALANCED = true`.** Ver
+`docs/backlog.md` M7 para os números medidos (Review 2) — CV subiu de 0,941
+para 0,986 por andar (~3σ, dentro de 1σ da meta de ≥1,00), challenge/power e
+finishes dentro das faixas, e um teto estrutural em torno de
+`CLUSTER_SIZE = 6`: com a contagem já mais lenta, o andar 10 chega a apenas
+7 criaturas, então um cluster de 6 já é quase o andar inteiro e não sobra o
+que agrupar. Registrado também no Review 2: o desafio leu inalterado na
+sonda (1,341 → 1,337) enquanto `finishes` do bot real caiu 11,3 pontos — a
+sonda subestima o efeito do agrupamento contra um jogador competente, então
+"desafio se manteve" descreve o instrumento, não uma alegação de que a
+dificuldade não mudou.
+
+### 13.6 Um golpe raro pode vir de fora da profundidade (M3)
+
+**Não existe no original.** Em Rogule o teto de força de um andar
+(`difficultyScale`) é o único limite de qual criatura pode aparecer em
+qualquer ponto do andar — não há chance de nada além desse teto.
+
+**Problema no original.** Mesmo com o M7 adotado, o teto por andar nunca
+alcança o topo real da tabela dentro da descida — `saturatedAt` no ritmo
+adotado fica bem abaixo de 1,0 até o andar 10 — então o golpe mais forte
+possível fica congelado bem abaixo do `t-rex`. O M7 elevou a letalidade por
+DESGASTE (mais criaturas agindo juntas), não por um golpe único maior — essa
+é a lacuna que o M3 existe para preencher.
+
+**Regra nova.** Atrás de uma flag (`OUT_OF_DEPTH_TAIL`, desligada por
+padrão): depois que o andar termina de ser povoado, um sorteio RARO e
+INDEPENDENTE do sorteio de tier por cluster — cuja chance é zero no andar 1
+e cresce com a profundidade, sempre limitada bem abaixo da certeza (ver
+`docs/balance.md`) — pode substituir UMA criatura já posicionada por outra
+sorteada perto do topo real da tabela, mantendo a mesma posição, zona e
+loot. Substituir em vez de adicionar mantém a contagem do andar (e portanto
+a dificuldade mediana) intocada; só o golpe daquela vítima muda.
+
+**Consequência.** `PLAYER_HP` é 10, sem regeneração (§13.1), e dano é
+`0..xp−1` — um `t-rex` (xp 10) pode tirar quase a barra inteira num só
+golpe. Isso tem que continuar sendo um choque raro, não uma rotina: por
+isso a chance fica sempre pequena e cresce devagar com a profundidade, em
+vez de um salto abrupto em algum andar fixo.
+
+**Estado atual: construído, `OUT_OF_DEPTH_TAIL = false`.** Com a flag
+desligada nada muda: a chance é sempre zero e nenhum sorteio extra é feito
+(um sorteio que nunca dispara ainda consumiria um valor do stream de RNG, o
+que empurraria toda geração depois dele). Ver `docs/backlog.md` M3 para o
+que foi medido.

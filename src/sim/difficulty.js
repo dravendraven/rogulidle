@@ -1,5 +1,7 @@
 import {
   FLOOR_SPREAD_BASE, FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL,
+  OUT_OF_DEPTH_CHANCE_BASE, OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_CHANCE_PER_LEVEL,
+  OUT_OF_DEPTH_TAIL,
   SIDE_ACTIVATION_CAP, SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE,
 } from './balance.js';
 
@@ -180,12 +182,24 @@ export function floorSpread(level, model = {}) {
   return Math.max(0, Math.min(cap, base + perLevel * Math.max(0, level)));
 }
 
+// ***** M3 — an out-of-depth tail, docs/backlog.md M3 ("the gap M7 left") ***** //
+// Zero on floor 1 by design (nothing is out of depth yet at the very top),
+// rising with depth and capped well under certainty — see balance.js for
+// why this has to stay rare. `level` here is 0-based, matching floorStrength
+// and floorSpread above.
+export function outOfDepthChanceAt(level, model = {}) {
+  const base = model.outOfDepthChanceBase ?? OUT_OF_DEPTH_CHANCE_BASE;
+  const perLevel = model.outOfDepthChancePerLevel ?? OUT_OF_DEPTH_CHANCE_PER_LEVEL;
+  const cap = model.outOfDepthChanceCap ?? OUT_OF_DEPTH_CHANCE_CAP;
+  return Math.max(0, Math.min(cap, base + perLevel * Math.max(0, level)));
+}
+
 // Everything the generator needs for floor N, zero-based.
 //
 // With DIFFICULTY_REBALANCED off, this is byte-identical to before M7: the
 // three lines below all read the ORIGINAL constants (MONSTER_GROWTH,
 // STRENGTH_GROWTH's own default, clusterSize 1). The flag is the only
-// branch in this function.
+// branch in this function, alongside OUT_OF_DEPTH_TAIL for M3.
 export function floorParams(level) {
   const growth = DIFFICULTY_REBALANCED ? MONSTER_GROWTH_REBALANCED : MONSTER_GROWTH;
   const strengthGrowth = DIFFICULTY_REBALANCED ? STRENGTH_GROWTH_REBALANCED : STRENGTH_GROWTH;
@@ -198,6 +212,10 @@ export function floorParams(level) {
     chests: CHESTS_PER_FLOOR,
     difficultyScale: floorStrength(level, { strengthGrowth }),
     clusterSize,
+    // Zero when the flag is off, so spawn.js skips the roll entirely rather
+    // than drawing a `drawChance(..., 0)` that always fails — a draw of any
+    // kind, even one that never fires, would still perturb the RNG stream.
+    outOfDepthChance: OUT_OF_DEPTH_TAIL ? outOfDepthChanceAt(level) : 0,
     dropChance: DROP_CHANCE,
     weaponScarcity: SCARCITY,
     armourScarcity: SCARCITY,
@@ -226,6 +244,12 @@ export const DEFAULT_MODEL = {
   // M7. clusterSize 1 is no clustering — every monster still an independent
   // draw, same as the shipped default (DIFFICULTY_REBALANCED off).
   clusterSize: 1,
+  // M3. Both 0 by default — off means off here too, same shape as
+  // `monstersPerLevel`: a page opts in by setting `outOfDepthChancePerLevel`
+  // above 0, rather than this sandbox silently carrying the shipped rate.
+  outOfDepthChanceBase: 0,
+  outOfDepthChancePerLevel: 0,
+  outOfDepthChanceCap: OUT_OF_DEPTH_CHANCE_CAP,
   dropChance: DROP_CHANCE,
   weaponScarcity: SCARCITY,
   armourScarcity: SCARCITY,
@@ -258,6 +282,7 @@ export function makeFloorPlan(model = {}) {
       chests: Math.max(0, Math.round(m.chests + m.chestsPerMonster * monsters)),
       difficultyScale: floorStrength(level - 1, m),
       clusterSize: m.clusterSize,
+      outOfDepthChance: outOfDepthChanceAt(level - 1, m),
       dropChance: m.dropChance,
       weaponScarcity: m.weaponScarcity,
       armourScarcity: m.armourScarcity,

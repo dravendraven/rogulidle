@@ -438,6 +438,36 @@ export function populate(state, map, counts = {}) {
     for (const pos of positions) placeOne(pos, template);
   }
 
+  // 6. M3 — docs/backlog.md, "the gap M7 left". A RARE, INDEPENDENT roll,
+  // separate from the per-cluster tier draw above, that can reach the
+  // table's true top regardless of local depth — the per-cluster draw
+  // never does, since `difficultyScale` stays well under 1.0 through
+  // floor 10 even on the M7-adopted ramp (see `saturatedAt`).
+  //
+  // Guarded on `outOfDepthChance > 0` so the flag-off path (chance always
+  // 0) draws nothing extra: `drawChance(state, 'spawn', 0)` would still
+  // consume a stream value even though it can never fire, which would
+  // perturb every draw after it for no reason.
+  const outOfDepthChance = counts.outOfDepthChance ?? 0;
+  if (outOfDepthChance > 0 && state.monsters.length
+      && drawChance(state, 'spawn', outOfDepthChance)) {
+    const victim = state.monsters[drawInt(state, 'spawn', 0, state.monsters.length - 1)];
+    const slot = drawWeighted(state, 'spawn', monsterWeightsAround(MONSTER_TABLE.length - 1));
+    const template = MONSTER_TABLE[slot];
+    // Reskins an already-placed monster in place — same roster size, same
+    // position, same drop — rather than adding a body, so the median floor
+    // (count, chests, mass split) is untouched and only the rare victim's
+    // OWN blow gets stronger.
+    victim.name = template.name;
+    victim.emoji = template.emoji;
+    victim.hp = template.hp;
+    victim.hpMax = template.hp;
+    victim.xp = template.xp;
+    victim.activation = victim.side
+      ? Math.min(template.activation, counts.sideActivationCap ?? SIDE_ACTIVATION_CAP)
+      : template.activation;
+  }
+
   // Items lying loose on the floor. Starts empty: everything enters this list
   // later, when a chest is opened or a monster dies.
   state.items = [];

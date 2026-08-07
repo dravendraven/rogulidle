@@ -490,6 +490,44 @@ while real-bot finishes fell 11.3 points — the probe under-reads
 clustering's effect on a competent player, so "challenge held" describes
 the instrument, not a claim that difficulty is unchanged.
 
+## An out-of-depth tail (M3) — off by default
+
+| Name | Value | Status |
+|---|---|---|
+| `OUT_OF_DEPTH_TAIL` | `false` | **OFF by default** — built and self-tested, no reading requested yet. See `docs/backlog.md` M3 |
+| `OUT_OF_DEPTH_CHANCE_BASE` | 0 | **INITIAL GUESS** — zero on floor 1 by design |
+| `OUT_OF_DEPTH_CHANCE_PER_LEVEL` | 0.02 | **INITIAL GUESS** |
+| `OUT_OF_DEPTH_CHANCE_CAP` | 0.15 | **INITIAL GUESS** |
+
+Live in `src/sim/balance.js` beside `MONSTER_TABLE` and `MONSTER_WEIGHTS`;
+the growth function (`outOfDepthChanceAt`) lives in `src/sim/difficulty.js`
+next to `floorSpread`, same `base + perLevel × level`, capped shape.
+
+Even with M7 adopted, the per-cluster tier draw never reaches the table's
+true top within a ten-floor descent — `saturatedAt` on the adopted ramp
+stays under 1.0 through floor 10 — so the strongest possible single blow is
+frozen well below `t-rex`. M7 raised lethality by ATTRITION (more
+creatures acting together); this is the lever for a bigger single hit,
+which is the gap M7's own Review 2 flagged as unsettled (the pooled
+p95/p99 damage reading could not tell attrition from spike apart).
+
+With the flag on: after a floor finishes populating, a chance that is zero
+on floor 1 and grows (capped) with depth decides whether ONE already-placed
+monster gets reskinned into a tier drawn near the table's true top —
+same position, zone and drop, only its own stats change. Reskinning an
+existing monster rather than adding one keeps the roster size, and
+therefore the median floor, untouched; only the rare floor that rolls the
+spike moves. With the flag off (chance always 0), `spawn.js` skips the
+draw entirely rather than rolling a chance that can never fire — verified
+RNG-identical to before this item existed.
+
+Self-tested, not yet measured on the probes: `PLAYER_HP` is 10 with no
+regeneration and damage is `0..xp−1`, so a `t-rex` (xp 10) can take close
+to a full health bar in one blow. See `docs/backlog.md` M3 for what the
+metrics agent's reading is meant to answer — the distribution of damage
+per blow, not its mean, since a rare near-lethal hit is exactly the point
+and a mean would wash it out.
+
 ## Defensive progression (M6)
 
 | Name | Value | Status |
