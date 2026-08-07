@@ -1,3 +1,34 @@
+// DECISION (M7 landed real clustering in the engine; this file's call to
+// make, per the M7 report and docs/backlog.md's "metrics owns this file").
+//
+// `toGrouped()` below CANNOT be made to "call the engine's placement" and
+// still answer I2's question. The engine's mechanism (`src/sim/spawn.js`,
+// `clusterAround`) draws ONE shared tier per cluster as it places it — tier
+// and position are chosen together, which is the whole point (M7's mid-build
+// finding: position-only clustering with independent tiers moved CV growth
+// 0.944 -> 0.945, nothing; same-type clusters moved it to 0.954+). I2 needed
+// the opposite: hold the roster's IDENTITIES fixed and vary only position,
+// to isolate spatial concentration from everything else. Those are two
+// different experiments, not two implementations of one.
+//
+// So: DEPRECATED, not reconciled. `toGrouped`, `clusterExperiment`,
+// `signTest` and everything they feed stay exactly as I2/I3 left them —
+// already DONE, already reviewed, describing THIS instrument's definition
+// of "grouped" (post-hoc, spatial-only, no zone awareness, cluster size
+// fixed at 3). Do not read them as a description of the shipped game after
+// M7, and do not extend them for a new clustering question.
+//
+// A NEW clustering question against the REAL engine mechanism (any question
+// after this one) should toggle `DIFFICULTY_REBALANCED`'s "on" state
+// directly — `src/analysis/observed-ruler.js` exports `M7_ON`
+// (`makeFloorPlan` from `src/sim/difficulty.js`, already built for reading a
+// flag's alternate state) — and drive the real bot or a probe against it,
+// the same way M7's own "settle the mechanism" reading does. No file here
+// needs editing for that; it needs calling correctly from wherever the new
+// question lives.
+//
+// ---
+//
 // I2 — does spatial clustering change LETHALITY, holding the roster fixed?
 //
 // A previous test spread the same roster out or grouped it and found no
@@ -316,4 +347,108 @@ function binomCoeffSum(n, kFrom) {
     coeff = coeff * (n - k) / (k + 1);
   }
   return sum;
+}
+
+// ***** M7 — finishes and per-turn spike, against the REAL engine flag ***** //
+//
+// The thing the file header above decided: a NEW clustering-adjacent
+// question, answered against `src/sim/`'s actual mechanism
+// (`floorPlanFn` — pass `M7_ON` from `src/analysis/observed-ruler.js` for
+// the flag's "on" state, omit for shipped/off), not against `toGrouped`.
+//
+// Real bot (`makeBot`), full ten-floor descents. Two things the Sonda-based
+// ruler cannot answer: "finishes" (Sonda B does not survive descents at all,
+// on or off — measured 0/1500 and 3/1500 in the same session's ruler
+// reading, which is not what "finishes" means anywhere else in this
+// project) and per-turn damage percentiles (`builtShape` only has
+// per-FLOOR damage; the spike question is about concentration WITHIN a
+// floor, which needs per-turn granularity).
+//
+// Reimplements the descent loop locally, same reasoning as
+// `observed-ruler.js`'s `driveDescent`: no hook in `playDungeon` for
+// per-turn tracking, and reaching into `src/sim/` for one is not this
+// file's call to make alone. `playFromState` below already exists for
+// exactly this (built for I2), so this just drives it across ten floors
+// with carry propagation instead of one.
+function carryFromPlayer(player) {
+  return {
+    hp: player.hp,
+    hpMax: player.hpMax,
+    armour: player.armour,
+    xp: player.xp,
+    inventory: player.inventory.map((i) => ({ ...i })),
+    kills: player.kills.slice(),
+  };
+}
+
+// Nearest-rank percentile, matching I3's definition (removed with the rest
+// of I3's Q2 build, needed again here for the same reason).
+function percentile(xs, p) {
+  if (!xs.length) return NaN;
+  const sorted = [...xs].sort((a, b) => a - b);
+  const rank = Math.min(sorted.length - 1, Math.ceil(p * sorted.length) - 1);
+  return sorted[Math.max(0, rank)];
+}
+
+export function botFinishesAndSpike(options = {}) {
+  const {
+    runs = 150, firstSeed = 970000, maxTurns = 1500, levels = LEVELS,
+    floorPlanFn = floorPlan, hpFromKills = false,
+  } = options;
+
+  let cleared = 0;
+  const allTurnDamage = [];
+  const perLevel = Array.from({ length: levels }, () => []);
+
+  for (let i = 0; i < runs; i++) {
+    let carry = null;
+    for (let level = 1; level <= levels; level++) {
+      const plan = floorPlanFn(level);
+      const counts = {
+        monsters: plan.monsters,
+        chests: plan.chests,
+        difficultyScale: plan.difficultyScale,
+        clusterSize: plan.clusterSize,
+        dropChance: plan.dropChance,
+        weaponScarcity: plan.weaponScarcity,
+        armourScarcity: plan.armourScarcity,
+        potionScarcity: plan.potionScarcity,
+        monsterSpread: plan.monsterSpread,
+        sideActivationCap: plan.sideActivationCap,
+        sideRoomDepthBonus: plan.sideRoomDepthBonus,
+        spineThreatShare: plan.spineThreatShare,
+        sideChestBias: plan.sideChestBias,
+        carry,
+        hpFromKills,
+      };
+      const seed = hashSeeds(firstSeed + i, level);
+      const state = newGame(seed, counts);
+      const bot = makeBot({ monsterCount: plan.monsters, level, levels });
+      const { state: endState, turns } = playFromState(state, bot, maxTurns);
+
+      for (const t of turns) {
+        allTurnDamage.push(t.dmg);
+        perLevel[level - 1].push(t.dmg);
+      }
+
+      if (endState.outcome !== 'ascended') { carry = null; break; }
+      carry = carryFromPlayer(endState.player);
+      if (level === levels) cleared++;
+    }
+  }
+
+  return {
+    cleared,
+    runs,
+    finishRate: runs ? cleared / runs : 0,
+    finishSe: runs ? Math.sqrt((cleared / runs) * (1 - cleared / runs) / runs) : 0,
+    pooled: {
+      n: allTurnDamage.length,
+      p95: percentile(allTurnDamage, 0.95),
+      p99: percentile(allTurnDamage, 0.99),
+    },
+    perLevel: perLevel.map((xs, i) => ({
+      level: i + 1, n: xs.length, p95: percentile(xs, 0.95), p99: percentile(xs, 0.99),
+    })),
+  };
 }

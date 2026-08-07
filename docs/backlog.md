@@ -27,7 +27,7 @@ its standing job, which is not a task and so has no row of its own.
 |---|---|---|---|---|---|---|
 | 1 | I7 | The probe survives because it is huge — that dilutes capacity and hides selection | map | metrics | READY · now | n/a |
 | 2 | I6 | Reward has no instrument, so M9 and M5 cannot be judged at all | map | metrics | READY | n/a |
-| 3 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | REPORTED | — |
+| 3 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | REPORTED | done |
 | 4 | M9 | A t-rex and a rat pay the same loot — tie the drop to what you killed | map | work | BLOCKED on I6 | — |
 | 5 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
 | 6 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
@@ -515,6 +515,69 @@ and shares one tier), same structure as §13.1–13.4.
 
 Stopping here, as instructed. The M7 reading is the metrics agent's from
 here.
+
+### Ruler reading (metrics agent) — M7 isolated from M6
+
+Ran against commit `f42f085` (both Review 1 fixes landed). Full numbers in
+`docs/kpi.md`'s "Objective 1" table — summarised here.
+
+**`HP_FROM_KILLS = false` on both arms, by design.** The work agent's own
+report measured with it on (M6 was adopted when M7 started), and its
+Review-1 correction already showed finishes moved 56.7% → 56.3% — M7's own
+contribution was −0.4, the rest was M6. That correction is honoured here by
+construction rather than repeated: both M7-off and M7-on use the flag's off
+state explicitly, so nothing measured below can be M6's.
+
+**Ruler (probes, `src/analysis/observed-ruler.js`, 150/150/1500 samples):**
+challenge holds (1.337 ±0.029 vs 1.343 ±0.03, reproduces the work agent's
+own number exactly), CV reaches its target within noise (0.986 ±0.006,
+also reproduces exactly), `challenge/power` clears ≥1.15 in both arms
+(1.261 off, 1.193 on).
+
+**Real bot (`src/analysis/clustering.js`'s new `botFinishesAndSpike` — the
+probes cannot answer this, Sonda B did not finish a single descent in
+either arm, 0/1500 and 3/1500):**
+
+    finishes         off 31.3% ±3.8 (47/150)   on 20.0% ±3.3 (30/150)
+                     gap -11.3pp, z ~ -2.25
+    p95/p99 per-turn  off 0 / 1                 on 0 / 1   (no consistent shift, pooled or per-floor)
+
+**Direct answer: inside the band, but the review's "near baseline" prediction
+undersold it, and the mechanism is answered.** Finishes stay inside 15–40%
+in both arms — no repeat of M6's breach. But M7 alone moves finishes by
+−11.3 points, a real effect (z ≈ −2.25), not the "should sit near ~30%"
+the review expected once isolated from M6. And **the mechanism the item
+asked to settle is attrition, not spike**: per-turn damage percentiles do
+not move at all (0/1 pooled, no per-floor pattern either) while finishes
+fall significantly. Grouping is raising lethality through more turns of
+exposure, not through a bigger single-turn hit — exactly the branch the
+item's own spec flagged as a possible outcome ("a difficulty increase
+rather than a shape change... grouping's share of the budget has to be
+re-argued rather than assumed"), now measured rather than left open.
+
+**What surprised me.** That "inside the band" and "near baseline" turned
+out to be different claims. The first is true; the second isn't, by about
+2 standard errors. Both mattered to report, because a future item reading
+only the pass/fail on the band would miss that grouping has a real, signed
+effect on survival that the challenge/CV/challenge-power story says
+nothing about.
+
+**What I could not resolve.** Per-turn damage is a coarse instrument at
+this sample — most turns deal 0 or 1 damage regardless of arm, so p95/p99
+saturate early and a real spike difference smaller than "1 more point of
+damage lands sometimes" would not show up at n≈140k turns pooled. Attrition
+is the more sensitive read here, but a percentile built for a wider dynamic
+range (or a much larger sample) is the only way to fully rule out a small
+spike effect rather than just fail to find a large one.
+
+**Boundary note, since this shipped a new function.** `botFinishesAndSpike`
+reimplements the descent loop locally (same reasoning as
+`observed-ruler.js`'s `driveDescent`, and clustering.js's own
+`playFromState` from I2) rather than adding a hook to `playDungeon` — no
+`src/sim/` change. `clustering.js`'s old `toGrouped`/`clusterExperiment`
+(I2/I3) are left untouched and marked deprecated in the file's own header;
+this reading used only the real engine flag (`M7_ON` from
+`observed-ruler.js`) and the real bot, never the old shadow mechanism.
 
 ## M9 · tie the drop to the creature that carries it
 

@@ -62,6 +62,20 @@ import { hashSeeds } from '../sim/rng.js';
 import { findPath } from '../sim/mapgen.js';
 import { effectiveHp, expectedDamage, weaponDamage } from '../sim/combat.js';
 import { PLAYER_HP, PLAYER_XP } from '../sim/balance.js';
+import {
+  makeFloorPlan, MONSTER_GROWTH_REBALANCED, STRENGTH_GROWTH_REBALANCED, CLUSTER_SIZE,
+} from '../sim/difficulty.js';
+
+// M7's "on" state, built from its own exported constants via the model
+// override `makeFloorPlan` already provides for exactly this — no src/sim/
+// change needed to read a flag's alternate state. `floorPlan(level)` (the
+// default everywhere above) already reads the "off" state, so passing this
+// as `floorPlanFn`/`dungeonOptions.floorPlan` is the whole toggle.
+export const M7_ON = makeFloorPlan({
+  monsterGrowth: MONSTER_GROWTH_REBALANCED,
+  strengthGrowth: STRENGTH_GROWTH_REBALANCED,
+  clusterSize: CLUSTER_SIZE,
+});
 
 // ***** the calibration hero ***** //
 //
@@ -300,11 +314,17 @@ export function isolatedShape(options = {}) {
     // this file, empty by default so every committed number above is
     // reproduced exactly when this is omitted.
     gameOptions = {},
+    // Same idea, for map-design flags (M7 and after) that change which
+    // floor gets generated rather than a play-time rule. Default is the
+    // shipped generator; pass `makeFloorPlan({...})` (src/sim/difficulty.js,
+    // already exported for exactly this) to read a flag's "on" state
+    // without editing that file.
+    floorPlanFn = floorPlan,
   } = options;
   const rows = [];
 
   for (let level = 1; level <= levels; level++) {
-    const plan = floorPlan(level);
+    const plan = floorPlanFn(level);
     const challenge = [];
     const reward = [];
     let discardedA = 0;
@@ -423,16 +443,17 @@ function carryFromPlayer(player) {
   };
 }
 
-function driveDescent(seed, makePolicy, startHero, maxTurns, levels, dungeonOptions = {}) {
+function driveDescent(seed, makePolicy, startHero, maxTurns, levels, dungeonOptions = {}, floorPlanFn = floorPlan) {
   let carry = startHero ? carryFromPlayer(startHero) : null;
   const perFloor = [];
 
   for (let level = 1; level <= levels; level++) {
-    const plan = floorPlan(level);
+    const plan = floorPlanFn(level);
     const counts = {
       monsters: plan.monsters,
       chests: plan.chests,
       difficultyScale: plan.difficultyScale,
+      clusterSize: plan.clusterSize,
       dropChance: plan.dropChance,
       weaponScarcity: plan.weaponScarcity,
       armourScarcity: plan.armourScarcity,
@@ -473,7 +494,7 @@ function driveDescent(seed, makePolicy, startHero, maxTurns, levels, dungeonOpti
 export function capacityShape(options = {}) {
   const {
     runs = 150, firstSeed = 950000, maxTurns = 4000, levels = LEVELS,
-    dungeonOptions = {},
+    dungeonOptions = {}, floorPlanFn = floorPlan,
   } = options;
 
   const rows = Array.from({ length: levels }, (_, i) => ({
@@ -483,7 +504,7 @@ export function capacityShape(options = {}) {
   let cleared = 0;
 
   for (let i = 0; i < runs; i++) {
-    const result = driveDescent(firstSeed + i, makeSondaPolicy, PROBE_HERO, maxTurns, levels, dungeonOptions);
+    const result = driveDescent(firstSeed + i, makeSondaPolicy, PROBE_HERO, maxTurns, levels, dungeonOptions, floorPlanFn);
     depths.push(result.depth);
     if (result.cleared) cleared++;
 
