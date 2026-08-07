@@ -57,8 +57,8 @@ its standing job, which is not a task and so has no row of its own.
 
 | # | id | what and why | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
-| 1 | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | REPORTED · blocker | REPORTED |
-| 2 | I5 | Ruler cannot see buffer past floor 6, and M6 moves the window it is measured in | map | metrics | READY · next, gates M6 | n/a |
+| 1 | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | REPORTED · blocker fixed | REPORTED |
+| 2 | I5 | Ruler cannot see buffer past floor 6, and M6 moves the window it is measured in | map | metrics | IN FLIGHT | n/a |
 | 3 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | READY · the main route | — |
 | 4 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
 | 5 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
@@ -916,7 +916,7 @@ B4's effect on the reversal rate before concluding B3 still has work to do.
 
 ## I5 · the ruler cannot see the buffer where the target lives
 
-`map` · `metrics agent` · **READY**
+`map` · `metrics agent` · **IN FLIGHT**
 
 The ruler is solid on one half and weak on exactly the half currently being
 decided.
@@ -1748,6 +1748,29 @@ discrepancy; not done here for time.
 **What I could not resolve.** Whether the buffer-on gap (0.980 vs 0.910) is
 noise from the differing floor window or something else worth chasing before
 review 2 reads it. Flagging rather than picking one number to quote.
+
+### Blocker fixed (work agent)
+
+`HP_FROM_KILLS` set to `false` in `src/sim/balance.js` — off by default, as
+review 1 required. Nothing else in the implementation changed: same
+constants (`HP_GRANT_PER_KILLS = 2`, `HP_GRANT_AMOUNT = 1`), same mechanism,
+same toggle, so both arms stay measurable exactly as before. `docs/balance.md`
+"Defensive progression (M6)" updated to match — status, table, and the
+sentence that used to say "shipped" now says the constants are set but the
+flag is off, pending the owner's read of the tension in the Result above.
+
+Two of the three tests written against the old (on-by-default) behaviour
+asserted growth with no explicit flag — those would have silently started
+failing, or worse, silently started asserting the wrong default. Rewritten
+to mirror the existing xp-growth pair exactly: one test enables the flag
+explicitly and checks the grant fires, one leaves it at its default and
+checks nothing grows. 64/64 pass.
+
+`src/analysis/observed-ruler.js` not touched — the passthrough from before
+stands, per review 1's ruling. No new option was needed for this fix.
+
+Did not start M7. Status left at REPORTED — the verdict on whether any rate
+can be adopted is the owner's, not mine to close out.
 
 ---
 
