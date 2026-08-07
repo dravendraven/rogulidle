@@ -456,31 +456,31 @@ Five monsters on a 32×32 map is very sparse — see spec §10.2.
 | Name | Value | Status |
 |---|---|---|
 | `DIFFICULTY_REBALANCED` | `true` | **ADOPTED** — Review 2. See `docs/backlog.md` M7 |
-| `MONSTER_GROWTH_REBALANCED` | 1.15 | ADOPTED, one of three levers sharing one budget |
+| `MONSTER_GROWTH_REBALANCED` | 1.22 | ADOPTED at 1.15; **raised to 1.22 by M12** to fill floors back up, at the edge of the budget band below |
 | `STRENGTH_GROWTH_REBALANCED` | 1.07 | ADOPTED, sized against the corrected exponent 2.356 (see "Strength ramp" above) |
-| `CLUSTER_SIZE` | 6 | **SETTLED** — swept 3→6→9, diminishing returns past 6 (see backlog M7) |
+| `CLUSTER_SIZE` | 10 | SETTLED at 6; **raised to 10 by M12**, though measured to matter little past 6 once M10 landed (see M12 below) |
 
 Live in `src/sim/difficulty.js` beside `MONSTER_GROWTH` and
 `STRENGTH_GROWTH`, following the same convention already set there.
 
 One flag, three levers, moved together because they are one budget and
 cannot be attributed apart (`docs/backlog.md` M7). With the flag on,
-`floorParams`/`floorPlan` read `MONSTER_GROWTH_REBALANCED` (1.15),
-`STRENGTH_GROWTH_REBALANCED` (1.07) and `CLUSTER_SIZE` (6) in place of
-`MONSTER_GROWTH` (1.3), flat strength, and independent per-monster draws.
+`floorParams`/`floorPlan` read `MONSTER_GROWTH_REBALANCED`,
+`STRENGTH_GROWTH_REBALANCED` and `CLUSTER_SIZE` in place of `MONSTER_GROWTH`
+(1.3), flat strength, and independent per-monster draws.
 
-**Count grows slower** (1.3 → 1.15), cutting the CV-diluting effect of many
-independent draws (`CV = CV_single / √n`). **Strength now ramps** (1.0 →
-1.07) to replace the difficulty count no longer supplies — using the
-corrected exponent from the archived count→strength sweep, not 2, because
-strength indexes an 11-row table whose mass runs 0 to 108, not a linear
-scale. **Grouping is new**: `src/sim/spawn.js`'s monster placement (step 5)
-now places creatures in clusters of `CLUSTER_SIZE`, nearest-tile-first from
-a shared anchor, instead of drawing every position independently — same
-zone rules (side/spine) as today, same RNG stream, and `CLUSTER_SIZE = 1`
-reproduces the current per-monster independent draw exactly (verified: with
-the flag off, the cluster loop degenerates to one draw per monster with no
-extra RNG consumption).
+**Count grows slower** than `MONSTER_GROWTH` (1.3), cutting the CV-diluting
+effect of many independent draws (`CV = CV_single / √n`). **Strength now
+ramps** (1.0 → 1.07) to replace the difficulty count no longer supplies —
+using the corrected exponent from the archived count→strength sweep, not 2,
+because strength indexes an 11-row table whose mass runs 0 to 108, not a
+linear scale. **Grouping is new**: `src/sim/spawn.js`'s monster placement
+(step 5) now places creatures in clusters of up to `CLUSTER_SIZE`,
+nearest-tile-first from a shared anchor, instead of drawing every position
+independently — same zone rules (side/spine) as today, same RNG stream, and
+`CLUSTER_SIZE = 1` reproduces the current per-monster independent draw
+exactly (verified: with the flag off, the cluster loop degenerates to one
+draw per monster with no extra RNG consumption).
 
 See `docs/backlog.md` M7 for the full build and measurement history.
 Adopted numbers (Review 2): CV of challenge 0.941 → 0.986 per floor (~3σ
@@ -489,6 +489,36 @@ held their bands. Challenge read unchanged on the probe (1.341 → 1.337)
 while real-bot finishes fell 11.3 points — the probe under-reads
 clustering's effect on a competent player, so "challenge held" describes
 the instrument, not a claim that difficulty is unchanged.
+
+### M12 raised MONSTER_GROWTH_REBALANCED and CLUSTER_SIZE
+
+Floor 10 held only 7 creatures on a 32×32 map at the adopted 1.15 — the
+price M7 paid to fight CV decay, spent without anyone checking what it did
+to how full a floor felt. CV depends on independent DRAWS, not creature
+count, and clustering already separated the two — so `docs/backlog.md` M12
+raised count and asked cluster size to rise with it, to keep draws per
+floor roughly where they were.
+
+**Measured, not assumed: `CLUSTER_SIZE` past 6 is nearly inert.** Swept
+6/12/20 at the shipped growth and got IDENTICAL effective cluster sizes at
+every floor (`src/analysis/clustering.js`'s `effectiveClusterSizes`). M10's
+per-member quota check — cutting a cluster the moment the zone quota flips
+— fires on the roster's MASS BALANCE, not on how large `CLUSTER_SIZE`
+allows a cluster to grow, and it was already the binding limit well below
+6. Raising the constant to 10 is closer to good faith than to a working
+lever: it does not undo the effect M12 hoped it would.
+
+**Chosen instead: raise count as far as the existing M7 budget test
+allows.** `MONSTER_GROWTH_REBALANCED × STRENGTH_GROWTH_REBALANCED^2.356 /
+MONSTER_GROWTH` has to stay within 15% of 1 (the same check M7 shipped
+with) — 1.22 sits at 10% over, the edge of that band. Floor counts:
+`2,2,3,4,4,5,7,8,10,12` (was `2,2,3,3,3,4,5,5,6,7`) — floor 10 nearly
+doubles. Effective cluster size stays in roughly the same 1.7–2.3 range it
+was already in, so draws per floor rose from ~3.3 to ~5.4 at floor 10 —
+**not held constant**, honestly reported rather than claimed otherwise, and
+CV should be expected to give back some ground at the deepest floors
+(`√(3.3/5.4) ≈ 0.78`× the current gain, roughly). The metrics agent's
+standing ruler re-run is what settles how much.
 
 ## An out-of-depth tail (M3) — off by default
 

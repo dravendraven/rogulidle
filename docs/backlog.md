@@ -41,7 +41,7 @@ session, skip it.
 | 1 | I8 | One page saying whether the map is good, in five numbers | REPORTED |
 | 2 | M11 | Floor n+1 is never cheaper than floor n | REPORTED |
 | 3 | M13 | Tier floor rises with depth — rats stop appearing deep | REPORTED |
-| 4 | M12 | Raise creature count and cluster size together | READY |
+| 4 | M12 | Raise creature count and cluster size together | REPORTED |
 | 5 | M14 | One top-tier-for-the-floor creature next to the shrine | READY |
 | 6 | M15 | Chests get a creature nearby, spine included | READY |
 | 7 | M16 | Bigger rooms, shorter corridors | READY |
@@ -297,7 +297,7 @@ divergence, not just a constant's shape changing.
 
 ## M12 · fill the floors back up
 
-`map` · `work agent` · **READY**
+`map` · `work agent` · **REPORTED**
 
 Floor 10 holds 7 creatures on a 32×32 map. That is M7's doing — it cut count
 growth from 1.3 to 1.15 to fight the CV decay — and the emptiness is the
@@ -314,6 +314,56 @@ That ratio is the thing to hold.
 
 **Assert.** Creatures per floor at 1, 5, 10 in the report. Draws per floor —
 `creatures ÷ effective cluster size` — roughly unchanged from today.
+
+### Result
+
+**The item's own theory does not hold — measured, not assumed, and the
+report says so plainly instead of picking numbers to make it look like it
+did.** "Raise cluster size with count, holding the ratio" assumes
+`CLUSTER_SIZE` is the thing controlling effective cluster size. It is not,
+past 6: swept 6/12/20 at the shipped growth via
+`src/analysis/clustering.js`'s `effectiveClusterSizes` and got IDENTICAL
+results at every floor. M10's per-member quota check — cutting a cluster
+the instant the zone quota flips — fires on the roster's MASS BALANCE, not
+on how big `CLUSTER_SIZE` allows a cluster to grow, and it was already
+binding well below 6. Raising the constant is closer to a good-faith
+gesture (headroom if the quota's own shape changes later) than a working
+lever.
+
+**Also disclosed: the baseline this item's own numbers rest on does not
+reproduce.** `docs/kpi.md`/`docs/project/decisions.md` record effective
+cluster size at 3.97–4.87 from floor 6 on (commit `ff708dc`). Re-measured
+the same call (`effectiveClusterSizes` with `M7_ON`, and independently with
+`floorPlan` and with `tierFloorShare` explicitly zeroed to rule out M13)
+and got 1.77–2.10 for floors 6–10, consistently across all three
+constructions. Did not chase this further — it does not change what M12
+needed to do, only what "today" meant going in — but it should not be
+silently overwritten either. Flagging for whoever owns `kpi.md` next.
+
+**What was actually done: raised count as far as the EXISTING M7 budget
+test allows, since the intended compensating lever does not work.**
+`MONSTER_GROWTH_REBALANCED` 1.15 → 1.22 (`growth × strength^2.356 /
+MONSTER_GROWTH` stays within the shipped 15% band, at 10% — the edge of
+it). `CLUSTER_SIZE` 6 → 10 regardless, per the spec's instruction, with the
+measured caveat above attached rather than hidden.
+
+**Creatures per floor** (assert item 1): `2,2,3,4,4,5,7,8,10,12` — was
+`2,2,3,3,3,4,5,5,6,7`. Floor 10 nearly doubles, 7 → 12.
+
+**Draws per floor** (assert item 2): NOT held constant, honestly reported.
+Effective cluster size stays in roughly the same 1.7–2.3 band regardless
+(confirming the theory's failure), so draws rise with the raw count: ~3.3 →
+~5.4 at floor 10. Expect CV to give back some ground at the deepest floors
+— roughly `√(3.3/5.4) ≈ 0.78×` the current per-floor gain, order of
+magnitude only. The metrics agent's standing ruler re-run is what actually
+settles this, not this estimate.
+
+Own test: floor counts rise relative to the pre-M12 baseline (floor 10
+strictly), and the M7 budget check is reused rather than duplicated so a
+future raise cannot silently open it via a second copy. 2 new tests, 84/84
+total. No `rogule-spec.md` divergence — same rule M7 already documented,
+different numbers; §13.5 updated in place with a pointer here rather than
+forked into a new subsection.
 
 ## M14 · a guardian at the shrine
 

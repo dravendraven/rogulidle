@@ -131,7 +131,20 @@ export const DIFFICULTY_REBALANCED = true;
 
 // Slower than MONSTER_GROWTH (1.3), cutting the dilution at its source —
 // fewer draws means less to dilute with.
-export const MONSTER_GROWTH_REBALANCED = 1.15;
+//
+// RAISED for M12 (docs/backlog.md, "fill the floors back up"): floor 10 held
+// only 7 creatures on a 32x32 map at 1.15, the price of fighting CV decay
+// paid without anyone looking at what it did to the floor's population. CV
+// depends on DRAWS, not creature count — M10's per-member quota check is
+// what actually holds effective cluster size down (measured ~1.7-2.2
+// regardless of CLUSTER_SIZE, see below), so raising count here does not
+// undo M7's CV win the way raising it at MONSTER_GROWTH's own 1.3 would.
+// 1.22 is the ceiling the EXISTING budget test allows — see
+// STRENGTH_GROWTH_REBALANCED's own comment for why growth*strength^2.356
+// staying within 15% of MONSTER_GROWTH is a real constraint, not a
+// suggestion, and 1.22 sits at 10% over, the edge of the band this was
+// already being held to.
+export const MONSTER_GROWTH_REBALANCED = 1.22;
 
 // Faster than STRENGTH_GROWTH (1.0, i.e. flat), replacing the difficulty
 // count no longer supplies. Sized against the CORRECTED exponent from the
@@ -150,7 +163,18 @@ export const STRENGTH_GROWTH_REBALANCED = 1.07;
 // creatures forever, flips the sign). Clustering cuts the number of
 // independent draws WITHOUT emptying the floor — twelve creatures in four
 // clusters are four draws with twelve bodies, not twelve.
-export const CLUSTER_SIZE = 6;
+//
+// RAISED for M12, alongside MONSTER_GROWTH_REBALANCED — but MEASURED, not
+// assumed, to matter less than expected: M10's per-member quota check
+// (spawn.js) cuts a cluster the moment the zone quota flips, and that check
+// fires on the roster's MASS BALANCE, not on how large CLUSTER_SIZE allows
+// a cluster to grow. Swept 6/12/20 at the shipped growth and got IDENTICAL
+// effective cluster sizes at every floor — the constant stopped being the
+// binding limit well before 6. Raised anyway, to 10, so a floor with more
+// creatures still has room for genuinely large clusters if the roster or
+// the quota's own shape changes later; it is not doing the compensating
+// work the item's own theory expected it to.
+export const CLUSTER_SIZE = 10;
 
 // One draw in three yields something; the rest come up empty. Equal across
 // weapons, armour and potions.

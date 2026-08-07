@@ -1226,6 +1226,36 @@ test('the tier floor never exceeds the tier ceiling', () => {
   }
 });
 
+// ***** M12 — fill the floors back up ***** //
+
+test('the floors fill back up without reopening the M7 budget', () => {
+  // Baseline this item inherited (MONSTER_GROWTH_REBALANCED was 1.15):
+  // 2,2,3,3,3,4,5,5,6,7. Every floor should hold at least that many now,
+  // and floor 10 — the emptiest, most visible one — strictly more.
+  const before = [2, 2, 3, 3, 3, 4, 5, 5, 6, 7];
+  for (let level = 0; level < 10; level++) {
+    const count = monstersAt(2, MONSTER_GROWTH_REBALANCED, level);
+    assert(count >= before[level],
+      `floor ${level + 1} holds ${count}, fewer than the pre-M12 ${before[level]}`);
+  }
+  assert(monstersAt(2, MONSTER_GROWTH_REBALANCED, 9) > before[9],
+    'floor 10 did not actually fill up');
+
+  // M12 raises count without lowering strength growth to compensate, so
+  // this item is itself bounded by the M7 budget check staying green —
+  // same formula, not a new one, reused here so a future raise cannot
+  // silently drift the budget open by changing this test instead of that
+  // one.
+  const K = 2.356;
+  const ratio = MONSTER_GROWTH_REBALANCED * (STRENGTH_GROWTH_REBALANCED ** K) / MONSTER_GROWTH;
+  assert(Math.abs(ratio - 1) < 0.15,
+    `M12's raised growth pushed the M7 budget ratio to ${ratio.toFixed(3)}, outside its own band`);
+});
+
+test('cluster size grew alongside creature count', () => {
+  assert(CLUSTER_SIZE >= 10, `CLUSTER_SIZE is ${CLUSTER_SIZE}, expected the M12 raise to at least 10`);
+});
+
 // ***** curve-shape diagnostics ***** //
 //
 // growthOf is the one piece of real maths the shape report rests on: every

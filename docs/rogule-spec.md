@@ -689,13 +689,16 @@ compra nada; o grupo precisa ser um tipo só.
 **Estado atual: ADOTADO, `DIFFICULTY_REBALANCED = true`.** Ver
 `docs/backlog.md` M7 para os números medidos (Review 2) — CV subiu de 0,941
 para 0,986 por andar (~3σ, dentro de 1σ da meta de ≥1,00), challenge/power e
-finishes dentro das faixas, e um teto estrutural em torno de
-`CLUSTER_SIZE = 6`: com a contagem já mais lenta, o andar 10 chega a apenas
-7 criaturas, então um cluster de 6 já é quase o andar inteiro e não sobra o
-que agrupar. Registrado também no Review 2: o desafio leu inalterado na
-sonda (1,341 → 1,337) enquanto `finishes` do bot real caiu 11,3 pontos — a
-sonda subestima o efeito do agrupamento contra um jogador competente, então
-"desafio se manteve" descreve o instrumento, não uma alegação de que a
+finishes dentro das faixas, e um teto estrutural em torno do `CLUSTER_SIZE`
+então em 6: com a contagem já mais lenta, o andar 10 chegava a apenas 7
+criaturas, então um cluster de 6 já era quase o andar inteiro e não sobrava
+o que agrupar. **M12 depois mudou os dois números** (contagem 1,15→1,22,
+`CLUSTER_SIZE` 6→10) para encher os andares de volta — mesma regra, números
+diferentes; ver `docs/backlog.md` M12, não uma nova divergência. Registrado
+também no Review 2: o desafio leu inalterado na sonda (1,341 → 1,337)
+enquanto `finishes` do bot real caiu 11,3 pontos — a sonda subestima o
+efeito do agrupamento contra um jogador competente, então "desafio se
+manteve" descreve o instrumento, não uma alegação de que a
 dificuldade não mudou.
 
 **Correção (M10).** Com andares pequenos e `CLUSTER_SIZE` grande, um único
