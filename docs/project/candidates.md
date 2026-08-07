@@ -79,9 +79,17 @@ for as long as possible. What probably works is the **movement**: "40% → 12%
 on that floor" is drama; a static 12% is deflating. That is a design
 decision to take before building, not after.
 
-**Boundary note.** The rollout is an instrument (`src/analysis/`), the
-display is `src/ui/`. The ui agent may import from `src/analysis/` — the
-rule is that it does not *edit* it. Sequence the two, instrument first.
+**Blocked on E1, and that changes who builds it.** As proposed this needs a
+fifth reimplementation of the descent loop — and the worst of the five,
+since it runs during the watched run rather than offline, where drifting
+from the engine would make the odds quietly stop describing the game.
+`clustering.js` already did exactly that after M7.
+
+With E1 done — one resumable loop exported from `src/sim/` — the ui agent
+can build U2 **alone**: import the loop, import `makeBot`, derive the
+rollout seed through `hashSeeds`, and touch nothing outside `src/ui/`. No
+metrics-agent half, no new instrument. The rule is that ui does not *edit*
+`src/sim/`, not that it cannot import from it.
 
 ### M8 · layout variety, the way DCSS picks a builder per level
 

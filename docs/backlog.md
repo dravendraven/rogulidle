@@ -31,14 +31,15 @@ repeating it in the table only made the queue slower to scan.
 | 1 | M10 | Allocate cluster zones against the mass quota so side rooms stop emptying | map | work | REPORTED | — |
 | 2 | M3 | Unlock the strength ceiling with small probability, so a rare blow can be huge | map | work | REPORTED · review 1 passed | — |
 | 3 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | READY | — |
-| 4 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | BLOCKED on M10 | — |
+| 4 | E1 | Expose one resumable turn loop from src/sim so the four copies stop drifting | engine | work | READY | — |
+| 5 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | BLOCKED on M10 | — |
 | — | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | **DONE** | n/a |
 | — | M7 | Move difficulty off creature count onto strength and same-type clusters | map | work | **DONE** · adopted, flag ON | done |
 | — | I7 | Measure capacity with death suppressed at PLAYER_HP, not on a 400 hp probe | map | metrics | **DONE** | n/a |
 | — | I5 | Split buffer into capacity and attrition and measure each on its own terms | map | metrics | **DONE** | n/a |
 | — | M6 | Grant max and current hp every N kills, mirroring the xp progression | map | work | **DONE** · built, flag OFF | done |
 | — | M2 | Place creatures in clusters instead of independently | map | work | FOLDED into M7 | — |
-| 5 | M5 | Add a rare high-value item to the loot table | map | work | READY · unblocked by I6 | — |
+| 6 | M5 | Add a rare high-value item to the loot table | map | work | READY · unblocked by I6 | — |
 | — | I3 | Settle clustering with a sign test, a damage percentile and a CV re-read | map | metrics | **DONE** | n/a |
 | — | B1 | Trace goal and action per turn to find which layer creates the ping-pong | bot | work | PARKED · reported | — |
 | — | B2 | Characterise what the tactical veto alternates between, and why | bot | work | PARKED | — |
@@ -1271,6 +1272,50 @@ the reading has to say by how much rather than assume it is small.
 - **Effective cluster size per floor** — mean and distribution, not the
   constant. `CLUSTER_SIZE = 6` no longer describes what floors actually
   hold, and every argument M7 made was about the real number.
+
+
+## E1 · expose a resumable turn loop from src/sim
+
+`engine` · `work agent` · **READY**
+
+The descent loop has been reimplemented **four times** outside `src/sim/`:
+`playFromState` in `clustering.js`, and `driveFloor`, `driveDescent` and
+`driveDescentSuppressed` in `observed-ruler.js`. Every one was written for
+the same reason and every one said so honestly — `playGame` runs a floor to
+completion with no per-turn hook, and `playDungeon` takes a seed rather than
+a starting hero. Anyone who needs to drive turns writes their own.
+
+**This is not a tidiness item.** A copy of the loop has to stay in step with
+the engine or whatever it measures stops describing the game, and that has
+already happened: `clustering.js` diverged from `spawn.js` after M7 landed,
+and it was found by the work agent tripping over it rather than by anything
+noticing.
+
+**What to build.** A resumable driver in `src/sim/` that accepts a starting
+state and yields control per turn — the thing all four copies approximate.
+Then the copies call it.
+
+**Acceptance.**
+- One loop, exported, with the four call sites using it.
+- **Byte-identical results at every existing call site.** These functions
+  produce every published number in `kpi.md`; if any of them moves, the
+  refactor changed behaviour and the numbers behind it are no longer
+  comparable. This is the whole risk of the item.
+- No new RNG consumption anywhere, verified rather than argued.
+
+**Watch.** `driveDescentSuppressed` clears `outcome`/`killedBy` back to null
+between turns, which is why it needs a per-turn hook at all. Whatever the
+shared driver looks like, that has to remain expressible without a special
+case bolted on for one caller.
+
+**Why it is worth doing now.** It unblocks U2 — live clear odds would be the
+fifth copy, and the worst of them, since it would run during the watched run
+rather than offline. With this in place the ui agent can build U2 alone:
+import the loop, import `makeBot`, derive the rollout seed through
+`hashSeeds`, and touch nothing outside `src/ui/`.
+
+Serves neither objective directly. It is debt, and it is the kind that has
+already cost something once.
 
 
 ---
