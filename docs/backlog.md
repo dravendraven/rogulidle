@@ -93,6 +93,18 @@ are frozen, so a re-run is cheap and paired by construction.
 The work agent does not start the next map item until the previous one has
 been read. Waiting is the point.
 
+**The re-run is a standing job, not a task.** It needs no prompt. When a map
+item lands, the metrics agent re-runs the observed ruler and appends the
+reading to that item's `### Result` block — the four ratios before and
+after, with standard errors and the commit each ran against. Then it goes
+back to whatever it was doing.
+
+Three parties, on purpose: the work agent builds the change, the metrics
+agent measures it, the project agent reads it. Two of those must not be the
+same session — a change measured by whoever made it is the weak-counterweight
+problem this split exists to avoid, and it is the same reason I4 belongs to
+the metrics agent rather than the work agent.
+
 **M6 and I3 run in parallel and that is fine.** M6 changes the hero's
 capacity; I3 measures clustering. They touch different things, and M6 should
 not move the ruler at all: challenge is damage taken, which is set by how
