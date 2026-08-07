@@ -38,16 +38,15 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| 1 | M17 | Near-flat roster, ~5 to ~8, with strength carrying the difficulty | REPORTED |
-| 2 | U3 | Show killed-xp and xp per turn, instead of the damage stat labelled xp | READY |
-| 3 | U4 | Lifetime score, awarded only on a full clear, xpEarned over turns | BLOCKED on U3 |
-| 4 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | READY |
-| 5 | M21 | Deep floors put a creature in the room where the hero lands | READY |
-| 6 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
-| 7 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
-| 8 | X1 | Delete what nothing references | READY |
-| 9 | M4 | Side-room risk/reward spread scales with depth | READY |
-| 10 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 1 | U3 | Show killed-xp and xp per turn, instead of the damage stat labelled xp | READY |
+| 2 | U4 | Lifetime score, awarded only on a full clear, xpEarned over turns | BLOCKED on U3 |
+| 3 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | READY |
+| 4 | M21 | Deep floors put a creature in the room where the hero lands | READY |
+| 5 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
+| 6 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
+| 7 | X1 | Delete what nothing references | READY |
+| 8 | M4 | Side-room risk/reward spread scales with depth | READY |
+| 9 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -324,120 +323,6 @@ anyway. Measuring a half-finished map attributes nothing.
 The queue continues at M18. The bisect stays available — each change is its
 own commit — and X2 sits after M19 rather than before M18.
 
-## M17 · a near-flat roster, with strength carrying the difficulty
-
-`work agent` · **REPORTED**
-
-Today the descent goes `2, 2, 3, 4, 4, 5, 7, 8, 10, 12` — floor 1 is nearly
-empty and floor 10 is a crowd. Try the opposite: **about 5 creatures on
-floor 1 and about 8 on floor 10**, with the difficulty coming from what they
-are rather than how many.
-
-**This is the third attempt at this axis** and the two before it are why it
-might work now. It was archived once because count→strength alone never
-fixed the CV — the only setting that did left two creatures on every floor.
-It came back as M7 with clustering filling that gap. What has landed since
-then changes the ground again: clusters exist, the tier floor rises with
-depth so deep floors no longer draw rats, and rooms are 64% bigger with
-somewhere to put things.
-
-**The arithmetic, so the budget is not broken by accident.** Total challenge
-growth holds at ~1.34 per floor, and the two levers trade as
-`count × strength^2.356`:
-
-    count   5 → 8 over ten floors   = ×1.053 per floor
-    so strength must carry          1.34 / 1.053 = ×1.273
-    which is a strength growth of   1.273^(1/2.356) = ×1.108 per floor
-
-`MONSTERS_BASE` goes 2 → 5 and `MONSTER_GROWTH_REBALANCED` 1.22 → ~1.053.
-That **replaces** M12's setting rather than adding to it.
-
-**Why it might be better than what is there.** The CV decay from count is
-`1/√growth` — today `1/√1.22 = 0.905`, at 1.053 it is `0.974`. Almost all of
-the dilution M7 was built to fight simply stops existing. And floor 1 stops
-being empty, which is half of what M12 was for and the half it could not
-reach from a base of 2.
-
-It also makes M15 work: five creatures against six chests can plausibly
-guard them; two cannot, which is exactly why floor-1 coverage sat at 56%.
-
-**The risk, and it is the one to measure.** Strength has to carry ×1.108 per
-floor across an 11-row table, ending near 0.885 of it. The top floors would
-all draw from the same narrow band — every deep creature a dragon or a
-t-rex — and **variety within a floor could fall even as variety between
-floors improves**. Those pull opposite ways and only one of them is what
-the CV number sees.
-
-Report the tier spread within a floor at 1, 5 and 10, not just the mean.
-
-**Second risk: floor 1 gets 2.5× more crowded.** Against a 10 hp hero with
-one axe. Whether that is a real opening or a wall is not something the
-arithmetic answers.
-
-**Assert.**
-- Creatures per floor at 1, 5, 10 — roughly 5, 6, 8.
-- Challenge growth still ~1.34 ±0.03. If it moves, the budget was not held
-  and nothing else in the report is interpretable.
-- Tier spread within a floor, at 1, 5, 10.
-- Where the strength curve saturates the table, by floor.
-
-**Do not adopt it because the arithmetic works.** This one is a genuine
-question — the last two attempts at it both looked right on paper and both
-were wrong in a way nobody predicted. Build it, look at `run-check.html`,
-and watch a few runs before deciding.
-
-### Result
-
-**Built exactly as specified.** `MONSTERS_BASE` 2 → 5, `MONSTER_GROWTH_
-REBALANCED` 1.22 → 1.0536 (`(8/5)^(1/9)`, exact), `STRENGTH_GROWTH_
-REBALANCED` 1.07 → 1.108. Replaces M12's setting, not additive with it.
-Creature count: `5,5,6,6,6,6,7,7,8,8` — floor 1 at the targeted 5, floor 5
-at 6, floor 10 at the targeted 8.
-
-**The three things the item asked to measure, all in the item's favour on
-paper:**
-- **Challenge growth 1.317 ±0.016/floor** (Sonda A, n=80/floor), inside
-  the `1.34 ±0.03` band and −1.48σ from centre — under the 2σ bar, not a
-  confirmed break. The budget held.
-- **Tier spread within a floor did NOT collapse.** The item's own named
-  risk — strength carrying ×1.108 across an 11-row table could narrow deep
-  floors to the same few rows. Measured (table index, n=60 seeds/floor):
-  floor 1 sd 1.54 (6 distinct tiers), floor 5 sd 1.87 (7), floor 10 sd 2.06
-  (7). Spread did not fall; if anything it rose slightly. Risk did not
-  materialise.
-- **Saturation: never, within the descent.** `saturatedAt` returns `null`;
-  the ramp reaches `0.35 × 1.108^9 ≈ 0.881` of the table, matching the
-  item's own estimate (0.885) almost exactly.
-
-**The question the item actually asked — measured, and it goes the other
-way.** `descentCheck`, n=40 (self-check, not a metrics-agent reading):
-**finishes 0/40, median depth 2** (32/40 runs end at depth ≤ 2). The
-context this item was given going in: `run-check.html` read finishes 0/20,
-median depth 3 before this landed. **Median depth fell, not rose.** This
-is the item's own "second risk" — floor 1 at 2.5× the creatures against a
-10 hp hero with one axe — and the arithmetic did not answer it either way,
-as the item itself said it could not. The measurement does: at n=40 this
-reads as a wall, not an opening, though a sample this size cannot rule out
-some of the gap being a specific seed family (`firstSeed=800000`,
-unchanged from the earlier reading) rather than the change itself.
-
-**Reported as asked, not adopted or reverted on my own judgement.** Every
-individual number the item named came back inside its stated tolerance;
-the one number that matters most — can the hero survive the opening —
-got worse by the same measurement that showed everything else holding.
-Third attempt at this axis; per the item's own framing, the first two also
-looked right on paper. Not rolling back: the instruction was explicit that
-if the game is still unplayable after this, M19 (loot for the harder
-opening) is what pays for the rest, not a reversal here.
-
-89/89 tests pass (2 fixed for the new floor-1 count crossing
-`MIN_ROSTER_FOR_SIDE`, 1 fixed for a hardcoded base in an M7-era test, 1
-retired — M12's own "fills back up beyond its own baseline" claim is false
-by design under M17, which trades count for strength; its budget-ratio
-check was a duplicate of an already-live test). `docs/balance.md` and
-`docs/rogule-spec.md` §13.5 updated in place — same rule, new numbers,
-not a new divergence.
-
 ## U3 · show what the hero has killed, and how fast
 
 `work agent` then `ui agent` — engine half first, one line
@@ -525,6 +410,55 @@ without waiting: force a clear, or feed it a synthetic finished run.
 around 1700 turns and kills maybe 200 xp worth of creatures, so an award
 lands near **12**. If it comes out at 0.1 or 4000, something is wrong with
 the units rather than with the run.
+
+### Review of M17 — kept. And the diagnosis just got much sharper
+
+**Every risk the item named was measured and none of them happened.**
+Challenge growth 1.317 ±0.016, inside the band at −1.48σ. Tier spread within
+a floor did not collapse — it rose slightly, sd 1.54 → 2.06 across the
+descent, against the item's own worry that strength carrying ×1.108 over 11
+rows would narrow deep floors to a few tiers. Saturation never happens
+inside the descent, and the measured 0.881 lands on the item's estimate of
+0.885.
+
+**The one it could not answer on paper went the wrong way.** Median depth
+**3 → 2**, finishes 0/40, and **32 of 40 runs end at depth ≤ 2**.
+
+That is not "the game is hard". Four runs in five never leave floor 2, which
+is a wall standing exactly where the hero arrives.
+
+### The arithmetic of floor 1, which nobody had done
+
+The hero starts with `xp 3` and **an empty inventory** — no weapon. Damage
+is a roll over `0..xp-1`, so mean 1.0, times a 5/6 hit chance:
+**0.83 hp per turn.**
+
+Floor 1 now holds five creatures at roughly 2–3 hp each, so about 12–13 hp
+of monster. That is **fifteen turns of attacking** to clear it.
+
+Incoming, per adjacent creature at `xp 2`: mean 0.5 × 5/6 = **0.42 per
+turn**.
+
+    fought one at a time    15 × 0.42 = 6.3 damage    survives on 10 hp
+    fought in pairs         15 × 0.84 = 12.6 damage   dead
+
+**And clusters are pairs** — effective size 1.77–2.10, measured. So floor 1
+is a coin toss at best and the measurement says it lands badly.
+
+### What that means for M19, and it is not "richer chests"
+
+The lever is not how much loot floor 1 holds. It is that **the hero has to
+survive long enough to reach any of it while dealing 0.83 a turn**, and five
+creatures are between it and every chest.
+
+One weapon changes the whole calculation: an axe takes output from 0.83 to
+about 2.5 a turn, cutting fifteen turns of combat to five. **The answer is
+probably a guaranteed weapon within reach of the spawn**, which is M19's
+third lever and the one I listed as most expensive because it needs a new
+rule. On these numbers it is the only one that obviously works — richer
+chests further in do not help a hero that dies on the way to them.
+
+M19 gets that written into it rather than left as one option of three.
 
 ## M20 · start and shrine at the two ends of the map
 
@@ -623,6 +557,18 @@ floor 1 being genuinely dangerous is the point.
 should move until M18 and M17 have landed and `run-check.html` says how much
 the opening actually changed. If it turns out fine, this item closes
 unbuilt, and that is a good outcome rather than a wasted one.
+
+**The measurement says which lever, and it is not the cheap one.** M17's
+review does the floor-1 arithmetic: the hero starts with no weapon, deals
+0.83 hp a turn, and needs about fifteen turns to clear five creatures that
+deal 0.42 each per adjacent turn. Fought singly it survives; fought in pairs
+— and clusters measure 1.77–2.10 — it dies. Four runs in five now end by
+floor 2.
+
+**Richer chests further in do not help a hero that dies on the way to
+them.** A weapon does: an axe takes output from 0.83 to about 2.5 a turn and
+cuts fifteen turns of combat to five. Start with the guaranteed-weapon
+lever, not the cheap one.
 
 **The levers, cheapest first.**
 
