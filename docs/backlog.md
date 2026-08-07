@@ -58,7 +58,7 @@ its standing job, which is not a task and so has no row of its own.
 | # | id | what and why | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
 | 1 | I5 | Does the probe under-read hp? Design says too hard, product says too easy | map | metrics | IN FLIGHT · now the highest-value item | n/a |
-| 2 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | READY · the main route | — |
+| 2 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | IN FLIGHT | — |
 | 3 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
 | 4 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
 | — | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | **DONE** · adopted provisionally | done |
@@ -1132,7 +1132,7 @@ detail to fill in while coding.
 
 ## M7 · move difficulty off count, onto strength and grouping
 
-`map` · `work agent` · **READY** — the main route for the CV target
+`map` · `work agent` · **IN FLIGHT** — the main route for the CV target
 
 **The problem is the dial, not the map.** Difficulty grows by adding
 creatures: `monsters(N) = 2 × 1.3^(N-1)`, from 2 on floor one to 21 on floor
