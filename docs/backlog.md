@@ -28,18 +28,18 @@ repeating it in the table only made the queue slower to scan.
 
 | # | id | what gets done | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
-| 1 | M10 | Allocate cluster zones against the mass quota so side rooms stop emptying | map | work | REPORTED | done, CV intact |
-| 2 | M3 | Sweep OUT_OF_DEPTH_CHANCE_CAP — at 0.15 the tail is too rare to move CV | map | metrics | READY · sweep, then re-verdict | done, cap ruled out |
-| 3 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | READY | — |
-| 4 | E1 | Expose one resumable turn loop from src/sim so the four copies stop drifting | engine | work | READY | — |
-| 5 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | BLOCKED on M10 | — |
+| 1 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | READY | — |
+| 2 | E1 | Expose one resumable turn loop from src/sim so the four copies stop drifting | engine | work | READY | — |
+| 3 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | READY · M10 unblocked it | — |
+| — | M10 | Allocate cluster zones against the mass quota so side rooms stop emptying | map | work | **DONE** · live, unflagged | done |
+| — | M3 | Unlock the strength ceiling with small probability | map | work | **ARCHIVED** · pushes CV the wrong way | done |
 | — | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | **DONE** | n/a |
 | — | M7 | Move difficulty off creature count onto strength and same-type clusters | map | work | **DONE** · adopted, flag ON | done |
 | — | I7 | Measure capacity with death suppressed at PLAYER_HP, not on a 400 hp probe | map | metrics | **DONE** | n/a |
 | — | I5 | Split buffer into capacity and attrition and measure each on its own terms | map | metrics | **DONE** | n/a |
 | — | M6 | Grant max and current hp every N kills, mirroring the xp progression | map | work | **DONE** · built, flag OFF | done |
 | — | M2 | Place creatures in clusters instead of independently | map | work | FOLDED into M7 | — |
-| 6 | M5 | Add a rare high-value item to the loot table | map | work | READY · unblocked by I6 | — |
+| 4 | M5 | Add a rare high-value item to the loot table | map | work | READY · unblocked by I6 | — |
 | — | I3 | Settle clustering with a sign test, a damage percentile and a CV re-read | map | metrics | **DONE** | n/a |
 | — | B1 | Trace goal and action per turn to find which layer creates the ping-pong | bot | work | PARKED · reported | — |
 | — | B2 | Characterise what the tactical veto alternates between, and why | bot | work | PARKED | — |
@@ -1456,6 +1456,53 @@ by direct evidence** — this reading cannot see the bot at all. `M3` stays
 where its Review 2 left it: not archived, waiting on whichever of (a) a
 `per-level`/`base` sweep on the probes, or (b) the bot lane un-parking to
 test avoidance directly, someone picks up next.
+
+### Review 2 of M10 — the risk I flagged did not happen. Kept
+
+CV growth **0.994 ±0.009**, bit-identical to the pre-M10 reading at the same
+commit and consistent with M7's own 0.986. **M7's CV gain is intact and M10
+gave none of it back.**
+
+I predicted it would. The argument was sound — cutting a cluster short adds
+a draw, and draws are M7's whole mechanism — and it was wrong about the
+size. Effective cluster size runs **3.97–4.87** from floor 6 on, so floors
+holding seven creatures still resolve to one or two clusters either way. The
+split moved where clusters sit, not how many there are.
+
+Worth keeping from that: `CLUSTER_SIZE = 6` never described what floors
+hold, and now the real distribution is measured instead of assumed. Any
+future argument about draws should use 4–5, not 6.
+
+M10 is unflagged and already live. Nothing to adopt; it stays.
+
+### M3 — ARCHIVED. The cap is not the lever, and nothing else here is either
+
+    cap    0     0.05   0.10   0.15   0.18 (ceiling)
+    CV   0.994  0.986  0.985  0.984  0.983
+
+**Monotonic in the wrong direction.** More out-of-depth makes CV growth
+slightly *lower*, not higher, and the extremes are not distinguishable
+anyway (z ≈ 0.9). 0.18 is where `perLevel × floor` tops out — 0.30 and 0.50
+read identical — so this is the mechanism at its maximum reachable
+frequency, not an under-swept dial.
+
+The likely reason is worth recording: the chance grows with depth, so the
+tail fires most where cost is already highest. Raising the deep mean lowers
+`sd/mean` even while raising `sd`. **The mechanism pushes the ratio the
+wrong way by construction**, which no amount of tuning fixes.
+
+`_PER_LEVEL` and `_BASE` were not swept, and the sweep does not formally
+rule them out. But they change *where* the tail fires, not the fact that it
+raises the mean of the floors it fires on, so the direction problem
+survives them.
+
+And M3's other half already failed: the bigger blow does not reach the hero,
+whether because `refuseLostFights` declines the reskinned monster or because
+longer fights change the sample. Two halves, neither delivering.
+
+**Archived, not deleted** — built, tested, RNG-clean, flag off, and the
+reason is here. Same treatment as `SIDE_ACTIVATION_CAP`.
+
 
 ---
 
