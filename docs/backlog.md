@@ -4,6 +4,20 @@ Owned by the **project & design agent**. Work and metrics agents read it to
 know what they are on and what "done" means; they do not add or reorder
 items. If an item looks wrong, report that rather than editing it.
 
+## Objectives, in order
+
+The broad goal is that a run is **worth watching**. It is not measurable and
+no attempt should be made to measure it directly. Two things drive it:
+
+    1. Curve shape approaching DCSS's        map queue    M2..M6
+    2. An intelligent bot                    bot queue    B1..B6
+
+A third — the outcome reading like a horse race — is an **effect of those
+two, never a target**. See "Goals" below before touching it.
+
+Every item in the queue serves 1 or 2. If you cannot say which, say so
+rather than starting.
+
 ## The queue
 
 Ordered by what unblocks what and what can be started today. `#` is
