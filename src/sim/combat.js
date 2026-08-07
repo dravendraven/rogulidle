@@ -119,6 +119,12 @@ export function playerAttacks(state, monster) {
       monster.drop = null;
     }
     state.player.kills.push(monster.name);
+    // U3, docs/backlog.md — separate from `kills` on purpose: `kills` holds
+    // only the name, and M3 can reskin a creature's stats after it was
+    // placed, so reading xp back off MONSTER_TABLE by name later would give
+    // the wrong number for a reskinned kill. Recorded here, at the moment
+    // of the kill, against the monster's actual live xp.
+    state.player.xpEarned += monster.xp;
     // One xp every second kill. FAITHFUL engine.cljs:272.
     const growsXp = state.xpFromKills ?? XP_FROM_KILLS;
     if (growsXp && state.player.kills.length % KILLS_PER_XP === 0) state.player.xp++;

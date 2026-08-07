@@ -85,6 +85,9 @@ function carryFrom(player) {
     xp: player.xp,
     inventory: player.inventory,
     kills: player.kills,
+    // U3, docs/backlog.md — survives the stairs the same way xp and
+    // inventory already do.
+    xpEarned: player.xpEarned,
   };
 }
 

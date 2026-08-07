@@ -192,6 +192,10 @@ export function populate(state, map, counts = {}) {
     xp: PLAYER_XP,
     inventory: [],
     kills: [],
+    // U3, docs/backlog.md — total xp value of every kill, independent of
+    // `kills.length` (which stays a count, unchanged shape: combat.js's
+    // per-module grants and the renderer both key off it).
+    xpEarned: 0,
   };
 
   // 2. Path to the centre of every room, shortest first.

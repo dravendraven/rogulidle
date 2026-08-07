@@ -81,6 +81,7 @@ function makeState(options) {
       xp: options.xp ?? 3,
       inventory: options.inventory ?? [],
       kills: [],
+      xpEarned: options.xpEarned ?? 0,
       armour: options.armour ?? 0,
     },
     monsters: options.monsters ?? [],
@@ -404,6 +405,26 @@ test('a dead monster drops what it carried', () => {
   for (let i = 0; i < 60 && !state.monsters[0].dead; i++) state = step(state, 'left').state;
   assertEq(state.items.length, 1, 'nothing was dropped');
   assertEq(state.items[0].name, 'axe', 'wrong item dropped');
+});
+
+test('xpEarned accumulates the live xp of every kill, not a name lookup', () => {
+  // U3, docs/backlog.md. Separate field from `kills` on purpose — recorded
+  // at the moment of the kill against the monster's OWN xp, so a creature
+  // M3 reskinned after being placed is still counted correctly even though
+  // `kills` only ever stored its name.
+  let state = makeState({
+    map: ROOM_5x5, playerPos: [2, 2],
+    monsters: [dummy('rat', [1, 2]), dummy('ghost', [3, 2])],
+  });
+  assertEq(state.player.xpEarned, 0, 'xpEarned did not start at 0');
+
+  for (let i = 0; i < 60 && !state.monsters[0].dead; i++) state = step(state, 'left').state;
+  assertEq(state.player.xpEarned, state.monsters[0].xp, 'first kill did not record its xp');
+
+  for (let i = 0; i < 60 && !state.monsters[1].dead; i++) state = step(state, 'right').state;
+  assertEq(state.player.xpEarned, state.monsters[0].xp + state.monsters[1].xp,
+    'second kill did not add to the running total');
+  assertEq(state.player.kills.length, 2, 'kills changed shape — should still be a plain count');
 });
 
 // ***** the turn loop, spec §6 ***** //
