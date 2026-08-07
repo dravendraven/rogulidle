@@ -38,7 +38,6 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| — | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | **DONE** · half kept, see M23 |
 | 1 | M23 | Shrine in a distant room, not the furthest possible — keep the room spawn | READY |
 | 2 | M24 | Cap the tier from above too — floor 1 can roll wolves and ogres | READY |
 | 3 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
@@ -58,408 +57,6 @@ the batch and it is still owed, before M17 changes the same dials again.
 Closed work is in `docs/project/decisions.md`. Parked and unscheduled is in
 `docs/project/candidates.md`.
 
-
-## I8 · one page: three success numbers, nine health numbers
-
-`metrics agent` · **REPORTED** — this supersedes the two earlier drafts of I8
-
-`run-ruler.html` reports nine quantities, four ratios, growth exponents and
-standard errors. Right for settling an argument, wrong for the question
-actually asked, which is **"is this any good?"**
-
-Build `run-check.html` to answer that. Three levels, and each gets **one
-success number and three health numbers.** Nothing else.
-
-**Success is "did it work". Health is "has it rotted".** They are different
-questions and mixing them is what made the old targets table unreadable.
-
-### Product — is a run worth watching
-
-    SUCCESS   median depth reached          higher, ~7 of 10
-    health    finishes                      the end is reachable at all
-    health    turns between events          a kill, a chest, a floor — how long between
-    health    spread of depths reached      runs end differently, not all on floor 3
-
-Median depth is the closest thing to "is there a story". A run that dies on
-floor 2 has no arc however good the numbers are.
-
-### Map — does the floor do its job
-
-    SUCCESS   cost, floor 10 ÷ floor 1      higher, AND rising every single step
-    health    creatures per floor           the floor is populated
-    health    spread within a floor         two floor-7s differ from each other
-    health    loot against cost             there is something to gain
-
-The success number **fails outright if any step goes backwards**, however
-good the ratio. Name the floor in red: "floor 5 is cheaper than floor 4".
-
-### Bot — does it play well
-
-    SUCCESS   damage per kill               lower
-    health    reversal rate                 it stops pacing back and forth
-    health    turns per floor               it stops wandering
-    health    lost fights started           near zero
-
-**Not win rate.** `balance.md` records why: *"win rate mixes bot quality
-with map difficulty; damage and blows per kill do not."* A page whose
-sections get read side by side must not carry a number that moves when a
-different section's subject changes.
-
-`finishes` is the one exception, sitting in Product where it belongs, and it
-**gets a label saying it moves with both.**
-
-### Rules for the page
-
-**Totals, not exponents.** "Floor 10 costs 15× floor 1" reads. "×1.351 per
-floor" does not. Growth rates are small print if they appear at all.
-
-**Every number carries its meaning and its good direction, on the page.**
-Nobody should need the backlog to read it.
-
-**Nothing new to measure with.** All twelve already come out of
-`observed-ruler.js` or `clustering.js`. Anything that would need new
-measurement gets left off with a note saying so.
-
-**Seconds to run.** A rough number someone runs beats a precise one they do
-not.
-
-**Deliberately absent:** capacity, attrition, buffer, challenge/power, the
-four ratios, standard errors, growth exponents. Three attempts to define,
-enormous samples to read, and none of them ever told anyone whether the game
-was worth watching.
-
-### This is the only metrics page
-
-Not a second page beside the others — **the** one. When it works,
-`run-ruler.html`, `run-lab.html` and `run-batch.html` are deleted along with
-the ones X1 already removes. `run-tests.html` stays; it is tests, not
-metrics.
-
-**The modules stay, only the pages go.** `observed-ruler.js` and
-`clustering.js` are where the numbers come from and this page calls them. If
-a sweep is genuinely needed later, a page for it is an afternoon — and the
-odds are it never is, because the reason there are five pages is that nobody
-deleted the last one.
-
-**If something in those pages turns out to be load-bearing and has no home
-here, say so and leave that page alone.** One page is the goal, not a rule
-worth losing a number over.
-
-### Result
-
-Rebuilt `run-check.html` from scratch for the new structure — the earlier
-two-section, five-number draft is gone, not extended. Three `<section>`s
-(Product, Map, Bot), each a 4-cell grid: one `success`-styled cell (accent
-border, bigger number) and three plain `health` cells, every cell carrying
-its own meaning and good-direction text, matching the spec's own wording.
-`run-ruler.html`, `run-lab.html` and `run-batch.html` are deleted —
-`git rm`, not just unlinked. Fixed the stale pointers that deletion left
-behind in `CLAUDE.md`, `README.md` and `docs/observed-ruler.md`'s baseline
-section (its own historical numbers untouched, just the "how to reproduce
-this" pointer, since `run-ruler.html` is gone but the module functions it
-called are not). Did not touch `docs/balance.md`, `docs/project/decisions.md`
-or this file's own older items — those are records of what was true when
-written, not live documentation, and rewriting history to match a page
-that didn't exist yet is the wrong kind of tidiness.
-
-**All twelve numbers exist; none needed touching `src/sim/` or `src/bot/`
-to get.** Nine were already sitting in `rewardShape`/`floorPlan` (Map's
-four) or a light rename of what `botFinishesAndSpike` was already doing
-(Product's finishes). The other three — Product's turns-between-events and
-spread-of-depths, and all four of Bot's numbers — needed a genuinely new
-pass, because nothing existing tracked a real descent's ACTIONS or its
-EVENTS, only its damage log. Built as one new function,
-`descentCheck` (`clustering.js`), rather than four separate ones: they all
-watch the same real ten-floor bot descents, and running that descent four
-times over instead of once would have cost more time than every other
-number on the page combined.
-
-**How the three previously-unmeasured Bot numbers turned out to be
-reachable without new instrumentation, since that was this item's one
-hard constraint:**
-- **Reversal rate** — bot.js computes this internally for its OWN reversal
-  PENALTY (`action === OPPOSITE[lastAction]`, stated in its own comment)
-  but never exposes the rate. `descentCheck` watches the SEQUENCE of
-  actions the policy already returns each turn and compares consecutive
-  ones against the same trivial opposite-pairing — an outside observation
-  of behaviour already happening, not a hook into the bot.
-- **Turns per floor** — `state.turn` at the point a floor attempt ends,
-  summed and divided by floor attempts. Already there; nobody had added
-  it up.
-- **Lost fights started** — the one I expected to have to leave off.
-  `priceMonsters` (internal to `bot.js`) computes `worthStarting` from
-  `duelCost` + `effectiveHp` + a safety margin, all THREE of which are
-  already exported (`src/bot/duel.js`, `src/sim/combat.js`,
-  `src/sim/balance.js`, the margin as `DUEL_SAFETY_MARGIN`). Reproducing
-  `chooseGoal`'s full target selection to know which candidate the bot
-  picked would have been new measurement in the bad sense — restating bot
-  logic outside the bot. What `descentCheck` does instead is narrower and
-  does not need that: "walking into it is the attack" (bot.js's own
-  words), so the first turn the chosen ACTION lands on a live monster's
-  tile is a fight starting, whichever monster that turns out to be — no
-  guess about alternatives needed. Pricing THAT engagement with the bot's
-  own published formula, at the moment it actually started, answers
-  "was this fight already known lost when it began" using only exported
-  pieces, against real state the loop already has, not a re-derivation of
-  a decision the bot made.
-
-**Speed, measured on this machine, not estimated:** floor samples at 6,
-descents at 2 — `descentCheck` is the entire cost, roughly 5s/descent since
-it does more per turn than `botFinishesAndSpike` did (reversal check, fight
-detection, event tracking, on top of the same base descent). Landed on
-**~11s** total for the default. Two descents is thin — median-of-2 is
-barely a median — but a third would have pushed this toward 16s, and nine
-of the twelve numbers already come from the cheap side (Map's eight
-samples/floor, ~2s). Both counts are page inputs, not constants.
-
-**What surprised me:** reversal rate read 36% on one ordinary run — the
-bot reverses on roughly a third of its moves. That happens to sit in the
-same range as the OLD parked reversal-rate reading in `run-check.html`
-(0.174–0.210, different measurement, different era, kept for the bot lane
-being parked rather than deleted) — not close enough to call the same
-number, but close enough that the new instrument isn't reading something
-wildly different in kind from what B1's old one saw. `lostFightsStarted`
-read 0 on every run tried while building this — `refuseLostFights`
-appears to be doing exactly its job, which is itself worth having a
-number for even when that number is boring.
-
-**Not measured / left off:** nothing from the spec's twelve. The `run-shape.html`
-and `run-curve.html` diagnostics (modelled-cost pages, unrelated method,
-not named in this item) are untouched — not this item's call to remove.
-
-## M20 · start and shrine at the two ends of the map
-
-`work agent` · **REPORTED**
-
-**Half of this already exists.** The shrine goes in the room furthest from
-the hero, by walkable path length — and that is already a deliberate
-divergence, since Rogule sorts by the path *vector* rather than its length
-(`spec §9.1`), which scattered the shrine into an arbitrary room.
-
-**What does not exist is choosing the pair.** The hero is dropped on a
-random free tile first (`pickFree()`), and only then does the shrine take
-the room furthest from wherever that happened to be. Land the hero in a
-central room and "furthest" is merely moderate.
-
-**Do.** Compute walkable distance between every pair of room centres — one
-flood per room, ten to twenty of them, cheap — and put the hero and the
-shrine at the two ends of the longest pair.
-
-**This also stops the hero spawning in a corridor**, which it can today:
-`pickFree()` takes any walkable tile. Landing at a room centre is a
-consequence of choosing the pair, not a separate change — but implement both
-halves, because doing only the shrine end leaves the corridor spawn in
-place.
-
-### Two things this costs, and the second is the real one
-
-**Spine share goes up.** A longer mandatory path crosses more rooms, and
-every room it crosses is spine. That number sits at 0.83–0.91 today against
-a 0.95 ceiling — M10 exists because it broke once already. This pushes
-directly at it, and there may not be room.
-
-**It removes a source of floor-to-floor variance.** Today the descent length
-varies with where the hero happens to land; fixing it to the maximum makes
-every floor the same shape. That variance is exactly what CV measures, and
-CV is the one number this project actually won.
-
-So this trades **variety between floors** for **consistency within one**.
-Both are defensible and they are genuinely opposed — the item is worth
-building to see the size of the trade, not because the direction is
-obviously right.
-
-**Assert.**
-- Hero and shrine are the furthest-apart pair of rooms, verified directly.
-- Path length hero→shrine, mean and spread, before and after. The spread
-  falling is the cost, and it should be reported rather than only the mean
-  rising.
-- Spine share per floor, still inside `[0.6, 0.95]`.
-- CV of challenge, before and after.
-
-**If spine share leaves the band**, say so with the numbers rather than
-adjusting the band. It is the same question M16 was told to answer the same
-way, and there the worry turned out to be misplaced — the lever was
-elsewhere. It may be misplaced here too.
-
-### Result
-
-**Built both halves.** `spawn.js` step 1 now computes walkable distance
-between every pair of room centres (`findPath`, O(rooms²) — rooms/map is
-a handful, cheap) and places the hero at one end and the shrine at the
-other of the single longest pair on the map, replacing `pickFree()` for
-the hero entirely — the hero can no longer spawn in a corridor. `roomPaths`
-(player → every room, used for `furthestLength` and chest weighting) is
-unchanged in shape, just fed from the new `playerPos`; `furthestLength`
-comes out equal to the hero-shrine distance without special-casing, since
-the global-maximum pair is by construction also the pair farthest from
-either of its own two ends.
-
-**This time the worry was NOT misplaced — unlike M16.** Spine share, same
-seeds, before/after (n=40/floor):
-
-    floor      1      2      3      5      7      10
-    before   0.836  0.829  0.833  0.874  0.815  0.888
-    after    0.949  0.964  0.943  0.969  0.928  0.944
-
-Floors 2 and 5 clear the 0.95 ceiling. Left failing, not adjusted — same
-two tests that already checked this (`a floor puts most of its threat
-mass...`, `rooms are bigger than the old default...`) now report it
-directly, per the item's own explicit instruction not to touch the band.
-
-**The predicted COST did not show up, though — measured, not assumed.**
-The item expected path-length variance to fall (floor shape becoming more
-uniform, "the spread falling is the cost"). It did not: mean hero-shrine
-path length rose 27.85 → 31.49 (expected — the pair is now chosen to
-maximise it), but spread ROSE too, 10.24 → 11.03 sd, not fell. Challenge
-CV (Sonda A, n=30/floor) tells the same story — mean CV across the ten
-floors 0.614 → 0.637, not a clear fall, within likely noise at this
-sample. **The trade the item framed — variety between floors for
-consistency within one — only half-landed**: spine share paid the
-expected cost, but CV did not buy back the expected benefit. Worth a
-closer read at a larger sample before concluding either way; not chased
-further here.
-
-**Assert, checked:** hero and shrine verified directly as the map's
-actual longest room-pair path (new test, 15 seeds, independent
-recomputation from outside `spawn.js` — not just trusting the
-implementation's own claim). Path length and spine share reported above.
-91 tests, 89 pass — the 2 failures are the disclosed spine-share breach,
-not a bug.
-
-`docs/rogule-spec.md` §13.12 added — goes beyond the existing §9.1 fix
-(which only corrected the sort), so it's a further deliberate divergence,
-not a numbers-only update to an existing one. No `docs/balance.md` entry —
-no new tunable constant, pure geometry.
-
-### Review of M20 — it works, and it is incompatible with side rooms
-
-**The room-spawn half is unambiguously good.** The hero can no longer land
-in a corridor, and it is verified from *outside* `spawn.js` by
-independently recomputing the longest pair rather than trusting the
-implementation's own claim.
-
-**The cost I predicted did not appear.** I wrote that fixing the pair would
-make every floor the same shape and cost floor-to-floor variance. Path
-length spread **rose**, 10.24 → 11.03, and CV went 0.614 → 0.637.
-
-**The spine share did break, and this time the worry was right.**
-
-    floor      1      2      3      5      7     10
-    before   0.836  0.829  0.833  0.874  0.815  0.888
-    after    0.949  0.964  0.943  0.969  0.928  0.944
-
-Left failing rather than adjusted, per instruction.
-
-### It is not a bug and it cannot be fixed
-
-A room is spine when the mandatory path crosses it. **Maximising the path
-maximises the spine** — the same quantity seen twice. Hero and shrine at
-opposite ends means the route crosses almost everything, so almost nothing
-is optional.
-
-`map-design.md` asks for 70% of threat on the mandatory route and about 30%
-in skippable side rooms. M20 delivers **95/5**. That is not the bargain
-missing its target, it is the bargain gone.
-
-**So it is a choice, and it is the owner's:**
-
-- **A long route across the whole map** — the floor reads as one journey,
-  almost nothing optional. M20 as it stands.
-- **A shorter route with real side rooms**, risk and reward rolled
-  independently, which `map-design.md` derives as the only thing that makes
-  a detour a gamble rather than a free lunch.
-
-**A middle exists.** The room-spawn fix is separable from maximising the
-pair — put the hero in a room and the shrine in a *distant* room without
-requiring the global maximum. Corridor spawn stays gone, side rooms survive.
-
-Worth knowing before choosing: **side rooms have never been shown to work.**
-I4 is parked and unanswered, and its question is whether the bot can tell a
-good one from a bad one at all. Losing something that may not function is a
-smaller loss than it sounds.
-
-## B7 · turn the clock on
-
-`work agent` · **READY** — after M19
-
-The score in U4 rewards finishing fast: `xpEarned / (turns × 0.01)`. The bot
-does not read it, and it never will — it optimises survival, not score.
-
-**But the bot already has a time cost, and it is switched off.**
-`STEP_COST_IN_HP = 0.01`, which `balance.md` describes as *"the knob that
-shows up as personality on screen, and the main thing P4 sweeps"* — and
-which nobody has swept.
-
-At 0.01 the bot walks a hundred extra steps to save one hp. Across 162 turns
-a floor that is 1.6 hp of perceived cost against a 10 hp hero: it ignores
-time completely, and the screen shows it.
-
-**Do.** Raise it, and sweep rather than guess. `0.01 → 0.03 → 0.05` is
-20–5 steps per hp instead of 100. Report turns per floor and finishes at
-each.
-
-**The alignment does not have to be exact, and should not be attempted.**
-The meta-score rewards speed; the step cost makes the bot prefer speed. Two
-different functions pushing the same way is enough, and trying to make the
-bot literally optimise the score means giving it knowledge of a meta layer
-it has no business seeing.
-
-### Two things this might resolve on its own
-
-**The pacing.** Reversal rate reads 47%. The bot paces because pacing is
-free — every step back costs 0.01 hp and buys a moment's safety. Charge for
-turns and the trade changes on its own. `B3` exists to fix this directly and
-is parked; this may make it unnecessary, or may not, but it is one constant
-against a rewrite.
-
-**M22's fork.** Two routes to the shrine only pose a question if short is
-worth something. With turns free, the quiet branch always wins and the fork
-is decoration. This is the dependency M22 names.
-
-### The caveat, and it decides the order
-
-`balance.md` says raising this makes the bot *"hasty and reckless"*.
-Finishes is at 0% and 14 of 30 runs die on floor 1. **Do this after M19**,
-or a bot that already dies at the door will die at it faster.
-
-**Assert.** Turns per floor, reversal rate, finishes and median depth at
-each swept value. Reversal falling would be the interesting result — it
-would mean the ping-pong was an economics problem rather than a bug.
-
-## M21 · deep floors have something waiting where you land
-
-`work agent` · **BLOCKED on M19**
-
-The hero lands and has a moment to look around. On floor 1 that is an
-opening; on floor 10 it is a free turn the floor should not be giving away.
-
-**Do.** Make the chance that the spawn room holds a creature rise with
-depth — near zero at the top, near certain at the bottom.
-
-**What it costs the hero, and it is not the creature.** Tier comes from
-`depthAt(pos, 'risk')`, which is distance from the hero, so anything in the
-spawn room is drawn from the *bottom* of that floor's range. The danger is
-not that it is strong — M13's tier floor decides that — it is that the bot
-starts a floor **in contact, with no map**. Fog of war means it has seen
-nothing yet and has to commit before it knows where anything is.
-
-That is the whole reason it is interesting to watch, and also the reason it
-might be too much: a bot that opens floor 10 already fighting has no
-information to route with.
-
-**Blocked on M19, not just ordered after it.** `run-check` at n=30 says
-**14 of 30 runs die on floor 1** and 24 of 30 by floor 2. Putting a creature
-where the hero lands, before the hero can survive landing, is piling onto a
-wall. M19 has to make the opening survivable first — then this becomes a
-real escalation instead of a second lock on the same door.
-
-Also after M20, which moves the spawn to a room centre. Placing creatures
-relative to a spawn point that is about to move is work done twice.
-
-**Assert.** Share of floors whose spawn room holds a live creature, at 1, 5
-and 10 — near zero, middling, near certain. And `finishes`, because this is
-one more thing making the descent harder at a moment when it is already at
-zero.
 
 ## M23 · a distant shrine, not the furthest possible one
 
@@ -587,6 +184,89 @@ cannot be answered by making it safe again.
 **Watch.** Richer early chests feed the hero for the whole descent, not just
 floor 1 — gear carries down the stairs. A change sized to fix floor 1 can
 easily make floors 5–10 too easy, and `finishes` is where that shows up.
+
+## B7 · turn the clock on
+
+`work agent` · **READY** — after M19
+
+The score in U4 rewards finishing fast: `xpEarned / (turns × 0.01)`. The bot
+does not read it, and it never will — it optimises survival, not score.
+
+**But the bot already has a time cost, and it is switched off.**
+`STEP_COST_IN_HP = 0.01`, which `balance.md` describes as *"the knob that
+shows up as personality on screen, and the main thing P4 sweeps"* — and
+which nobody has swept.
+
+At 0.01 the bot walks a hundred extra steps to save one hp. Across 162 turns
+a floor that is 1.6 hp of perceived cost against a 10 hp hero: it ignores
+time completely, and the screen shows it.
+
+**Do.** Raise it, and sweep rather than guess. `0.01 → 0.03 → 0.05` is
+20–5 steps per hp instead of 100. Report turns per floor and finishes at
+each.
+
+**The alignment does not have to be exact, and should not be attempted.**
+The meta-score rewards speed; the step cost makes the bot prefer speed. Two
+different functions pushing the same way is enough, and trying to make the
+bot literally optimise the score means giving it knowledge of a meta layer
+it has no business seeing.
+
+### Two things this might resolve on its own
+
+**The pacing.** Reversal rate reads 47%. The bot paces because pacing is
+free — every step back costs 0.01 hp and buys a moment's safety. Charge for
+turns and the trade changes on its own. `B3` exists to fix this directly and
+is parked; this may make it unnecessary, or may not, but it is one constant
+against a rewrite.
+
+**M22's fork.** Two routes to the shrine only pose a question if short is
+worth something. With turns free, the quiet branch always wins and the fork
+is decoration. This is the dependency M22 names.
+
+### The caveat, and it decides the order
+
+`balance.md` says raising this makes the bot *"hasty and reckless"*.
+Finishes is at 0% and 14 of 30 runs die on floor 1. **Do this after M19**,
+or a bot that already dies at the door will die at it faster.
+
+**Assert.** Turns per floor, reversal rate, finishes and median depth at
+each swept value. Reversal falling would be the interesting result — it
+would mean the ping-pong was an economics problem rather than a bug.
+
+## M21 · deep floors have something waiting where you land
+
+`work agent` · **BLOCKED on M19**
+
+The hero lands and has a moment to look around. On floor 1 that is an
+opening; on floor 10 it is a free turn the floor should not be giving away.
+
+**Do.** Make the chance that the spawn room holds a creature rise with
+depth — near zero at the top, near certain at the bottom.
+
+**What it costs the hero, and it is not the creature.** Tier comes from
+`depthAt(pos, 'risk')`, which is distance from the hero, so anything in the
+spawn room is drawn from the *bottom* of that floor's range. The danger is
+not that it is strong — M13's tier floor decides that — it is that the bot
+starts a floor **in contact, with no map**. Fog of war means it has seen
+nothing yet and has to commit before it knows where anything is.
+
+That is the whole reason it is interesting to watch, and also the reason it
+might be too much: a bot that opens floor 10 already fighting has no
+information to route with.
+
+**Blocked on M19, not just ordered after it.** `run-check` at n=30 says
+**14 of 30 runs die on floor 1** and 24 of 30 by floor 2. Putting a creature
+where the hero lands, before the hero can survive landing, is piling onto a
+wall. M19 has to make the opening survivable first — then this becomes a
+real escalation instead of a second lock on the same door.
+
+Also after M20, which moves the spawn to a room centre. Placing creatures
+relative to a spawn point that is about to move is work done twice.
+
+**Assert.** Share of floors whose spawn room holds a live creature, at 1, 5
+and 10 — near zero, middling, near certain. And `finishes`, because this is
+one more thing making the descent harder at a moment when it is already at
+zero.
 
 ## X1 · delete what nothing uses
 
