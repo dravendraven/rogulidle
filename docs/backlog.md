@@ -41,11 +41,10 @@ session, skip it.
 | 1 | M23 | Shrine in a distant room, not the furthest possible — keep the room spawn | **REPORTED** |
 | 2 | M24 | Cap the tier from above too — floor 1 can roll wolves and ogres | READY |
 | 3 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
-| 4 | B7 | Raise STEP_COST_IN_HP so turns cost the bot something | READY · after M19 |
-| 5 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
-| 6 | X1 | Delete what nothing references | READY |
-| 7 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 8 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 4 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
+| 5 | X1 | Delete what nothing references | READY |
+| 6 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
+| 7 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -259,54 +258,6 @@ cannot be answered by making it safe again.
 **Watch.** Richer early chests feed the hero for the whole descent, not just
 floor 1 — gear carries down the stairs. A change sized to fix floor 1 can
 easily make floors 5–10 too easy, and `finishes` is where that shows up.
-
-## B7 · turn the clock on
-
-`work agent` · **READY** — after M19
-
-The score in U4 rewards finishing fast: `xpEarned / (turns × 0.01)`. The bot
-does not read it, and it never will — it optimises survival, not score.
-
-**But the bot already has a time cost, and it is switched off.**
-`STEP_COST_IN_HP = 0.01`, which `balance.md` describes as *"the knob that
-shows up as personality on screen, and the main thing P4 sweeps"* — and
-which nobody has swept.
-
-At 0.01 the bot walks a hundred extra steps to save one hp. Across 162 turns
-a floor that is 1.6 hp of perceived cost against a 10 hp hero: it ignores
-time completely, and the screen shows it.
-
-**Do.** Raise it, and sweep rather than guess. `0.01 → 0.03 → 0.05` is
-20–5 steps per hp instead of 100. Report turns per floor and finishes at
-each.
-
-**The alignment does not have to be exact, and should not be attempted.**
-The meta-score rewards speed; the step cost makes the bot prefer speed. Two
-different functions pushing the same way is enough, and trying to make the
-bot literally optimise the score means giving it knowledge of a meta layer
-it has no business seeing.
-
-### Two things this might resolve on its own
-
-**The pacing.** Reversal rate reads 47%. The bot paces because pacing is
-free — every step back costs 0.01 hp and buys a moment's safety. Charge for
-turns and the trade changes on its own. `B3` exists to fix this directly and
-is parked; this may make it unnecessary, or may not, but it is one constant
-against a rewrite.
-
-**M22's fork.** Two routes to the shrine only pose a question if short is
-worth something. With turns free, the quiet branch always wins and the fork
-is decoration. This is the dependency M22 names.
-
-### The caveat, and it decides the order
-
-`balance.md` says raising this makes the bot *"hasty and reckless"*.
-Finishes is at 0% and 14 of 30 runs die on floor 1. **Do this after M19**,
-or a bot that already dies at the door will die at it faster.
-
-**Assert.** Turns per floor, reversal rate, finishes and median depth at
-each swept value. Reversal falling would be the interesting result — it
-would mean the ping-pong was an economics problem rather than a bug.
 
 ## M21 · deep floors have something waiting where you land
 

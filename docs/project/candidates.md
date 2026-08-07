@@ -435,3 +435,77 @@ through. The measurement is already done; only its sign changes.
 **Assert.** Both branches actually reach the shrine. They differ measurably
 in length and in threat. And the one that matters: **how often the bot takes
 each.** If it is 95/5, the fork is decoration.
+
+### B7 — raise STEP_COST_IN_HP so turns cost the bot something
+
+Dropped by the owner, and the reason is worth more than the item was.
+
+`STEP_COST_IN_HP` is not a game rule — it is the bot's exchange rate between
+time and health, the λ from `bot-strategy` §0, the only way it can compare
+"walk ten steps" against "take one damage". Raising it would have made the
+bot act **as if** turns cost hp, when they do not, so its model would
+diverge from the game and any reading of "is this trade right" would sit on
+a false premise.
+
+**The real finding underneath: nothing converts.**
+
+    XP_FROM_KILLS   false    the hero's damage no longer grows with kills
+    HP_FROM_KILLS   false    M6, built and reverted
+
+A kill gives the hero nothing in-run — no damage, no capacity, only the drop
+and one fewer threat. `dungeon.js` records that xp was frozen deliberately,
+as part of stopping capacity running away. And the lifetime score from U4
+has no effect on anything either.
+
+So the bot has no reason to hurry because **hurrying buys nothing that
+exists.** Any future attempt to make it hurry has to create the thing first
+— decay, a turn limit, or letting kills compound again — rather than tell
+the bot to believe in one.
+
+## B7 · turn the clock on
+
+`work agent` · **READY** — after M19
+
+The score in U4 rewards finishing fast: `xpEarned / (turns × 0.01)`. The bot
+does not read it, and it never will — it optimises survival, not score.
+
+**But the bot already has a time cost, and it is switched off.**
+`STEP_COST_IN_HP = 0.01`, which `balance.md` describes as *"the knob that
+shows up as personality on screen, and the main thing P4 sweeps"* — and
+which nobody has swept.
+
+At 0.01 the bot walks a hundred extra steps to save one hp. Across 162 turns
+a floor that is 1.6 hp of perceived cost against a 10 hp hero: it ignores
+time completely, and the screen shows it.
+
+**Do.** Raise it, and sweep rather than guess. `0.01 → 0.03 → 0.05` is
+20–5 steps per hp instead of 100. Report turns per floor and finishes at
+each.
+
+**The alignment does not have to be exact, and should not be attempted.**
+The meta-score rewards speed; the step cost makes the bot prefer speed. Two
+different functions pushing the same way is enough, and trying to make the
+bot literally optimise the score means giving it knowledge of a meta layer
+it has no business seeing.
+
+### Two things this might resolve on its own
+
+**The pacing.** Reversal rate reads 47%. The bot paces because pacing is
+free — every step back costs 0.01 hp and buys a moment's safety. Charge for
+turns and the trade changes on its own. `B3` exists to fix this directly and
+is parked; this may make it unnecessary, or may not, but it is one constant
+against a rewrite.
+
+**M22's fork.** Two routes to the shrine only pose a question if short is
+worth something. With turns free, the quiet branch always wins and the fork
+is decoration. This is the dependency M22 names.
+
+### The caveat, and it decides the order
+
+`balance.md` says raising this makes the bot *"hasty and reckless"*.
+Finishes is at 0% and 14 of 30 runs die on floor 1. **Do this after M19**,
+or a bot that already dies at the door will die at it faster.
+
+**Assert.** Turns per floor, reversal rate, finishes and median depth at
+each swept value. Reversal falling would be the interesting result — it
+would mean the ping-pong was an economics problem rather than a bug.
