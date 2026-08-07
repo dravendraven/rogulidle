@@ -156,6 +156,41 @@ own report already found reward's CV far higher than challenge's.
 **Not measured / left off:** nothing. All five numbers in the spec table
 have a card; nothing needed a new instrument.
 
+### Addendum, arriving mid-flight — the same page checks the bot
+
+**Not a rewrite.** The map half above stands. This adds a second half to the
+same page; fold it in or finish the map half first, your call, but say
+which.
+
+Same shape as the map half: **five numbers, each with its meaning and its
+good direction written on the page.**
+
+| shows | means | good direction |
+|---|---|---|
+| reversal rate | how often it undoes the step it just took — the pacing back and forth | falls |
+| damage per kill | how expensively it fights | falls |
+| turns per floor | how much it wanders | falls, but not to zero |
+| chests taken | share of the chests it found that it opened | rises |
+| lost fights started | fights begun that it had already priced as unwinnable | near zero |
+
+**Not win rate, and this is the point.** `balance.md` already records why:
+*"Win rate mixes bot quality with map difficulty; damage and blows per kill
+do not."* A page whose two halves are read side by side must not have a
+number that moves when either half changes, or every conversation about it
+starts by untangling which caused what.
+
+**Which means `finishes` needs a warning label.** It is in the map half and
+it is the one number that mixes both. Mark it as such where it appears —
+"moves when the map changes *or* when the bot does". Everything else on the
+page belongs cleanly to one side: the map numbers come from probes, which
+are bot-independent by construction, and the bot numbers are behaviour,
+which barely moves with map difficulty.
+
+**Same constraints as the map half.** Nothing new to measure with — the
+reversal rate already exists from B1's instrumentation, the rest come out of
+`clustering.js`'s bot runs. Anything needing new measurement gets left off
+with a note. Seconds to run, plain words, no exponents.
+
 ## M11 · floor n+1 is never easier than floor n
 
 `map` · `work agent` · **REPORTED**
