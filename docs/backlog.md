@@ -45,9 +45,8 @@ session, skip it.
 | 5 | M14 | One top-tier-for-the-floor creature next to the shrine | READY |
 | 6 | M15 | Chests get a creature nearby, spine included | READY |
 | 7 | X1 | Delete what nothing references | READY |
-| 8 | M9 | A monster's drop comes from its own tier | READY |
-| 9 | M4 | Side-room risk/reward spread scales with depth | READY |
-| 10 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 8 | M4 | Side-room risk/reward spread scales with depth | READY |
+| 9 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 **I8 first, and it runs alongside everything else** — different agent,
 different files, and it is what the batch gets checked with when it lands.
@@ -360,37 +359,6 @@ else — this item removes, it does not change behaviour.
 
 **If something turns out to be referenced after all, leave it and say so.**
 The list is a grep, not a proof.
-
-## M9 · tie the drop to the creature that carries it
-
-`map` · `work agent` · **BLOCKED on I6** — the owner's preferred direction
-
-`spawn.js:359` draws a monster's drop from a table that never looks at the
-monster: `drawWeighted(state, 'spawn', monsterWeights)` ignores `template`.
-**Killing a t-rex and killing a rat pay the same expected loot.**
-
-In DCSS a monster's loot *is* its equipment — the orc warrior is dangerous
-because it carries an axe, and the axe is what you get. Risk and reward are
-the same object, so "is this fight worth it" is answerable by looking at the
-monster. Here the payment does not know what you killed.
-
-**And the share this affects grows with depth.** Chests are flat at 6 while
-drops scale with creature count:
-
-    floor 1     78% chest,  22% drop
-    floor 10    26% chest,  74% drop
-
-Every deliberate reward decision in the map design applies to **chests
-only** — so the designed channel shrinks to a quarter of the loot exactly
-where the design was meant to matter most, and the growing majority is
-undifferentiated. This is also the likeliest reason the probe reads
-`reward/challenge` as flat and about 1% of challenge: what it steps over
-deep down is mostly generic drop.
-
-Cheap to change — centre the drop's weight on the creature's own table index,
-the same way the creature itself is chosen. But it moves reward, and reward
-is the one quantity with **no instrument at all**; M5 is ON HOLD for exactly
-that reason. Building here means moving a number nobody can read.
 
 ## M4 · scale the side-room bonus with depth
 

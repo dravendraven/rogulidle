@@ -306,3 +306,48 @@ bot judged by whoever writes it is a weak counterweight.
 Four fixes have already been implemented against this and none moved the
 ratio, which is itself a reason to establish the effect exists before
 attempting a fifth.
+
+## Dropped from the queue
+
+### M9 — tie a monster's drop to its own tier
+
+Scheduled, then removed by the owner before it was started. Nothing was
+measured against it and nothing about the reasoning was refuted — it simply
+lost its slot when the focus moved to what watching turned up.
+
+The finding behind it stands and is worth keeping: `spawn.js` draws a
+monster's drop from a table that never looks at the monster, so a t-rex and
+a rat pay the same expected loot. In DCSS a monster's loot *is* its
+equipment, which is what makes "is this fight worth it" answerable by
+looking at the creature.
+
+## M9 · tie the drop to the creature that carries it
+
+`map` · `work agent` · **BLOCKED on I6** — the owner's preferred direction
+
+`spawn.js:359` draws a monster's drop from a table that never looks at the
+monster: `drawWeighted(state, 'spawn', monsterWeights)` ignores `template`.
+**Killing a t-rex and killing a rat pay the same expected loot.**
+
+In DCSS a monster's loot *is* its equipment — the orc warrior is dangerous
+because it carries an axe, and the axe is what you get. Risk and reward are
+the same object, so "is this fight worth it" is answerable by looking at the
+monster. Here the payment does not know what you killed.
+
+**And the share this affects grows with depth.** Chests are flat at 6 while
+drops scale with creature count:
+
+    floor 1     78% chest,  22% drop
+    floor 10    26% chest,  74% drop
+
+Every deliberate reward decision in the map design applies to **chests
+only** — so the designed channel shrinks to a quarter of the loot exactly
+where the design was meant to matter most, and the growing majority is
+undifferentiated. This is also the likeliest reason the probe reads
+`reward/challenge` as flat and about 1% of challenge: what it steps over
+deep down is mostly generic drop.
+
+Cheap to change — centre the drop's weight on the creature's own table index,
+the same way the creature itself is chosen. But it moves reward, and reward
+is the one quantity with **no instrument at all**; M5 is ON HOLD for exactly
+that reason. Building here means moving a number nobody can read.
