@@ -7,6 +7,7 @@
 
 import { CLEAR_DIST, VISIBLE_DIST } from '../sim/balance.js';
 import { distSq, posKey } from '../sim/mapgen.js';
+import { tileSvg } from './tiles.js';
 
 const VIEW = VISIBLE_DIST * 2;                 // 18 cells across
 const VISIBLE_SQ = VISIBLE_DIST * VISIBLE_DIST;
@@ -131,7 +132,7 @@ export function renderFrame(state, belief, debug = null) {
         known = true;
       }
 
-      glyph.textContent = text;
+      glyph.innerHTML = tileSvg(text) || '';
       badge.textContent = sub;
       cell.style.opacity = opacity;
       cell.classList.toggle('remembered', !known && opacity > 0);
@@ -159,23 +160,23 @@ export function renderFrame(state, belief, debug = null) {
 // as more hearts.
 function hearts(current, max, armour = 0) {
   let out = '';
-  for (let i = 0; i < max; i++) out += i < current ? '🟩' : '⬜';
-  for (let i = 0; i < armour; i++) out += '🛡️';
+  for (let i = 0; i < max; i++) out += tileSvg(i < current ? '🟩' : '⬜') || '';
+  for (let i = 0; i < armour; i++) out += tileSvg('🛡️') || '';
   return out;
 }
 
 export function renderHud(elements, state, session) {
   const player = state.player;
 
-  elements.hp.textContent = hearts(player.hp, player.hpMax, player.armour);
+  elements.hp.innerHTML = hearts(player.hp, player.hpMax, player.armour);
   elements.xp.textContent = player.xp + ' xp';
   elements.steps.textContent = state.turn + ' 👣';
   elements.kills.textContent = player.kills.length
     ? '⚔️ ' + player.kills.length
     : '⚔️ —';
 
-  elements.inventory.textContent = player.inventory.length
-    ? player.inventory.map((item) => item.emoji).join('')
+  elements.inventory.innerHTML = player.inventory.length
+    ? player.inventory.map((item) => tileSvg(item.emoji) || '').join('')
     : '—';
 
   const alive = state.monsters.filter((m) => !m.dead).length;
@@ -193,7 +194,7 @@ export function renderHistory(element, history) {
     const chip = document.createElement('span');
     chip.className = 'history-chip' + (entry.cleared ? ' cleared' : '');
     const icon = entry.cleared ? '⛩️' : entry.cause === 'timeout' ? '🕳️' : '💀';
-    chip.textContent = `${entry.depth}${icon}`;
+    chip.innerHTML = `<span class="depth">${entry.depth}</span>${tileSvg(icon)}`;
     chip.title = `run ${entry.run}`;
     element.append(chip);
   }

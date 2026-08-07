@@ -13,6 +13,7 @@ import { difficultyToParams } from '../sim/difficulty.js';
 import { makeBot } from '../bot/bot.js';
 import { dangerField } from '../bot/threat.js';
 import { buildGrid, renderFrame, renderHud, renderLog, renderHistory } from './render.js';
+import { tileSvg } from './tiles.js';
 
 const MAX_TURNS = 900;       // per floor
 const BASE_DELAY = 110;      // ms per turn at 1x
@@ -127,10 +128,10 @@ async function showSummary(run) {
   const player = run.state.player;
   const titles = { ascended: '⛩️ ascended', died: '💀 died' };
   const loot = player.inventory.length
-    ? player.inventory.map((item) => item.emoji).join('')
+    ? player.inventory.map((item) => tileSvg(item.emoji) || '').join('')
     : '—';
   const slain = player.kills.length
-    ? run.state.monsters.filter((m) => m.dead).map((m) => m.emoji).join('')
+    ? run.state.monsters.filter((m) => m.dead).map((m) => tileSvg(m.emoji) || '').join('')
     : '—';
 
   await showSummaryCard(titles[run.outcome] || '🕳️ ran out of turns', [
@@ -189,10 +190,10 @@ function tallyDescent(run) {
 async function showDescentSummary(run, finalState) {
   const player = finalState.player;
   const loot = player.inventory.length
-    ? player.inventory.map((item) => item.emoji).join('')
+    ? player.inventory.map((item) => tileSvg(item.emoji) || '').join('')
     : '—';
   const slain = player.kills.length
-    ? finalState.monsters.filter((m) => m.dead).map((m) => m.emoji).join('')
+    ? finalState.monsters.filter((m) => m.dead).map((m) => tileSvg(m.emoji) || '').join('')
     : '—';
   const title = run.cleared
     ? '⛩️ cleared the descent'

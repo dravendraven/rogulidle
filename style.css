@@ -1,12 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Almendra+SC&display=swap');
+
 :root {
-  --bg: #101216;
-  --floor: #1b1f27;
-  --panel: #171a21;
-  --line: #262b35;
-  --text: #d8dee9;
-  --dim: #7a8595;
-  --accent: #8ce99a;
-  --cell: 26px;
+  --bg: #FCFBF3;
+  --floor: #FBFAF1;
+  --panel: #F5F1E1;
+  --line: #CCD6DD;
+  --text: #31373D;
+  --dim: #6b6255;
+  --accent: #4D9029;
+  --key-bg: #D4E1EA;
+  --key-border: #AAB8C2;
+  --cell: 32px;
 }
 
 * { box-sizing: border-box; }
@@ -15,11 +19,12 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font: bold 15px/1.5 "Courier New", Courier, "Courier 10 Pitch",
+    ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 .app {
-  max-width: 900px;
+  max-width: 920px;
   margin: 0 auto;
   padding: 1.25rem 1rem 2rem;
 }
@@ -32,40 +37,49 @@ header {
 }
 
 h1 {
-  font-size: 1rem;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+  font-family: 'Almendra SC', Georgia, serif;
+  font-weight: normal;
+  font-size: 1.6rem;
+  letter-spacing: .03em;
   margin: 0;
-  color: var(--dim);
+  color: var(--text);
 }
 
 .controls { display: flex; gap: .5rem; }
 
 button {
   font: inherit;
-  color: var(--text);
-  background: var(--panel);
-  border: 1px solid var(--line);
+  font-weight: bold;
+  font-size: .8rem;
+  color: #4a4a4a;
+  background: var(--key-bg);
+  border: 2px solid var(--key-border);
+  border-bottom: 5px solid var(--key-border);
   border-radius: 6px;
-  padding: .35rem .7rem;
+  padding: .3rem .65rem;
   cursor: pointer;
 }
-button:hover { border-color: #3a4150; }
+button:active {
+  border-bottom: 2px solid var(--key-border);
+  margin-bottom: 3px;
+  transform: translateY(3px);
+}
 
 .banner {
   display: flex;
   gap: .4rem;
   flex-wrap: wrap;
-  background: #2b2413;
-  border: 1px solid #5c4a1d;
-  border-left: 3px solid #d8a657;
+  background: #FFF6E0;
+  border: 1px solid #E8CE8F;
+  border-left: 3px solid #D8A657;
   border-radius: 6px;
   padding: .55rem .8rem;
   margin-bottom: 1rem;
   font-size: 12.5px;
-  color: #e0c58a;
+  font-weight: normal;
+  color: #6b5423;
 }
-.banner b { color: #ffd8a8; }
+.banner b { color: #8a6a1f; }
 
 main {
   display: flex;
@@ -88,25 +102,31 @@ main {
   display: grid;
   grid-template-columns: repeat(18, var(--cell));
   grid-auto-rows: var(--cell);
+  gap: 0;
 }
 
 .cell {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 17px;
-  line-height: 1;
   transition: opacity .12s linear;
 }
+
+/* The glyph fills the cell edge to edge — no padding, no float, the way
+   the source game's tiles do (an <img> sized to the tile box, not a
+   character with a font's built-in whitespace around it). */
+.glyph {
+  display: block;
+  width: var(--cell);
+  height: var(--cell);
+}
+.glyph svg { display: block; width: 100%; height: 100%; }
 
 /* Memory rather than sight: drained of colour so it reads as uncertain. */
 .cell.remembered { filter: grayscale(.85); }
 
 /* Debug overlay: where the bot is heading. */
-.cell.goal { box-shadow: inset 0 0 0 2px #8ce99a; border-radius: 3px; }
+.cell.goal { box-shadow: inset 0 0 0 2px var(--accent); border-radius: 3px; }
 
-.goal { font-size: 12px; color: var(--dim); }
+.goal { font-size: 12px; font-weight: normal; color: var(--dim); }
 
 .badge {
   position: absolute;
@@ -114,8 +134,8 @@ main {
   right: 1px;
   font-size: 9px;
   font-weight: 700;
-  color: #ffd8a8;
-  text-shadow: 0 0 3px #000, 0 0 3px #000;
+  color: #a15c00;
+  text-shadow: 0 0 3px #fff, 0 0 3px #fff;
   pointer-events: none;
 }
 
@@ -129,7 +149,8 @@ main {
   align-items: center;
   justify-content: center;
   gap: .5rem;
-  background: rgba(12, 14, 18, .93);
+  background: rgba(252, 251, 243, .95);
+  border: 1px solid var(--line);
   border-radius: 6px;
   opacity: 0;
   pointer-events: none;
@@ -137,7 +158,12 @@ main {
 }
 .summary.shown { opacity: 1; }
 
-.summary-title { font-size: 1.2rem; letter-spacing: .05em; }
+.summary-title {
+  font-family: 'Almendra SC', Georgia, serif;
+  font-weight: normal;
+  font-size: 1.3rem;
+  letter-spacing: .03em;
+}
 
 .summary-row {
   display: flex;
@@ -145,9 +171,11 @@ main {
   gap: 1.5rem;
   min-width: 220px;
   padding: .15rem 0;
+  font-weight: normal;
   color: var(--dim);
 }
-.summary-row b { color: var(--text); font-weight: 600; }
+.summary-row b { color: var(--text); font-weight: 700; }
+.summary-row b svg { width: 18px; height: 18px; vertical-align: middle; }
 
 /* ***** side panel ***** */
 
@@ -164,28 +192,32 @@ main {
   padding: .9rem;
 }
 
-.hp { font-size: 13px; letter-spacing: -1px; word-break: break-all; }
+.hp { display: flex; flex-wrap: wrap; }
+.hp svg { width: 15px; height: 15px; }
 
 .chips { display: flex; gap: .4rem; flex-wrap: wrap; }
 .chips span {
-  background: #1f232c;
+  background: #EAE3CE;
   border-radius: 4px;
   padding: .15rem .45rem;
   font-size: 12px;
+  font-weight: bold;
   color: var(--dim);
 }
 
 .field label {
   display: block;
   font-size: 10px;
+  font-weight: bold;
   letter-spacing: .1em;
   text-transform: uppercase;
-  color: #5b6472;
+  color: #8a7f6c;
   margin-bottom: .25rem;
 }
 .field.grow { flex: 1; display: flex; flex-direction: column; }
 
-.inventory { font-size: 17px; line-height: 1.4; word-break: break-all; }
+.inventory { display: flex; flex-wrap: wrap; gap: 2px; }
+.inventory svg { width: 20px; height: 20px; }
 
 .log {
   flex: 1;
@@ -193,19 +225,25 @@ main {
   max-height: 240px;
   overflow-y: auto;
   font-size: 12px;
+  font-weight: normal;
   color: var(--dim);
 }
-.log .line { padding: .1rem 0; border-bottom: 1px solid #1e222a; }
-.log .line:last-child { color: var(--text); }
+.log .line { padding: .1rem 0; border-bottom: 1px solid #E4DCC5; }
+.log .line:last-child { color: var(--text); font-weight: bold; }
 
 .history { display: flex; flex-wrap: wrap; gap: .3rem; }
 .history-chip {
-  background: #1f232c;
+  display: flex;
+  align-items: center;
+  gap: .15rem;
+  background: #EAE3CE;
   border-radius: 4px;
-  padding: .15rem .4rem;
+  padding: .1rem .35rem;
   font-size: 11px;
+  font-weight: bold;
   color: var(--dim);
 }
+.history-chip svg { width: 12px; height: 12px; }
 .history-chip.cleared { color: var(--accent); }
 
 footer {
@@ -213,7 +251,8 @@ footer {
   flex-wrap: wrap;
   gap: .5rem 1rem;
   font-size: 11px;
-  color: #5b6472;
+  font-weight: bold;
+  color: #8a7f6c;
   border-top: 1px solid var(--line);
   padding-top: .6rem;
 }
@@ -222,12 +261,12 @@ footer {
 .note {
   margin: 1.25rem 0 0;
   font-size: 12px;
-  color: #5b6472;
+  font-weight: normal;
+  color: #8a7f6c;
   max-width: 60ch;
 }
-.note em { color: var(--dim); font-style: normal; }
+.note em { color: var(--dim); font-style: normal; font-weight: bold; }
 
 @media (max-width: 620px) {
-  :root { --cell: 18px; }
-  .cell { font-size: 12px; }
+  :root { --cell: 20px; }
 }
