@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rogulidle — I3: sign test</title>
+<style>
+  :root { --bg:#101216; --panel:#171a21; --line:#262b35; --text:#d8dee9; --dim:#7a8595;
+          --faint:#5b6472; --good:#8ce99a; --warn:#ffd8a8; --bad:#ff8787; --accent:#74c0fc; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:1.5rem 1rem 4rem; background:var(--bg); color:var(--text);
+         font:13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .app { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size:1rem; letter-spacing:.08em; text-transform:uppercase; margin:0 0 .3rem; }
+  h2 { font-size:.8rem; letter-spacing:.1em; text-transform:uppercase; color:var(--accent);
+       margin:2rem 0 .6rem; padding-bottom:.3rem; border-bottom:1px solid var(--line); }
+  p { max-width:84ch; }
+  .lede, .note { color:var(--faint); font-size:11.5px; max-width:84ch; }
+  .lede { margin:0 0 1.2rem; font-size:13px; }
+  table { border-collapse:collapse; width:100%; font-size:12px; margin:.3rem 0 .8rem; }
+  th, td { text-align:right; padding:.3rem .5rem; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:var(--dim); font-weight:600; }
+  .card { border:1px solid var(--line); border-radius:8px; background:var(--panel);
+    padding:.7rem 1rem; margin:.6rem 0 1rem; }
+  .ok { color:var(--good); } .no { color:var(--bad); }
+  .big { font-size:15px; font-weight:600; }
+</style>
+</head>
+<body>
+<div class="app">
+
+<h1>I3 (part 1 of 1) — sign test on I2's death-rate gap</h1>
+<p class="lede">I3 was rescoped: the metrics agent measures the real game
+and does not build variants to study it. Questions 2 and 3 (spike vs
+attrition, CV under clustering) need clustering to exist in
+<code>src/sim/</code> and wait for M2 to build it, off by default. This is
+question 1 only — pure re-analysis of I2's already-published table, no new
+floor generated, no new game played. See
+<code>src/analysis/clustering.js</code>'s <code>signTest</code> and
+<code>docs/clustering-i3.md</code>.</p>
+
+<div class="card">
+<b>What this settles, and what it does not.</b>
+<p class="note">This is a statement about the SIGN of the gap
+<code>toGrouped()</code> produces — the instrument's definition of grouped
+(post-processing, cluster size 3, spine/side ignored). It is not a
+statement about clustering as the engine will generate it once M2 exists.
+A direction for M2, not a verdict on it.</p>
+</div>
+
+<h2>Sign test on I2's per-floor death-rate gaps</h2>
+<div id="signOut"></div>
+
+<script type="module">
+import { signTest } from './src/analysis/clustering.js';
+
+const f = (x, d = 2) => (x === null || x === undefined || !Number.isFinite(x) ? '—' : x.toFixed(d));
+
+function table(head, rows) {
+  const t = document.createElement('table');
+  t.innerHTML = `<thead><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr></thead>`
+    + `<tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>`;
+  return t;
+}
+function para(parent, html, cls = 'note') {
+  const p = document.createElement('p');
+  p.className = cls;
+  p.innerHTML = html;
+  parent.append(p);
+}
+
+// [floor, deathSpreadPct, deathGroupedPct] — docs/clustering-i2.md.
+const I2_DEATH = [
+  [1, 0.0, 0.0], [2, 0.0, 0.0], [3, 0.0, 1.7], [4, 1.7, 5.0], [5, 1.7, 3.3],
+  [6, 1.7, 1.7], [7, 10.0, 13.3], [8, 20.0, 25.0], [9, 23.3, 31.7], [10, 43.3, 50.0],
+];
+
+const out = document.getElementById('signOut');
+const rows = I2_DEATH.map(([lvl, s, g]) => {
+  const sign = g > s ? '+' : g < s ? '−' : '0';
+  return [lvl, `${f(s, 1)}%`, `${f(g, 1)}%`, sign];
+});
+const positive = I2_DEATH.filter(([, s, g]) => g > s).length;
+const negative = I2_DEATH.filter(([, s, g]) => g < s).length;
+const tied = I2_DEATH.length - positive - negative;
+const n = positive + negative;
+const result = signTest(positive, n);
+
+out.append(table(['floor', 'death spread', 'death grouped', 'sign'], rows));
+para(out, `<b>${positive} positive, ${tied} tied, ${negative} reversed</b> `
+  + `out of 10 floors (n = ${n} decided). Two-sided exact sign test: `
+  + `<b class="${result.p < 0.05 ? 'ok' : 'no'} big">p = ${result.p.toFixed(4)}</b>.`);
+</script>
+</div>
+</body>
+</html>

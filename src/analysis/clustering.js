@@ -278,3 +278,42 @@ export function compareMeans(a, b) {
   const se = Math.sqrt(a.se ** 2 + b.se ** 2);
   return { gap, z: se > 0 ? gap / se : null };
 }
+
+// ***** I3 Q1 — sign test on I2's death-rate gap ***** //
+//
+// SCOPE, after I3 was cut back to this question alone: this re-analyses
+// data I2 already collected — no new floor is generated, no new game is
+// played, nothing about `src/sim/` changes. It is math over a published
+// table, which is why it is still a metrics-agent task when "build a
+// variant to study the game" is not. What it settles is the SIGN of the
+// gap `clusterExperiment`'s `toGrouped()` produces — the instrument's
+// definition of grouped (post-processing, cluster size 3, spine/side
+// ignored). It is not a statement about clustering as `src/sim/` will
+// generate it once M2 builds that switched off by default; I3's other two
+// questions wait for M2 to exist for exactly this reason. Report it as a
+// direction for M2, not a verdict on M2.
+//
+// Two-sided exact sign test: under H0 every non-tied floor is a fair coin
+// flip (grouped costlier or cheaper, 50/50), so if `hits` of `n` non-tied
+// floors all land the same way, p = 2 x 0.5^n (capped at 1). Takes counts
+// rather than the raw gaps so it can be checked against the table by eye.
+export function signTest(hits, n) {
+  if (n === 0) return { n, hits, p: 1 };
+  const extreme = Math.max(hits, n - hits);
+  const p = Math.min(1, 2 * Math.pow(0.5, n) * binomCoeffSum(n, extreme));
+  return { n, hits, p };
+}
+
+// Sum of C(n, k) for k = extreme..n — the tail mass on ONE side, before the
+// 2x for two-sided. At `extreme === n` (all-one-direction, I2's case) this
+// is exactly 1 and the caller's 2 x 0.5^n is the whole answer; kept general
+// so a future re-run with a mixed record still gets the right p.
+function binomCoeffSum(n, kFrom) {
+  let sum = 0;
+  let coeff = 1; // C(n, 0)
+  for (let k = 0; k <= n; k++) {
+    if (k >= kFrom) sum += coeff;
+    coeff = coeff * (n - k) / (k + 1);
+  }
+  return sum;
+}

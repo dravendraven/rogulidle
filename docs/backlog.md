@@ -59,7 +59,7 @@ normal and does not mean the item changed.
 | 3 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY |
 | 4 | M5 | Best item is axe +2, so no reward is ever an event | map | work | READY |
 | 5 | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | READY · last of the four |
-| — | I3 | Settle clustering's sign test; spike and CV wait for M2 to exist | map | metrics | IN FLIGHT · part 1 only |
+| — | I3 | Settle clustering's sign test; spike and CV wait for M2 to exist | map | metrics | REPORTED |
 | — | B1 | Ping-pong is the ugliest visible defect — find which layer creates it | bot | work | PARKED · reported |
 | — | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | PARKED |
 | — | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | PARKED |
@@ -951,7 +951,7 @@ hide the pathological case surviving intact.
 
 ## I3 · settle clustering's mechanism and its effect on CV
 
-`map` · `metrics agent` · **IN FLIGHT** — rescoped after I2
+`map` · `metrics agent` · **REPORTED** — rescoped after I2, then cut back to Q1 only
 
 I2 left clustering **leaning positive on lethality but unexplained**, and
 that is not enough to design M2 against. The original scope — "build a
@@ -1011,6 +1011,53 @@ the observed ruler, which is frozen and paired by construction.
 **Note what this item is not.** It does not adopt clustering and does not
 tune it. Cluster size was fixed at 3 in I2 and the spine/side split was
 ignored by design; both are M2's problem, not this one's.
+
+### Result
+
+Full write-up in `docs/clustering-i3.md`. Scope was cut to question 1 only
+partway through this item, before question 2/3 numbers were taken — no
+engine variant was built to answer them, in line with the new rule. The
+in-progress work on 2 and 3 (an extension to `src/analysis/clustering.js`
+and `run-i3.html`) was reverted rather than left dormant; both files now
+contain only what question 1 needed. Nothing in `src/sim/` or `src/bot/`
+touched, and nothing new was played — this is a re-analysis of I2's
+already-published table.
+
+**Sign test:** 7 positive, 3 tied, 0 reversed across the 10 floors.
+Two-sided exact sign test on the 7 decided floors: **p = 0.0156**. Clears
+the conventional 0.05 bar and, at roughly z ≈ 2.42 two-tailed, this
+project's 2-sigma bar too.
+
+**Independence**, confirmed by construction rather than empirically: each
+floor's state comes from `newGame(hashSeeds(firstSeed + i, level), plan)`,
+a freshly generated state with its own rng streams and no shared mutable
+state with any other floor's playthrough (`game.js`'s `makeStreams`, built
+for exactly this). Same standard this project already applies to its
+map/spawn/combat stream independence, not re-verified empirically either.
+
+**Direct answer.** Settled, with the scope caveat the item itself asks for
+stated plainly: this is the sign of the gap `toGrouped()` produces — the
+instrument's clustering (post-processing, cluster size 3, spine/side
+ignored) — not clustering as `src/sim/` will generate it once M2 exists. A
+direction for M2's design, not a verdict on it.
+
+**Correction to the record, not just a result.** This item's own spec said
+"8 positive, 2 tied" (from the I2 review) and computed p ≈ 0.008 from that.
+Recounted by hand against the published table: floor 6 is also tied
+(1.7% = 1.7%), so it is **7 positive, 3 tied**, and the correct p is
+**0.0156**, not 0.008. The conclusion does not change — 0.0156 still
+clears — but the number that was going to be quoted going forward was
+wrong, and I did not want to carry it forward silently just because the
+mistake happened to be harmless this time.
+
+**What surprised me.** Reproducing a ten-row count by hand and getting a
+different answer than the number already written down. Cheap to catch —
+one pass over the table — but a reminder that a small sign-count is easy to
+miscount once and worth a second pass before it gets quoted elsewhere.
+
+**What I could not resolve / out of scope.** Nothing new. Cluster size 3
+and the spine/side simplification were already disclosed in I2 and are
+unchanged here; question 2 and 3 wait for M2 as scoped above.
 
 ## M2 · clustering
 
