@@ -127,6 +127,12 @@ a creature that cannot hurt the hero at all.
 `depthAt(pos) × difficultyScale` where `depthAt` is position *within* the
 map, so near an entrance the index falls to zero on every floor.
 
+**Depth-based chest quality does nothing on floor 1.** Quality comes from
+position within the map, and floor 1's map is small enough that most chests
+already sit near the top of the scale — only 1–3.5% of maps saw an item
+change identity under a boost. The lever is not weak; the floor has no
+gradient for it to work with.
+
 **Flat chests are what makes threat outpace supply.** Tying chest count to
 creature count lets loot grow at the same rate as threat, and since the hero
 accumulates while a floor's threat is spent once, the hero wins.

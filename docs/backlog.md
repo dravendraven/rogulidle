@@ -38,12 +38,12 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| 1 | M24 | Cap the tier from above too — floor 1 can roll wolves and ogres | READY |
+| 1 | M24 | Cap the tier from above too — floor 1 can roll wolves and ogres | READY · skipped once |
 | 2 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | **REPORTED** |
-| 3 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
-| 4 | X1 | Delete what nothing references | READY |
-| 5 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 6 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 2 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
+| 3 | X1 | Delete what nothing references | READY |
+| 4 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
+| 5 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -204,6 +204,46 @@ floorPlan(level))` calls, which would have made the fade and the sweep
 override silently inert during real play and in `playDungeon`-based
 tooling), `test/tests.js`, `docs/balance.md`, `docs/rogule-spec.md` (new
 §13.14).
+
+### Review of M19 — kept, and it tested the recommendation instead of obeying it
+
+**It built the cheap lever first and reported that it did not work.** The
+item said to start with the guaranteed weapon and treat chest quality as the
+cheap option; M19 built the cheap one anyway, measured **1–3.5% of floor-1
+maps saw any item change identity**, and said so.
+
+The reason it gives is worth more than the lever: **floor 1's map is small
+enough that position-based `depth` already saturates most chests near
+quality 1**, so there was nothing left for a boost to buy.
+`CHEST_QUALITY_BY_DEPTH` does nothing on floor 1 not because it is weak but
+because floor 1 has no depth gradient to work with. Kept in, correctly, as
+free and real.
+
+**The weapon moved the numbers:**
+
+    mean death floor          1.75 → 2.70
+    dying by floor 2          80%  → 65%
+
+Runs reaching floors 6–10 appeared for the first time. It reuses the
+existing chest budget rather than adding one, the same way M14 and M15 reuse
+the roster, and fires only when the hero carries no weapon at all — so no
+floor after the first is touched.
+
+**Honest about what it could not answer.** No run cleared at n=40, so the
+item's own "Watch" — early gear making floors 5–10 too easy — is neither
+confirmed nor ruled out.
+
+### M24 was skipped, and the ordering mattered
+
+There is no M24 commit and its section has no result. **M19 was therefore
+sized against a floor 1 that still rolls wolves at 17% and ogres at 8%**,
+which is the exact thing the ordering existed to prevent — the item says
+"sized against the floor that ships rather than against a wolf that should
+not have been there".
+
+Not a reason to redo M19: the weapon is binary, so there is no size to
+retune. But **65% still dying by floor 2 is a number measured against the
+wrong floor**, and it has to be taken again after M24 lands.
 
 ## M21 · deep floors have something waiting where you land
 
