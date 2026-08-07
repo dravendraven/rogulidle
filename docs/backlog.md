@@ -57,11 +57,12 @@ its standing job, which is not a task and so has no row of its own.
 
 | # | id | what and why | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
-| 1 | I6 | Reward has no instrument, so M9 and M5 cannot be judged at all | map | metrics | READY · now | n/a |
-| 2 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | IN FLIGHT | — |
-| 3 | M9 | A t-rex and a rat pay the same loot — tie the drop to what you killed | map | work | BLOCKED on I6 | — |
-| 4 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
-| 5 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
+| 1 | I7 | The probe survives because it is huge — that dilutes capacity and hides selection | map | metrics | READY · now | n/a |
+| 2 | I6 | Reward has no instrument, so M9 and M5 cannot be judged at all | map | metrics | READY | n/a |
+| 3 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | IN FLIGHT | — |
+| 4 | M9 | A t-rex and a rat pay the same loot — tie the drop to what you killed | map | work | BLOCKED on I6 | — |
+| 5 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
+| 6 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
 | — | I5 | Buffer is two quantities — capacity and attrition — and its sign flip is selection | map | metrics | **DONE** | n/a |
 | — | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | **DONE** · built, flag OFF | done |
 | — | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | FOLDED into M7 | — |
@@ -89,7 +90,7 @@ restarts. Do not pick up a PARKED item without the owner saying so.
 That leaves one loop, and it is deliberately serial:
 
     work agent      M9 (waits on I6) → M7 → then M4 and M3 if still needed
-    metrics agent   I5 → I6
+    metrics agent   I7 → I6
     metrics agent   I3 part 1, then re-run the ruler after EACH landing
 
 **M7 replaces the patch queue as the main route.** An audit of the map items
@@ -332,15 +333,21 @@ bot with known defects would measure the defects.
 Growth per floor, measured on the probes, so every map item is judged
 against something rather than against "stops falling".
 
-| quantity | now | target | kind |
-|---|---|---|---|
-| challenge | 1.343 ±0.009 | hold, ±0.03 | **constraint** |
-| CV challenge | 0.944 ±0.012 | ≥ 1.00, aim ~1.05 | goal |
-| capacity | see below | **rises** | goal, comparative |
-| attrition | see below | does not outrun capacity | goal, comparative |
-| challenge/power | ≥1.307 | ≥ 1.15 | **bound** |
-| **finishes**, real bot | ~30% | 15–40% | **bound** |
-| reward | — | none, no instrument | see I6 |
+| quantity | target | kind |
+|---|---|---|
+| challenge | hold, ±0.03 | **constraint** |
+| CV challenge | ≥ 1.00, aim ~1.05 | goal |
+| capacity | **rises** | goal, comparative |
+| attrition | does not outrun capacity | goal, comparative |
+| challenge/power | ≥ 1.15 | **bound** |
+| **finishes**, real bot | 15–40% | **bound** |
+| reward | none yet, no instrument | see I6 |
+
+**Current measured values live in `docs/kpi.md`, not here.** That file is
+the metrics agent's and is updated after every reading; this table is the
+project agent's and changes rarely. They used to be one table, which is
+exactly why it went stale — two owners, two cadences, one row. If a number
+in prose anywhere disagrees with `kpi.md`, `kpi.md` wins.
 
 ### Why capacity and attrition are comparative, not absolute
 
@@ -1421,6 +1428,44 @@ not tune to it.
 damage is `0..xp−1`. Near the top of the table one blow can take almost
 everything. The reaction window must shrink, not vanish — report the
 distribution of damage per blow, not its mean. The tail is what kills.
+
+## I7 · separate immortality from starting hp
+
+`map` · `metrics agent` · **READY**
+
+The probe survives **because** it carries 400 hp, which welds two
+independent things together and costs two different measurements.
+
+**Capacity's rate is diluted by the base.** A growth rate is not
+scale-invariant: M6's grant of about +42 hp across a descent reads
+`×1.011` per floor on 400 and roughly `×1.20` on a real hero's 10. The
+measured `hpMax ×1.008` is the first of those almost exactly, so what
+capacity currently reports is mostly an artefact of the instrument's own
+size.
+
+**And it makes the selection effect unmeasurable.** I5 attributed the gap
+between capacity's power (×1.048) and the mortal series' (×1.243) to
+survivor selection. It cannot be attributed there — the two differ in
+mortality *and* in base, so the gap is selection plus dilution in unknown
+proportion.
+
+**The fix separates them.** Suppress death as a flag and start the probe at
+`PLAYER_HP`. Capacity then carries neither selection nor base artefact, and
+subtracting it from the mortal series at the **same base** isolates
+selection cleanly — turning attrition's bias from *declared* into
+*quantified*, which is as far as it can go, since a hero that cannot die
+cannot measure attrition at all.
+
+**Acceptance.** Capacity re-reported at `PLAYER_HP` with death suppressed,
+all ten floors, full sample. The selection effect stated as a number with
+its own standard error rather than as a direction. `docs/kpi.md` updated,
+including the note that says capacity and attrition may not be compared
+until they share a base.
+
+**Watch.** Suppressing death is not the same as ignoring damage — the probe
+must still take blows and still spend hp, or attrition disappears from the
+capacity arm and the two series stop being subtractable. It should reach hp
+0 and keep going, not stop losing hp.
 
 ## I6 · give reward an instrument
 

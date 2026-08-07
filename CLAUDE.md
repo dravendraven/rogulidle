@@ -61,6 +61,12 @@ across that line is the failure mode this split exists to prevent.
 `docs/balance.md` is the one file all four may touch. Different sections,
 small commits, and say in the commit message which role you are.
 
+`docs/kpi.md` holds the current measured value of every KPI, with the commit
+and sample each was taken at. The metrics agent owns it and updates it after
+every reading; nobody else edits it. Targets live in `docs/backlog.md` and
+belong to the project agent. If a number in prose anywhere disagrees with
+`kpi.md`, `kpi.md` wins and the prose is stale.
+
 `docs/backlog.md` holds the task list, what each task is worth, and its
 acceptance criteria. Your opening prompt names your task — read that item in
 full before starting, and report against ITS criteria rather than your own
