@@ -213,6 +213,70 @@ chest `net` flipping sign as danger doubles per tile) was wrong.
 That is what the task was built to find out, and it inverts the premise
 B2 and B3 were sketched against. Both are being rewritten.
 
+### Result
+
+Measured in `docs/bot-strategy.md` §4.5 — full method and tables there,
+not repeated here. Changes: `src/bot/bot.js` (the `trace` hook now records
+`final`, the action `decide()` actually returns, and `vetoed`, whether the
+tactical veto overrode `planned` — it previously recorded only the plan);
+`src/sim/balance.js` (`REVERSAL_PENALTY`'s comment corrected — it claimed
+the cause was still unidentified, which is no longer true; the constant
+itself is untouched, still `0`). No behaviour changed. 61/61 tests pass.
+
+**Direct answer: tactical veto, not goal selection.** Two independent seed
+families (n=60 dungeons each, confirmation seeds never used while building
+the classifier), pooled counts, binomial SE:
+
+    veto      1093/1776 episodes = 61.5% ± 1.2 pp
+    routing    327/1776          = 18.4% ± 0.9 pp   (not in the brief's bifurcation — see below)
+    goal       157/1776          =  8.8% ± 0.7 pp
+    other      199/1776          = 11.2% ± 0.8 pp
+
+Turn-weighted shares track episode-count shares within 1–2 points in both
+samples, so this isn't a few long episodes skewing a count.
+
+The goal-selection hypothesis in the brief (chest `net` recomputed from
+scratch every turn, `GOAL_STICKINESS` only covering `kind === 'monster'`)
+is a real, confirmed mechanism — it does produce goalId-alternating
+episodes — it is just the minority cause, not the dominant one.
+
+**What surprised me.** A third pattern the brief's binary didn't have room
+for: goal stable, veto never even consulted (no monster in tactical range),
+and `planned` itself alternates for up to 17 turns anyway. Larger than the
+goal-selection bucket. Working hypothesis, *not* confirmed at tile level:
+`believedWalkable` treats unseen tiles as walkable, so the cheapest route to
+a fixed goal can flip as fog-of-war reveals map on each step, tipping a
+tied-cost route back and forth. Called "routing" in §4.5.
+
+Also: inside veto episodes, the mechanism is not "attack, retreat, attack,
+retreat" as `REVERSAL_PENALTY`'s old comment assumed. The plan itself often
+alternates between two *perpendicular* actions (e.g. up/right — not
+opposites), and the veto turns one of them (right → down) into the literal
+opposite of the last move, manufacturing the reversal out of a plan that
+alone would never have counted as one.
+
+**What I could not settle.**
+- The routing hypothesis is consistent with every example inspected but
+  not traced down to the tile/heap-tie level that would confirm it rather
+  than merely fit it.
+- The 11.2% "other" bucket is not decomposed — may be episodes where goal
+  flips and veto overrides both contribute; not separated further.
+- The historical reversal rate this file used to cite (0.238) does not
+  match what I measured now (0.174 / 0.210 across the two families). Likely
+  drift — `spine`, the crowd-cost correction, floor spread and guard
+  pricing all postdate that number — but I did not confirm it is drift
+  rather than a difference in method.
+- I did not re-run the old `REVERSAL_PENALTY` sweep (0 / 1.5 / 6) against
+  this classification to see whether it moved the veto bucket specifically;
+  that breakdown did not exist when the sweep was run.
+
+**Out of scope, for the project agent to evaluate.** B2 is being rewritten
+with "tactical veto" as the whole answer. The routing locus (18.4% ± 0.9 pp,
+confirmed on two independent samples) sits *before* the veto is even
+consulted — a fix scoped only to `scoreActions` / `bestValue` in
+`tactics.js` cannot reach it. Worth a decision on whether routing gets its
+own item or stays folded into B2's scope.
+
 ## 3 — I2 · spread against grouped, with a normal hero
 
 `map` · `metrics agent` · **READY**
