@@ -9,13 +9,14 @@
 
 import {
   CROWD_PENALTY, DANGER_FALLOFF, DUEL_SAFETY_MARGIN, GOAL_STICKINESS,
-  HOLD_RANGE, MONSTER_COUNT, REVERSAL_PENALTY, STEP_COST_IN_HP,
-  TACTICAL_OVERRIDE_MARGIN, TACTICAL_RANGE,
+  HOLD_RANGE, LOOT_CAMPAIGN_HORIZON, MONSTER_COUNT, REVERSAL_PENALTY,
+  STEP_COST_IN_HP, TACTICAL_OVERRIDE_MARGIN, TACTICAL_RANGE,
 } from '../sim/balance.js';
+import { MONSTERS_BASE, MONSTER_GROWTH } from '../sim/difficulty.js';
 import { scoreActions } from './tactics.js';
 import { effectiveHp } from '../sim/combat.js';
 import { duelCost } from './duel.js';
-import { expectedChestValue, valueByItemName } from './loot.js';
+import { expectedChestValue, monstersAhead, valueByItemName } from "./loot.js";
 import { dangerField } from './threat.js';
 import {
   actionToward, believedWalkable, dijkstra, exposure, frontiers, key, routeTo,
@@ -178,8 +179,39 @@ function monsterWithin(belief, field, steps) {
 // picking a fight. It is expressed as value rather than as a priority, so
 // a chestnut — worth exactly zero — never earns a detour, while a shield
 // two rooms away does.
-function lootGoals(belief, field, danger, total, stepCost) {
-  const values = valueByItemName(belief, total);
+// What visiting a tile will DRAG the bot into.
+//
+// Walking to a chest does not merely cost the walk: anything whose
+// activation radius covers that tile wakes and gives chase, and then has to
+// be fought. Danger pricing does not cover this — it charges for blows taken
+// while crossing a tile, not for the whole duel that follows.
+//
+// Only creatures in SIDE rooms are charged, and that is the point. A spine
+// monster has to be fought whatever the bot does, so its duel is not a cost
+// OF the detour. A side monster is avoidable, so waking it is a real price
+// that the visit, and only the visit, incurs.
+//
+// Without this the bot was picking side rooms by aggro rather than by
+// economics, and picking them BACKWARDS: measured over 344 side chests it
+// opened 59% of the unfavourable rooms against 47% of the favourable ones,
+// because dangerous rooms hold stronger creatures, stronger creatures have
+// longer activation radii, and so the worst rooms reached out and pulled the
+// bot in while the safe ones never woke at all.
+function guardCost(belief, pos, enabled) {
+  if (!enabled) return 0;
+
+  let total = 0;
+  for (const monster of liveMonsters(belief)) {
+    if (!monster.side) continue;
+    const away = Math.abs(monster.pos[0] - pos[0]) + Math.abs(monster.pos[1] - pos[1]);
+    if (away > monster.activation) continue;
+    total += duelCost(belief.player, monster).hpLost;
+  }
+  return total;
+}
+
+function lootGoals(belief, field, danger, total, stepCost, future = 0, guards = true) {
+  const values = valueByItemName(belief, total, future);
   const chestValue = expectedChestValue(values);
   const out = [];
 
@@ -187,10 +219,11 @@ function lootGoals(belief, field, danger, total, stepCost) {
     const approach = priceOfReaching(field, item.pos);
     if (!Number.isFinite(approach)) continue;
     const value = values.get(item.name) || 0;
+    const guard = guardCost(belief, item.pos, guards);
     out.push({
-      kind: 'item', id: item.id, pos: item.pos, distance: approach,
+      kind: "item", id: item.id, pos: item.pos, distance: approach,
       gross: value,
-      net: value - approach,
+      net: value - approach - guard,
     });
   }
 
@@ -202,10 +235,11 @@ function lootGoals(belief, field, danger, total, stepCost) {
     // two turns are spent standing where the chest is, so they are charged
     // at that tile's danger, not at the flat walking rate.
     const lingering = 2 * (stepCost + danger.priceAt(chest.pos[0], chest.pos[1]));
+    const guard = guardCost(belief, chest.pos, guards);
     out.push({
-      kind: 'chest', id: chest.id, pos: chest.pos, distance: approach,
+      kind: "chest", id: chest.id, pos: chest.pos, distance: approach,
       gross: chestValue,
-      net: chestValue - approach - lingering,
+      net: chestValue - approach - lingering - guard,
     });
   }
   return out;
@@ -219,8 +253,8 @@ function lootGoals(belief, field, danger, total, stepCost) {
 // (there is no clock, spec §8) and a monster that follows the bot never
 // closes the gap — it moves after the player does, so retreating holds
 // the distance. Delay is genuinely cheap; only dead ends are not.
-function preparationGoals(belief, field, danger, total, stepCost) {
-  const useful = lootGoals(belief, field, danger, total, stepCost)
+function preparationGoals(belief, field, danger, total, stepCost, future = 0, guards = true) {
+  const useful = lootGoals(belief, field, danger, total, stepCost, future, guards)
     .filter((g) => g.gross > 0);
   if (useful.length) {
     return useful.reduce((a, b) => {
@@ -240,6 +274,7 @@ function chooseGoal(belief, field, danger, current, options) {
   if (options.loot) {
     const worthwhile = lootGoals(
       belief, field, danger, options.monsterCount, options.stepCost,
+      options.monstersAhead, options.guardPricing,
     ).filter((g) => g.net > 0);
     if (worthwhile.length) {
       return worthwhile.reduce((a, b) => (b.net > a.net ? b : a));
@@ -265,6 +300,7 @@ function chooseGoal(belief, field, danger, current, options) {
     if (options.refuseLostFights && !best.worthStarting) {
       const prepare = preparationGoals(
         belief, field, danger, options.monsterCount, options.stepCost,
+        options.monstersAhead, options.guardPricing,
       );
       if (prepare) return prepare;
       // Nothing left to prepare with. Take it — the bot is not allowed to
@@ -342,7 +378,18 @@ export function makeBot(options = {}) {
 
     // What must die before the shrine is legal. 'spine' | 'all' | 'none' —
     // see clearedTheFloor. The old hard R0 is 'all'.
-    requireClear: 'spine',
+    requireClear: "spine",
+
+    // Charge a detour for the guards it will wake. See guardCost.
+    guardPricing: true,
+
+    // Where in the dungeon this floor sits. Only used to price gear against
+    // the floors still ahead; leave them out and the bot values loot for
+    // this floor alone, which is how every measurement before this was
+    // taken. A single floor played on its own genuinely has no future.
+    level: null,
+    levels: null,
+    horizon: LOOT_CAMPAIGN_HORIZON,
 
     pick: 'cheapest',
     stickiness: GOAL_STICKINESS,
@@ -362,6 +409,14 @@ export function makeBot(options = {}) {
     reversalPenalty: REVERSAL_PENALTY,
     ...options,
   };
+
+  // Creatures still ahead after this floor, discounted by how much of the
+  // remaining descent the hero can expect to actually play. Computed once:
+  // it cannot change during a floor.
+  settings.monstersAhead = settings.horizon * monstersAhead(
+    settings.level, settings.levels, MONSTERS_BASE, MONSTER_GROWTH,
+  );
+
   let goal = null;
   let standoff = null;
   let lastAction = null;

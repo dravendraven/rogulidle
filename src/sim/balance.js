@@ -212,6 +212,21 @@ export const SPINE_THREAT_SHARE = 0.7;
 // sharper gamble, drop it to zero to make side rooms ordinary.
 export const SIDE_ROOM_DEPTH_BONUS = 0.35;
 
+// GUESS — a creature in a side room only wakes within this many tiles,
+// however far its table entry would normally reach. 99 means no cap.
+//
+// OFF, and this is a measured negative. The hypothesis was good: activation
+// runs to 20 in the table and the strongest creatures have the longest
+// reach, so the nastiest side rooms should have been the ones grabbing the
+// bot from across the floor while safe rooms never woke. Capping it to 4
+// made the inversion WORSE, not better — the bot opened 68% of unfavourable
+// rooms against 54% of favourable, against 53%/45% uncapped.
+//
+// Kept as a dial because "a guard guards" is still a defensible rule and the
+// negative result is worth being able to re-check. See docs/map-design.md
+// for what the cause actually turned out to be.
+export const SIDE_ACTIVATION_CAP = 99;
+
 // GUESS — floors with fewer creatures than this put everything on the
 // spine. The mass split is too coarse to honour below it: on a
 // two-creature floor one side monster is already half the mass, which
@@ -249,6 +264,20 @@ export const UNKNOWN_MONSTER_ESTIMATE = { xp: 4, hp: 7 };
 // GUESS — measured at 0.60 over 150 generated maps. What the bot assumes
 // when deciding whether opening a chest is worth the two turns.
 export const CHEST_LOOT_CHANCE = 0.60;
+
+// GUESS — what share of the REMAINING descent the bot prices gear against.
+//
+// A sword taken on floor 3 is swung on floors 4 to 10, so valuing it against
+// floor 3 alone leaves the bot blind to the long game the map design is
+// built around. But counting all seven floors ahead at face value is just as
+// wrong in the other direction: it assumes the hero survives to swing it,
+// and only about 45% of dungeons are cleared.
+//
+// 0.5 is that clear rate rounded, used as a plain discount rather than a
+// modelled survival curve — a single honest constant beats a fake model.
+// At 0 the bot is myopic, which is the behaviour every measurement before
+// this was taken with.
+export const LOOT_CAMPAIGN_HORIZON = 0.5;
 
 // GUESS — how fast a monster's menace fades with distance. The hp it is
 // expected to deal is multiplied by this per tile away, so at 0.5 a wolf

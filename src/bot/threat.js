@@ -86,6 +86,12 @@ export function dangerField(belief, tuning = {}) {
           : exposedTiles.set(tile, exposure(belief, [x, y])).get(tile);
         price = bite * (1 + EXPOSURE_WEIGHT * (ways - 1));
       }
+      // Flat, and TRIED SCALED. Making the surcharge proportional to what
+      // the crowd can actually do (`crowdPenalty * bite`) was the obvious
+      // fix for the map's inverted risk/reward measurement, and it changed
+      // nothing at all — byte-identical chest-opening rates and descent
+      // results. Tiles reachable by two awake monsters at once are simply
+      // rare enough that this term is not what steers the bot.
       if ((crowd.get(tile) || 0) >= 2) price += crowdPenalty;
       return price;
     },

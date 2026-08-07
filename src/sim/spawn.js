@@ -8,10 +8,10 @@ import {
   CHEST_COUNT, CHEST_DIFFICULTY_SCALE, CHEST_LOOT_RICHER_FAR, CHEST_QUALITY_BY_DEPTH,
   CHEST_TABLE, ITEM_TABLE, MONSTER_COUNT, MONSTER_DIFFICULTY_SCALE,
   MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE, MONSTER_WEIGHTS,
-  PLAYER_HP, PLAYER_XP, SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS,
-  SPINE_THREAT_SHARE,
+  PLAYER_HP, PLAYER_XP, SIDE_ACTIVATION_CAP, SIDE_CHEST_BIAS,
+  SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE,
 } from './balance.js';
-import { drawChance, drawInt, drawPick, drawWeighted } from './rng.js';
+import { draw, drawChance, drawInt, drawPick, drawWeighted } from './rng.js';
 import { findPath, playerPassable, posKey, walkablePositions } from './mapgen.js';
 import { classifyRooms } from './spine.js';
 
@@ -197,13 +197,44 @@ export function populate(state, map, counts = {}) {
   state.spine = { path: zones.path, sideRooms: zones.side.length,
     spineRooms: zones.spine.length };
 
-  // A side room is treated as if it sat DEEPER than it does, and that one
-  // bonus drives both halves of the bargain: depth is what picks the monster
-  // tier and what sets chest quality, so a detour is more dangerous and
-  // better paid by the same number. See docs/map-design.md.
-  const depthAt = (pos) => {
+  // Every side room rolls its risk and its reward SEPARATELY.
+  //
+  // This is the whole reason side rooms are a decision at all. With one
+  // shared bonus, risk and reward were perfectly correlated: every detour
+  // offered the same ratio, and a gamble with a fixed favourable ratio is
+  // not a gamble, it is a free lunch that is always correct to take.
+  // Measured that way, forbidding the detour, requiring it, and leaving it
+  // optional all produced identical dungeons.
+  //
+  // Two independent draws over [0, 2 × bonus] keep the AVERAGE side room
+  // exactly where it was, while making individual ones range from a den of
+  // ogres guarding a dagger to a lone bat sitting on an axe. Some are worth
+  // it and some are not, and which is which differs per room and per floor.
+  const sideRolls = new Map();
+  for (const room of zones.side) {
+    sideRolls.set(room, {
+      risk: draw(state, 'spawn') * 2 * sideBonus,
+      reward: draw(state, 'spawn') * 2 * sideBonus,
+    });
+  }
+
+  // Depth drives both the monster tier and the chest quality, so it is read
+  // twice with different bonuses. Spine ground gets neither.
+  const depthAt = (pos, which) => {
     const depth = posToDifficulty(pos, playerPos, passable, furthestLength);
-    return Math.min(1, depth + (zones.isSide(pos) ? sideBonus : 0));
+    const room = zones.roomOf(pos);
+    const roll = room ? sideRolls.get(room) : null;
+    return Math.min(1, depth + (roll ? roll[which] : 0));
+  };
+
+  // How good a bargain this room is: positive means the reward roll beat the
+  // risk roll. Recorded on everything placed in it so a measurement can ask
+  // the only question that matters — does the bot take the good gambles and
+  // leave the bad ones? Zero on the spine, which is not a gamble at all.
+  const edgeAt = (pos) => {
+    const room = zones.roomOf(pos);
+    const roll = room ? sideRolls.get(room) : null;
+    return roll ? +(roll.reward - roll.risk).toFixed(3) : 0;
   };
 
   // 4. Chests. Rooms only — never corridors.
@@ -231,7 +262,7 @@ export function populate(state, map, counts = {}) {
     const pos = roomFree[drawInt(state, 'spawn', 0, roomFree.length - 1)];
     takeFree(pos);
 
-    const depth = depthAt(pos);
+    const depth = depthAt(pos, 'reward');
     // Sweeps 10%..100% across the map; the flag decides which end is rich.
     const emptiness = CHEST_LOOT_RICHER_FAR ? 1 - depth : depth;
     const hasLoot = drawChance(state, 'spawn', 1 - CHEST_DIFFICULTY_SCALE * emptiness);
@@ -249,6 +280,7 @@ export function populate(state, map, counts = {}) {
       emoji: chest.emoji,
       pos,
       side: zones.isSide(pos),
+      edge: edgeAt(pos),
       // `template` is null when the scarcity dials sent this draw to the
       // empty slot, which is the replacement for Rogule's junk collectibles.
       drop: hasLoot && template ? makeItem(state, template, pos) : null,
@@ -301,7 +333,7 @@ export function populate(state, map, counts = {}) {
     const pos = pool[drawInt(state, 'spawn', 0, pool.length - 1)];
     takeFree(pos);
 
-    const difficulty = Math.min(1, depthAt(pos) * difficultyScale);
+    const difficulty = Math.min(1, depthAt(pos, 'risk') * difficultyScale);
     const index = Math.floor(difficulty * (MONSTER_TABLE.length - 1));
     const slot = drawWeighted(state, 'spawn', monsterWeightsAround(index));
     const template = MONSTER_TABLE[slot];
@@ -321,8 +353,13 @@ export function populate(state, map, counts = {}) {
       hp: template.hp,
       hpMax: template.hp,
       xp: template.xp,
-      activation: template.activation,
+      // A guard guards: capped so the room does not reach out and grab the
+      // bot from across the floor. See SIDE_ACTIVATION_CAP.
+      activation: side
+        ? Math.min(template.activation, counts.sideActivationCap ?? SIDE_ACTIVATION_CAP)
+        : template.activation,
       dead: false,
+      edge: edgeAt(pos),
       // Which side of the bargain this creature is on. Read by spineShare()
       // to check the floor came out at the ratio that was asked for, and by
       // the bot to tell a mandatory fight from an optional one.

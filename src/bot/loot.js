@@ -35,14 +35,37 @@ const ITEM_MIX = (() => {
 // Known live monsters, plus a stand-in for each one still unaccounted for.
 // Without the stand-ins the bot would value gear at zero whenever it cannot
 // currently see anything — exactly when it should be stocking up.
-export function monstersStillToFight(belief, total = MONSTER_COUNT) {
+//
+// `future` extends the count past this floor. A sword taken on floor 3 is
+// swung on floors 4 to 10, and pricing it against floor 3 alone made the
+// bot structurally blind to the long game the owner's map design is built
+// around: it could not tell a detour that pays for the rest of the descent
+// from one that pays for the next ten minutes.
+//
+// The future floors are counted as unknowns rather than modelled, because
+// their rosters genuinely are unknown — the bot has not seen them and the
+// generator has not built them yet.
+export function monstersStillToFight(belief, total = MONSTER_COUNT, future = 0) {
   const known = [...belief.monsters.values()];
   const live = known.filter((m) => !m.dead);
-  const unaccounted = Math.max(0, total - known.length);
+  const unaccounted = Math.max(0, total - known.length) + Math.max(0, future);
 
   const out = live.map((m) => ({ xp: m.xp, hp: m.hp }));
   for (let i = 0; i < unaccounted; i++) out.push({ ...UNKNOWN_MONSTER_ESTIMATE });
   return out;
+}
+
+// How many creatures the hero still has to face AFTER this floor, given the
+// dungeon's growth law. Returns 0 on the last floor, and 0 when the bot was
+// not told where it is — a single floor played on its own has no future to
+// discount against, and must keep behaving exactly as before.
+export function monstersAhead(level, levels, base, growth) {
+  if (!level || !levels || level >= levels) return 0;
+  let sum = 0;
+  for (let n = level + 1; n <= levels; n++) {
+    sum += Math.max(1, Math.round(base * Math.pow(growth, n - 1)));
+  }
+  return sum;
 }
 
 function withItem(player, item) {
@@ -51,9 +74,9 @@ function withItem(player, item) {
 
 // One value per item TYPE rather than per item on the floor — there are 7
 // types and can be dozens of items, and the value only depends on the type.
-export function valueByItemName(belief, total = MONSTER_COUNT) {
+export function valueByItemName(belief, total = MONSTER_COUNT, future = 0) {
   const player = belief.player;
-  const monsters = monstersStillToFight(belief, total);
+  const monsters = monstersStillToFight(belief, total, future);
   const baseline = campaignCost(player, monsters);
 
   const values = new Map();

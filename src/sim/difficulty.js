@@ -145,6 +145,11 @@ export function makeFloorPlan(model = {}) {
       weaponScarcity: m.weaponScarcity,
       armourScarcity: m.armourScarcity,
       potionScarcity: m.potionScarcity,
+      // Map-design dials. Undefined falls through to balance.js in populate.
+      sideActivationCap: m.sideActivationCap,
+      sideRoomDepthBonus: m.sideRoomDepthBonus,
+      spineThreatShare: m.spineThreatShare,
+      sideChestBias: m.sideChestBias,
     };
   };
 }

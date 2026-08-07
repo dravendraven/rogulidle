@@ -120,7 +120,13 @@ export function descentCurve(options = {}) {
 
   for (let i = 0; i < runs; i++) {
     const dungeon = playDungeon(firstSeed + i,
-      (floor) => makeBot({ monsterCount: floor.monsterCount, ...botOptions }),
+      (floor) => makeBot({
+        monsterCount: floor.monsterCount,
+        // Where this floor sits, so gear can be priced against the descent
+        // still ahead rather than against this room alone.
+        level: floor.level, levels,
+        ...botOptions,
+      }),
       { maxTurns, levels, floorPlan: planFor });
 
     depths.push(dungeon.depth);

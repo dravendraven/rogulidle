@@ -118,6 +118,12 @@ export function playDungeon(seed, makePolicy, options = {}) {
       // normal run — silently won.
       armourScarcity: options.armourScarcity ?? options.scarcity ?? plan.armourScarcity,
       potionScarcity: options.scarcity ?? plan.potionScarcity,
+      // Map-design dials ride along untouched; undefined means "use the
+      // shipped value", which populate() resolves against balance.js.
+      sideActivationCap: plan.sideActivationCap,
+      sideRoomDepthBonus: plan.sideRoomDepthBonus,
+      spineThreatShare: plan.spineThreatShare,
+      sideChestBias: plan.sideChestBias,
       carry,
       // Rule variants apply to every floor of the descent.
       xpFromKills: options.xpFromKills,
