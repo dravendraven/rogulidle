@@ -27,10 +27,10 @@ its standing job, which is not a task and so has no row of its own.
 |---|---|---|---|---|---|---|
 | 1 | I7 | The probe survives because it is huge — that dilutes capacity and hides selection | map | metrics | READY · now | n/a |
 | 2 | I6 | Reward has no instrument, so M9 and M5 cannot be judged at all | map | metrics | READY | n/a |
-| 3 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | REPORTED | done |
+| 3 | M3 | Spike never rose — M7 raised lethality by attrition, not by a bigger hit | map | work | READY · the gap M7 left | — |
 | 4 | M9 | A t-rex and a rat pay the same loot — tie the drop to what you killed | map | work | BLOCKED on I6 | — |
 | 5 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
-| 6 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
+| — | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | **DONE** · adopted, flag ON | done |
 | — | I5 | Buffer is two quantities — capacity and attrition — and its sign flip is selection | map | metrics | **DONE** | n/a |
 | — | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | **DONE** · built, flag OFF | done |
 | — | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | FOLDED into M7 | — |
@@ -46,7 +46,7 @@ its standing job, which is not a task and so has no row of its own.
 | — | I1 | Model ruler misprices crowds — replace it with two frozen probes that play | map | metrics | **DONE** | n/a |
 | — | I2 | Clustering may change lethality, not cost — retest with a normal hero | map | metrics | **DONE** | n/a |
 
-    work agent      M7 reported → M9 (waits on I6) → M4 and M3 if needed
+    work agent      M3 (spike gap M7 left) → M9 (waits on I6) → M4 if needed
     metrics agent   I7 → I6, plus the ruler re-run after each landing
     ui agent        idle
 
@@ -578,6 +578,65 @@ reimplements the descent loop locally (same reasoning as
 (I2/I3) are left untouched and marked deprecated in the file's own header;
 this reading used only the real engine flag (`M7_ON` from
 `observed-ruler.js`) and the real bot, never the old shadow mechanism.
+
+### Review 2 — verdict. ADOPTED, flag ON
+
+    challenge         1.341 → 1.337    hold ±0.03      PASS
+    CV challenge      0.941 → 0.986    ≥ 1.00          within 1σ, ~3σ move
+    challenge/power   1.261 → 1.193    ≥ 1.15          PASS both arms
+    finishes          31.3% → 20.0%    15–40%          PASS, but see below
+    floors populated  fl10 holds 7                     PASS
+
+**Adopted.** CV is objective 1's goal, it moved about 3σ, and it lands
+inside one standard error of its target. Nothing else broke a bound. That is
+what this item existed to do, and the count→strength route it revived —
+archived for emptying the floor — now delivers with grouping filling the gap
+exactly as argued.
+
+Two things to record, and the second changes the queue.
+
+### The budget held on the instrument and not in the game
+
+Challenge is unchanged at 1.337 and finishes fell **11.3 points**
+(z ≈ −2.25). Both are true, and the item's stated intent was "moves where
+difficulty comes from, never how much there is."
+
+Challenge is damage taken by a 400 hp probe clearing a floor. The probe does
+not die. Clustering makes the real bot get caught without making the floor
+cost more to grind through, so the amount of difficulty **did** change while
+the criterion said it had not.
+
+This is the same asymmetry M6 showed in the opposite direction: the probe
+under-reads anything that acts on a competent player rather than on a
+yardstick. **The criterion was satisfied to the letter and missed the
+intent**, and that is a fault in how the criterion was written — mine — not
+in the work.
+
+Not a reason to reject: finishes stayed in band, and 20% is arguably a
+better race than 31% against sub-goal 3. Recorded so "challenge held"
+stops being read as "difficulty unchanged".
+
+### The spike question is NOT settled — the statistic was diluted
+
+Reported as decided: p95/p99 of per-turn damage are 0 and 1 in both arms, so
+the mechanism is attrition rather than spike.
+
+**Those numbers cannot answer it.** They are pooled over ~140k turns across
+full descents — roughly 930 turns per run, and the overwhelming majority are
+walking. p95 = 0 says 95% of turns are not combat turns, which was never in
+question. The entire tail of interest lives above p99, and the percentile
+stops exactly where it starts being informative.
+
+The right statistic conditions on turns where the hero was adjacent to
+something alive, or reports per-encounter rather than per-turn. Grouping may
+well be working by attrition — I2 pointed that way too — but this reading
+does not establish it.
+
+**Consequence for the queue.** M3 was demoted to "fine tuning, only if M7
+leaves a gap". It left one — the shrinking reaction window, which is the
+DCSS shape the whole programme is aimed at, and which grouping was chosen to
+deliver. Whether M3 is still needed now turns on the conditioned spike
+number, not on the pooled one. It stays READY rather than being dropped.
 
 ## M9 · tie the drop to the creature that carries it
 
