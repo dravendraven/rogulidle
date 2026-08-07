@@ -106,10 +106,20 @@ Your opening prompt names your task (`Task B1`). Read that item in full
 before starting, and report against its acceptance criteria — not against
 your own sense of finished.
 
+**Claim it first.** Before any other action, set your item to IN FLIGHT in
+both the queue table and its heading, and commit that on its own. Three
+sessions share this repo and cannot see each other; an unclaimed item is one
+that two agents can start at the same time, and the second to notice will
+have wasted the whole pass. Claiming costs one commit.
+
+If your item is already IN FLIGHT, stop and say so — do not assume it is
+stale.
+
 Status legend:
 
     READY           spec is complete, can be started
-    IN FLIGHT       someone is on it
+    IN FLIGHT       claimed — someone is on it right now. Set this BEFORE
+                    doing anything else, and commit it on its own
     MEASURE ONLY    build it and report what it moves, but leave it OFF by
                     default — adoption waits on something else
     BLOCKED         waiting on a named task; spec is deliberately thin

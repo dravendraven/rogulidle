@@ -56,8 +56,13 @@ small commits, and say in the commit message which role you are.
 `docs/backlog.md` holds the task list, what each task is worth, and its
 acceptance criteria. Your opening prompt names your task — read that item in
 full before starting, and report against ITS criteria rather than your own
-sense of finished. When you finish, set your item to REPORTED and append a
-`### Result` block to it — see the legend at the top of that file. Only the
+sense of finished.
+
+Your FIRST action on any task is to set it to IN FLIGHT and commit that
+alone — three sessions share this repo and cannot see each other, so an
+unclaimed item is one two agents can start at once. If it is already IN
+FLIGHT, stop and say so. When you finish, set it to REPORTED and append a
+`### Result` block — see the legend at the top of that file. Only the
 project agent adds or reorders items, or promotes REPORTED to DONE; if an
 item looks wrong, report that instead of editing it.
 
