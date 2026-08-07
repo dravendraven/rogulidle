@@ -265,6 +265,52 @@ So it stays a falsifier: it can say the sum failed, never what to fix.
 Nothing in the queue serves it, deliberately — and measuring it against a
 bot with known defects would measure the defects.
 
+## Targets for objective 1
+
+Concrete numbers, so every map item has an acceptance figure rather than
+"stops falling". Growth per floor, measured on the probes.
+
+| quantity | now | must reach | aim for | kind |
+|---|---|---|---|---|
+| challenge | 1.343 ±0.009 | hold, ±0.03 | unchanged | **constraint** |
+| buffer | 0.855 ±0.023 | ≥ 1.00 | 1.16 | goal |
+| CV challenge | 0.944 ±0.012 | ≥ 1.00 | ~1.05 | goal |
+| challenge/power | ≥1.307 | ≥ 1.15 | — | **bound** |
+| clear rate, real bot | ~30% | 15–40% | — | **bound** |
+
+**Challenge is a constraint, not a goal.** It is calibrated and no map item
+is licensed to move it. An item that improves a ratio by making floors
+harder or easier has not improved anything — it has moved the denominator.
+
+**Buffer: 1.16 is DCSS's figure and it transfers cleanly.** With challenge
+held at 1.343 it puts `challenge/buffer` near 1.16 against DCSS's 1.11.
+Anything at or above 1.00 already fixes the sign, which is the part that
+matters; 1.16 is the ambition.
+
+**CV: do NOT copy DCSS's 1.14.** The growth rates are not comparable because
+the starting points are not. Rogulidle's CV of challenge begins at 1.20 on
+floor one and falls to 0.64 by floor nine; DCSS starts from a much lower
+base. Growing 1.14 per floor from 1.20 would end near 3.9 — a standard
+deviation four times the mean, which is not a game, it is a coin toss.
+
+The high base is itself an artefact worth understanding rather than
+preserving: floor one holds two creatures, so a single draw swings the total
+enormously, and the fall to 0.64 is mostly the law of large numbers as the
+roster grows. **The target is therefore the sign, not the slope** — deep
+floors at least as unpredictable as shallow ones, with ~1.05 as a reasonable
+ambition and anything above 1.00 counting as fixed.
+
+**Two bounds, not goals.** `challenge/power` must not fall below about 1.15
+and clear rate must stay inside 15–40%. Both drift the same way when the
+hero gets stronger, which M6 does on purpose. They are there to catch a fix
+that works by making the game easy, and if either leaves its band the answer
+is a smaller change, never a difficulty re-tune.
+
+**No target for reward.** `reward/challenge` and CV of reward have no
+instrument that answers the question — the probes measure incidental
+pickup, which is a property of their policy. Nothing should be built to move
+a number that does not yet mean anything.
+
 ## The problem all of this serves
 
 Measured: difficulty grows ×1.34 per floor while the hero's power grows far
