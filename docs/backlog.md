@@ -62,7 +62,7 @@ normal and does not mean the item changed.
 
 | # | id | what and why | feature | agent | status |
 |---|---|---|---|---|---|
-| 1 | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | READY · now |
+| 1 | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | IN FLIGHT |
 | 2 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY |
 | 3 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY |
 | 4 | M5 | Best item is axe +2, so no reward is ever an event | map | work | READY |
@@ -965,7 +965,7 @@ attempting a fifth.
 
 ## M6 · defensive progression
 
-`map` · `work agent` · **READY** — decided, see "The decision" below
+`map` · `work agent` · **IN FLIGHT** — decided, see "The decision" below
 
 Progression is **entirely offensive**, and the value table says why:
 
