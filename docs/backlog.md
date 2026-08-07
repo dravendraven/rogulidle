@@ -3,7 +3,7 @@
 The task list. Everything needed to pick up a task and finish it.
 
 - **What we are doing and why** — `docs/project/objectives.md`
-- **What was last measured** — `docs/kpi.md` (a record, not a set of goals)
+- **What was last measured** — `run-check.html` (a record, not a set of goals)
 - **Closed items with their results** — `docs/project/decisions.md`
 - **Ideas with no slot** — `docs/project/candidates.md`
 
@@ -18,7 +18,7 @@ questions that are genuinely invisible.
 
 Run the ruler when a batch lands, as a **regression check** — did something
 break — not as a scoreboard. `run-ruler.html`, and put what it says in
-`docs/kpi.md`.
+`run-check.html`.
 
 Read your item in full before starting and report against what it asks for
 rather than your own sense of finished. Say what you did, what you measured
@@ -217,7 +217,7 @@ samples/floor, ~2s). Both counts are page inputs, not constants.
 
 **What surprised me:** reversal rate read 36% on one ordinary run — the
 bot reverses on roughly a third of its moves. That happens to sit in the
-same range as the OLD parked reversal-rate reading in `docs/kpi.md`
+same range as the OLD parked reversal-rate reading in `run-check.html`
 (0.174–0.210, different measurement, different era, kept for the bot lane
 being parked rather than deleted) — not close enough to call the same
 number, but close enough that the new instrument isn't reading something
@@ -253,7 +253,7 @@ that it usually does not.
 ### Result
 
 **No constant changed.** The 2.18/1.97 dip is the real probe's sampling
-noise (both figures are well within 1σ of each other in `docs/kpi.md`), not
+noise (both figures are well within 1σ of each other in `run-check.html`), not
 a structural defect — the actual generation formula already produces a
 non-decreasing expected cost, it just had no closed form and no guard
 proving so.
@@ -405,14 +405,14 @@ gesture (headroom if the quota's own shape changes later) than a working
 lever.
 
 **Also disclosed: the baseline this item's own numbers rest on does not
-reproduce.** `docs/kpi.md`/`docs/project/decisions.md` record effective
+reproduce.** `run-check.html`/`docs/project/decisions.md` record effective
 cluster size at 3.97–4.87 from floor 6 on (commit `ff708dc`). Re-measured
 the same call (`effectiveClusterSizes` with `M7_ON`, and independently with
 `floorPlan` and with `tierFloorShare` explicitly zeroed to rule out M13)
 and got 1.77–2.10 for floors 6–10, consistently across all three
 constructions. Did not chase this further — it does not change what M12
 needed to do, only what "today" meant going in — but it should not be
-silently overwritten either. Flagging for whoever owns `kpi.md` next.
+silently overwritten either.
 
 **What was actually done: raised count as far as the EXISTING M7 budget
 test allows, since the intended compensating lever does not work.**
@@ -625,14 +625,9 @@ than deleting ahead of it.
 The analysis modules they drive stay — `clustering.js` is still the source
 of the finishes and per-turn damage numbers.
 
-**Docs.**
-
-    docs/curve-shape.md              superseded twice, says so at the top
-    docs/clustering-i2.md            fold into project/decisions.md
-    docs/clustering-i3.md            fold into project/decisions.md
-
-Fold rather than delete: those two hold the actual write-ups for I2 and I3,
-and `decisions.md` is where closed work lives.
+**Docs — already done.** `kpi.md`, `curve-shape.md`, `clustering-i2.md` and
+`clustering-i3.md` are deleted; `decisions.md` is now a findings list rather
+than a transcript.
 
 **Do not touch.** `hardness.js` (run-lab uses it), `batch.js`,
 `clustering.js`, `observed-ruler.js`.
@@ -689,7 +684,7 @@ Then the copies call it.
 **Acceptance.**
 - One loop, exported, with the four call sites using it.
 - **Byte-identical results at every existing call site.** These functions
-  produce every published number in `kpi.md`; if any of them moves, the
+  produce every number `run-check.html` shows; if any of them moves, the
   refactor changed behaviour and the numbers behind it are no longer
   comparable. This is the whole risk of the item.
 - No new RNG consumption anywhere, verified rather than argued.

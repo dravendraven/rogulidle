@@ -73,7 +73,7 @@ having.
 ## Crowd correction — the cost model under-prices numbers
 
 > ⚠️ **The ruler changed here, TWICE.** Every challenge/cost figure recorded
-> ABOVE this section, and in `docs/curve-shape.md`, was measured with the
+> ABOVE this section, and in `docs/observed-ruler.md`, was measured with the
 > uncorrected model — **pre-change**. The section below was then itself
 > revised once, from a multiplicative factor to the additive form that
 > ships now; anything measured against the multiplicative form (`1.32 ×

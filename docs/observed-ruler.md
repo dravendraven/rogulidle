@@ -2,7 +2,7 @@
 
 > **This is the current valid baseline.** Every challenge number recorded
 > before this document — the original modelled `campaignCost`, AND the
-> crowd-corrected version of it in `docs/curve-shape.md` — is measured with
+> crowd-corrected version of it in `docs/observed-ruler.md` — is measured with
 > a different ruler and is **not comparable** with anything below. Read
 > those documents for history, not for numbers.
 
@@ -51,7 +51,7 @@ properties of the hero on arrival and only exist for a hero who actually
 got there. Using the real bot for this would measure the bot, not the map,
 and the real bot's deep-floor hero is already known to be survivor-selected
 (power on floor 5: 2.25× stronger for those who go on to reach floor 9+,
-z = 4.89 — see `docs/curve-shape.md`). Sonda B carries the same kind of
+z = 4.89 — see `docs/observed-ruler.md`). Sonda B carries the same kind of
 bias, worse if anything (see "Descent survival" below), and it is reported
 honestly rather than corrected away.
 

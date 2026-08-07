@@ -48,8 +48,9 @@ protocols. CV went up. Nobody can say the game got better to watch.
   **regression check** — "did something break" — not as a scoreboard. They
   caught real things: `campaignCost` mispricing crowds, reward being read
   twenty times low, `clustering.js` drifting from the engine.
-- **`docs/kpi.md`** stays as a record of what was last measured. It is not a
-  set of goals.
+- **Numbers are produced on demand** by `run-check.html`, not written down.
+  A recorded measurement goes stale and gets compared against anyway — the
+  old `kpi.md` baseline failed to reproduce, which is why it is gone.
 
 ## What is gone
 

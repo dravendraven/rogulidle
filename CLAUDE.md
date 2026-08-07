@@ -11,8 +11,6 @@ Read, in this order:
    behaviour. Deliberate divergences are in its §13.
 2. `docs/bot-strategy.md` — what the bot is trying to do and why.
 3. `docs/balance.md` — the single source of truth for ALL tuning numbers.
-4. `docs/curve-shape.md` — what the difficulty, power, reward and buffer
-   curves actually measure out as, and how each was defined.
 
 Design questions get answered from those docs or by asking the owner, never
 by inventing defaults.
@@ -51,8 +49,8 @@ worked** — that is what a review is for.
 item in full and report against what it asks for. Only the project agent
 adds or reorders items — if one looks wrong, say so instead of editing it.
 
-`docs/kpi.md` records what was last measured, with the commit and sample.
-It is a record, not a set of goals.
+Numbers come from `run-check.html`, run on demand. Nothing records them —
+a written-down measurement goes stale and gets compared against anyway.
 
 **Watch the game. Fix what is wrong.** Measure only when you cannot tell by
 looking — `docs/project/objectives.md` has the history of why that rule
