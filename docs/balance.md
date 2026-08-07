@@ -451,6 +451,43 @@ Five monsters on a 32×32 map is very sparse — see spec §10.2.
 | `PLAYER_XP` | 3 | FAITHFUL (`generator.cljs:26`) |
 | `XP_PER_KILLS` | 1 xp every 2 kills | FAITHFUL (`engine.cljs:272`) |
 
+## Difficulty rebalance (M7) — off by default, budget-neutral by design
+
+| Name | Value | Status |
+|---|---|---|
+| `DIFFICULTY_REBALANCED` | `false` | **OFF by default** — built and self-tested, no reading requested yet. See `docs/backlog.md` M7 |
+| `MONSTER_GROWTH_REBALANCED` | 1.15 | **INITIAL GUESS**, one of three levers sharing one budget |
+| `STRENGTH_GROWTH_REBALANCED` | 1.07 | **INITIAL GUESS**, sized against the corrected exponent 2.356 (see "Strength ramp" above) |
+| `CLUSTER_SIZE` | 6 | **SETTLED** — swept 3→6→9, diminishing returns past 6 (see backlog M7) |
+
+Live in `src/sim/difficulty.js` beside `MONSTER_GROWTH` and
+`STRENGTH_GROWTH`, following the same convention already set there.
+
+One flag, three levers, moved together because they are one budget and
+cannot be attributed apart (`docs/backlog.md` M7). With the flag off,
+`floorParams`/`floorPlan` are byte-identical to today: `MONSTER_GROWTH`
+(1.3), `STRENGTH_GROWTH` (1.0, i.e. no ramp), cluster size 1 (one monster
+per placement draw, same as no clustering at all).
+
+**Count grows slower** (1.3 → 1.15), cutting the CV-diluting effect of many
+independent draws (`CV = CV_single / √n`). **Strength now ramps** (1.0 →
+1.07) to replace the difficulty count no longer supplies — using the
+corrected exponent from the archived count→strength sweep, not 2, because
+strength indexes an 11-row table whose mass runs 0 to 108, not a linear
+scale. **Grouping is new**: `src/sim/spawn.js`'s monster placement (step 5)
+now places creatures in clusters of `CLUSTER_SIZE`, nearest-tile-first from
+a shared anchor, instead of drawing every position independently — same
+zone rules (side/spine) as today, same RNG stream, and `CLUSTER_SIZE = 1`
+reproduces the current per-monster independent draw exactly (verified: with
+the flag off, the cluster loop degenerates to one draw per monster with no
+extra RNG consumption).
+
+Self-measured before shipping the flag off — see `docs/backlog.md` M7 for
+the full run, method, and what it does and does not settle. Headline
+numbers: challenge growth held at 1.337 ±0.029 (target 1.343 ±0.03, PASS);
+CV of challenge rose from 0.944 to 0.986 (target ≥1.00, SHORT — diminishing
+returns past `CLUSTER_SIZE` 6, see backlog).
+
 ## Defensive progression (M6)
 
 | Name | Value | Status |

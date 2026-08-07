@@ -336,10 +336,18 @@ every clustering measurement stops describing the game.
 ### Result
 
 **Built, flag off, exactly as instructed — no metrics-agent reading
-requested.** M6 was already adopted (`HP_FROM_KILLS=true`) so the baseline
-includes it. `DIFFICULTY_REBALANCED=false` in `src/sim/difficulty.js`;
-72/72 tests pass with the flag off, and a dedicated test confirms
-`floorParams`/`floorPlan` are byte-identical to before M7 in that state.
+requested.** M6 was adopted (`HP_FROM_KILLS=true`) when this task started,
+so every number below was measured on that baseline. **Note for whoever
+reads this next:** M6's adoption was reversed while M7 was in flight
+(`ca5c6f9`, docs only — `src/sim/balance.js` still reads `true` on disk as
+of this report, so the reversal has not yet been executed in code). Not
+mine to act on: M7's own claim predates that decision and its commit
+message says the reversal is "cleaner" for M7 being mid-flight, so this
+report proceeds on the baseline it was given rather than re-measuring.
+Flagging the code/docs mismatch since it is not obviously anyone's task yet.
+`DIFFICULTY_REBALANCED=false` in `src/sim/difficulty.js`; 72/72 tests pass
+with the flag off, and a dedicated test confirms `floorParams`/`floorPlan`
+are byte-identical to before M7 in that state.
 
 **Mechanism, all three levers behind the one flag.**
 - `MONSTER_GROWTH_REBALANCED = 1.15` (count), replacing 1.3.

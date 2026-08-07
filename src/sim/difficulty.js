@@ -106,6 +106,41 @@ export function saturatedAt(model = {}, levels = 10) {
   return null;
 }
 
+// ***** M7 — moving the budget off count, onto strength and grouping ***** //
+// docs/backlog.md M7. CV of challenge falls with depth (measured 0.944 per
+// floor) because difficulty grows entirely by CREATURE COUNT, and the CV of
+// a sum of n independent draws is CV_single / sqrt(n) — more draws dilutes,
+// however variable each draw is individually. Nothing per-creature can fix
+// a per-n problem.
+//
+// ONE FLAG, THREE LEVERS, moved together because they share one budget and
+// cannot be attributed apart: move one and the other two must move to hold
+// challenge fixed. Off by default — self-tested, not yet adopted.
+export const DIFFICULTY_REBALANCED = false;
+
+// Slower than MONSTER_GROWTH (1.3), cutting the dilution at its source —
+// fewer draws means less to dilute with.
+export const MONSTER_GROWTH_REBALANCED = 1.15;
+
+// Faster than STRENGTH_GROWTH (1.0, i.e. flat), replacing the difficulty
+// count no longer supplies. Sized against the CORRECTED exponent from the
+// archived count->strength sweep — 2.356, not 2, because strength indexes
+// an 11-row table whose mass runs 0 to 108, not a linear scale. Using 2
+// here would overshoot the budget the same way it did in that sweep.
+export const STRENGTH_GROWTH_REBALANCED = 1.07;
+
+// How many creatures share one placement anchor. 1 means every monster
+// still draws its own independent position — byte-identical to no
+// clustering at all, which is what the flag being off resolves to.
+//
+// This is the lever the archived sweep could not reach: pure count/strength
+// reallocation still has the CV falling at every point on the budget that
+// leaves the floor populated (only the degenerate count-1.00 case, two
+// creatures forever, flips the sign). Clustering cuts the number of
+// independent draws WITHOUT emptying the floor — twelve creatures in four
+// clusters are four draws with twelve bodies, not twelve.
+export const CLUSTER_SIZE = 6;
+
 // One draw in three yields something; the rest come up empty. Equal across
 // weapons, armour and potions.
 export const SCARCITY = 3;
@@ -139,14 +174,23 @@ export function floorSpread(level, model = {}) {
 }
 
 // Everything the generator needs for floor N, zero-based.
+//
+// With DIFFICULTY_REBALANCED off, this is byte-identical to before M7: the
+// three lines below all read the ORIGINAL constants (MONSTER_GROWTH,
+// STRENGTH_GROWTH's own default, clusterSize 1). The flag is the only
+// branch in this function.
 export function floorParams(level) {
-  const monsters = monstersAt(MONSTERS_BASE, MONSTER_GROWTH, Math.max(0, level));
+  const growth = DIFFICULTY_REBALANCED ? MONSTER_GROWTH_REBALANCED : MONSTER_GROWTH;
+  const strengthGrowth = DIFFICULTY_REBALANCED ? STRENGTH_GROWTH_REBALANCED : STRENGTH_GROWTH;
+  const clusterSize = DIFFICULTY_REBALANCED ? CLUSTER_SIZE : 1;
+  const monsters = monstersAt(MONSTERS_BASE, growth, Math.max(0, level));
   return {
     level,
     monsters,
     monsterSpread: floorSpread(level),
     chests: CHESTS_PER_FLOOR,
-    difficultyScale: floorStrength(level),
+    difficultyScale: floorStrength(level, { strengthGrowth }),
+    clusterSize,
     dropChance: DROP_CHANCE,
     weaponScarcity: SCARCITY,
     armourScarcity: SCARCITY,
@@ -172,6 +216,9 @@ export const DEFAULT_MODEL = {
   chestsPerMonster: 0,
   strength: MONSTER_STRENGTH,
   strengthGrowth: STRENGTH_GROWTH,
+  // M7. clusterSize 1 is no clustering — every monster still an independent
+  // draw, same as the shipped default (DIFFICULTY_REBALANCED off).
+  clusterSize: 1,
   dropChance: DROP_CHANCE,
   weaponScarcity: SCARCITY,
   armourScarcity: SCARCITY,
@@ -203,6 +250,7 @@ export function makeFloorPlan(model = {}) {
       monsterSpread: floorSpread(level - 1, m),
       chests: Math.max(0, Math.round(m.chests + m.chestsPerMonster * monsters)),
       difficultyScale: floorStrength(level - 1, m),
+      clusterSize: m.clusterSize,
       dropChance: m.dropChance,
       weaponScarcity: m.weaponScarcity,
       armourScarcity: m.armourScarcity,

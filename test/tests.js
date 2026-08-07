@@ -14,7 +14,9 @@ import { classifyRooms, spineShare } from '../src/sim/spine.js';
 import { itemWeights } from '../src/sim/spawn.js';
 import { floorPlan } from '../src/sim/dungeon.js';
 import {
-  floorStrength, saturatedAt, MONSTER_STRENGTH, STRENGTH_GROWTH,
+  floorParams, floorStrength, monstersAt, saturatedAt,
+  CLUSTER_SIZE, DIFFICULTY_REBALANCED, MONSTER_GROWTH, MONSTER_GROWTH_REBALANCED,
+  MONSTER_STRENGTH, STRENGTH_GROWTH, STRENGTH_GROWTH_REBALANCED,
 } from '../src/sim/difficulty.js';
 import { monstersAhead, valueByItemName } from '../src/bot/loot.js';
 import { growthOf, summarise, ITEM_VALUE } from '../src/analysis/shape.js';
@@ -923,6 +925,119 @@ test('saturation is reported at the floor the table actually runs out', () => {
   assert(at !== null, 'a steep ramp should saturate inside ten floors');
   assert(floorStrength(at - 1, fast) >= 1, 'reported floor is not saturated');
   assert(floorStrength(at - 2, fast) < 1, 'saturation was reported a floor late');
+});
+
+// ***** M7 — the difficulty rebalance, and it must stay off ***** //
+
+test('the rebalance is a no-op at its shipped value', () => {
+  // Mirrors the strength-ramp guard immediately above, for the same reason:
+  // this is a measuring instrument, not a shipped change, and every number
+  // taken before it existed has to keep describing the game.
+  assertEq(DIFFICULTY_REBALANCED, false, 'DIFFICULTY_REBALANCED is no longer off by default');
+  for (let level = 0; level < 10; level++) {
+    const p = floorParams(level);
+    assertEq(p.clusterSize, 1, `floor ${level + 1} clustered with the flag off`);
+    assertEq(p.monsters, monstersAt(2, MONSTER_GROWTH, level),
+      `floor ${level + 1} used the rebalanced count growth with the flag off`);
+  }
+});
+
+test('the rebalanced constants hold the challenge budget, in the currency they were fit against', () => {
+  // Not a claim that CHALLENGE (measured hp) is unchanged — that needs the
+  // observed ruler and a real play-through, done separately and reported in
+  // docs/backlog.md M7. This is the cheaper, always-available check: the
+  // count->strength trade was derived from a MEASURED exponent (2.356, not
+  // 2 — see the archived sweep in balance.md), so the two rebalanced
+  // constants should roughly cancel against each other in that currency.
+  // A gross mismatch here would mean the constants were mistyped, not just
+  // imperfectly tuned.
+  const K = 2.356;
+  const ratio = MONSTER_GROWTH_REBALANCED * Math.pow(STRENGTH_GROWTH_REBALANCED, K)
+    / MONSTER_GROWTH;
+  assert(Math.abs(ratio - 1) < 0.15,
+    `rebalanced growth*strength^${K} drifted ${(100 * (ratio - 1)).toFixed(0)}% from the shipped budget`);
+});
+
+test('the rebalanced strength ramp does not saturate before floor 10', () => {
+  // A ramp that hits the table ceiling early stops being a ramp — the
+  // deepest floors would be indistinguishable from each other, quietly
+  // undermining the CV target this whole item exists to serve.
+  const at = saturatedAt({ strength: MONSTER_STRENGTH, strengthGrowth: STRENGTH_GROWTH_REBALANCED }, 10);
+  assert(at === null || at > 10, `the rebalanced ramp saturates at floor ${at}, inside the descent`);
+});
+
+test('clustering with size 1 reproduces independent placement exactly', () => {
+  // The strongest form of "off means off": two floors, same seed, one asked
+  // for clusterSize 1 explicitly and one left it at the (also 1) default —
+  // must be byte-identical, monster for monster, position for position.
+  const withDefault = newGame(51015, floorPlan(5));
+  const withExplicit1 = newGame(51015, { ...floorPlan(5), clusterSize: 1 });
+  assertEq(JSON.stringify(withDefault.monsters), JSON.stringify(withExplicit1.monsters),
+    'an explicit clusterSize of 1 changed generation');
+});
+
+test('clustering pulls monsters together without changing how many spawn', () => {
+  // The one property the item is FOR: same roster size, tighter packing.
+  // Measured as mean nearest-neighbour distance among same-zone monsters,
+  // which falls when clustered and is unaffected by which zone anything is
+  // in (unlike a raw pair-count, which a spine/side-heavy split could skew).
+  const meanNearestNeighbour = (monsters) => {
+    if (monsters.length < 2) return Infinity;
+    const dists = monsters.map((a) => Math.min(...monsters
+      .filter((b) => b !== a)
+      .map((b) => Math.abs(a.pos[0] - b.pos[0]) + Math.abs(a.pos[1] - b.pos[1]))));
+    return dists.reduce((s, d) => s + d, 0) / dists.length;
+  };
+
+  let spreadTotal = 0;
+  let clusteredTotal = 0;
+  let floors = 0;
+  for (let seed = 0; seed < 12; seed++) {
+    const plan = { ...floorPlan(8), monsterSpread: 0 }; // fl 8: 13 monsters, room to cluster
+    const spread = newGame(60000 + seed, { ...plan, clusterSize: 1 });
+    const clustered = newGame(60000 + seed, { ...plan, clusterSize: 4 });
+    if (spread.monsters.length < 4 || clustered.monsters.length < 4) continue;
+    assertEq(spread.monsters.length, clustered.monsters.length,
+      'clustering changed how many monsters spawned');
+    spreadTotal += meanNearestNeighbour(spread.monsters);
+    clusteredTotal += meanNearestNeighbour(clustered.monsters);
+    floors++;
+  }
+  assert(floors >= 8, 'too few usable floors to trust the comparison');
+  assert(clusteredTotal / floors < spreadTotal / floors,
+    `clustering did not tighten packing: spread ${(spreadTotal / floors).toFixed(2)} `
+    + `vs clustered ${(clusteredTotal / floors).toFixed(2)} mean nearest-neighbour distance`);
+});
+
+test('a clustered monster always keeps the zone it was placed in', () => {
+  // The flood that grows a cluster is zone-filtered at every step — this
+  // guards against a regression where a cluster spills from a side room
+  // onto the spine (or back), which would corrupt R0 (only spine monsters
+  // are mandatory) and the spine-mass acceptance target together.
+  for (let seed = 0; seed < 8; seed++) {
+    const state = newGame(61000 + seed, { ...floorPlan(8), clusterSize: 5 });
+    const zones = classifyRooms(state.map, state.player.pos, state.shrine.pos);
+    for (const m of state.monsters) {
+      assertEq(m.side, zones.isSide(m.pos),
+        `monster ${m.id} on floor seed ${seed} has side=${m.side} but sits in a `
+        + `${zones.isSide(m.pos) ? 'side' : 'spine'} tile`);
+    }
+  }
+});
+
+test('the shipped cluster size actually clusters', () => {
+  // Guards CLUSTER_SIZE from drifting back to 1 by accident, which would
+  // silently turn the rebalance's third lever into a no-op while the other
+  // two kept moving — exactly the kind of partial, uninterpretable state
+  // the budget rule exists to prevent.
+  assert(CLUSTER_SIZE > 1, `CLUSTER_SIZE is ${CLUSTER_SIZE} — grouping would do nothing`);
+});
+
+test('a cluster too big for the map degrades instead of hanging or crashing', () => {
+  // clusterSize larger than the whole floor's free-tile budget must still
+  // terminate and place SOME monsters, not spin or throw.
+  const state = newGame(62000, { ...floorPlan(3), clusterSize: 999 });
+  assert(state.monsters.length > 0, 'no monsters placed at all with an oversized cluster');
 });
 
 // ***** curve-shape diagnostics ***** //

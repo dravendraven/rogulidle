@@ -109,6 +109,7 @@ export function playDungeon(seed, makePolicy, options = {}) {
       monsters: plan.monsters,
       chests: plan.chests,
       difficultyScale: plan.difficultyScale,
+      clusterSize: plan.clusterSize,
       dropChance: plan.dropChance,
       // A fixed rate overrides the per-floor one, for sweeping.
       weaponScarcity: options.scarcity ?? plan.weaponScarcity,

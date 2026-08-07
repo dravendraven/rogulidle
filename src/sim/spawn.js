@@ -304,11 +304,12 @@ export function populate(state, map, counts = {}) {
     });
   }
 
-  // 5. Monsters, split between the mandatory route and the side rooms.
+  // 5. Monsters, split between the mandatory route and the side rooms, and
+  // — M7, docs/backlog.md — placed in CLUSTERS rather than independently.
   //
-  // The split is by MASS, not headcount — cost tracks hp × (xp − 1), so a
-  // floor can put 70% of its bodies on the spine and still hide the
-  // dangerous half in a side room. Greedy: each monster goes wherever the
+  // The zone split is by MASS, not headcount — cost tracks hp × (xp − 1), so
+  // a floor can put 70% of its bodies on the spine and still hide the
+  // dangerous half in a side room. Greedy: each cluster goes wherever the
   // running share is furthest from target, which converges without needing
   // to know the total in advance.
   //
@@ -332,28 +333,44 @@ export function populate(state, map, counts = {}) {
     return out;
   };
 
-  state.monsters = [];
-  for (let i = 0; i < monsterCount; i++) {
-    if (!free.size) break;
+  // Breadth-first from `anchor`, nearest tiles first, yielding only tiles
+  // still free AND in the same zone as the anchor — a cluster does not
+  // spill across the spine/side line even when the walk passes through it.
+  // `clusterSize` 1 never advances past the anchor itself, so it costs
+  // nothing extra to have this run unconditionally.
+  const clusterAround = (anchor, wantSide, limit) => {
+    const order = [];
+    const seen = new Set([posKey(anchor)]);
+    const queue = [anchor];
+    let head = 0;
+    while (head < queue.length && order.length < limit) {
+      const pos = queue[head++];
+      if (free.has(posKey(pos)) && zones.isSide(pos) === wantSide) order.push(pos);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const next = [pos[0] + dx, pos[1] + dy];
+        const key = posKey(next);
+        if (seen.has(key) || !passable(next[0], next[1])) continue;
+        seen.add(key);
+        queue.push(next);
+      }
+    }
+    return order;
+  };
 
-    const running = spineMass + sideMass;
-    const wantSide = running > 0
-      ? (sideMass / running) < sideTarget
-      : sideTarget >= 0.5;
+  // How many creatures share one placement draw. 1 means every monster
+  // still draws its own independent anchor — the loop below then places
+  // exactly one tile per cluster, identically to before this item existed.
+  const clusterSize = Math.max(1, counts.clusterSize ?? 1);
 
-    // Fall back to the other zone rather than dropping the monster: a map
-    // with no side rooms must still receive its full roster.
-    let pool = freeIn(wantSide);
-    if (!pool.length) pool = freeIn(!wantSide);
-    if (!pool.length) break;
-
-    const pos = pool[drawInt(state, 'spawn', 0, pool.length - 1)];
+  // `template` is passed in rather than rolled here — see the call site.
+  // One tier draw per CLUSTER, not per monster, is the actual mechanism
+  // grouping exists for: three independent draws around a shared index
+  // still leave three points of variance to cancel against each other; one
+  // draw applied to all three leaves none. Loot (carries/dropTemplate)
+  // stays per-monster — the budget this item spends is about DIFFICULTY,
+  // not about how much loot a cluster happens to carry.
+  const placeOne = (pos, template) => {
     takeFree(pos);
-
-    const difficulty = Math.min(1, depthAt(pos, 'risk') * difficultyScale);
-    const index = Math.floor(difficulty * (MONSTER_TABLE.length - 1));
-    const slot = drawWeighted(state, 'spawn', monsterWeightsAround(index));
-    const template = MONSTER_TABLE[slot];
 
     const carries = drawChance(state, 'spawn', dropChance);
     const dropTemplate = drawWeighted(state, 'spawn', monsterWeights);
@@ -383,6 +400,42 @@ export function populate(state, map, counts = {}) {
       side,
       drop: carries && dropTemplate ? makeItem(state, dropTemplate, pos) : null,
     });
+  };
+
+  state.monsters = [];
+  while (state.monsters.length < monsterCount) {
+    if (!free.size) break;
+
+    // Decided once per CLUSTER, not per monster — at clusterSize 1 this is
+    // the same thing, since a cluster of one member is exactly one monster.
+    const running = spineMass + sideMass;
+    const wantSide = running > 0
+      ? (sideMass / running) < sideTarget
+      : sideTarget >= 0.5;
+
+    // Fall back to the other zone rather than dropping the cluster: a map
+    // with no side rooms must still receive its full roster.
+    let pool = freeIn(wantSide);
+    let actualSide = wantSide;
+    if (!pool.length) { pool = freeIn(!wantSide); actualSide = !wantSide; }
+    if (!pool.length) break;
+
+    const anchor = pool[drawInt(state, 'spawn', 0, pool.length - 1)];
+    const remaining = monsterCount - state.monsters.length;
+    const positions = clusterAround(anchor, actualSide, Math.min(clusterSize, remaining));
+    // The anchor is always free and in its own zone, so this can only be
+    // empty if `remaining` is 0 — guarded by the while condition above.
+
+    // ONE tier draw for the whole cluster, from the anchor's depth — see
+    // placeOne for why. At clusterSize 1 this is the same single draw the
+    // original per-monster code made, at the same position, so nothing
+    // changes in that case.
+    const difficulty = Math.min(1, depthAt(anchor, 'risk') * difficultyScale);
+    const index = Math.floor(difficulty * (MONSTER_TABLE.length - 1));
+    const slot = drawWeighted(state, 'spawn', monsterWeightsAround(index));
+    const template = MONSTER_TABLE[slot];
+
+    for (const pos of positions) placeOne(pos, template);
   }
 
   // Items lying loose on the floor. Starts empty: everything enters this list
