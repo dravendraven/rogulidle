@@ -2585,3 +2585,195 @@ than pursued further, since the answer the reading needs — did challenge's
 CV move — is unambiguous either way: **it did not move.** M10 redistributes
 zone, not threat, exactly as its own report predicted, and the CV gain M7
 bought is intact.
+
+## M2 · clustering
+
+`map` · `work agent` · **FOLDED into M7** — kept for its reasoning, not as work
+
+Grouping is now one of M7's three levers rather than its own item. It cannot
+be attributed apart from the other two: the three share one difficulty
+budget, so moving grouping forces count and strength to move with it. The
+argument below is why grouping is in that budget at all, and it still
+stands — only the packaging changed.
+
+The third axis, never tested: same roster, different spatial distribution.
+
+**Why it is the main candidate.** Variance of a sum falls as `1/√n` in the
+number of independent draws. Eighteen creatures spread out are eighteen
+draws that cancel; the same eighteen in four groups are four draws. It cuts
+the sample count **without emptying the floor** — which is why the
+count→strength route only worked at the degenerate point where floors held
+two creatures.
+
+**And it buys the damage spike for free.** The individual blow stays capped
+by the table, but three adjacent creatures strike in the same turn. Damage
+per *turn* grows with damage per *blow* frozen — DCSS's shrinking reaction
+window obtained by placement, without touching `MONSTER_TABLE` (FAITHFUL,
+11 rows, whose ceiling nearly bit the strength sweep).
+
+**Machinery exists.** `spine.js` classifies rooms, `spawn.js` distributes
+against a running mass share, and `activation` radii already create de facto
+groups — waking one wakes its neighbours.
+
+Unlike M3–M5 this one is **not** probe-measurable: the effect is on
+lethality, and the probes cannot die.
+
+**A shadow implementation already exists, and reconciling it is part of this
+item.** I2 built `src/analysis/clustering.js`, which generates the roster
+with the shipped `populate()` and then rewrites monster positions into
+clusters. That was correct for an instrument — it changed nothing in
+`src/sim/` — but it means the grouping logic now lives outside the engine.
+
+When M2 lands, the two must not drift apart in silence, because the moment
+they do, every clustering measurement stops describing the game. Either the
+analysis file calls the engine's placement, or the difference between them
+is written down deliberately. Decide which, and say so.
+
+Note also what the instrument's version ignores by design: the spine/side
+split, and cluster size fixed at 3. Those are M2's to settle, not carried
+over as defaults.
+
+## Orphaned review blocks — M3, M10, M7
+
+Appended to the backlog before the split and left behind when the items
+moved. Kept here with the items they belong to.
+
+
+
+### Review 2 — NOT adopted at this tuning. Flag stays off
+
+    median damage        unchanged            PASS
+    CV of challenge      unmoved, z = 0.8     FAIL — this was the point
+    finishes             20.0% → 15.3%        harder, z = −1.1, not significant
+    spike reaching hero  does not             FAIL, and measured awkwardly
+
+**The catch on the way is worth more than the reading.** `clustering.js`
+never threaded `outOfDepthChance` into the counts it builds per floor, so
+the real-bot arm silently read "off" whatever it was told. It was caught
+because the two arms came back byte-identical and `isolatedShape` had
+already shown that could not be true — **two instruments checked against
+each other**, which is the only way that class of bug gets found.
+
+### Why it did not work, and the two answers are different
+
+**The spike comparison is compositionally confounded.** Conditioned on
+combat-adjacent turns, the combat-turn *sample nearly doubles* between arms —
+reskinned monsters are tankier, so fights run longer. Percentiles taken over
+a changed denominator are not comparing like with like, and the slight fall
+is at least partly that. Third time this particular statistic has been
+awkward to take.
+
+**Hypothesis one: the tuning is simply too weak.** At
+`OUT_OF_DEPTH_CHANCE_CAP = 0.15`, roughly one floor-10 visit in seven gets
+**one** creature reskinned, on a floor that now holds about seven. One
+stronger draw on 15% of floors is a small variance contribution, and z = 0.8
+is what "too small to see at this n" looks like. All three constants are
+marked INITIAL GUESS and the work agent explicitly asked for the probes to
+set the cap rather than guessing. **Nobody has swept it.**
+
+**Hypothesis two: the bot routes around it.** `refuseLostFights` stops the
+bot starting a fight it prices as lost, so a monster reskinned near the top
+of the table is a monster it declines. The blow gets bigger and never lands.
+If that is what is happening, M3 cannot work against this bot at all, and
+the difference shows on screen as *the bot avoiding something scary* rather
+than nearly dying to it — a different product from the one the item was
+written for.
+
+The two are separable and one is cheap. **Sweep the cap first.** If CV moves
+at a higher cap, hypothesis one was right and the question becomes what cap
+costs an acceptable amount of finishes. If it does not move at any cap the
+tail is still worth having, hypothesis two is live, and M3 waits on the bot
+lane — which is parked.
+
+**Not archived.** Its mechanism is built, tested, RNG-clean and off. What is
+missing is a tuning nobody has looked for, and that is a sweep rather than a
+rewrite.
+
+### Metrics reading — the cap sweep
+
+Measured at commit `ff708dc`. `isolatedShape`, default 60 seeds/level,
+`floorPlanFn` built from `makeFloorPlan` with M7's params plus
+`outOfDepthChancePerLevel: OUT_OF_DEPTH_CHANCE_PER_LEVEL` and
+`outOfDepthChanceCap` swept — per "measured on the probes, not the real
+bot," this is the probe reading only; hypothesis two (the bot routing
+around a reskin) is not touched here.
+
+**The cap saturates well inside the range that was worth sweeping.** At
+`perLevel = 0.02` over 10 floors, the RAW chance (`perLevel × floor index`)
+tops out at `0.18` on floor 10 — a cap at `0.30` or `0.50` is provably
+identical to `0.18`, checked directly rather than assumed (`0.18`/`0.30`/
+`0.50` all read `0.18` at floor 10). Swept `{0, 0.05, 0.10, 0.15, 0.18}` —
+`0.15` is shipped, `0` is no-tail-at-all, `0.18` is as far as this dial can
+ever reach.
+
+    cap     CV growth (× / floor, fl 1-10)
+    0       0.994 ±0.009
+    0.05    0.986 ±0.008
+    0.10    0.985 ±0.008
+    0.15    0.984 ±0.008   (shipped)
+    0.18    0.983 ±0.008   (ceiling — raising the cap further cannot move this)
+
+**Answer to hypothesis one: raising the cap is not the fix, at any
+strength this dial can reach.** The trend across the full range is
+monotonic but **backwards** from what would rescue the item — CV growth
+gets slightly LOWER (CV falls a little faster, not slower) as the cap
+rises — and even the two extremes, no-tail vs the hardest this dial can hit,
+are not distinguishable (gap 0.011 ±0.012, z ≈ 0.9, under this project's own
+2σ bar). Floor 10 alone shows the clearest move (CV 0.988 at cap 0 → 0.926
+at cap 0.18) but it is not enough to carry the ladder-wide rate past noise.
+**This rules out `OUT_OF_DEPTH_CHANCE_CAP` specifically** — it does not rule
+out `OUT_OF_DEPTH_CHANCE_PER_LEVEL` or `_BASE`, neither of which this sweep
+touched, so "the tuning is too weak" is narrowed, not closed: the cap was
+never the binding constraint, the per-level ramp might still be.
+
+**Hypothesis two is now the more likely story, by elimination rather than
+by direct evidence** — this reading cannot see the bot at all. `M3` stays
+where its Review 2 left it: not archived, waiting on whichever of (a) a
+`per-level`/`base` sweep on the probes, or (b) the bot lane un-parking to
+test avoidance directly, someone picks up next.
+
+### Review 2 of M10 — the risk I flagged did not happen. Kept
+
+CV growth **0.994 ±0.009**, bit-identical to the pre-M10 reading at the same
+commit and consistent with M7's own 0.986. **M7's CV gain is intact and M10
+gave none of it back.**
+
+I predicted it would. The argument was sound — cutting a cluster short adds
+a draw, and draws are M7's whole mechanism — and it was wrong about the
+size. Effective cluster size runs **3.97–4.87** from floor 6 on, so floors
+holding seven creatures still resolve to one or two clusters either way. The
+split moved where clusters sit, not how many there are.
+
+Worth keeping from that: `CLUSTER_SIZE = 6` never described what floors
+hold, and now the real distribution is measured instead of assumed. Any
+future argument about draws should use 4–5, not 6.
+
+M10 is unflagged and already live. Nothing to adopt; it stays.
+
+### M3 — ARCHIVED. The cap is not the lever, and nothing else here is either
+
+    cap    0     0.05   0.10   0.15   0.18 (ceiling)
+    CV   0.994  0.986  0.985  0.984  0.983
+
+**Monotonic in the wrong direction.** More out-of-depth makes CV growth
+slightly *lower*, not higher, and the extremes are not distinguishable
+anyway (z ≈ 0.9). 0.18 is where `perLevel × floor` tops out — 0.30 and 0.50
+read identical — so this is the mechanism at its maximum reachable
+frequency, not an under-swept dial.
+
+The likely reason is worth recording: the chance grows with depth, so the
+tail fires most where cost is already highest. Raising the deep mean lowers
+`sd/mean` even while raising `sd`. **The mechanism pushes the ratio the
+wrong way by construction**, which no amount of tuning fixes.
+
+`_PER_LEVEL` and `_BASE` were not swept, and the sweep does not formally
+rule them out. But they change *where* the tail fires, not the fact that it
+raises the mean of the floors it fires on, so the direction problem
+survives them.
+
+And M3's other half already failed: the bigger blow does not reach the hero,
+whether because `refuseLostFights` declines the reskinned monster or because
+longer fights change the sample. Two halves, neither delivering.
+
+**Archived, not deleted** — built, tested, RNG-clean, flag off, and the
+reason is here. Same treatment as `SIDE_ACTIVATION_CAP`.

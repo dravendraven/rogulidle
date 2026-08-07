@@ -149,3 +149,160 @@ the sweep is what exposed the ruler being wrong: modelled cost held constant
 independent seed families.
 
 ---
+
+## Parked — the bot lane, and reward
+
+Set aside while the focus is the map. Nothing here was abandoned; the
+reasoning stands and the specs are below.
+
+## B4 · give exploration a value
+
+`bot` · `work agent` · **READY**
+
+Unexplored map is worth exactly zero to the bot. `frontierGoals` returns
+`{kind, pos}` with no value (bot.js:121), and exploration is branch 3 of
+`chooseGoal` — a fallback, never a competitor (bot.js:321). When it does
+explore it picks the **cheapest** frontier to reach, not the most promising.
+
+**Why it matters.** Three reasons, and the third may be the largest.
+
+1. It cannot form "worth 2 hp of risk to see what is over there", which is a
+   decision the game is built around.
+2. It fights the map design directly. `CHEST_LOOT_RICHER_FAR = true`
+   deliberately puts the good loot far from the spawn, sweeping 10% to 100%,
+   and `CHEST_QUALITY_BY_DEPTH` makes depth buy quality. The map hides the
+   reward far away; the bot explores by proximity at zero value.
+3. It may be what feeds the ping-pong. B1 found the loop lives in the
+   tactical veto, and the veto wins whenever the plan has no strong pull —
+   which is exactly the state when every positive-valued goal is exhausted
+   and only "do not stand here" is left. A positively-valued destination
+   makes the plan harder to override.
+
+**Acceptance.**
+- Frontier carries an hp-denominated expected value and competes in the same
+  comparison as chests and monsters, rather than being a fallback branch.
+- Frontier goals stay sticky. Trading tile ping-pong for frontier ping-pong
+  is not progress.
+- The bot does not become a wanderer: turns per run must not blow up.
+  `bot-strategy.md` §4.4 records a search that circled forever; the same
+  failure is available here.
+
+**How to measure.** Win rate, depth, turns per run, chests found per floor,
+and the reversal rate from B1's instrumentation. Paired seeds, confirmed on
+seeds not used for tuning.
+
+**Machinery that already exists.** `expectedChestValue` prices an unseen
+chest; `monstersAhead` and `LOOT_CAMPAIGN_HORIZON` already discount future
+value. What is missing is an estimate of how many chests a dark region holds
+— and the bot already knows `CHEST_COUNT` and how many it has seen.
+
+**Interaction with B3.** B4 may resolve the ping-pong on its own. Measure
+B4's effect on the reversal rate before concluding B3 still has work to do.
+
+## M5 · a reward tail
+
+`map` · `work agent` · **ON HOLD** — no instrument, therefore no acceptance number
+
+The targets table has no entry for reward, and that is not an oversight: the
+probes collect only what they step over, so their reward figure describes
+their own policy rather than the design. Building to move a number that does
+not yet mean anything is how a change gets adopted on a reading that cannot
+support it.
+
+Unblocking this needs an instrument first — a probe that detours for loot,
+or reward measured as what the floor *contains* rather than what got picked
+up. That is not scheduled; the CV and buffer targets come first.
+
+The best item is `axe +2`. There is nothing rare enough to be an event, so
+reward variance is bounded from above by the table itself.
+
+**Why it matters.** Reward variance is the spectator's half of the lottery.
+The measured CV of reward falls with depth just as challenge's does, and no
+amount of work on the challenge side fixes that.
+
+**Acceptance.** Mean reward per floor unchanged inside noise; CV of reward
+stops falling. Pick weight is `1 / value`, so a high `value` means rare.
+Measured on the probes.
+
+**Watch.** `CHEST_LOOT_CHANCE = 0.60` is what the bot assumes when pricing a
+chest, measured over 150 maps. Adding to the item table moves what a chest
+is worth and that constant will need re-measuring.
+
+## I4 · is the side-room inversion real
+
+`bot` · `metrics agent` · **READY**
+
+Over ~344 side chests on floors 5–8 the bot opened 46% of favourable rooms
+against 53% of unfavourable ones. Not indifference — inversion. Four fixes
+were implemented and none moved the ratio.
+
+**The honest state.** At n = 196 / 148 the standard error on the difference
+is about 5.4 points, and the measured gaps sit between 1.3 and 2.6 standard
+errors across variants that **share seeds** and so are not independent
+replays. The direction was consistent, which is suggestive. `map-design.md`
+already retracts one wrong diagnosis of it.
+
+**This task is a measurement and nothing else.** Enough seeds to put the
+difference several standard errors clear of zero, or to show it was noise.
+No fix, no diagnosis of cause. Report and stop.
+
+**Why it matters.** The side-room risk/reward roll is the only source of
+*structural* variance in the game today, and a player-facing exploration
+dial would sit on top of this discrimination. If the bot cannot tell good
+rooms from bad, a dial on top only scales the error. Nothing should be built
+on this until it is known to be real.
+
+**Note for whoever runs it.** The bot will change under B4 while this is
+open. Measure against a stated bot version and say which — a result against
+a moving bot is not reusable.
+
+## B2 · characterise the veto loop
+
+`bot` · `work agent` · **BLOCKED on B1 review**
+
+B1 answered "tactical veto", which is the branch whose spec was thin. Being
+rewritten against that answer.
+
+Spec deliberately not written yet.
+
+## B3 · fix the ping-pong
+
+`bot` · `work agent` · **BLOCKED on B2**
+
+The cheapest fix the evidence supports. `REVERSAL_PENALTY` already lives in
+this layer and already failed a sweep (0 / 1.5 / 6 moved the reversal rate
+only 0.238 → 0.205 and cost win rate), so the fix is not "more of that".
+
+**Known side effect to watch when the spec is written.** If it ends up
+adding hysteresis to loot goals, it pushes against I4's question: more
+commitment to a target means less chance of abandoning a bad room after
+starting to walk to it.
+
+**Measurement will include** reversal rate before and after, win rate, depth,
+turns per run, and above all the **distribution**: a fall in the mean can
+hide the pathological case surviving intact.
+
+## B5 · crowd blindness in the bot
+
+`bot` · `work agent` · **BLOCKED on M2**
+
+`threat.js` records that tiles reachable by two awake monsters at once are
+"rare enough that this term is not what steers the bot", and scaling
+`CROWD_PENALTY` by threat changed literally nothing. That is true of the map
+as it exists today.
+
+Clustering makes those tiles common, at which point the term goes from inert
+to dominant. Do not touch this before M2 exists — today there is nothing to
+tune against.
+
+## B6 · fix side-room discrimination
+
+`bot` · `work agent` · **BLOCKED on I4**
+
+The bot appears to open more unfavourable side rooms than favourable ones.
+Whether that effect is real is I4, and it belongs to the metrics agent — a
+bot judged by whoever writes it is a weak counterweight.
+
+Four fixes have already been implemented against this and none moved the
+ratio, which is itself a reason to establish the effect exists before
+attempting a fifth.
