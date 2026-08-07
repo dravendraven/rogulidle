@@ -258,7 +258,7 @@ function wireControls() {
   });
 
   el.speed.addEventListener('click', () => {
-    const speeds = [1, 2, 4, 8];
+    const speeds = [0.5, 1, 2, 4, 8];
     session.speed = speeds[(speeds.indexOf(session.speed) + 1) % speeds.length];
     el.speed.textContent = session.speed + '×';
   });
@@ -268,6 +268,10 @@ export function start() {
   grab();
   buildGrid(el.grid);
   wireControls();
+
+  // Half speed by default — easier to follow than the old 1x default.
+  session.speed = 0.5;
+  el.speed.textContent = '0.5×';
 
   // ?seed=whatever makes a whole session reproducible, which is how you go
   // back and look at a run the bot played badly.

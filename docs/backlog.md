@@ -1204,6 +1204,30 @@ carries a borrowed absolute number. That is the project agent's error to
 undo, not this item's, but the item is what will show whether it needs
 undoing.
 
+### Result — decision on the addendum: closing this pass, not folding in
+
+**Finishing the current pass first, not incorporating now.** The asymmetric-
+window result above is a complete, committed, self-contained answer to a
+narrow question; the capacity/attrition split is a different measurement —
+a new immortal-probe pass for capacity, and attrition's definition and its
+survivor-selection disclosure still need designing, not just wiring up. Both
+in one sitting risks the thing this backlog already warns against
+elsewhere: two changes measured together cannot be told apart if either
+turns out wrong. The split gets its own pass, next.
+
+**What that next pass needs to settle, so it starts scoped rather than
+open-ended:** an immortal starting hero for capacity (`builtShape` with a
+high-hp `carry` instead of the default `PLAYER_HP` start, otherwise
+unchanged — still Sonda B, still real descents, still earns the grants) is
+mechanical and looks cheap. Attrition is the part still underspecified —
+whether it is reported as damage taken per floor directly (already
+computed by `playDungeon`'s `lvl.damage`, possibly already sitting
+unused), as blows-survived, or some other form, and how the intrinsic
+survivor selection gets stated rather than hidden (an I1-style check
+against the mid-floor-power selection z, or something built for this
+specifically). Deciding that shape is most of the next pass's work, not a
+detail to fill in while coding.
+
 ## M7 · move difficulty off count, onto strength and grouping
 
 `map` · `work agent` · **READY** — the main route for the CV target
