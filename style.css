@@ -47,7 +47,7 @@ h1 {
 
 .controls { display: flex; align-items: center; gap: .5rem; }
 
-button, .controls a {
+button {
   font: inherit;
   font-weight: bold;
   font-size: .8rem;
@@ -58,37 +58,12 @@ button, .controls a {
   border-radius: 6px;
   padding: .3rem .65rem;
   cursor: pointer;
-  text-decoration: none;
 }
-button:active, .controls a:active {
+button:active {
   border-bottom: 2px solid var(--key-border);
   margin-bottom: 3px;
   transform: translateY(3px);
 }
-
-.dpad {
-  display: grid;
-  grid-template-columns: repeat(3, 2.1rem);
-  gap: .3rem;
-  justify-content: center;
-}
-.dpad button { padding: .3rem 0; }
-
-.banner {
-  display: flex;
-  gap: .4rem;
-  flex-wrap: wrap;
-  background: #FFF6E0;
-  border: 1px solid #E8CE8F;
-  border-left: 3px solid #D8A657;
-  border-radius: 6px;
-  padding: .55rem .8rem;
-  margin-bottom: 1rem;
-  font-size: 12.5px;
-  font-weight: normal;
-  color: #6b5423;
-}
-.banner b { color: #8a6a1f; }
 
 main {
   display: flex;
@@ -186,8 +161,6 @@ main {
 .summary-row b { color: var(--text); font-weight: 700; }
 .summary-row b svg { width: 18px; height: 18px; vertical-align: middle; }
 
-.summary-hint { font-size: 11px; color: var(--dim); }
-
 /* ***** side panel ***** */
 
 .panel {
@@ -271,7 +244,6 @@ footer {
   border-top: 1px solid var(--line);
   padding-top: .6rem;
 }
-.seed { flex-basis: 100%; }
 
 .note {
   margin: 1.25rem 0 0;

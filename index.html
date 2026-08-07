@@ -12,22 +12,11 @@
   <header>
     <h1>Rogulidle</h1>
     <div class="controls">
-      <a href="play.html">▶ play it yourself</a>
       <button id="playPause" type="button">⏸ pause</button>
       <button id="speed" type="button">1×</button>
       <button id="debug" type="button">🔎 debug</button>
     </div>
   </header>
-
-  <div class="banner">
-    <b>Ten floors, one bot.</b> Every route is priced in hp, not steps: it
-    gathers gear that pays for the walk, gives waking monsters a wide
-    berth, picks the cheapest fight rather than the closest, and checks
-    each step against the monsters' reply before taking it. Each floor's
-    stairs are the last floor's shrine — what the hero carries down is
-    everything the floors above handed over. A run ends at the tenth
-    floor's shrine, or wherever the descent stops first.
-  </div>
 
   <main>
     <div class="stage">
@@ -56,11 +45,6 @@
       </div>
 
       <div class="field">
-        <label>monsters</label>
-        <div id="remaining"></div>
-      </div>
-
-      <div class="field">
         <label>aiming at</label>
         <div id="goal" class="goal">—</div>
       </div>
@@ -86,7 +70,6 @@
       <footer>
         <span id="run"></span>
         <span id="tally"></span>
-        <span id="seed" class="seed"></span>
       </footer>
     </aside>
   </main>

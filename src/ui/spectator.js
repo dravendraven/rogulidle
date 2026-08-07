@@ -44,8 +44,8 @@ const el = {};
 function grab() {
   for (const id of [
     'grid', 'hp', 'dmg', 'xpEarned', 'xpRate', 'steps', 'kills', 'inventory',
-    'remaining', 'run', 'seed', 'tally', 'log', 'summary', 'summaryTitle',
-    'summaryBody', 'playPause', 'speed', 'debug', 'goal', 'floor', 'history',
+    'run', 'tally', 'log', 'summary', 'summaryTitle', 'summaryBody',
+    'playPause', 'speed', 'debug', 'goal', 'floor', 'history',
     'score', 'resetScore',
   ]) {
     el[id] = document.getElementById(id);

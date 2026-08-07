@@ -194,11 +194,7 @@ export function renderHud(elements, state, session) {
     ? player.inventory.map((item) => tileSvg(item.emoji) || '').join('')
     : '—';
 
-  const alive = state.monsters.filter((m) => !m.dead).length;
-  elements.remaining.textContent = `${alive} left of ${state.monsters.length}`;
-
   elements.run.textContent = `run ${session.runNumber}`;
-  elements.seed.textContent = 'seed ' + state.seed;
 }
 
 // The lifetime score — U4. Shown even before this session has cleared a
