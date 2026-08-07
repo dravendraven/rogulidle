@@ -62,36 +62,47 @@ The batch boundary falls out on its own. The startable bot track is B4 → B2
 work agent should move to the map, and it is roughly when M6 will have been
 settled.
 
+The table is **always in execution order** — what happens next is row one.
+It is re-sorted whenever a status changes, so a row moving up or down is
+normal and does not mean the item changed.
+
 | # | id | what and why | feature | agent | status |
 |---|---|---|---|---|---|
-| 1 | M6 | Buffer FALLS while difficulty rises — variance work is unsafe until this is settled | map | — | NEEDS DECISION |
-| 2 | I1 | Model ruler misprices crowds — replace it with two frozen probes that play | map | metrics | REPORTED |
-| 3 | I2 | Clustering may change lethality, not cost — retest with a normal hero | map | metrics | READY |
-| 4 | B4 | Bot values darkness at zero, so it never explores for reward | bot | work | READY |
-| 5 | B1 | Ping-pong is the ugliest visible defect — find which layer creates it | bot | work | REPORTED |
-| 6 | I4 | Bot may open more bad side rooms than good — is that real? | bot | metrics | READY |
-| 7 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | MEASURE ONLY |
-| 8 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | MEASURE ONLY |
-| 9 | M5 | Best item is axe +2, so no reward is ever an event | map | work | MEASURE ONLY |
-| 10 | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | BLOCKED |
-| 11 | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | BLOCKED |
-| 12 | I3 | No ruler sees clustering — build one measuring lethality, not cost | map | metrics | BLOCKED |
-| 13 | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | BLOCKED |
-| 14 | B5 | Clustering makes crowd tiles common, so the inert crowd penalty starts mattering | bot | work | BLOCKED |
-| 15 | B6 | Fix side-room discrimination, once I4 shows the inversion is real | bot | work | BLOCKED |
+| 1 | M6 | Buffer FALLS while difficulty rises — variance work is unsafe until this is settled | map | owner | NEEDS DECISION |
+| 2 | I1 | Model ruler misprices crowds — replace it with two frozen probes that play | map | metrics | REPORTED · 2 fixes |
+| 3 | B4 | Bot values darkness at zero, so it never explores for reward | bot | work | READY · now |
+| 4 | I2 | Clustering may change lethality, not cost — retest with a normal hero | map | metrics | READY · next |
+| 5 | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | BLOCKED on B1 |
+| 6 | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | BLOCKED on B2 |
+| 7 | I4 | Bot may open more bad side rooms than good — is that real? | bot | metrics | READY |
+| 8 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | MEASURE ONLY |
+| 9 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | MEASURE ONLY |
+| 10 | M5 | Best item is axe +2, so no reward is ever an event | map | work | MEASURE ONLY |
+| 11 | I3 | No ruler sees clustering — build one measuring lethality, not cost | map | metrics | BLOCKED on I2 |
+| 12 | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | BLOCKED on I3 |
+| 13 | B6 | Fix side-room discrimination, once I4 shows the inversion is real | bot | work | BLOCKED on I4 |
+| 14 | B5 | Clustering makes crowd tiles common, so the inert crowd penalty starts mattering | bot | work | BLOCKED on M2 |
+| 15 | B1 | Ping-pong is the ugliest visible defect — find which layer creates it | bot | work | REPORTED · review only |
 
 Archived: the count→strength route. Measured, does not pay. See the end.
 
-**What changed and why.** The observed ruler (I1) found the buffer *falling*
-rather than flat, which turns the variance programme from an improvement
-into a way of building sudden death. M6 moves from last to first and is a
-decision, not a task. M3–M5 stay startable but drop to MEASURE ONLY: run
-them, report what they move, do not switch them on.
+Two agents run at once, so the single rank is a flattening of two lanes:
 
-I1 is REPORTED with a review attached and two cheap fixes outstanding (refit
-over floors 1–6, correct the buffer reading); it needs no new runs. B1 is
-REPORTED and answered "tactical veto", which inverted the premise B2 and B3
-were sketched against — both are being rewritten.
+    work agent      B4 → B2 → B3  ‖  then M6 → M3 → M4 → M5
+    metrics agent   I1 fixes → I2 → I4 → I3
+    owner           M6
+
+**REPORTED rows are ranked by work remaining, not by importance.** I1 sits
+high because two cheap fixes are outstanding (refit over floors 1–6, correct
+the buffer reading — neither needs a new run). B1 sits last because nothing
+remains but review; its answer, "tactical veto", already landed and inverted
+the premise B2 and B3 were sketched against.
+
+**Why M6 is first and unstartable.** The observed ruler found the buffer
+*falling* rather than flat, which turns the variance programme from an
+improvement into a way of building sudden death. It is a decision, not a
+task, and it gates the whole map lane — which is why M3–M5 are MEASURE ONLY
+rather than ready.
 
 ## How to use this file
 
