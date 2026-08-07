@@ -86,16 +86,24 @@ export const XP_FROM_KILLS = false;
 // (dungeon.js and game.js already carry hpMax down the stairs field-by-
 // field rather than assuming PLAYER_HP, so they did not need a change).
 //
-// OFF BY DEFAULT — Result review 1 (docs/backlog.md M6). The mechanism is
-// right (playerAttacks, the cloneState wiring, the tests all held up under
-// review), but the SHIPPED RATE below fails the item's own bounds: buffer
-// still falls (0.910, short of the >=1.00 bar) and the real bot's clear
-// rate lands at 56.7%, outside the 15-40% band. A configuration that misses
-// its target and breaks a bound may not be live in the default game. The
-// toggle stays — both arms are still measurable through it — but the
-// verdict on whether ANY rate can be adopted waits on the owner, per the
-// item's own "Why it needs a decision rather than a spec".
-export const HP_FROM_KILLS = false;
+// ON — Review 2 (docs/backlog.md M6), ADOPTED PROVISIONALLY. Review 1 had
+// this off because the shipped rate misses both its own bounds: buffer
+// still falls (0.910, short of >=1.00) and the real bot's finish rate hits
+// 56.7%, outside the then-15-40% band. Review 2 adopted anyway, because no
+// rate in the sweep clears both bounds and the smaller rates are strictly
+// worse — they pay the same finish-rate cost while buying back nothing on
+// buffer (0.125 hp/kill: buffer z=0.32, not even a real effect, finishes
+// already at 44.7%). The choice was never "which rate", it was "progression
+// or none", and progression was chosen.
+//
+// "Provisional" is specific: the buffer target itself (>=1.00) is now
+// suspect — the same grant read +0.095 buffer on the dumb probe against
+// +26 points of finishes on the real bot, which the probe cannot exploit
+// the way a competent bot can. That gap is I5's open question, not settled
+// here. This flag is ON so downstream work (M7) measures against the
+// baseline the game actually ships, per the serial-adoption protocol —
+// it is not a claim that 0.910 is acceptable.
+export const HP_FROM_KILLS = true;
 
 // GUESS — same cadence as KILLS_PER_XP (2) on purpose: reuse the pacing
 // that already exists rather than introduce a second rhythm to reason

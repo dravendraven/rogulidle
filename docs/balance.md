@@ -455,15 +455,24 @@ Five monsters on a 32×32 map is very sparse — see spec §10.2.
 
 | Name | Value | Status |
 |---|---|---|
-| `HP_FROM_KILLS` | `false` | **OFF by default** — Review 1 blocker, see `docs/backlog.md` M6 |
+| `HP_FROM_KILLS` | `true` | **ADOPTED, PROVISIONALLY** — Review 2, see `docs/backlog.md` M6 |
 | `HP_GRANT_PER_KILLS` | 2 | **INITIAL GUESS**, mirrors `KILLS_PER_XP` |
 | `HP_GRANT_AMOUNT` | 1 | **INITIAL GUESS**, calibrated against the buffer target below |
 
 The mechanism shipped, was reviewed, and its own numbers failed the item's
-bounds at the rate tested: buffer still falling (0.910, short of the ≥1.00
-bar) and real-bot clear rate at 56.7%, outside the 15–40% band. Flipped off
-by owner-review decision rather than removed, since the toggle is what lets
-both arms stay measurable while the tension below is unresolved.
+original bounds at the shipped rate: buffer still falling (0.910, short of
+the ≥1.00 bar) and real-bot finish rate at 56.7%, outside the then-15–40%
+band. **Adopted anyway on review 2**, because no rate in the sweep below
+clears both bounds and the smaller rates are strictly worse — they pay the
+same finish-rate cost while buying back nothing on buffer. The choice was
+never which rate; it was progression or none, and progression was chosen.
+
+"Provisional" is specific: the ≥1.00 buffer target is itself now suspect —
+the same grant read +0.095 buffer on the (dumb, danger-blind) probe against
++26 points of finish rate on the real bot, which the probe cannot exploit
+the way a competent bot can. That gap is open on I5, not settled here. The
+flag is on so downstream map work is measured against the baseline the game
+actually ships — not a claim that 0.910 is the final word.
 
 Every `HP_GRANT_PER_KILLS` kills, both `hpMax` **and** current `hp` rise by
 `HP_GRANT_AMOUNT` — same cadence as `KILLS_PER_XP`'s xp grant, same place in
@@ -494,7 +503,7 @@ rate (hp/kill)   buffer ×/floor (fl 1-6)   real-bot clear rate (n=150, paired)
 0     (off)      0.846 ±0.026              30.7% ±3.8
 0.125 (per=8)    0.857 ±0.022  (n.s.)      44.7% ±4.1
 0.25  (per=4)    0.895 ±0.022  (n.s.)      48.0% (n=80, different sample)
-0.5   (per=2)    0.910 ±0.015  (z≈2.1)     56.7% ±4.0   <- constants still set here, flag OFF
+0.5   (per=2)    0.910 ±0.015  (z≈2.1)     56.7% ±4.0   <- SHIPPED, flag ON
 ```
 
 Only the `per=2` rate clears 2σ on buffer, and it still **falls**
@@ -503,8 +512,8 @@ doubles. Smaller rates protect clear rate only a little and buy back
 essentially no buffer (0.125 and 0.25 are not distinguishable from off).
 There is no point in the tested range where both acceptance criteria hold;
 shrinking the grant trades one shortfall for a bigger one on the other axis
-rather than resolving the tension. `HP_FROM_KILLS` is OFF by default as a
-result (see the table above) — reviewed and confirmed, not silently picked.
+rather than resolving the tension. Adopted anyway (see the table above) —
+reviewed and confirmed, not silently picked, and provisional on I5.
 
 ## Regeneration
 
