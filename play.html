@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rogulidle</title>
+<title>Rogulidle — play</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,21 +12,16 @@
   <header>
     <h1>Rogulidle</h1>
     <div class="controls">
-      <a href="play.html">▶ play it yourself</a>
-      <button id="playPause" type="button">⏸ pause</button>
-      <button id="speed" type="button">1×</button>
-      <button id="debug" type="button">🔎 debug</button>
+      <a href="index.html">← watch the bot</a>
+      <button id="restart" type="button">↻ restart</button>
     </div>
   </header>
 
   <div class="banner">
-    <b>Ten floors, one bot.</b> Every route is priced in hp, not steps: it
-    gathers gear that pays for the walk, gives waking monsters a wide
-    berth, picks the cheapest fight rather than the closest, and checks
-    each step against the monsters' reply before taking it. Each floor's
-    stairs are the last floor's shrine — what the hero carries down is
-    everything the floors above handed over. A run ends at the tenth
-    floor's shrine, or wherever the descent stops first.
+    <b>You're playing.</b> Arrow keys or WASD to move, space or "." to
+    wait a turn. Walk into a monster to attack it, into a chest to open
+    it, onto an item to pick it up. The stairs down are the last floor's
+    shrine — ten floors, same rules the bot plays by.
   </div>
 
   <main>
@@ -35,6 +30,7 @@
       <div id="summary" class="summary">
         <div id="summaryTitle" class="summary-title"></div>
         <div id="summaryBody"></div>
+        <div class="summary-hint">press any key to try again</div>
       </div>
     </div>
 
@@ -48,6 +44,7 @@
         <span id="xpRate"></span>
         <span id="steps"></span>
         <span id="kills"></span>
+        <span id="attempt"></span>
       </div>
 
       <div class="field">
@@ -61,8 +58,18 @@
       </div>
 
       <div class="field">
-        <label>aiming at</label>
-        <div id="goal" class="goal">—</div>
+        <label>move</label>
+        <div class="dpad">
+          <span></span>
+          <button data-act="up" type="button">▲</button>
+          <span></span>
+          <button data-act="left" type="button">◀</button>
+          <button data-act="rest" type="button">●</button>
+          <button data-act="right" type="button">▶</button>
+          <span></span>
+          <button data-act="down" type="button">▼</button>
+          <span></span>
+        </div>
       </div>
 
       <div class="field grow">
@@ -70,28 +77,21 @@
         <div id="log" class="log"></div>
       </div>
 
-      <div class="field">
-        <label>recent runs — how far the descent got</label>
-        <div id="history" class="history"></div>
-      </div>
-
       <footer>
-        <span id="run"></span>
-        <span id="tally"></span>
         <span id="seed" class="seed"></span>
       </footer>
     </aside>
   </main>
 
   <p class="note">
-    Dimmed tiles are what the bot <em>remembers</em>, not what it can see —
+    Dimmed tiles are what you <em>remember</em>, not what you can see —
     monsters there may have moved.
   </p>
 
 </div>
 
 <script type="module">
-  import { start } from './src/ui/spectator.js';
+  import { start } from './src/ui/play.js';
   start();
 </script>
 </body>
