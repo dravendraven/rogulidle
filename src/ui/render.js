@@ -183,8 +183,20 @@ export function renderHud(elements, state, session) {
 
   elements.run.textContent = `run ${session.runNumber}`;
   elements.seed.textContent = 'seed ' + state.seed;
-  elements.tally.textContent =
-    `${session.ascended}W · ${session.died}L · ${session.unfinished} timeout`;
+}
+
+// Recent runs, newest first: how far each one got and how it ended.
+// ⛩️ cleared the descent, 💀 died, 🕳️ ran out of turns.
+export function renderHistory(element, history) {
+  element.innerHTML = '';
+  for (const entry of history) {
+    const chip = document.createElement('span');
+    chip.className = 'history-chip' + (entry.cleared ? ' cleared' : '');
+    const icon = entry.cleared ? '⛩️' : entry.cause === 'timeout' ? '🕳️' : '💀';
+    chip.textContent = `${entry.depth}${icon}`;
+    chip.title = `run ${entry.run}`;
+    element.append(chip);
+  }
 }
 
 // Turns the engine's log into something readable, newest last.

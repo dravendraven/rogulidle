@@ -18,19 +18,14 @@
     </div>
   </header>
 
-  <div class="dial">
-    <label for="difficulty">difficulty</label>
-    <input id="difficulty" type="range" min="0" max="1" step="0.05" value="0.5">
-    <span id="dialValue"></span>
-  </div>
-
   <div class="banner">
-    <b>Bot v5.</b> Every route is priced in hp, not steps: it gathers gear
-    that pays for the walk, gives waking monsters a wide berth, picks the
-    cheapest fight rather than the closest, checks each step against the
-    monsters' reply before taking it, and leaves only once all five are
-    dead. Wide-ranging hunters — the genie and the vampire — still catch it
-    out. Winning a little under 3 runs in 5.
+    <b>Ten floors, one bot.</b> Every route is priced in hp, not steps: it
+    gathers gear that pays for the walk, gives waking monsters a wide
+    berth, picks the cheapest fight rather than the closest, and checks
+    each step against the monsters' reply before taking it. Each floor's
+    stairs are the last floor's shrine — what the hero carries down is
+    everything the floors above handed over. A run ends at the tenth
+    floor's shrine, or wherever the descent stops first.
   </div>
 
   <main>
@@ -46,6 +41,7 @@
       <div id="hp" class="hp"></div>
 
       <div class="chips">
+        <span id="floor"></span>
         <span id="xp"></span>
         <span id="steps"></span>
         <span id="kills"></span>
@@ -69,6 +65,11 @@
       <div class="field grow">
         <label>chronicle</label>
         <div id="log" class="log"></div>
+      </div>
+
+      <div class="field">
+        <label>recent runs — how far the descent got</label>
+        <div id="history" class="history"></div>
       </div>
 
       <footer>

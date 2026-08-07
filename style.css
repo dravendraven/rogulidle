@@ -52,19 +52,6 @@ button {
 }
 button:hover { border-color: #3a4150; }
 
-.dial {
-  display: flex;
-  align-items: center;
-  gap: .7rem;
-  margin-bottom: .8rem;
-  font-size: 11px;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: #5b6472;
-}
-.dial input[type="range"] { flex: 0 1 220px; accent-color: #8ce99a; cursor: pointer; }
-.dial #dialValue { text-transform: none; letter-spacing: 0; color: var(--dim); font-size: 12px; }
-
 .banner {
   display: flex;
   gap: .4rem;
@@ -210,6 +197,16 @@ main {
 }
 .log .line { padding: .1rem 0; border-bottom: 1px solid #1e222a; }
 .log .line:last-child { color: var(--text); }
+
+.history { display: flex; flex-wrap: wrap; gap: .3rem; }
+.history-chip {
+  background: #1f232c;
+  border-radius: 4px;
+  padding: .15rem .4rem;
+  font-size: 11px;
+  color: var(--dim);
+}
+.history-chip.cleared { color: var(--accent); }
 
 footer {
   display: flex;

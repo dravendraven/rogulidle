@@ -7,21 +7,28 @@
 // sped up freely.
 
 import { playGame, replayGame } from '../sim/game.js';
+import { playDungeon, LEVELS } from '../sim/dungeon.js';
 import { hashSeeds, seedFromString } from '../sim/rng.js';
 import { difficultyToParams } from '../sim/difficulty.js';
 import { makeBot } from '../bot/bot.js';
 import { dangerField } from '../bot/threat.js';
-import { buildGrid, renderFrame, renderHud, renderLog } from './render.js';
+import { buildGrid, renderFrame, renderHud, renderLog, renderHistory } from './render.js';
 
-const MAX_TURNS = 900;
+const MAX_TURNS = 900;       // per floor
 const BASE_DELAY = 110;      // ms per turn at 1x
 const SUMMARY_MS = 2400;
+const HISTORY_LEN = 12;
 
 const session = {
   runNumber: 0,
+  // Legacy single-floor mode only (?difficulty=).
   ascended: 0,
   died: 0,
   unfinished: 0,
+  // Descent mode.
+  cleared: 0,
+  runsPlayed: 0,
+  history: [],
   paused: false,
   speed: 1,
   debug: false,
@@ -33,7 +40,7 @@ function grab() {
   for (const id of [
     'grid', 'hp', 'xp', 'steps', 'kills', 'inventory', 'remaining',
     'run', 'seed', 'tally', 'log', 'summary', 'summaryTitle', 'summaryBody',
-    'playPause', 'speed', 'debug', 'goal', 'difficulty', 'dialValue',
+    'playPause', 'speed', 'debug', 'goal', 'floor', 'history',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -58,7 +65,7 @@ function watchableFrames(frames) {
   return out;
 }
 
-async function playFrames(frames, trace) {
+async function playFrames(frames, trace, tallyText) {
   for (let i = 0; i < frames.length; i++) {
     const frame = frames[i];
     await waitWhilePaused();
@@ -72,6 +79,7 @@ async function playFrames(frames, trace) {
 
     renderFrame(frame.state, frame.belief, debug);
     renderHud(el, frame.state, session);
+    if (el.tally) el.tally.textContent = tallyText();
     renderLog(el.log, frame.state);
 
     if (el.goal) {
@@ -83,35 +91,20 @@ async function playFrames(frames, trace) {
   }
 }
 
+const legacyTallyText = () =>
+  `${session.ascended}W · ${session.died}L · ${session.unfinished} timeout`;
+const descentTallyText = () =>
+  `${session.cleared}/${session.runsPlayed} cleared`;
+
 function tally(run) {
   if (run.outcome === 'ascended') session.ascended++;
   else if (run.outcome === 'died') session.died++;
   else session.unfinished++;
 }
 
-async function showSummary(run) {
-  const player = run.state.player;
-
-  const titles = {
-    ascended: '⛩️ ascended',
-    died: '💀 died',
-  };
-  el.summaryTitle.textContent = titles[run.outcome] || '🕳️ ran out of turns';
-
-  const loot = player.inventory.length
-    ? player.inventory.map((item) => item.emoji).join('')
-    : '—';
-  const slain = player.kills.length
-    ? run.state.monsters.filter((m) => m.dead).map((m) => m.emoji).join('')
-    : '—';
-
+async function showSummaryCard(title, rows) {
+  el.summaryTitle.textContent = title;
   el.summaryBody.innerHTML = '';
-  const rows = [
-    ['steps', run.turns + ' 👣'],
-    ['killed', slain],
-    ['carried', loot],
-    ['killed by', run.state.killedBy ? 'the ' + run.state.killedBy : '—'],
-  ];
   for (const [label, value] of rows) {
     const row = document.createElement('div');
     row.className = 'summary-row';
@@ -130,18 +123,31 @@ async function showSummary(run) {
   el.summary.classList.remove('shown');
 }
 
+async function showSummary(run) {
+  const player = run.state.player;
+  const titles = { ascended: '⛩️ ascended', died: '💀 died' };
+  const loot = player.inventory.length
+    ? player.inventory.map((item) => item.emoji).join('')
+    : '—';
+  const slain = player.kills.length
+    ? run.state.monsters.filter((m) => m.dead).map((m) => m.emoji).join('')
+    : '—';
+
+  await showSummaryCard(titles[run.outcome] || '🕳️ ran out of turns', [
+    ['steps', run.turns + ' 👣'],
+    ['killed', slain],
+    ['carried', loot],
+    ['killed by', run.state.killedBy ? 'the ' + run.state.killedBy : '—'],
+  ]);
+}
+
+// Legacy single-floor mode, reachable only via ?difficulty= — see the note
+// in start(). The dial is no longer shown; the value is fixed for the
+// whole session.
 async function runForever(sessionSeed) {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     session.runNumber++;
-
-    // Pick up a dial change made while the previous run was playing.
-    if (session.pendingDial !== session.dial) {
-      session.dial = session.pendingDial;
-      session.floor = difficultyToParams(session.dial);
-      if (session.showDial) session.showDial();
-    }
-
     const seed = hashSeeds(sessionSeed, session.runNumber);
 
     // The bot records what it was aiming at, one entry per decision, so
@@ -159,9 +165,84 @@ async function runForever(sessionSeed) {
     const frames = kept.map((k) => k.frame);
     const alignedTrace = kept.map((k) => trace[Math.max(0, k.index)]);
 
-    await playFrames(frames, alignedTrace);
+    await playFrames(frames, alignedTrace, legacyTallyText);
     tally(run);
     await showSummary(run);
+  }
+}
+
+function tallyDescent(run) {
+  session.runsPlayed++;
+  if (run.cleared) session.cleared++;
+
+  const lastFloor = run.levels[run.levels.length - 1];
+  session.history.unshift({
+    run: session.runNumber,
+    depth: run.depth,
+    cleared: run.cleared,
+    cause: run.cleared ? 'cleared' : lastFloor.outcome,
+  });
+  if (session.history.length > HISTORY_LEN) session.history.length = HISTORY_LEN;
+  if (el.history) renderHistory(el.history, session.history);
+}
+
+async function showDescentSummary(run, finalState) {
+  const player = finalState.player;
+  const loot = player.inventory.length
+    ? player.inventory.map((item) => item.emoji).join('')
+    : '—';
+  const slain = player.kills.length
+    ? finalState.monsters.filter((m) => m.dead).map((m) => m.emoji).join('')
+    : '—';
+  const title = run.cleared
+    ? '⛩️ cleared the descent'
+    : (run.killedBy ? '💀 died' : '🕳️ ran out of turns');
+
+  await showSummaryCard(title, [
+    ['reached', `floor ${run.depth} / ${LEVELS}`],
+    ['killed', slain],
+    ['carried', loot],
+    ['killed by', run.killedBy ? 'the ' + run.killedBy : '—'],
+  ]);
+}
+
+// The real product: floors 1 to 10 in one continuous descent, using the same
+// entry point the batch runner and the ruler measure with, so what is
+// watched is what is measured.
+async function runDescentForever(sessionSeed) {
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    session.runNumber++;
+    const seed = hashSeeds(sessionSeed, session.runNumber);
+
+    // playDungeon calls this once per floor; a bot carries plan state that
+    // means nothing on the next map down, so each floor gets a fresh trace
+    // array too, collected in call order.
+    const traces = [];
+    const run = playDungeon(seed, (floor) => {
+      const trace = [];
+      traces.push(trace);
+      return makeBot({ trace, monsterCount: floor.monsterCount });
+    }, { maxTurns: MAX_TURNS });
+
+    let finalState = null;
+    for (let i = 0; i < run.levels.length; i++) {
+      const levelResult = run.levels[i];
+      if (el.floor) el.floor.textContent = `floor ${levelResult.level} / ${LEVELS}`;
+
+      const all = replayGame(levelResult.replay);
+      const kept = watchableFrames(all).map((frame) => ({
+        frame, index: all.indexOf(frame),
+      }));
+      const frames = kept.map((k) => k.frame);
+      const alignedTrace = kept.map((k) => traces[i][Math.max(0, k.index)]);
+
+      await playFrames(frames, alignedTrace, descentTallyText);
+      finalState = frames[frames.length - 1].state;
+    }
+
+    tallyDescent(run);
+    await showDescentSummary(run, finalState);
   }
 }
 
@@ -170,27 +251,6 @@ function wireControls() {
     session.paused = !session.paused;
     el.playPause.textContent = session.paused ? '▶ play' : '⏸ pause';
   });
-
-  // Takes effect on the NEXT run, not this one: a run is computed whole
-  // before it is shown, so changing the floor mid-playback would mean
-  // watching a map that no longer matches the numbers.
-  const showDial = () => {
-    const dial = Number(el.difficulty.value);
-    const floor = difficultyToParams(dial);
-    // Shows what the floor WILL HOLD, not a predicted win rate. The old
-    // label quoted a percentage from a table measured before half the
-    // mechanics changed — a number nobody had any reason to trust.
-    el.dialValue.textContent =
-      `depth ${floor.level} · ${floor.monsters} monsters, ${floor.chests} chests`
-      + (dial === session.dial ? '' : ' — from next run');
-  };
-
-  el.difficulty.addEventListener('input', () => {
-    session.pendingDial = Number(el.difficulty.value);
-    showDial();
-  });
-
-  session.showDial = showDial;
 
   el.debug.addEventListener('click', () => {
     session.debug = !session.debug;
@@ -217,15 +277,16 @@ export function start() {
     ? seedFromString(requested)
     : (Date.now() >>> 0);
 
-  // ?difficulty=0..1 sets how hard the floors are, without touching the bot.
-  // 0 is a walkover, 1 the bot never wins — see src/sim/difficulty.js for
-  // the measured curve.
+  // ?difficulty=0..1 is a lab affordance kept for old links: it plays the
+  // OLD single synthetic floor instead of the ten-floor descent, at a fixed
+  // difficulty for the whole session. Not shown in the UI — a dial has no
+  // meaning against a descent. See docs/backlog.md, U1.
   const requestedDial = params.get('difficulty');
-  session.dial = requestedDial === null ? 0.5 : Number(requestedDial);
-  session.pendingDial = session.dial;
-  session.floor = difficultyToParams(session.dial);
-  el.difficulty.value = String(session.dial);
-  session.showDial();
-
-  runForever(sessionSeed);
+  if (requestedDial !== null) {
+    session.dial = Number(requestedDial);
+    session.floor = difficultyToParams(session.dial);
+    runForever(sessionSeed);
+  } else {
+    runDescentForever(sessionSeed);
+  }
 }
