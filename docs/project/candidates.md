@@ -26,6 +26,63 @@ reward must roll independently per room or the gamble is a free lunch. The
 design exists; what is missing is evidence it works, and that is **I4**,
 parked. No new item, just a measurement nobody has taken.
 
+### U2 · live clear odds on screen
+
+`product` · `metrics agent` then `ui agent` — instrument first, display after
+
+A number on screen — "X% chance of reaching the bottom" — recomputed at each
+floor transition from the hero's real state.
+
+**Serves neither objective directly.** It is spectator legibility, not a
+balance target. **Display, never a KPI** — nothing should ever be tuned to
+move it.
+
+**Mechanism: Monte Carlo rollout, not a fitted formula.** Predicting the
+outcome from static map features was already measured and fails —
+correlations top out near 0.3 and a fitted model reaches 64% against a 59%
+base rate. So instead, at each floor transition run N headless simulations
+from the current state (hp, floor, gear, creatures left) and take the
+fraction reaching floor 10.
+
+Use the **real bot**, not the probes. The probes exist to calibrate design
+against a fixed reference player; the question here is about this bot
+specifically.
+
+**Success is calibration, not accuracy.** Across many runs where the display
+read ~70%, about 70% should clear. Systematic divergence means the rollout
+is biased — wrong player, or N too small.
+
+### Three notes from review, added to the proposal
+
+**Performance is the real risk, ahead of the RNG one.** `N × remaining
+floors` headless descents at every transition is, on floor 1 with N = 50,
+around 500 floor-plays — the same order as a balance sweep, which this repo
+already documents as needing a visible tab and real time. Single-threaded in
+a browser that stalls the run being watched. Solvable with a worker, which
+is plain JS and inside the rules, but it belongs in the spec rather than
+being discovered during implementation.
+
+**The map is fixed, which changes what the number means.** `playDungeon`
+generates each floor from the seed, so a rollout of floors 9–10 produces the
+*same* floors — only the combat dice vary. That is the right question ("given
+this dungeon and this hero, what are the odds") but it has two consequences.
+The number is **conditional on the map**, and since `balance.md` measured
+roughly half of outcome variance as dice and half as map, the rollout
+captures one half deliberately. It also means **N can be small** — with only
+the dice varying, 20 may be plenty, which is most of the performance problem
+answered.
+
+**Showing the level may kill the drama the item exists to create.** Racing
+shows odds and it works, but a screen reading 8% stops you caring and 95%
+stops you watching, and sub-goal 3 wants the outcome uncertain and readable
+for as long as possible. What probably works is the **movement**: "40% → 12%
+on that floor" is drama; a static 12% is deflating. That is a design
+decision to take before building, not after.
+
+**Boundary note.** The rollout is an instrument (`src/analysis/`), the
+display is `src/ui/`. The ui agent may import from `src/analysis/` — the
+rule is that it does not *edit* it. Sequence the two, instrument first.
+
 ### M8 · layout variety, the way DCSS picks a builder per level
 
 Nothing in the backlog touches map *structure*, and the arithmetic likes it
