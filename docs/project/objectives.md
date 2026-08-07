@@ -118,9 +118,17 @@ that moves twenty-fold with an instrument setting cannot carry a bar.
     attrition    how much of that a floor takes back
     buffer       = capacity − attrition, as seen on arrival
 
-Capacity is measurable with no survivor selection. Attrition needs a hero
-that can die, so its bias is intrinsic and gets **declared rather than
-disguised**. Quote `buffer` only with the window it was fitted over — its
+**Capacity is what the hero accumulates, with nothing subtracted** —
+`hpMax` plus the value of gear carried. Monotone by construction, because
+nothing takes gear away. Measuring it as *effective* power instead puts
+spending back inside it, which is what I7 found: with death suppressed the
+number still falls, because a hero at 0 hp is averaged in as though it had
+no capacity rather than as one that spent all of it.
+
+Attrition is what gets spent. It needs a hero that can die, so its selection
+bias is intrinsic and gets **declared rather than disguised**.
+
+Death suppression removes *selection*. It does not separate the two. Quote `buffer` only with the window it was fitted over — its
 sign flips between floors 1–6 and 1–10, and I5 showed that flip is
 selection, not the game becoming forgiving.
 

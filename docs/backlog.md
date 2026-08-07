@@ -28,13 +28,14 @@ repeating it in the table only made the queue slower to scan.
 
 | # | id | what gets done | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
-| 1 | I7 | Measure capacity with death suppressed at PLAYER_HP, not on a 400 hp probe | map | metrics | REPORTED | n/a |
-| 2 | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | REPORTED | n/a |
+
+| 1 | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | REPORTED | n/a |
 | 3 | M10 | Allocate cluster zones against the mass quota so side rooms stop emptying | map | work | IN FLIGHT | — |
 | 4 | M3 | Unlock the strength ceiling with small probability, so a rare blow can be huge | map | work | REPORTED · review 1 passed | — |
 | 5 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | BLOCKED on I6 | — |
 | 6 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | BLOCKED on M10 | — |
 | — | M7 | Move difficulty off creature count onto strength and same-type clusters | map | work | **DONE** · adopted, flag ON | done |
+| — | I7 | Measure capacity with death suppressed at PLAYER_HP, not on a 400 hp probe | map | metrics | **DONE** | n/a |
 | — | I5 | Split buffer into capacity and attrition and measure each on its own terms | map | metrics | **DONE** | n/a |
 | — | M6 | Grant max and current hp every N kills, mirroring the xp progression | map | work | **DONE** · built, flag OFF | done |
 | — | M2 | Place creatures in clusters instead of independently | map | work | FOLDED into M7 | — |
@@ -270,6 +271,67 @@ distribution. Whether that settles M3 is the reviewer's call, not mine — I
 did not re-run the old-vs-new comparison M7's review was asking about, since
 M7 adoption already made "old" not the shipped state, and re-deriving it is
 outside what was cheap here.
+
+### Review — DONE. Delivered its acceptance, and renamed the problem
+
+Accepted. The selection effect is now a number with a standard error rather
+than a direction: not distinguishable from zero at floor 2, clearing 2σ at
+floor 3, unambiguous at floor 4, and reported only over floors where **both**
+arms carry n ≥ 50 rather than pushed to where it looked biggest.
+
+**Two pieces of craft worth naming.** Suppression is a second driver rather
+than a flag on the old one, because `playGame` runs a floor to completion and
+cannot be interrupted mid-death — the right call rather than the cheap one.
+And `startHero: null` reuses the exact `carry = null` path the mortal series
+already takes, instead of hand-building a "`PLAYER_HP` hero" that could
+silently drift from what the other arm actually starts with. That is the
+difference between two series sharing a base and two series *claimed* to
+share one.
+
+### My critique was half right, and the half it got wrong is worth recording
+
+I said the ×1.19 selection figure was "selection plus base dilution in
+unknown proportion". Removing the dilution moved it to **×1.17**. The gap was
+robust and my confidence that it was contaminated was misplaced.
+
+What the base *did* distort badly is the absolute number: capacity's power
+read ×1.048 per floor on the 400 hp probe and shrinks at ×0.842 at the real
+base. So the fix mattered a great deal for what capacity is, and barely at
+all for the gap — and I asserted the reverse. Both halves are worth knowing;
+only one of them was worth the work.
+
+### The real finding: "capacity" is measuring the wrong thing, and I named it
+
+The report states the boundary plainly and it is the important sentence in
+it: capacity and attrition still cannot be compared, because **attrition is
+only defined for a hero that can die**.
+
+Death suppression removes *selection*. It does not separate capacity from
+attrition. What `capacityShape` measures is effective power of the
+**unselected population** — heroes at hp 0 walking on, averaged in with
+living ones — which is exactly right for isolating selection and is not what
+"capacity" means in the targets table. Spending is still inside it. That is
+why it falls at ×0.842 rather than rising.
+
+**A quantity that says "what the hero accumulates" cannot have spending
+subtracted from it.** It is `hpMax` plus the value of gear carried —
+monotone by construction, because nothing takes gear away. Attrition is what
+gets spent. Buffer is the difference, which is where this started.
+
+So the targets row is wrong again, for the third time, and each time the
+measurement taught the definition rather than the reverse. Fixing it below.
+
+### The conditioned spike, taken as a bonus, settles what M7's review asked
+
+Pooled over all turns: p95 = 0, p99 = 1. Conditioned on a live monster being
+adjacent — about 15% of turns — it is p95 = 1, p99 = 3.
+
+That confirms the diagnosis in M7's review 2: the flat pooled number was
+walking-turn dilution, not a flat hit distribution. It does not say whether
+clustering *moved* the spike, since the old-vs-new comparison was not re-run
+and "old" is no longer shipped. **M3 does not need it to** — its own report
+shows p99 going 4 → 9 at floor 10 against its own flag, which is the
+evidence M3 stands on.
 
 ## I6 · give reward an instrument
 
