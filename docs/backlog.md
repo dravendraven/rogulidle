@@ -54,11 +54,12 @@ normal and does not mean the item changed.
 
 | # | id | what and why | feature | agent | status |
 |---|---|---|---|---|---|
-| 1 | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | IN FLIGHT |
-| 2 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY |
-| 3 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY |
-| 4 | M5 | Best item is axe +2, so no reward is ever an event | map | work | READY |
-| 5 | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | READY · last of the four |
+| 1 | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | REPORTED |
+| 2 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | READY · the main route |
+| 3 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning |
+| 4 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning |
+| — | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | FOLDED into M7 |
+| — | M5 | Best item is axe +2, so no reward is ever an event | map | work | ON HOLD · no instrument |
 | — | I3 | Settle clustering's sign test; spike and CV wait for M2 to exist | map | metrics | REPORTED |
 | — | B1 | Ping-pong is the ugliest visible defect — find which layer creates it | bot | work | PARKED · reported |
 | — | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | PARKED |
@@ -81,23 +82,45 @@ restarts. Do not pick up a PARKED item without the owner saying so.
 
 That leaves one loop, and it is deliberately serial:
 
-    work agent      M6 → M3 → M4 → M5 → M2
-    metrics agent   I3 part 1, then re-run the ruler after EACH of the five
+    work agent      M6 → M7 → then M4 and M3 only if still needed
+    metrics agent   I3 part 1, then re-run the ruler after EACH landing
 
-**M2 goes last, not first, and the dependency between it and I3 has
-inverted.** It used to be that I3 decided whether M2 was worth building.
-Under the flag protocol nothing can be pre-screened, so I3's spike and CV
-questions now need M2 to exist — M2 gates I3, not the other way round.
+**M7 replaces the patch queue as the main route.** An audit of the map items
+against the targets found that M3, M4 and M5 were all fighting a decay the
+game creates for itself, and that only one of them could win.
 
-With pre-screening gone, the ordering criterion becomes cost to build. M2 is
-the most expensive of the five (placement logic in `spawn.js`, plus
-reconciling the shadow implementation in `src/analysis/`) and rests on the
-weakest evidence — `z = 1.62`, with the mechanism unestablished. M3 is the
-cheapest and its mechanism is not in doubt.
+The arithmetic: the CV of a sum of `n` independent draws is
+`CV_single / √n`. Creature count grows 1.3 per floor, so there is a built-in
+decay of **×0.877 per floor** that no amount of added per-creature variance
+removes. Anything that raises variance *per creature* — the out-of-depth
+tail, a bigger strength spread — lifts the level at every floor and leaves
+the slope alone. Only variance that lives at the *floor* level escapes the
+dilution.
 
-There is also a real chance M3–M5 fix the CV on their own. If they do, M2
-may not need to exist at all, and building it first would have been paying
-the largest bill to find that out.
+That is also why DCSS's CV rises where ours falls: its creature count is
+roughly flat, so there is no dilution to fight, and its tails push freely.
+**Ours falls because difficulty was assigned to count.** M3, M4 and M5 are
+patches on a self-inflicted decay.
+
+The archived count→strength sweep already measured most of this, converted
+to a rate per floor:
+
+    count 1.30 (today)   CV 0.841 → 0.492   = 0.944 / floor
+    count 1.10           CV 0.841 → 0.637   = 0.970 / floor
+    count 1.00           CV 0.841 → 0.933   = 1.012 / floor   ← sign flips
+
+So the route was not archived for failing. It was archived because **the
+only setting that worked emptied the floor** — count 1.00 on a base of 2
+means two creatures on every floor, a dungeon that never grows.
+
+Grouping is exactly the gap-filler: twelve creatures in four clusters give
+four effective draws with twelve bodies on the ground. M2 therefore stops
+being a separate item and folds into M7, where it belongs — the three levers
+are one budget and cannot be attributed apart anyway.
+
+M4 and M3 drop to fine tuning. They may turn out unnecessary, and if they
+are still needed after M7 lands, adjustment is the right role for them.
+M5 goes on hold: reward has no instrument, so it has no acceptance number.
 
 **One change, then a reading, then the next.** M6 and M3–M5 all aim at the
 same two ratios by different routes, and stacked into one measurement they
@@ -836,9 +859,94 @@ value. What is missing is an estimate of how many chests a dark region holds
 **Interaction with B3.** B4 may resolve the ping-pong on its own. Measure
 B4's effect on the reversal rate before concluding B3 still has work to do.
 
+## M7 · move difficulty off count, onto strength and grouping
+
+`map` · `work agent` · **READY** — the main route for the CV target
+
+**The problem is the dial, not the map.** Difficulty grows by adding
+creatures: `monsters(N) = 2 × 1.3^(N-1)`, from 2 on floor one to 21 on floor
+ten. The CV of a sum of `n` independent draws is `CV_single / √n`, so a
+count growing at 1.3 carries a built-in CV decay of **×0.877 per floor**.
+
+That decay is why the CV target cannot be reached by adding variance. Any
+per-creature source — a stronger tail, a wider strength spread — raises
+`CV_single`, which lifts every floor by the same factor and leaves the slope
+untouched. The dilution is not something the map does; it is arithmetic on
+the number of draws.
+
+**DCSS does not have this problem because it never created it.** Its
+creature count is roughly flat and difficulty comes from hit dice, so there
+is no dilution to fight and its tails — out-of-depth, bands — push the CV up
+freely. Ours falls for the opposite reason.
+
+**Three levers, one budget.** Total challenge growth must stay at 1.343 per
+floor; what changes is where it comes from.
+
+- **Count grows slowly** instead of at 1.3, cutting the dilution.
+- **Strength scales** to replace the difficulty count stops providing.
+- **Grouping** cuts the remaining independent draws without emptying the
+  floor — twelve creatures in four clusters are four draws with twelve
+  bodies.
+
+They are one item because they are one budget and cannot be attributed
+apart: move one and the other two must move to hold challenge fixed.
+
+**What is already measured, and what it means.** The archived count→strength
+sweep, converted to a rate per floor:
+
+    count 1.30 (today)   CV 0.841 → 0.492   = 0.944 / floor
+    count 1.10           CV 0.841 → 0.637   = 0.970 / floor
+    count 1.00           CV 0.841 → 0.933   = 1.012 / floor
+
+The route was archived for the right reason and the wrong conclusion: the
+only point that flipped the sign was count 1.00, which on a base of 2 means
+two creatures on every floor — a dungeon that never grows. It was archived
+for emptying the floor, not for failing to move the CV.
+
+Grouping is what buys the last stretch without that cost. **This is the
+whole reason the item exists.**
+
+Also carried over from that sweep, and load-bearing here: the real cost
+exponent in strength is **2.356, not 2**, because strength indexes an
+11-row table whose mass runs 0 to 108. With the corrected exponent, the
+count 1.10 point saturates the table only at floor 11 — outside the descent.
+Get this wrong and the budget silently stops being constant.
+
+**Acceptance.**
+- CV of challenge reaches ≥ 1.00 per floor; 1.05 is the ambition.
+- Challenge holds at 1.343 ±0.03. This item moves where difficulty comes
+  from, never how much there is. **If challenge moves, the budget was not
+  held and the result is not interpretable** — that is what invalidated the
+  original sweep.
+- Floors stay populated. Report creatures per floor at 1, 5 and 10; the
+  degenerate corner is the failure mode this item exists to avoid.
+- `challenge/power` ≥ 1.15 and clear rate inside 15–40%.
+
+**How to measure.** On the probes, flag off against flag on, with M6 already
+landed and its reading taken first. Paired seeds, confirmed on seeds not
+used for tuning.
+
+**Two things to watch.**
+
+The 11-row `MONSTER_TABLE` is FAITHFUL and its ceiling is the hard limit on
+how much of the budget strength can carry. Report the floor at which the
+chosen point saturates it.
+
+The bot avoids being reachable by two at once, so it may convert clusters
+back into sequential duels. I2 measured this and found it does *not* happen
+at cluster size 3 — crowded fraction was higher under grouping at all ten
+floors — but that was with the instrument's placement, not the engine's,
+and the finding does not automatically survive a different cluster size.
+
+**Reconcile the shadow implementation.** `src/analysis/clustering.js` was
+built by I2 to measure grouping and now holds placement logic outside the
+engine. When this lands, either the analysis file calls the engine's
+placement or the difference is written down deliberately. Silent drift means
+every clustering measurement stops describing the game.
+
 ## M3 · an out-of-depth tail
 
-`map` · `work agent` · **READY** — runs after M6 lands, and is re-measured on its own
+`map` · `work agent` · **READY** — fine tuning, only if M7 leaves a gap
 
 `MONSTER_STRENGTH = 0.35` is fixed, so the strongest possible blow is the
 same on floor 1 and floor 10. There is no right tail at all.
@@ -862,7 +970,7 @@ distribution of damage per blow, not its mean. The tail is what kills.
 
 ## M4 · scale the side-room bonus with depth
 
-`map` · `work agent` · **READY** — runs after M6 lands, and is re-measured on its own
+`map` · `work agent` · **READY** — fine tuning, only if M7 leaves a gap
 
 `SIDE_ROOM_DEPTH_BONUS = 0.35` is fixed, so the only structural variance in
 the game is constant across the descent.
@@ -878,7 +986,17 @@ spread widened. Measured on the probes.
 
 ## M5 · a reward tail
 
-`map` · `work agent` · **READY** — runs after M6 lands, and is re-measured on its own
+`map` · `work agent` · **ON HOLD** — no instrument, therefore no acceptance number
+
+The targets table has no entry for reward, and that is not an oversight: the
+probes collect only what they step over, so their reward figure describes
+their own policy rather than the design. Building to move a number that does
+not yet mean anything is how a change gets adopted on a reading that cannot
+support it.
+
+Unblocking this needs an instrument first — a probe that detours for loot,
+or reward measured as what the floor *contains* rather than what got picked
+up. That is not scheduled; the CV and buffer targets come first.
 
 The best item is `axe +2`. There is nothing rare enough to be an event, so
 reward variance is bounded from above by the table itself.
@@ -1061,7 +1179,13 @@ unchanged here; question 2 and 3 wait for M2 as scoped above.
 
 ## M2 · clustering
 
-`map` · `work agent` · **BLOCKED on I2, I3, and the bot queue**
+`map` · `work agent` · **FOLDED into M7** — kept for its reasoning, not as work
+
+Grouping is now one of M7's three levers rather than its own item. It cannot
+be attributed apart from the other two: the three share one difficulty
+budget, so moving grouping forces count and strength to move with it. The
+argument below is why grouping is in that budget at all, and it still
+stands — only the packaging changed.
 
 The third axis, never tested: same roster, different spatial distribution.
 
@@ -1127,7 +1251,7 @@ attempting a fifth.
 
 ## M6 · defensive progression
 
-`map` · `work agent` · **IN FLIGHT** — decided, see "The decision" below
+`map` · `work agent` · **REPORTED** — decided, see "The decision" below
 
 Progression is **entirely offensive**, and the value table says why:
 
@@ -1220,6 +1344,24 @@ without a reason. That is the owner's call, not a measurement.
 ---
 
 ## Archived
+
+### The count→strength route — UNARCHIVED, see M7
+
+Reopened. The reasoning below is still correct and the numbers still hold;
+what was wrong was the conclusion drawn from them.
+
+Every playable point had the CV still falling, so the route was written off.
+But converted to a rate per floor, count 1.10 reaches 0.970 against today's
+0.944, and count 1.00 reaches 1.012 — the sign does flip. It flips only at
+the degenerate corner, where a base of 2 and no growth means two creatures
+on every floor.
+
+So the route failed for **emptying the floor**, not for failing to move the
+CV. Grouping fills exactly that gap: twelve creatures in four clusters are
+four draws with twelve bodies. That combination was never swept, and it is
+what M7 is.
+
+Kept below as originally written.
 
 ### The count→strength route — measured, does not pay
 
