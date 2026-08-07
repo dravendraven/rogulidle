@@ -133,24 +133,37 @@ Four candidate fixes were implemented and measured. **None moved the ratio:**
 Guard pricing helped slightly and was kept. The activation cap made it worse
 and is off. The crowd scaling changed literally nothing and was reverted.
 
-**That nothing in the bot moves this is the finding.** The cause is on the map
-side, and it is the mass budget:
+### The cause is NOT known, and one wrong answer is recorded here
+
+A first diagnosis was written and is **retracted**. It claimed the mass budget
+inverts headcount — a low-risk room needing more bodies to fill its share —
+and that summed menace therefore prices the safe room above the deadly one.
+The room composition is real:
 
 ```
-side room       creatures   mean xp   mass
-favourable        2.05       2.72     13.0
-unfavourable      1.88       3.13     16.3
+side room       creatures   mean xp   bite each   SUMMED MENACE   mass
+favourable        2.05       2.72       0.72          1.47        13.0
+unfavourable      1.88       3.13       0.89          1.67        16.3
 ```
 
-Side rooms are filled to a **mass** budget, so a low-risk room needs *more
-bodies* to fill its share. Every danger signal the bot has is a sum over
-monsters — summed menace along the route — so two weak creatures price higher
-than one strong one. The safe room looks more dangerous than the deadly one,
-and the bot is behaving correctly given what it is shown.
+But the last column kills the story. The unfavourable rooms carry **more**
+summed menace, not less, so the bot is not being fooled into thinking they are
+safer. Whatever draws it in, it is not that.
 
-**The fix is to stop the mass budget inverting headcount:** give each side room
-a mass share proportional to its own risk roll, instead of having all side
-rooms compete greedily for one global 30%. Then a high-risk room holds more
-mass *and* more bodies, risk stops being anti-correlated with crowding, and
-the bot's existing pricing points the right way with no bot change at all.
-That is the next thing to build here.
+**The bot's threat maths is sound and was checked directly.** A rat has xp 1,
+so its die has a single face at zero: `expectedDamage(1, 0) = 0`, threat.js
+skips it from the danger field entirely, and `duelCost` returns exactly 0. The
+bot genuinely knows two rats are cheaper than one wolf. There is no
+weak-crowd blind spot to fix.
+
+**And the gap may not be real.** At n = 196 favourable and 148 unfavourable,
+the standard error on the difference is about 5.4 points. The measured gaps —
+13, 13, 8, 14, 7, 7 across the five variants — sit between 1.3 and 2.6 standard
+errors, and those variants share seeds, so they are not independent replays.
+The direction was consistent, which is suggestive, but the effect was reported
+above with far more confidence than the sample supports.
+
+**Next step is a measurement, not a fix.** Enough seeds to put the difference
+several standard errors clear of zero, before anything is built on it. The
+mass-quota change is still a reasonable idea on its own terms; it is not
+justified by anything measured so far.
