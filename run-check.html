@@ -89,6 +89,7 @@ them in plain language instead of exponents and standard errors.</p>
 import { rewardShape } from './src/analysis/observed-ruler.js';
 import { descentCheck } from './src/analysis/clustering.js';
 import { floorPlan, LEVELS } from './src/sim/dungeon.js';
+import { PLAYER_HP } from './src/sim/balance.js';
 
 const $ = (id) => document.getElementById(id);
 const f = (x, d = 1) => (x === null || x === undefined || !Number.isFinite(x) ? '—' : x.toFixed(d));
@@ -157,18 +158,43 @@ function render(reward, counts, dc) {
   reward.forEach((r, i) => {
     if (i > 0 && r.challenge.mean < reward[i - 1].challenge.mean) drops.push(r.level);
   });
+  // hp spent as a multiple of PLAYER_HP (10) — the only bot-independent
+  // read of "is this survivable at all". `challenge` comes from the 400-hp
+  // calibration probe clearing the WHOLE roster with no gear, so this is a
+  // pessimistic, bare-hero upper bound, not a death certainty: a real hero
+  // has picked up some gear by here. Still the closest thing on this page
+  // to an absolute difficulty reading, since it never touches the bot.
+  const lethal = [];
+  reward.forEach((r) => {
+    const ratio = r.challenge.mean / PLAYER_HP;
+    if (ratio >= 1) lethal.push({ level: r.level, ratio });
+  });
   const costTable = el('table');
   costTable.innerHTML = '<thead><tr><th>floor</th>' + reward.map((r) => `<th>${r.level}</th>`).join('') + '</tr></thead>'
     + '<tbody><tr><td>hp spent</td>' + reward.map((r, i) => {
       const cheaper = i > 0 && r.challenge.mean < reward[i - 1].challenge.mean;
       return `<td class="${cheaper ? 'no' : ''}">${f(r.challenge.mean, 1)}</td>`;
+    }).join('') + '</tr>'
+    + `<tr><td class="direction">× PLAYER_HP (${PLAYER_HP})</td>` + reward.map((r) => {
+      const ratio = r.challenge.mean / PLAYER_HP;
+      return `<td class="direction ${ratio >= 1 ? 'no' : ''}">${f(ratio, 1)}×</td>`;
     }).join('') + '</tr></tbody>';
   const costCard = el('div');
   costCard.append(costTable);
-  const flagNode = drops.length
-    ? el('p', 'flag', `Cheaper than the floor before it: ${drops.map((l) => `floor ${l}`).join(', ')}. `
-      + 'At this sample size that can be noise — raise the sample or check the table above before treating it as a finding.')
-    : el('p', 'flag none', 'No floor is cheaper than the one before it.');
+  const flagParts = [];
+  if (drops.length) {
+    flagParts.push(el('p', 'flag', `Cheaper than the floor before it: ${drops.map((l) => `floor ${l}`).join(', ')}. `
+      + 'At this sample size that can be noise — raise the sample or check the table above before treating it as a finding.'));
+  } else {
+    flagParts.push(el('p', 'flag none', 'No floor is cheaper than the one before it.'));
+  }
+  if (lethal.length) {
+    flagParts.push(el('p', 'flag', `Bare-hero-lethal (costs ≥1× a fresh hero's full hp, no gear at all): `
+      + `${lethal.map((x) => `floor ${x.level} (${f(x.ratio, 1)}×)`).join(', ')}. `
+      + "Pessimistic bound — a real hero has some gear by then — but this is the map's own difficulty, no bot involved."));
+  }
+  const flagNode = el('div', 'subnote');
+  for (const p of flagParts) flagNode.append(p);
 
   const creatureRow = counts.map((c, i) => {
     const drop = i > 0 && c < counts[i - 1];
@@ -187,7 +213,7 @@ function render(reward, counts, dc) {
   const mapCells = [
     cell('success', `cost, floor ${LEVELS} ÷ floor 1`,
       `${f(last / first, 1)}×`,
-      `hp a fixed reference player spends clearing a floor, picking up nothing. Floor 1: ${f(first, 1)} hp, floor ${LEVELS}: ${f(last, 1)} hp.`,
+      `hp a fixed reference player spends clearing a floor, picking up nothing. Floor 1: ${f(first, 1)} hp, floor ${LEVELS}: ${f(last, 1)} hp — ${f(last / PLAYER_HP, 1)}× a real hero's whole hp bar (${PLAYER_HP}), bare, no gear.`,
       'good: higher, AND rising every single step — see below'),
     cell('health', 'creatures per floor',
       `${counts[0]} → ${counts[counts.length - 1]} <span style="font-size:.85rem;color:var(--faint)">(xp ${f(reward[0].meanXp, 1)} → ${f(reward[reward.length - 1].meanXp, 1)})</span>`,
