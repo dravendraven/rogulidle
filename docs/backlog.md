@@ -42,11 +42,12 @@ session, skip it.
 | 2 | U4 | Lifetime score, awarded only on a full clear, xpEarned over turns | REPORTED |
 | 3 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | REPORTED |
 | 4 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
-| 5 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
-| 6 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
-| 7 | X1 | Delete what nothing references | READY |
-| 8 | M4 | Side-room risk/reward spread scales with depth | READY |
-| 9 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 5 | M22 | Two routes to the shrine, one short and dangerous, one long and quiet | NEEDS DECISION |
+| 6 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
+| 7 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
+| 8 | X1 | Delete what nothing references | READY |
+| 9 | M4 | Side-room risk/reward spread scales with depth | OBSOLETE if M22 lands |
+| 10 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -689,6 +690,74 @@ Worth knowing before choosing: **side rooms have never been shown to work.**
 I4 is parked and unanswered, and its question is whether the bot can tell a
 good one from a bad one at all. Losing something that may not function is a
 smaller loss than it sounds.
+
+## M22 · two routes to the shrine, told apart by what is in them
+
+`work agent` · **NEEDS DECISION first — see the dependency**
+
+Instead of a single mandatory route with dead-end detours hanging off it,
+give the floor a **fork**: two ways to the shrine, one short and populated,
+one long and quiet. The decision stops being "is this side room worth a
+round trip" and becomes "which way do I go", which is legible on screen in a
+way a detour never is.
+
+It is compatible with the shrine being the furthest room — distance and
+branching are independent.
+
+### The dependency that decides whether this works at all
+
+**The bot cannot see down either branch, and has no reason to prefer the
+short one.** It reads `Observation`/`Belief` only, and `belief.shrine` is
+null until it has actually seen the shrine — so at a fork it does not know
+where the exit is, how long either branch runs, or what is in them.
+
+What it *can* see, once M16's bigger rooms are in play, is **creatures at
+the mouth of the populated branch**. So the visible choice is "walk toward
+what I can see is dangerous" against "walk toward what I cannot see".
+
+And with `STEP_COST_IN_HP = 0.01`, **turns are nearly free**, so it will
+always take the quiet one. The long safe branch wins every time and the
+short dangerous one is never used — the same "nobody takes the detour"
+problem in a new shape.
+
+**So this needs turns to cost something first.** That is the idea that came
+up under the xp-per-turn discussion and was never written down: the bot
+dawdles — 162 turns a floor, 47% reversal — because nothing charges it for
+time. Branching without a clock is a fork where one side is always correct.
+
+**That decision comes before this item, not inside it.**
+
+### What it does to the rest of the map queue
+
+**It obsoletes `M4`.** Side rooms as currently defined stop existing; there
+is nothing to scale the spread of.
+
+**It may resolve `M20`'s spine-share breach for free.** A room is spine
+because the mandatory path crosses it — with two routes, neither is fully
+mandatory, so the spine set shrinks on its own. The 95/5 split M20 produced
+could come back toward the 70/30 the design asks for, without touching M20.
+
+**It reuses a lever M16 already measured, in the opposite direction.** M16
+found that raising `dugPercentage` to ROT's 0.20 drops floor 7's spine share
+to 0.70, and treated that as the thing to avoid. **Under a branch design
+that is the mechanism you want** — more connections mean more than one way
+through. The measurement is already done; only its sign changes.
+
+`M19`, `M21` and `M16` are unaffected.
+
+### What to build, once the clock question is settled
+
+- Map generation that produces a genuine second route to the shrine, most
+  likely by putting `dugPercentage` back up.
+- `spine.js` reworked. "On the shortest path" stops meaning anything useful;
+  what matters is which rooms are on *some* route and which are on neither.
+- Threat distributed so the branches **differ in character rather than
+  merely existing** — one short and populated, one long and quiet. Two
+  identical branches are a coin flip, not a choice.
+
+**Assert.** Both branches actually reach the shrine. They differ measurably
+in length and in threat. And the one that matters: **how often the bot takes
+each.** If it is 95/5, the fork is decoration.
 
 ## M21 · deep floors have something waiting where you land
 
