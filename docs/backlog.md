@@ -30,7 +30,7 @@ repeating it in the table only made the queue slower to scan.
 |---|---|---|---|---|---|---|
 | 1 | I7 | Measure capacity with death suppressed at PLAYER_HP, not on a 400 hp probe | map | metrics | REPORTED | n/a |
 | 2 | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | REPORTED | n/a |
-| 3 | M10 | Allocate cluster zones against the mass quota so side rooms stop emptying | map | work | READY · now, fixes M7 | — |
+| 3 | M10 | Allocate cluster zones against the mass quota so side rooms stop emptying | map | work | IN FLIGHT | — |
 | 4 | M3 | Unlock the strength ceiling with small probability, so a rare blow can be huge | map | work | REPORTED · review 1 passed | — |
 | 5 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | BLOCKED on I6 | — |
 | 6 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | BLOCKED on M10 | — |
@@ -972,7 +972,7 @@ queue section.
 
 ## M10 · allocate cluster zones against the mass quota
 
-`map` · `work agent` · **READY** — fixes a regression M7 introduced
+`map` · `work agent` · **IN FLIGHT** — fixes a regression M7 introduced
 
 M7 adopted, and floor 7 now puts **97%** of its threat mass on the mandatory
 route against a 0.95 ceiling. Side rooms are effectively empty.
