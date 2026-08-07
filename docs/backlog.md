@@ -11,23 +11,34 @@ priority and changes; the id is stable and is what your prompt names.
 
 | # | id | what and why | feature | agent | status |
 |---|---|---|---|---|---|
-| 1 | I1 | Model ruler misprices crowds — replace it with two frozen probes that play | map | metrics | REPORTED |
-| 2 | B1 | Ping-pong is the ugliest visible defect — find which layer creates it | bot | work | REPORTED |
+| 1 | M6 | Buffer FALLS while difficulty rises — variance work is unsafe until this is settled | map | — | NEEDS DECISION |
+| 2 | I1 | Model ruler misprices crowds — replace it with two frozen probes that play | map | metrics | REPORTED |
 | 3 | I2 | Clustering may change lethality, not cost — retest with a normal hero | map | metrics | READY |
 | 4 | B4 | Bot values darkness at zero, so it never explores for reward | bot | work | READY |
-| 5 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY |
-| 6 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY |
-| 7 | M5 | Best item is axe +2, so no reward is ever an event | map | work | READY |
-| 8 | I4 | Bot may open more bad side rooms than good — is that real? | bot | metrics | READY |
-| 9 | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | BLOCKED |
-| 10 | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | BLOCKED |
-| 11 | I3 | No ruler sees clustering — build one measuring lethality, not cost | map | metrics | BLOCKED |
-| 12 | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | BLOCKED |
-| 13 | B5 | Clustering makes crowd tiles common, so the inert crowd penalty starts mattering | bot | work | BLOCKED |
-| 14 | B6 | Fix side-room discrimination, once I4 shows the inversion is real | bot | work | BLOCKED |
-| 15 | M6 | Power grows sevenfold, error tolerance not at all — no defensive progression | map | — | NEEDS DECISION |
+| 5 | B1 | Ping-pong is the ugliest visible defect — find which layer creates it | bot | work | REPORTED |
+| 6 | I4 | Bot may open more bad side rooms than good — is that real? | bot | metrics | READY |
+| 7 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | MEASURE ONLY |
+| 8 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | MEASURE ONLY |
+| 9 | M5 | Best item is axe +2, so no reward is ever an event | map | work | MEASURE ONLY |
+| 10 | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | BLOCKED |
+| 11 | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | BLOCKED |
+| 12 | I3 | No ruler sees clustering — build one measuring lethality, not cost | map | metrics | BLOCKED |
+| 13 | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | BLOCKED |
+| 14 | B5 | Clustering makes crowd tiles common, so the inert crowd penalty starts mattering | bot | work | BLOCKED |
+| 15 | B6 | Fix side-room discrimination, once I4 shows the inversion is real | bot | work | BLOCKED |
 
 Archived: the count→strength route. Measured, does not pay. See the end.
+
+**What changed and why.** The observed ruler (I1) found the buffer *falling*
+rather than flat, which turns the variance programme from an improvement
+into a way of building sudden death. M6 moves from last to first and is a
+decision, not a task. M3–M5 stay startable but drop to MEASURE ONLY: run
+them, report what they move, do not switch them on.
+
+I1 is REPORTED with a review attached and two cheap fixes outstanding (refit
+over floors 1–6, correct the buffer reading); it needs no new runs. B1 is
+REPORTED and answered "tactical veto", which inverted the premise B2 and B3
+were sketched against — both are being rewritten.
 
 ## How to use this file
 
@@ -39,6 +50,8 @@ Status legend:
 
     READY           spec is complete, can be started
     IN FLIGHT       someone is on it
+    MEASURE ONLY    build it and report what it moves, but leave it OFF by
+                    default — adoption waits on something else
     BLOCKED         waiting on a named task; spec is deliberately thin
     REPORTED        work done and result written down, awaiting review by
                     the project agent
@@ -75,22 +88,43 @@ answered by the metrics agent; M3 is a map change made by the work agent.
 
 ## The problem all of this serves
 
-Measured: difficulty grows 1.32 per floor and the hero's power keeps up, but
-the **coefficient of variation falls** with depth (0.95 per floor) and the
-**buffer does not grow at all** (1.012). Deep floors converge on their own
-average; the climax of a run is its most predictable moment.
+Measured: difficulty grows ×1.34 per floor while the hero's power grows far
+slower, the **coefficient of variation falls** with depth (0.944 per floor),
+and the **buffer falls** rather than holding. Deep floors converge on their
+own average; the climax of a run is its most predictable moment, played by a
+hero whose tolerance for error is shrinking.
 
 In a game the player only watches, that is the central problem. A player
 with decisions gets tension from risk. A spectator only has surprise.
 
 The target is not to match DCSS's numbers — those are derived from attribute
-scales, not observed play, so only the **signs** of the four ratios are
-comparable. Two of the four are wrong:
+scales, not observed play, so only the **signs** of the ratios are
+comparable.
 
-    challenge/power    1.065   fine
-    reward/challenge   0.781   deliberate, this is a ten-floor race
-    CV                 0.950   WRONG, falls where it should rise   -> M2..M5
-    buffer             1.012   WRONG, flat where DCSS grows 1.16   -> M6
+Current reading, from the observed ruler (I1) after review. Numbers from the
+modelled ruler are superseded and not comparable:
+
+    challenge/power    ≥1.307   a FLOOR — survivor selection inflates power
+    challenge/buffer    1.560   a mistake gets much more expensive with depth
+    CV challenge        0.944   WRONG, falls where it should rise   -> M2..M5
+    buffer              falls   WRONG, DCSS grows 1.16              -> M6
+    reward/challenge      —     no instrument answers this yet
+
+Two cautions attached to that block, both from the I1 review:
+
+- **Buffer falls, it is not flat.** The earlier "flat" reading came from the
+  modelled ruler. Observed, the hero ends the descent absorbing a fraction
+  of the blows it absorbed at the start. Survivor selection makes the
+  measured value optimistic, so the real decline is steeper.
+- **Reward is out of the block.** The probe collects only what it steps
+  over, so its reward number describes the probe's policy rather than the
+  design. Putting it back needs an instrument that detours for loot.
+
+**Ordering consequence.** M3–M5 add a lethal tail. Against a *falling*
+buffer a lethal tail is not tension, it is sudden death with no arc — the
+hero's capacity to survive the spike is shrinking as the spike appears. So
+M6 is decided before any variance work is adopted. Measuring M3–M5 first is
+fine; adopting them is not.
 
 **Tune the curves against the probes, never against the real bot.** The
 probe measures the design against a fixed reference player; the real bot
@@ -98,9 +132,16 @@ measures design and bot quality mixed together, so every bot fix would move
 the target. Win rate is the real bot's question, and it is a different one:
 is this playable and watchable.
 
+**Re-read the ratios after each map change, not once at the end.** M3, M4
+and M5 aim at the same target by different routes; stacked and measured once
+they cannot be told apart, and at least one of them probably does not pay —
+the count→strength route already did exactly that. The probes are frozen, so
+a re-run is cheap and paired by construction. "Are we close to DCSS" is a
+reading of the ratios above, not a separate instrument.
+
 ---
 
-## 1 — I1 · replace the modelled ruler with observed probes
+## I1 · replace the modelled ruler with observed probes
 
 `map` · `metrics agent` · **REPORTED**
 
@@ -190,7 +231,64 @@ numbers** (reached ≤ 6) — reported for completeness, not as findings.
 **Out of scope.** Nothing beyond what is already captured in the
 corrections above (clustering → I2/I3).
 
-## 2 — B1 · which layer is the ping-pong born in
+### Review — not promoted to DONE
+
+The challenge half stands. `isolatedShape` carries n=150 paired samples at
+every level, independent of descent survival, so `challenge ×1.343 ±0.009`
+and `CV ×0.944 ±0.012` are usable and they confirm the central finding
+through an instrument that cannot misprice a crowd. The frozen file with no
+`src/bot/` import is as specified, the caching disclosure is specific, and
+the self-criticism of CV-of-reward is correct and was raised unprompted.
+
+Four things to settle before this closes. The first two are cheap and need
+no new runs.
+
+**1. The fit contradicts its own document.** `observed-ruler.md` says
+"log-linear fit over the whole ladder" and also says power and buffer past
+floor 7 "are not usable numbers". Both cannot hold. Descents reaching each
+floor run 1500, 1361, 893, 465, 175, 53, 14, 6, 2, 0 — and a log-linear fit
+takes its leverage from the ends, so the n=2 and n=6 points dominate the
+slope. **Refit power and buffer over floors 1–6 (n ≥ 53)** and report that
+number as the headline, with the full-ladder fit kept only as a footnote.
+
+**2. The headline contradicts the table.** "Buffer is still ~flat" against a
+measured 0.862 per floor, which is ×0.3 across the ladder — the hero ends
+absorbing a third of the blows it started with. The same document reads
+`challenge/buffer 1.560` correctly as "a mistake gets more expensive", then
+calls the buffer flat two sections later. Buffer is not flat, it **falls**,
+and that is a finding rather than a footnote.
+
+**3. Survivor selection came back inside the instrument.** Sonda B was
+chosen for power and buffer precisely to escape the real bot's survivor
+selection (z = 4.89, cited in the doc). But Sonda B dies: the heroes
+measured on floor 5 are the luckiest 175 of 1500. That is the same
+selection, inside the tool built to remove it.
+
+Direction matters and it is favourable: survivors carry more hp, so the
+measured buffer at depth is **optimistic** and it still falls — the finding
+survives the bias and is stronger than reported, not weaker. Power at depth
+is inflated by the same mechanism, so `challenge/power 1.307` is a **floor,
+not an estimate**. Say so where the number appears.
+
+**4. Reward stopped answering the question it is in the table for.** This
+one is a spec error, not an execution error — the fault is the project
+agent's, and the honest fix is not to blame the measurement.
+
+Sonda B only picks up what it steps over and never detours. So the number
+measures *incidental pickup*, which is a property of the probe's policy, and
+not *what the floor holds*, which is a property of the design. That makes
+`reward/challenge = 0.975, 1–2% of challenge` an answer to "does walking
+over loot pay" rather than to "does descending pay". The report gets close
+("a policy that never detours barely benefits") without drawing the
+conclusion: **the ratio is not comparable to the DCSS one and must come out
+of the four-ratio block** until an instrument measures the intended
+quantity.
+
+No fix required from the metrics agent here. It is recorded so the number is
+not read as something it is not, and a probe that does detour for loot is a
+question for the project agent, not a defect in this one.
+
+## B1 · which layer is the ping-pong born in
 
 `bot` · `work agent` · **REPORTED**
 
@@ -277,7 +375,7 @@ consulted — a fix scoped only to `scoreActions` / `bestValue` in
 `tactics.js` cannot reach it. Worth a decision on whether routing gets its
 own item or stays folded into B2's scope.
 
-## 3 — I2 · spread against grouped, with a normal hero
+## I2 · spread against grouped, with a normal hero
 
 `map` · `metrics agent` · **READY**
 
@@ -310,7 +408,7 @@ does not die — its design changes, because clustering only becomes a lever
 where the map prevents escape (open rooms, no corridor) or the creatures are
 fast enough not to be separated. That is design information, not a dead end.
 
-## 4 — B4 · give exploration a value
+## B4 · give exploration a value
 
 `bot` · `work agent` · **READY**
 
@@ -354,9 +452,9 @@ value. What is missing is an estimate of how many chests a dark region holds
 **Interaction with B3.** B4 may resolve the ping-pong on its own. Measure
 B4's effect on the reversal rate before concluding B3 still has work to do.
 
-## 5 — M3 · an out-of-depth tail
+## M3 · an out-of-depth tail
 
-`map` · `work agent` · **READY**
+`map` · `work agent` · **MEASURE ONLY — do not switch on; adoption waits on M6**
 
 `MONSTER_STRENGTH = 0.35` is fixed, so the strongest possible blow is the
 same on floor 1 and floor 10. There is no right tail at all.
@@ -378,9 +476,9 @@ damage is `0..xp−1`. Near the top of the table one blow can take almost
 everything. The reaction window must shrink, not vanish — report the
 distribution of damage per blow, not its mean. The tail is what kills.
 
-## 6 — M4 · scale the side-room bonus with depth
+## M4 · scale the side-room bonus with depth
 
-`map` · `work agent` · **READY**
+`map` · `work agent` · **MEASURE ONLY — do not switch on; adoption waits on M6**
 
 `SIDE_ROOM_DEPTH_BONUS = 0.35` is fixed, so the only structural variance in
 the game is constant across the descent.
@@ -394,9 +492,9 @@ what makes a detour a gamble rather than a free lunch.
 ≥70% target; the average side room at floor 5 is not made harder, only the
 spread widened. Measured on the probes.
 
-## 7 — M5 · a reward tail
+## M5 · a reward tail
 
-`map` · `work agent` · **READY**
+`map` · `work agent` · **MEASURE ONLY — do not switch on; adoption waits on M6**
 
 The best item is `axe +2`. There is nothing rare enough to be an event, so
 reward variance is bounded from above by the table itself.
@@ -413,7 +511,7 @@ Measured on the probes.
 chest, measured over 150 maps. Adding to the item table moves what a chest
 is worth and that constant will need re-measuring.
 
-## 8 — I4 · is the side-room inversion real
+## I4 · is the side-room inversion real
 
 `bot` · `metrics agent` · **READY**
 
@@ -441,7 +539,7 @@ on this until it is known to be real.
 open. Measure against a stated bot version and say which — a result against
 a moving bot is not reusable.
 
-## 9 — B2 · characterise the veto loop
+## B2 · characterise the veto loop
 
 `bot` · `work agent` · **BLOCKED on B1 review**
 
@@ -450,7 +548,7 @@ rewritten against that answer.
 
 Spec deliberately not written yet.
 
-## 10 — B3 · fix the ping-pong
+## B3 · fix the ping-pong
 
 `bot` · `work agent` · **BLOCKED on B2**
 
@@ -467,7 +565,7 @@ starting to walk to it.
 turns per run, and above all the **distribution**: a fall in the mean can
 hide the pathological case surviving intact.
 
-## 11 — I3 · a metric that can see clustering
+## I3 · a metric that can see clustering
 
 `map` · `metrics agent` · **BLOCKED on I2**
 
@@ -475,7 +573,7 @@ No current ruler sees it, and cost cannot be it for the reason in I2.
 Candidates are maximum damage taken in a single turn, or fraction of turns
 with two or more adjacent. Shape depends on what I2 finds.
 
-## 12 — M2 · clustering
+## M2 · clustering
 
 `map` · `work agent` · **BLOCKED on I2, I3, and the bot queue**
 
@@ -501,7 +599,7 @@ groups — waking one wakes its neighbours.
 Unlike M3–M5 this one is **not** probe-measurable: the effect is on
 lethality, and the probes cannot die.
 
-## 13 — B5 · crowd blindness in the bot
+## B5 · crowd blindness in the bot
 
 `bot` · `work agent` · **BLOCKED on M2**
 
@@ -514,7 +612,7 @@ Clustering makes those tiles common, at which point the term goes from inert
 to dominant. Do not touch this before M2 exists — today there is nothing to
 tune against.
 
-## 14 — B6 · fix side-room discrimination
+## B6 · fix side-room discrimination
 
 `bot` · `work agent` · **BLOCKED on I4**
 
@@ -526,23 +624,33 @@ Four fixes have already been implemented against this and none moved the
 ratio, which is itself a reason to establish the effect exists before
 attempting a fifth.
 
-## 15 — M6 · defensive progression
+## M6 · defensive progression
 
 `map` · unassigned · **NEEDS DECISION**
 
-Measured: power grows ×7 across the descent, buffer ×1.1. The hero ends the
-run absorbing the same fourteen blows it absorbed at the start, against
-floors costing twelve times more. Progression is **entirely offensive**, and
-the value table says why:
+Progression is **entirely offensive**, and the value table says why:
 
     dagger 18.90   axe 31.50   shield 3.00   potion 3.00
 
-**Why it matters, and why it is not optional.** The whole variance programme
-(M2–M5) adds a lethal tail. With a flat buffer, a lethal tail does not
-become tension — it becomes sudden death with no arc. The hero has no
-growing capacity to survive the spike it is about to meet.
+Gear buys killing faster. Almost nothing buys dying slower.
 
-This is the second of the two wrong ratios and nothing addresses it.
+**The observed ruler made this worse, not better.** The modelled ruler read
+the buffer as flat (×1.012). Played rather than modelled, it **falls** —
+`challenge/buffer` compounds at 1.560 per floor, so the hero meets floor
+ten's cost with less tolerance for error than it had on floor one. And
+survivor selection biases that measurement *optimistic*: the heroes reaching
+depth at all are the lucky ones carrying extra hp, so the real decline is
+steeper than measured.
+
+**Why it is first in the queue rather than last.** The whole variance
+programme (M2–M5) adds a lethal tail. Against a falling buffer a lethal tail
+does not become tension — it becomes **sudden death with no arc**. The hero
+has a shrinking capacity to survive the spike at the exact moment the spike
+appears. Building variance first means building the failure mode and then
+discovering it.
+
+That is why M3–M5 are MEASURE ONLY. Run them, learn what they move, leave
+them off.
 
 **Why it needs a decision rather than a spec.** The levers are `PLAYER_HP`
 (FAITHFUL, 10), regeneration (deliberately removed, spec §13.1), and item
