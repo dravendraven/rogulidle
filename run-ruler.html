@@ -145,32 +145,56 @@ function render(iso, built) {
       + `400-hp probe did not fully clear (raise max turns if this is more than a handful).`);
   }
 
-  const series = {
-    challenge: iso.map((r) => r.challenge.mean),
-    reward: iso.map((r) => Math.abs(r.reward.mean)),
-    power: built.rows.map((r) => r.power.mean),
-    buffer: built.rows.map((r) => r.buffer.mean),
-    'CV challenge': iso.map((r) => r.challenge.cv),
-    'CV reward': iso.map((r) => r.reward.cv),
-  };
-  const growth = {};
-  for (const [k, v] of Object.entries(series)) growth[k] = growthOf(v);
+  // Challenge/reward carry a full sample at every floor (isolatedShape does
+  // not depend on descent survival), so their fit uses the whole ladder.
+  // Power and buffer come from descent survival, which collapses fast — a
+  // log-linear fit takes its leverage from the endpoints, so fitting it
+  // over every reached floor lets a thin tail (single digits of survivors)
+  // swing the slope. MIN_RELIABLE_N is the same kind of threshold this
+  // project already uses elsewhere for "enough samples to trust a mean";
+  // rows below it are shown in the series table but excluded from the
+  // headline growth rate, not silently dropped.
+  const MIN_RELIABLE_N = 50;
+  const reliableBuilt = built.rows.filter((r) => r.reached >= MIN_RELIABLE_N);
+  const allBuilt = built.rows;
+
+  const growthRows = [
+    { label: 'challenge', values: iso.map((r) => r.challenge.mean), window: `floors 1–${iso.length}` },
+    { label: 'reward (abs)', values: iso.map((r) => Math.abs(r.reward.mean)), window: `floors 1–${iso.length}` },
+    { label: `power (floors 1–${reliableBuilt.length})`, values: reliableBuilt.map((r) => r.power.mean),
+      window: `n ≥ ${MIN_RELIABLE_N}`, headline: true },
+    { label: `buffer (floors 1–${reliableBuilt.length})`, values: reliableBuilt.map((r) => r.buffer.mean),
+      window: `n ≥ ${MIN_RELIABLE_N}`, headline: true },
+    { label: 'CV challenge', values: iso.map((r) => r.challenge.cv), window: `floors 1–${iso.length}` },
+    { label: 'CV reward', values: iso.map((r) => r.reward.cv), window: `floors 1–${iso.length}` },
+    { label: `power (all reached, footnote)`, values: allBuilt.map((r) => r.power.mean),
+      window: `floors 1–${allBuilt.length}, thin past fl.${reliableBuilt.length}`, footnote: true },
+    { label: `buffer (all reached, footnote)`, values: allBuilt.map((r) => r.buffer.mean),
+      window: `floors 1–${allBuilt.length}, thin past fl.${reliableBuilt.length}`, footnote: true },
+  ];
 
   section('Growth per floor', table(
-    [['quantity'], ['× per floor'], ['over the ladder'], ['reading']],
-    Object.entries(growth).map(([k, g]) => {
-      const n = iso.length;
-      const total = g.perFloor ? Math.pow(g.perFloor, n - 1) : null;
-      const cls = g.perFloor > 1.02 ? 'ok' : (g.perFloor < 0.98 ? 'no' : 'thin');
-      return [k === 'reward' ? 'reward (abs)' : k,
+    [['quantity'], ['× per floor'], ['over its window'], ['window'], ['reading']],
+    growthRows.map((row) => {
+      const g = growthOf(row.values);
+      const total = g.perFloor && g.n ? Math.pow(g.perFloor, g.n - 1) : null;
+      const cls = row.footnote ? 'thin' : (g.perFloor > 1.02 ? 'ok' : (g.perFloor < 0.98 ? 'no' : 'thin'));
+      return [row.footnote ? row.label : (row.headline ? `<b>${row.label}</b>` : row.label),
         `<span class="${cls} big">${f(g.perFloor, 3)}</span> <span class="err">±${f(g.se, 3)}</span>`,
-        total ? `×${f(total, 1)}` : '—',
+        total ? `×${f(total, 2)}` : '—',
+        row.window,
         g.perFloor > 1 ? 'grows' : 'shrinks'];
     }),
   ));
   para('Reward\'s growth is fitted on <code>|reward|</code> since a log-linear fit '
     + 'needs positive values; the sign (positive = loot pays, B cleared for less than '
     + 'A) is reported separately in the series above.');
+  para(`<b>Power and buffer are fit only over floors with at least ${MIN_RELIABLE_N} `
+    + `surviving descents</b> — the two bold rows above. The "all reached" rows further `
+    + `down are a footnote, not a second estimate: they exist so a big gap from the `
+    + `headline is visible, not to be averaged against it. <b>Buffer falls</b> over its `
+    + `reliable window; it does not read as flat once floors 7+ (n in the single digits) `
+    + `stop being allowed to steer the fit.`);
 
   const ratio = (a, b) => iso.map((row, i) => {
     const built1 = built.rows[i];

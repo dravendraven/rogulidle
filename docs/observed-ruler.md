@@ -97,17 +97,39 @@ across the whole ladder out of 3000 attempted pairs — 1.6%, all from the
 max-turn cap, not death). `reached` is how many of the 1500 descents got
 that deep at all; see "Descent survival" below before reading floors 7–10.
 
-### Growth per floor (log-linear fit over the whole ladder)
+### Growth per floor
+
+Challenge, reward and their CVs are fit log-linearly over the whole ladder —
+`isolatedShape` carries n ≥ 135 at every level, so every point pulls its
+weight evenly. Power and buffer are different: they come from descent
+survival, which collapses fast (see "Descent survival" below — n ≥ 53
+through floor 6, then 14, 6, 2, 0). A log-linear fit takes its leverage from
+the endpoints, so fitting it over all 9 reached floors lets the n=2 and n=6
+points swing the slope. **Power and buffer are therefore fit over floors
+1–6 only, and that is the headline number** — the full-ladder fit is kept
+below it as a footnote, not as a second estimate to average against.
 
 ```
-quantity        × per floor      over the ladder
-challenge       1.343 ±0.009     ×14.2
-reward (abs)    1.310 ±0.113     ×11.3
-power           1.029 ±0.022     × 1.3
-buffer          0.862 ±0.018     × 0.3
-CV challenge    0.944 ±0.012     × 0.6
-CV reward       0.984 ±0.067     × 0.9
+quantity              × per floor      over its window
+challenge             1.343 ±0.009     ×14.2  (floors 1–10)
+reward (abs)          1.310 ±0.113     ×11.3  (floors 1–10)
+power   (floors 1–6)  1.022 ±0.042     × 1.11 (floors 1–6)
+buffer  (floors 1–6)  0.855 ±0.023     × 0.46 (floors 1–6)
+CV challenge          0.944 ±0.012     × 0.6  (floors 1–10)
+CV reward             0.984 ±0.067     × 0.9  (floors 1–10)
 ```
+
+**Buffer falls. It is not flat.** Over its reliable window the hero ends
+floor 6 absorbing under half the blows it could absorb on floor 1 — and the
+raw floor-1-to-6 ratio (6.4 / 14.7 = 0.44) agrees with the fitted rate. This
+is a finding, not a rounding note: read `docs/backlog.md`'s "The problem all
+of this serves" for why it reorders the map-design queue.
+
+Footnote — fit over all 9 reached floors (1–9, floor 10 has zero survivors):
+`power 1.029 ±0.022` (×1.3 over the 9), `buffer 0.862 ±0.018` (×0.3 over the
+9). Close to the floors-1–6 numbers here, which is worth knowing — the thin
+tail did not secretly reverse the trend this time — but that agreement is
+not guaranteed in general, and the 1–6 fit is what should be quoted first.
 
 Reward's growth is fitted on `|reward|` — a log-linear fit needs positive
 values — with the sign (always positive here) reported separately above.
@@ -133,7 +155,9 @@ CV challenge        1.20   0.71   0.64   0.944
   are doing the real work, and this ruler cannot see those because Sonda B
   never detours either.
 - **challenge / buffer → 1.560.** A mistake gets more expensive over the
-  descent, same direction as before.
+  descent — and not only because challenge rises: buffer itself **falls**
+  (×0.855/floor over its reliable floors 1–6 window, see above), so this
+  ratio is being pushed from both sides at once.
 - **CV challenge → 0.944 (falls).** Same direction as the modelled ruler:
   deep floors are more predictable, not less.
 
@@ -147,11 +171,12 @@ survival   100%   91%    60%    31%    12%    3.5%   0.9%   0.4%   0.1%     0%
 
 Zero of 1500 descents reached floor 10. This is expected and correct for
 what Sonda B is — a deliberately dumb, danger-blind clearer, not an
-athlete — but it means **power and buffer past floor 7 are not usable
-numbers** (n ≤ 6) and floors 9–10 are reported only for completeness. Raising
-the descent count further would not fix this cheaply: going from 1500 to
-tens of thousands of runs would still leave floor 10 in single digits,
-because the survival curve itself is the finding, not a sampling shortfall.
+athlete — but it means **power and buffer are only fit over floors 1–6**
+(n ≥ 53). Floors 7–10 (n = 14, 6, 2, 0) are printed in the series table for
+completeness, not used in the headline growth rate. Raising the descent
+count further would not fix this cheaply: going from 1500 to tens of
+thousands of runs would still leave floor 10 in single digits, because the
+survival curve itself is the finding, not a sampling shortfall.
 
 ## What changed in this session, for the record
 
