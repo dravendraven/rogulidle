@@ -38,16 +38,15 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| 1 | P1 | Remove play.html — the premise is watch-only | READY |
-| 2 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | REPORTED |
-| 3 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
-| 4 | B7 | Raise STEP_COST_IN_HP so turns cost the bot something | READY · after M19 |
-| 5 | M22 | Two routes to the shrine, one short and dangerous, one long and quiet | NEEDS DECISION |
-| 6 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
-| 7 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
-| 8 | X1 | Delete what nothing references | READY |
-| 9 | M4 | Side-room risk/reward spread scales with depth | OBSOLETE if M22 lands |
-| 10 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 1 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | REPORTED |
+| 2 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
+| 3 | B7 | Raise STEP_COST_IN_HP so turns cost the bot something | READY · after M19 |
+| 4 | M22 | Two routes to the shrine, one short and dangerous, one long and quiet | NEEDS DECISION |
+| 5 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
+| 6 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
+| 7 | X1 | Delete what nothing references | READY |
+| 8 | M4 | Side-room risk/reward spread scales with depth | OBSOLETE if M22 lands |
+| 9 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -323,28 +322,6 @@ anyway. Measuring a half-finished map attributes nothing.
 
 The queue continues at M18. The bisect stays available — each change is its
 own commit — and X2 sits after M19 rather than before M18.
-
-## P1 · remove `play.html`
-
-`ui agent` · **READY** — decided: it goes
-
-An interactive mode was added on request and both `U3` and `U4` declined to
-wire into it, which was right.
-
-**Decided by the owner: remove it.** The reason it could not just sit there
-is that `CLAUDE.md`'s first line — *"the player does nothing but watch a bot
-clear the dungeon"* — is what every design decision in this repo descends
-from. The bot is the product, `finishes` is a bound rather than a goal, the
-spectator needs surprise because they have no decisions. With a human
-playing, half the arguments in `objectives.md` stop applying, and nothing
-else could be decided consistently while it was ambiguous.
-
-**Do.** Delete `play.html` and `src/ui/play.js`, and anything in
-`style.css` that only served them. Check nothing else imports them — `U4`
-deliberately did not, so it should be clean.
-
-**Leave `index.html` alone.** The three HUD chips from U3 and the lifetime
-score from U4 are the watch-mode features and stay.
 
 ## M20 · start and shrine at the two ends of the map
 
