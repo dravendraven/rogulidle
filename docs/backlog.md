@@ -66,24 +66,24 @@ normal and does not mean the item changed.
 | 2 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY |
 | 3 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY |
 | 4 | M5 | Best item is axe +2, so no reward is ever an event | map | work | READY |
-| 5 | I4 | Bot may open more bad side rooms than good — is that real? | bot | metrics | READY · now |
-| 6 | B4 | Bot values darkness at zero, so it never explores for reward | bot | work | READY · after the map batch |
-| 7 | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | BLOCKED on B1 |
-| 8 | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | BLOCKED on B2 |
-| 9 | I3 | No ruler sees clustering — build one measuring lethality, not cost | map | metrics | BLOCKED on I2 review |
+| 5 | I3 | Clustering leans lethal but unexplained — spike or attrition, and does CV move? | map | metrics | READY · now |
+| 6 | I4 | Bot may open more bad side rooms than good — is that real? | bot | metrics | READY |
+| 7 | B4 | Bot values darkness at zero, so it never explores for reward | bot | work | READY · after the map batch |
+| 8 | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | BLOCKED on B1 |
+| 9 | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | BLOCKED on B2 |
 | 10 | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | BLOCKED on I3 |
 | 11 | B6 | Fix side-room discrimination, once I4 shows the inversion is real | bot | work | BLOCKED on I4 |
 | 12 | B5 | Clustering makes crowd tiles common, so the inert crowd penalty starts mattering | bot | work | BLOCKED on M2 |
-| — | I2 | Clustering may change lethality, not cost — retest with a normal hero | map | metrics | REPORTED · review only |
 | — | B1 | Ping-pong is the ugliest visible defect — find which layer creates it | bot | work | REPORTED · review only |
 | — | I1 | Model ruler misprices crowds — replace it with two frozen probes that play | map | metrics | **DONE** |
+| — | I2 | Clustering may change lethality, not cost — retest with a normal hero | map | metrics | **DONE** |
 
 Archived: the count→strength route. Measured, does not pay. See the end.
 
 Two agents run at once, so the single rank is a flattening of two lanes:
 
     work agent      M6 → M3 → M4 → M5  ‖  then B4 → B2 → B3
-    metrics agent   I4 → I3
+    metrics agent   I3 → I4
 
 **M6 is decided and the map lane opens.** The owner accepted the divergence
 from Rogule: the hero gets growing maximum capacity, because a falling
@@ -551,7 +551,7 @@ conservative.
 
 ## I2 · spread against grouped, with a normal hero
 
-`map` · `metrics agent` · **REPORTED**
+`map` · `metrics agent` · **DONE**
 
 A previous test concluded the same roster spread out or grouped costs the
 same, and on that basis the "simultaneity" hypothesis was rejected. That
@@ -637,6 +637,57 @@ it respects spine/side" — and cluster size (3) was chosen, not swept.
 named two candidate metrics; this experiment's clearest signal came from a
 third — fraction of turns with 2+ adjacent — which is already built and
 instrumented here. I3 may be mostly done rather than a fresh build.
+
+### Review — DONE, with the mechanism left open
+
+Accepted. Both acceptance criteria were answered, the boundary was respected
+(nothing in `src/sim/` or `src/bot/` touched — the driver reimplements the
+loop from already-exported pure functions), and the real bot was used, which
+is right for a question about whether the bot's own avoidance erases the
+effect.
+
+**The most valuable thing here was not in the brief.** Run with the bare
+level-1 kit, floor ten saturated near 100% dead in *both* conditions, which
+leaves the comparison no power to detect anything at all. Catching that and
+switching to `REFERENCE_HERO` is what made the experiment capable of
+answering its question. A saturated null would have read as "clustering does
+nothing" — the same wrong answer the previous attempt gave, by a different
+route.
+
+**The un-grouping confound is dead, and that is a clean result.** If the bot
+were converting clusters back into sequential duels, crowded fraction would
+read flat between conditions. It is higher under grouping at all ten floors
+and clears 2σ at three. That closes the second of the two doubts this item
+was raised to settle.
+
+**The report underclaims, and a free test would probably settle it.** The
+pooled `z = 1.62` is short, but the per-floor directions are 8 positive, 2
+tied, 0 reversed. Among the eight decided floors a sign test gives about
+p = 0.008 — significant, and using information the pooled z throws away.
+Worth running properly before treating this as unsettled, with one check
+first: the sign test needs the floors to be independent samples, so confirm
+the per-floor runs do not share an RNG stream in a way that correlates them.
+
+**What is NOT established is the mechanism, and that matters for M2.** M2's
+stated rationale is that three adjacent creatures strike in the same turn,
+so damage per *turn* grows while damage per *blow* stays capped — DCSS's
+shrinking reaction window obtained by placement. **Worst-single-turn damage
+showed no consistent gap.** The self-diagnosis is right (a mean is the wrong
+statistic for a tail, and "adjacent" is not "landed a blow" at 5/6 each),
+but until a percentile shows the spike moving, the causal path is assumed
+rather than measured.
+
+If clustering raises deaths without raising the spike, it is raising
+lethality by **attrition** — more turns spent adjacent to something — which
+is a difficulty increase, not the tension shape M2 was chosen for. Same
+direction, different product.
+
+**And the CV effect is untested.** The other half of M2's case is that
+grouping cuts the number of independent draws, so challenge CV stops
+falling. Nothing here measures that. It is measurable, though: turn
+clustering on and re-run the observed ruler.
+
+Both gaps land on I3, which is rescoped below rather than closed.
 
 ## B4 · give exploration a value
 
@@ -795,13 +846,52 @@ starting to walk to it.
 turns per run, and above all the **distribution**: a fall in the mean can
 hide the pathological case surviving intact.
 
-## I3 · a metric that can see clustering
+## I3 · settle clustering's mechanism and its effect on CV
 
-`map` · `metrics agent` · **BLOCKED on I2**
+`map` · `metrics agent` · **READY** — rescoped after I2
 
-No current ruler sees it, and cost cannot be it for the reason in I2.
-Candidates are maximum damage taken in a single turn, or fraction of turns
-with two or more adjacent. Shape depends on what I2 finds.
+I2 left clustering **leaning positive on lethality but unexplained**, and
+that is not enough to design M2 against. The original scope — "build a
+metric that can see clustering" — is largely already met: I2 built
+`src/analysis/clustering.js` and found the working signal on its third
+candidate, fraction of turns with two or more adjacent. What remains is
+three questions, in this order.
+
+**1. Settle the death-rate result properly.** Pooled `z = 1.62`, but the
+per-floor directions are 8 positive, 2 tied, 0 reversed. Run the sign test —
+it uses information the pooled z discards and looks likely to clear
+significance on its own. **Confirm first that the per-floor runs are
+independent**, since a shared RNG stream across floors would correlate them
+and invalidate the test. If it still does not settle, pool floors 7–10 where
+absolute rates are largest, or raise the sample; do not raise it blindly
+first.
+
+**2. Does clustering move the SPIKE, or only attrition?** This is the one
+that decides what M2 is worth. Its rationale is that adjacent creatures
+strike in the same turn, so damage per *turn* grows with damage per *blow*
+capped — the reaction window shrinking by placement. I2 found no consistent
+gap in worst-single-turn damage.
+
+Its own diagnosis is probably right: a mean is the wrong statistic for a
+tail, and "adjacent" is not "landed a blow" at 5/6 each. So report a
+**percentile of per-turn damage** — p95 and p99 — not a mean, at a sample
+large enough to resolve a rare event.
+
+Both answers are useful and they lead different places. Spike moves →
+M2 delivers the tension shape it was chosen for. Spike flat while deaths
+still rise → clustering raises lethality by **attrition**, which is a
+difficulty increase rather than a shape change, and M2 has to be re-argued
+against M3–M5 rather than assumed ahead of them.
+
+**3. Does clustering stop the CV falling?** The other half of M2's case is
+that grouping cuts the number of independent draws per floor, so challenge
+CV should stop collapsing. Nothing measures this yet, and it is the half
+that connects M2 to objective 1. It is cheap: turn clustering on and re-run
+the observed ruler, which is frozen and paired by construction.
+
+**Note what this item is not.** It does not adopt clustering and does not
+tune it. Cluster size was fixed at 3 in I2 and the spine/side split was
+ignored by design; both are M2's problem, not this one's.
 
 ## M2 · clustering
 
