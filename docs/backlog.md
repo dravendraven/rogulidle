@@ -31,8 +31,8 @@ repeating it in the table only made the queue slower to scan.
 | 1 | I7 | Measure capacity with death suppressed at PLAYER_HP, not on a 400 hp probe | map | metrics | REPORTED | n/a |
 | 2 | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | REPORTED | n/a |
 | 3 | M3 | Unlock the strength ceiling with small probability, so a rare blow can be huge | map | work | REPORTED | — |
-| 4 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | BLOCKED on I6 | — |
-| 5 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | READY · fine tuning | — |
+| 5 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | BLOCKED on I6 | — |
+| 6 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | BLOCKED on M10 | — |
 | — | M7 | Move difficulty off creature count onto strength and same-type clusters | map | work | **DONE** · adopted, flag ON | done |
 | — | I5 | Split buffer into capacity and attrition and measure each on its own terms | map | metrics | **DONE** | n/a |
 | — | M6 | Grant max and current hp every N kills, mirroring the xp progression | map | work | **DONE** · built, flag OFF | done |
@@ -49,7 +49,7 @@ repeating it in the table only made the queue slower to scan.
 | — | I1 | Replace the modelled ruler with two frozen probes that play the floor | map | metrics | **DONE** | n/a |
 | — | I2 | Retest clustering with a mortal hero, measuring lethality instead of cost | map | metrics | **DONE** | n/a |
 
-    work agent      M3 (spike gap M7 left) → M9 (waits on I6) → M4 if needed
+    work agent      M10 (M7 regression) → M9 (waits on I6) → M4 after M10
     metrics agent   I7 → I6, plus the ruler re-run after each landing
     ui agent        idle
 
@@ -63,6 +63,12 @@ told apart — the count→strength route died exactly that way, and at least
 one of the current set probably does not pay either. The work agent does not
 start the next map item until the previous one has been read. Waiting is the
 point.
+
+**An adoption decided in review 2 is the work agent's first commit on its
+next task**, before claiming anything. Twice now a flag has been adopted in
+the docs and left `false` in `src/sim/` — `HP_FROM_KILLS`, then
+`DIFFICULTY_REBALANCED` — because the project agent decides adoption and
+cannot edit `src/`, and no item owned executing it.
 
 **Every map item ships behind an off-by-default flag** and is measured on
 against off. The work agent builds it in `src/sim/` switched off, the
@@ -903,6 +909,104 @@ same conditioned-on-combat-turns statistic Review 2 asked for, on the
 probes, flag off against on.
 
 Not requesting a reading — the metrics agent's is what decides this.
+
+### Review 1 — conformance. Clean. Two things it surfaced are mine
+
+Everything conformance asks for is there: `OUT_OF_DEPTH_TAIL = false`, the
+three constants in `balance.md` as INITIAL GUESS, `§13.6` written, and the
+median holding exactly — count identical to two decimals and p50 damage
+identical at every floor.
+
+**Skipping the roll rather than drawing a zero chance is the right instinct
+and worth naming.** `drawChance(..., 0)` can never fire but still consumes
+an RNG value, which would have made flag-off *behaviourally* identical and
+*stream* different — the kind of difference that shows up later as an
+unreproducible baseline and gets blamed on something else. Verified
+RNG-identical instead.
+
+**The cap flag is good self-criticism.** At `CHANCE_CAP = 0.15` roughly one
+floor-10 visit in seven gets the reskin, and it shows at p90 rather than
+staying above p95. Floor 5 at 0.08 has the shape the item asked for. Right
+call to leave it to the probes rather than guess — but the probes should be
+asked the question explicitly, not left to notice.
+
+### The spine regression is the headline, and it is M7's, not M3's
+
+Flipping `DIFFICULTY_REBALANCED` in code surfaced a failing test: floor 7
+spine share **0.97**, against a 0.95 ceiling that exists to keep side rooms
+from being empty. Confirmed by reverting the flag that clustering causes it.
+
+**This is more serious than a failing assertion.** Side rooms are the only
+place risk and reward roll independently, the only source of *structural*
+variance in the game, and the premise M4 is built on. At 0.97 they hold
+three percent of a floor's threat — they are gone.
+
+The cause is stated precisely in the report and it points at the fix: one
+shared zone draw per cluster, against rosters M7 itself shrank. Floor 7
+holds about four creatures now, so at `CLUSTER_SIZE = 6` a single draw
+decides the entire floor's placement. **A random assignment cannot hit a
+70/30 split when there is one thing to assign.**
+
+Zone and tier do not need to share a draw. The shared *tier* is what made
+grouping work — I2 measured that proximity alone bought nothing. The shared
+*zone* was incidental, and with few clusters it should be allocated against
+the mass quota rather than rolled. That is M10.
+
+**M7 stays adopted.** The CV gain is real and it is objective 1's goal.
+M4 becomes blocked on M10 — scaling the spread of side rooms that do not
+exist is not work.
+
+### And the docs-precedes-code gap has now happened twice
+
+`HP_FROM_KILLS` and now `DIFFICULTY_REBALANCED`: both decided in a review,
+written in the docs, and left `false` in `src/sim/`. Both times the work
+agent found it and was right to flag rather than act mid-flight.
+
+Twice is a process defect, not bad luck. Adoption falls between roles — the
+project agent decides it and cannot edit `src/`, and no item owns executing
+it. **Fixed by rule: an adoption decided in review 2 is the work agent's
+first commit on its next task, before claiming anything.** Recorded in the
+queue section.
+
+
+## M10 · allocate cluster zones against the mass quota
+
+`map` · `work agent` · **READY** — fixes a regression M7 introduced
+
+M7 adopted, and floor 7 now puts **97%** of its threat mass on the mandatory
+route against a 0.95 ceiling. Side rooms are effectively empty.
+
+**Why it matters more than a failing test.** Side rooms are the only place
+risk and reward roll independently — `map-design.md` derives why that
+independence is what makes a detour a gamble rather than a free lunch — and
+they are the only *structural* variance in the game. They are also M4's
+entire premise.
+
+**The cause, from M3's report.** Zone is drawn once per cluster. M7 shrank
+rosters at the same time, so floor 7 holds about four creatures and
+`CLUSTER_SIZE = 6` makes that one cluster. One draw then decides the whole
+floor's placement, and **a random assignment cannot hit a 70/30 split when
+there is one thing to assign.**
+
+**The fix, and what must not change with it.** Allocate clusters to zones
+**against the running mass quota** rather than rolling each independently —
+`spawn.js` already tracks `spineMass`/`sideMass` for exactly this. The
+shared *tier* per cluster stays: I2 measured that proximity alone bought
+nothing, so that draw is load-bearing. Only the zone draw moves.
+
+**Acceptance.**
+- Spine share back inside its band at every floor, floor 7 included.
+- Clusters stay single-type and stay spatially coherent — this changes which
+  zone a cluster lands in, not whether it is a cluster.
+- Challenge unchanged: this redistributes placement, it does not add or
+  remove threat. If challenge moves, something else changed too.
+- No new RNG consumption when the rebalance flag is off.
+
+**Watch.** With few clusters per floor the quota may be unreachable exactly —
+one cluster cannot be 70% spine. Report what the achievable split is at
+floors where the roster is small, rather than forcing a number the geometry
+does not allow.
+
 
 ---
 
