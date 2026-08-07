@@ -66,7 +66,7 @@ normal and does not mean the item changed.
 | 2 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY |
 | 3 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY |
 | 4 | M5 | Best item is axe +2, so no reward is ever an event | map | work | READY |
-| 5 | I3 | Clustering leans lethal but unexplained — spike or attrition, and does CV move? | map | metrics | READY · now |
+| 5 | I3 | Clustering leans lethal but unexplained — spike or attrition, and does CV move? | map | metrics | IN FLIGHT |
 | 6 | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | BLOCKED on I3 |
 | — | B1 | Ping-pong is the ugliest visible defect — find which layer creates it | bot | work | PARKED · reported |
 | — | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | PARKED |
@@ -867,7 +867,7 @@ hide the pathological case surviving intact.
 
 ## I3 · settle clustering's mechanism and its effect on CV
 
-`map` · `metrics agent` · **READY** — rescoped after I2
+`map` · `metrics agent` · **IN FLIGHT** — rescoped after I2
 
 I2 left clustering **leaning positive on lethality but unexplained**, and
 that is not enough to design M2 against. The original scope — "build a
