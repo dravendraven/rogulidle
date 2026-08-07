@@ -38,7 +38,7 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| 1 | U3 | Show killed-xp and xp per turn, instead of the damage stat labelled xp | READY |
+| 1 | U3 | Show killed-xp and xp per turn, instead of the damage stat labelled xp | IN FLIGHT |
 | 2 | U4 | Lifetime score, awarded only on a full clear, xpEarned over turns | BLOCKED on U3 |
 | 3 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | READY |
 | 4 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
@@ -325,7 +325,7 @@ own commit — and X2 sits after M19 rather than before M18.
 
 ## U3 · show what the hero has killed, and how fast
 
-`work agent` then `ui agent` — engine half first, one line
+`work agent` done · `ui agent` — **IN FLIGHT**
 
 The screen shows `3 xp` and rising. That number is the hero's **damage
 stat** — Rogule uses `xp` for both a creature's damage and the number over
