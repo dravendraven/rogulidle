@@ -46,6 +46,22 @@ become adoptable, and rise above the whole bot track. The map queue sits
 where it sits because objective 1 is blocked on the owner, not because it is
 worth less.
 
+**The work agent takes one track at a time, in batches.** Do not interleave
+map and bot items.
+
+The reason is asymmetric. Map measurements are insulated from the bot — the
+probes are frozen, which is what they were built for — so bot changes cannot
+move a curve number. Nothing insulates the other direction: win rate,
+reversal rate and chests-opened all move when the map changes, and
+`balance.md` is explicit that difficulty here is defined against an
+opponent. Interleaving therefore invalidates every bot A/B against the
+previous one, while costing a context switch on top.
+
+The batch boundary falls out on its own. The startable bot track is B4 → B2
+→ B3, and then it runs dry: B5 waits on M2 and B6 on I4. That is where the
+work agent should move to the map, and it is roughly when M6 will have been
+settled.
+
 | # | id | what and why | feature | agent | status |
 |---|---|---|---|---|---|
 | 1 | M6 | Buffer FALLS while difficulty rises — variance work is unsafe until this is settled | map | — | NEEDS DECISION |
