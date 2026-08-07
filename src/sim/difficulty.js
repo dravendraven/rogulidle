@@ -76,6 +76,36 @@ export const CHESTS_PER_FLOOR = 6;
 // many creatures they hold, not by what kind.
 export const MONSTER_STRENGTH = 0.35;
 
+// GUESS — how fast that ceiling rises per floor. 1.0 means it does not, which
+// is the shipped behaviour and what every measurement to date assumed.
+//
+// Difficulty grows one way today: creature count. This dial exists so the
+// SPLIT between count and strength can be swept while total growth is held at
+// the calibrated 1.30 per floor. It is an instrument, not a shipped change.
+//
+// Note the hard ceiling it runs into: `min(1, depth * strength)` in spawn.js
+// clamps at 1, and the table has 11 entries, so once strength reaches 1.0 the
+// deepest corner is already the t-rex and the ramp stops meaning anything.
+export const STRENGTH_GROWTH = 1.0;
+
+// What the deepest corner of floor N reaches up the monster table. Clamped
+// at 1, which is where the table runs out — `saturatedAt` reports the floor
+// that happens on so a sweep cannot quietly measure a dead ramp.
+export function floorStrength(level, model = {}) {
+  const base = model.strength ?? MONSTER_STRENGTH;
+  const growth = model.strengthGrowth ?? STRENGTH_GROWTH;
+  return Math.min(1, base * Math.pow(growth, Math.max(0, level)));
+}
+
+// First floor (1-based) on which the strength ramp hits the table ceiling,
+// or null if it never does within `levels`.
+export function saturatedAt(model = {}, levels = 10) {
+  for (let n = 1; n <= levels; n++) {
+    if (floorStrength(n - 1, model) >= 1) return n;
+  }
+  return null;
+}
+
 // One draw in three yields something; the rest come up empty. Equal across
 // weapons, armour and potions.
 export const SCARCITY = 3;
@@ -116,7 +146,7 @@ export function floorParams(level) {
     monsters,
     monsterSpread: floorSpread(level),
     chests: CHESTS_PER_FLOOR,
-    difficultyScale: MONSTER_STRENGTH,
+    difficultyScale: floorStrength(level),
     dropChance: DROP_CHANCE,
     weaponScarcity: SCARCITY,
     armourScarcity: SCARCITY,
@@ -141,6 +171,7 @@ export const DEFAULT_MODEL = {
   // runs away with it. Exposed so that result stays re-checkable.
   chestsPerMonster: 0,
   strength: MONSTER_STRENGTH,
+  strengthGrowth: STRENGTH_GROWTH,
   dropChance: DROP_CHANCE,
   weaponScarcity: SCARCITY,
   armourScarcity: SCARCITY,
@@ -171,7 +202,7 @@ export function makeFloorPlan(model = {}) {
       monsters,
       monsterSpread: floorSpread(level - 1, m),
       chests: Math.max(0, Math.round(m.chests + m.chestsPerMonster * monsters)),
-      difficultyScale: m.strength,
+      difficultyScale: floorStrength(level - 1, m),
       dropChance: m.dropChance,
       weaponScarcity: m.weaponScarcity,
       armourScarcity: m.armourScarcity,

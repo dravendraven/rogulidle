@@ -161,9 +161,10 @@ export function playDungeon(seed, makePolicy, options = {}) {
     // What the floor actually took out of the hero. Read from the log
     // rather than from hp before/after, because potions and shields picked
     // up mid-floor would otherwise hide the cost.
-    const damage = run.state.log
+    const blowsTaken = run.state.log
       .filter((e) => e.type === 'attack' && e.target === 'player')
-      .reduce((sum, e) => sum + e.damage, 0);
+      .map((e) => e.damage);
+    const damage = blowsTaken.reduce((sum, d) => sum + d, 0);
 
     const player = run.state.player;
     levels.push({
@@ -174,6 +175,10 @@ export function playDungeon(seed, makePolicy, options = {}) {
       turns: run.turns,
       kills: player.kills.length,
       damage,
+      // Every blow that landed, not just the total. The tail is what kills:
+      // damage is 0..xp-1, so a single roll at the top of the table can take
+      // most of a 10 hp hero, and a mean hides that completely.
+      blowsTaken,
       hp: player.hp,
       armour: player.armour,
       xp: player.xp,

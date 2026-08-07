@@ -13,6 +13,9 @@ import { drawLogUniform, makeRng } from '../src/sim/rng.js';
 import { classifyRooms, spineShare } from '../src/sim/spine.js';
 import { itemWeights } from '../src/sim/spawn.js';
 import { floorPlan } from '../src/sim/dungeon.js';
+import {
+  floorStrength, saturatedAt, MONSTER_STRENGTH, STRENGTH_GROWTH,
+} from '../src/sim/difficulty.js';
 import { monstersAhead, valueByItemName } from '../src/bot/loot.js';
 import { growthOf, summarise, ITEM_VALUE } from '../src/analysis/shape.js';
 
@@ -771,6 +774,30 @@ test('spread does not break determinism', () => {
   const b = newGame(31415, floorPlan(9));
   assertEq(a.monsters.length, b.monsters.length, 'same seed gave different sizes');
   assertEq(JSON.stringify(a.monsters), JSON.stringify(b.monsters), 'rosters differ');
+});
+
+// ***** the strength ramp is an instrument, and must stay off ***** //
+
+test('the strength ramp is a no-op at its shipped value', () => {
+  // It exists to be swept, not to be shipped. If the default ever drifts off
+  // 1.0 every measurement in balance.md silently stops describing the game.
+  assertEq(STRENGTH_GROWTH, 1, 'STRENGTH_GROWTH is no longer off by default');
+  for (let level = 0; level < 10; level++) {
+    assertEq(floorStrength(level), MONSTER_STRENGTH,
+      `floor ${level + 1} strength drifted from the flat value`);
+  }
+  assertEq(saturatedAt({}, 10), null, 'a flat ramp cannot saturate');
+});
+
+test('saturation is reported at the floor the table actually runs out', () => {
+  // 0.35 x g^(N-1) >= 1 is where `min(1, depth * strength)` stops meaning
+  // anything and the ramp dies. A sweep that does not know this is measuring
+  // a dead scheme on its deepest floors.
+  const fast = { strengthGrowth: 1.5 };
+  const at = saturatedAt(fast, 10);
+  assert(at !== null, 'a steep ramp should saturate inside ten floors');
+  assert(floorStrength(at - 1, fast) >= 1, 'reported floor is not saturated');
+  assert(floorStrength(at - 2, fast) < 1, 'saturation was reported a floor late');
 });
 
 // ***** curve-shape diagnostics ***** //

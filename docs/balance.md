@@ -70,6 +70,104 @@ Measured with these, 12 dungeons: 4 cleared, depths 2, 2, 2, 4, 5, 7, 7, 8,
 floor 10 — the hero builds up and is worn away, which is the arc worth
 having.
 
+## Strength ramp — the second way difficulty could grow
+
+| Name | Value | Status |
+|---|---|---|
+| `STRENGTH_GROWTH` | 1.0 | **INITIAL GUESS** — 1.0 means OFF |
+
+Lives in `src/sim/difficulty.js` beside `MONSTER_STRENGTH`, following the
+convention already set there for the difficulty-model constants.
+
+`strength(N) = MONSTER_STRENGTH × STRENGTH_GROWTH^(N−1)`, so at 1.0 every
+floor keeps the flat 0.35 and nothing changes.
+
+Difficulty grows one way today: creature count. That was argued deliberately —
+count scales cost linearly and strength scales it superlinearly, and linear is
+what a dial should be. The dial exists so the *split* between the two can be
+swept while holding total growth at the calibrated 1.30 per floor.
+
+**Off by default.** It is a measuring instrument, not a shipped change.
+
+### The exponent is 2.36, not 2
+
+The obvious constraint for holding total growth constant is
+`count × strength² = 1.30`, on the reasoning that a stronger creature both
+hits harder and lasts longer. **Measured, the exponent is 2.356** (R² = 0.9982
+over strength 0.35 → 1.0, count held fixed). Strength scales the *index* into
+an eleven-row table whose mass runs 0 to 108, and index ×3.3 is mass ×13.5 —
+superquadratic.
+
+Using 2 would have overshot every force-heavy point: at the extreme it gives a
+strength growth of 1.1402, whose real total growth is `1.1402^2.356 = 1.362`,
+not 1.30. That compounds to ×1.6 over the descent and would have invalidated
+the whole sweep while looking fine.
+
+```
+count   strength growth (k = 2.356)   saturates
+1.30    1.0000                        never
+1.20    1.0346                        floor 32
+1.15    1.0534                        floor 22
+1.10    1.0735                        floor 16
+1.00    1.1178                        floor 11
+```
+
+**The table ceiling does not bite.** Even the extreme point saturates only at
+floor 11 — outside a ten-floor descent. Floor 10 there reaches strength 0.95,
+which is index 9 (dragon) with the ±2 spread reaching the t-rex. One floor
+deeper and the ramp would be dead.
+
+### MEASURED — five points, 150 generated floors and 50 descents each
+
+```
+count  CV floor 1 -> 10   creatures faced fl10   max blow fl10   blows >= 5hp
+1.30   0.841 -> 0.492            18.0                 3            0.0%
+1.20   0.841 -> 0.557             9.5                 3            0.0%
+1.15   0.841 -> 0.589             6.1                 4            0.0%
+1.10   0.841 -> 0.637             4.3                 5            1.4%
+1.00   0.841 -> 0.933             1.8                 9            8.2%
+```
+
+**Only the pure-strength endpoint actually stops the CV falling** (0.93 at
+floor 10, flat-to-rising across the ladder). Every intermediate point falls
+less steeply but still falls. Peak damage and the shrinking error margin
+behave as predicted: blows worth half the hero's life appear only from 1.10
+onward, and reach 8% of all blows at the extreme.
+
+**No blow ever killed from full health** at any point in the sweep — 0.0% of
+blows reached 10. The margin shrinks; it does not vanish.
+
+### Two things the sweep exposed, and one invalidates part of it
+
+**1. The pure-strength endpoint is degenerate, and not because of the table.**
+`MONSTERS_BASE` is 2, so a count growth of 1.00 means *every* floor holds two
+creatures — floor 1 and floor 10 alike. That is not "short floors at the
+bottom", it is a dungeon that never grows. Making pure-strength meaningful
+would need the base count raised first, which is a different change.
+
+**2. Equal modelled cost is NOT equal felt difficulty.** Confirmed on fresh
+seeds, 60 descents each:
+
+```
+                    count 1.30      count 1.10 + strength
+cleared             18/60 = 30%     26/60 = 43%     (+-6 each)
+cost growth x9      x10.5           x9.8            (target x10.6)
+```
+
+Win rate moved by 12–13 points in the *same direction* in both seed families.
+Part is the 7% cost shortfall, but most is structural: `campaignCost` prices
+clean sequential duels, so it systematically **under-prices crowds**. Twenty
+weak creatures are harder in practice than the model says, because the model
+never sees the bot get flanked. This is the same modelling failure already on
+record — the modelled net challenge once read 0.23 on a floor that killed four
+heroes of seven.
+
+**So the sweep held the model constant, not the game.** Any force-heavy point
+adopted would need its total growth raised to compensate, and by an amount
+that has to be measured rather than derived. That is the tunability cost: the
+two dials are only commensurable through a model that is wrong in a direction
+that matters.
+
 ## Floor spread — making deep floors lotteries
 
 | Name | Value | Status |
