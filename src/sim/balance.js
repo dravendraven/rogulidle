@@ -85,7 +85,17 @@ export const XP_FROM_KILLS = false;
 // established — every place that assumed a constant hpMax needs rechecking
 // (dungeon.js and game.js already carry hpMax down the stairs field-by-
 // field rather than assuming PLAYER_HP, so they did not need a change).
-export const HP_FROM_KILLS = true;
+//
+// OFF BY DEFAULT — Result review 1 (docs/backlog.md M6). The mechanism is
+// right (playerAttacks, the cloneState wiring, the tests all held up under
+// review), but the SHIPPED RATE below fails the item's own bounds: buffer
+// still falls (0.910, short of the >=1.00 bar) and the real bot's clear
+// rate lands at 56.7%, outside the 15-40% band. A configuration that misses
+// its target and breaks a bound may not be live in the default game. The
+// toggle stays — both arms are still measurable through it — but the
+// verdict on whether ANY rate can be adopted waits on the owner, per the
+// item's own "Why it needs a decision rather than a spec".
+export const HP_FROM_KILLS = false;
 
 // GUESS — same cadence as KILLS_PER_XP (2) on purpose: reuse the pacing
 // that already exists rather than introduce a second rhythm to reason

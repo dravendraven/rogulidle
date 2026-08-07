@@ -323,11 +323,13 @@ test('by default killing does not raise xp at all', () => {
   assertEq(state.player.xp, startXp, 'xp grew despite the default being off');
 });
 
-test('the player gains max AND current hp every second kill, by default (M6)', () => {
-  // HP_FROM_KILLS ships true — the inverse default from xp, and the whole
-  // point of the item: xp is frozen, hp-from-kills is not.
+test('the player gains max AND current hp every second kill, when hp growth is on', () => {
+  // Off by default (Result review 1, docs/backlog.md M6): the shipped rate
+  // missed the buffer target and broke the clear-rate band, so the faithful
+  // (off) behaviour ships and the mechanism is asked for explicitly here —
+  // same relationship as the two xp tests just above.
   let state = makeState({
-    map: ROOM_5x5, playerPos: [2, 2],
+    map: ROOM_5x5, playerPos: [2, 2], hpFromKills: true,
     monsters: [dummy('rat', [1, 2]), dummy('rat', [3, 2])],
   });
   const startHp = state.player.hp;
@@ -347,9 +349,12 @@ test('the player gains max AND current hp every second kill, by default (M6)', (
     + 'grant with no matching current-hp grant would not move the buffer');
 });
 
-test('hp-from-kills can be switched off, for A/B measurement', () => {
+test('by default killing does not raise max hp at all', () => {
+  // Guards the shipped default (false), the same way the xp test above
+  // guards XP_FROM_KILLS — the rule above can pass while this one silently
+  // flips if the default ever drifts.
   let state = makeState({
-    map: ROOM_5x5, playerPos: [2, 2], hpFromKills: false,
+    map: ROOM_5x5, playerPos: [2, 2],
     monsters: [dummy('rat', [1, 2]), dummy('rat', [3, 2])],
   });
   const startHp = state.player.hp;
@@ -359,17 +364,18 @@ test('hp-from-kills can be switched off, for A/B measurement', () => {
   for (let i = 0; i < 60 && !state.monsters[1].dead; i++) state = step(state, 'right').state;
 
   assert(state.monsters[0].dead && state.monsters[1].dead, 'the rats did not die');
-  assertEq(state.player.hpMax, startMax, 'hpMax grew despite hpFromKills being off');
-  assertEq(state.player.hp, startHp, 'hp grew despite hpFromKills being off');
+  assertEq(state.player.hpMax, startMax, 'hpMax grew despite the default being off');
+  assertEq(state.player.hp, startHp, 'hp grew despite the default being off');
 });
 
 test('the hp grant never widens the gap between hp and hpMax', () => {
   // Both bars move by the SAME amount on the same kill, in the same step of
   // playerAttacks — a hero at full health before the grant is at full
   // health after it, never left freshly "damaged" relative to a ceiling
-  // that just moved out from under them.
+  // that just moved out from under them. Enabled explicitly — the default
+  // is off, and this test is about the grant's shape, not its rollout.
   let state = makeState({
-    map: ROOM_5x5, playerPos: [2, 2],
+    map: ROOM_5x5, playerPos: [2, 2], hpFromKills: true,
     monsters: [dummy('rat', [1, 2]), dummy('rat', [3, 2])],
   });
   assertEq(state.player.hp, state.player.hpMax, 'fixture did not start at full health');
@@ -379,6 +385,7 @@ test('the hp grant never widens the gap between hp and hpMax', () => {
 
   assertEq(state.player.hp, state.player.hpMax,
     'a full-health hero fell out of sync with its own ceiling after two kills');
+  assert(state.player.hpMax > PLAYER_HP, 'the grant never fired, so this test proved nothing');
 });
 
 test('a dead monster drops what it carried', () => {

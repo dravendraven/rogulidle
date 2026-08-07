@@ -455,9 +455,15 @@ Five monsters on a 32×32 map is very sparse — see spec §10.2.
 
 | Name | Value | Status |
 |---|---|---|
-| `HP_FROM_KILLS` | `true` | **DECIDED** — see `docs/backlog.md` M6 |
+| `HP_FROM_KILLS` | `false` | **OFF by default** — Review 1 blocker, see `docs/backlog.md` M6 |
 | `HP_GRANT_PER_KILLS` | 2 | **INITIAL GUESS**, mirrors `KILLS_PER_XP` |
 | `HP_GRANT_AMOUNT` | 1 | **INITIAL GUESS**, calibrated against the buffer target below |
+
+The mechanism shipped, was reviewed, and its own numbers failed the item's
+bounds at the rate tested: buffer still falling (0.910, short of the ≥1.00
+bar) and real-bot clear rate at 56.7%, outside the 15–40% band. Flipped off
+by owner-review decision rather than removed, since the toggle is what lets
+both arms stay measurable while the tension below is unresolved.
 
 Every `HP_GRANT_PER_KILLS` kills, both `hpMax` **and** current `hp` rise by
 `HP_GRANT_AMOUNT` — same cadence as `KILLS_PER_XP`'s xp grant, same place in
@@ -488,17 +494,17 @@ rate (hp/kill)   buffer ×/floor (fl 1-6)   real-bot clear rate (n=150, paired)
 0     (off)      0.846 ±0.026              30.7% ±3.8
 0.125 (per=8)    0.857 ±0.022  (n.s.)      44.7% ±4.1
 0.25  (per=4)    0.895 ±0.022  (n.s.)      48.0% (n=80, different sample)
-0.5   (per=2)    0.910 ±0.015  (z≈2.1)     56.7% ±4.0   <- SHIPPED
+0.5   (per=2)    0.910 ±0.015  (z≈2.1)     56.7% ±4.0   <- constants still set here, flag OFF
 ```
 
-Only the shipped rate clears 2σ on buffer, and it still **falls**
+Only the `per=2` rate clears 2σ on buffer, and it still **falls**
 (0.910 < 1), nowhere near the ~1.16 target — while clear rate nearly
 doubles. Smaller rates protect clear rate only a little and buy back
 essentially no buffer (0.125 and 0.25 are not distinguishable from off).
 There is no point in the tested range where both acceptance criteria hold;
 shrinking the grant trades one shortfall for a bigger one on the other axis
-rather than resolving the tension. Shipped at the rate that at least shows a
-real, measured effect on the stated target, with this trade-off on record.
+rather than resolving the tension. `HP_FROM_KILLS` is OFF by default as a
+result (see the table above) — reviewed and confirmed, not silently picked.
 
 ## Regeneration
 
