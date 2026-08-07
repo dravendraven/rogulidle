@@ -35,6 +35,12 @@ export function newGame(seed, counts = {}) {
     attackWhenAdjacent: counts.attackWhenAdjacent,
     xpFromKills: counts.xpFromKills,
     weaponsWidenRoll: counts.weaponsWidenRoll,
+    // Instrumentation only, not a rule variant: suppresses item/potion/shield
+    // pickup so a probe can clear a floor without ever getting stronger from
+    // it. Chest-opening is unaffected — a shut chest still blocks the tile
+    // and still has to be opened to pass, only the drop is left on the floor
+    // unclaimed. Off by default, so ordinary play is untouched.
+    noPickup: counts.noPickup,
   };
 
   state.map = generateMap(state.rng.map);

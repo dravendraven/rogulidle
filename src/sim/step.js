@@ -33,6 +33,7 @@ function cloneState(state) {
     attackWhenAdjacent: state.attackWhenAdjacent,
     xpFromKills: state.xpFromKills,
     weaponsWidenRoll: state.weaponsWidenRoll,
+    noPickup: state.noPickup,
     map: state.map,
     rng: { ...state.rng },
     player: {
@@ -83,8 +84,10 @@ function resolveEncounters(state, pos) {
     blocked = true;
   }
 
-  // Loose items do not block — the player walks on and takes them.
-  for (const item of itemsHere) {
+  // Loose items do not block — the player walks on and takes them. Skipped
+  // entirely under `noPickup`: the item is left exactly where it lies, as if
+  // the player had not stepped there at all.
+  for (const item of (state.noPickup ? [] : itemsHere)) {
     if (item.heal > 0) {
       // A potion at full health is NOT consumed and stays on the map.
       // FAITHFUL engine.cljs:204.
