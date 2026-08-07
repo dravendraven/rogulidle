@@ -2,8 +2,8 @@
 // Run them with: python tools/dev-server.py -> http://localhost:8138/run-tests.html
 
 import {
-  CHEST_GUARD_RADIUS, HP_GRANT_AMOUNT, ITEM_TABLE, MIN_ROSTER_FOR_SIDE, MONSTER_TABLE,
-  OUT_OF_DEPTH_TAIL, PLAYER_HP, SHRINE_DISTANCE_SHARE,
+  CHEST_GUARD_RADIUS, EARLY_CHEST_QUALITY_BOOST, HP_GRANT_AMOUNT, ITEM_TABLE,
+  MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_TAIL, PLAYER_HP, SHRINE_DISTANCE_SHARE,
 } from '../src/sim/balance.js';
 import { newGame, playGame, replayGame } from '../src/sim/game.js';
 import { step, ACTIONS } from '../src/sim/step.js';
@@ -785,6 +785,76 @@ test('depth makes the strong item the common one', () => {
   // At the shrine that inverts.
   assert(weightOf(deep, 'axe') > weightOf(deep, 'dagger'),
     'depth did not make the strong weapon the common one');
+});
+
+// ***** M19 — pay for the harder opening with loot ***** //
+
+test('the early-chest quality boost makes floor 1 richer, and fades by floor 10', () => {
+  // Weapon kind only has two members (dagger dmg 1, axe dmg 2), so "share
+  // of weapon drops that are the axe" is a direct, game-relevant read of
+  // whether floor 1 got richer — not a synthetic weight.
+  const axeShare = (level, boost, seeds = 60) => {
+    let axes = 0;
+    let weapons = 0;
+    for (let seed = 0; seed < seeds; seed++) {
+      const state = newGame(940000 + level * 1000 + seed,
+        { ...floorPlan(level), earlyChestQualityBoost: boost });
+      for (const chest of state.chests) {
+        if (chest.drop && chest.drop.dmg) {
+          weapons++;
+          if (chest.drop.name === 'axe') axes++;
+        }
+      }
+    }
+    return weapons ? axes / weapons : 0;
+  };
+
+  const fl1Off = axeShare(1, 0);
+  const fl1On = axeShare(1, EARLY_CHEST_QUALITY_BOOST);
+  assert(fl1On > fl1Off,
+    `floor 1 axe share did not rise: off ${fl1Off.toFixed(2)}, on ${fl1On.toFixed(2)}`);
+
+  // The boost is EARLY_CHEST_QUALITY_BOOST / level — by floor 10 it is a
+  // tenth of floor 1's, so the on/off gap should have mostly closed.
+  const fl10Off = axeShare(10, 0);
+  const fl10On = axeShare(10, EARLY_CHEST_QUALITY_BOOST);
+  const fl1Gap = fl1On - fl1Off;
+  const fl10Gap = fl10On - fl10Off;
+  assert(fl10Gap < fl1Gap,
+    `floor 10's boost did not fade below floor 1's: fl1 gap ${fl1Gap.toFixed(2)}, fl10 gap ${fl10Gap.toFixed(2)}`);
+});
+
+test('an unarmed hero always finds a weapon in the nearest chest', () => {
+  // No counts.carry — same as arriving at floor 1 with nothing.
+  for (let seed = 0; seed < 40; seed++) {
+    const state = newGame(950000 + seed, floorPlan(1));
+    if (!state.chests.length) continue;
+    const nearest = state.chests.reduce((closest, c) => {
+      const d = Math.abs(c.pos[0] - state.player.pos[0]) + Math.abs(c.pos[1] - state.player.pos[1]);
+      return !closest || d < closest.d ? { c, d } : closest;
+    }, null).c;
+    assert(nearest.drop && nearest.drop.dmg > 0,
+      `seed ${seed}: the nearest chest did not hold a weapon for an unarmed hero`);
+  }
+});
+
+test('an armed hero does not get the nearest chest forced into a weapon', () => {
+  const carry = {
+    hp: 8, hpMax: 10, armour: 0, xp: 1,
+    inventory: [{ id: 'w1', name: 'axe', dmg: 2 }], kills: [], xpEarned: 0,
+  };
+  let sawNonWeapon = false;
+  for (let seed = 0; seed < 40; seed++) {
+    const state = newGame(951000 + seed, { ...floorPlan(2), carry });
+    if (!state.chests.length) continue;
+    const nearest = state.chests.reduce((closest, c) => {
+      const d = Math.abs(c.pos[0] - state.player.pos[0]) + Math.abs(c.pos[1] - state.player.pos[1]);
+      return !closest || d < closest.d ? { c, d } : closest;
+    }, null).c;
+    if (!nearest.drop || !nearest.drop.dmg) { sawNonWeapon = true; break; }
+  }
+  assert(sawNonWeapon,
+    'the nearest chest held a weapon on every seed even with an armed hero — the guard is not gated on carry');
 });
 
 test('quality never changes how often a chest is empty', () => {

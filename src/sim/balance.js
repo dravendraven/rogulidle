@@ -340,6 +340,19 @@ export const CHEST_LOOT_RICHER_FAR = true;
 // half way, and the common outcome at the shrine. See spawn.js itemWeights.
 export const CHEST_QUALITY_BY_DEPTH = true;
 
+// ***** M19 — pay for the harder opening with loot ***** //
+// GUESS — added on top of `depth` before it reaches `itemWeights`'s
+// `quality` argument, then clamped to 1. M17 raised floor 1 to ~5
+// creatures and M18 made the bottom tier bite; under CHEST_QUALITY_BY_DEPTH
+// alone, floor 1 is the poorest floor (quality only comes from position,
+// and nowhere on floor 1 is far from the entrance) at the exact moment it
+// became the most dangerous one. Fades as `EARLY_CHEST_QUALITY_BOOST /
+// level` — strongest on floor 1, roughly a tenth of that by floor 10 —
+// rather than a flat bonus, so it does not richen the floors that were
+// never the problem. The cheapest of M19's three levers: one constant, no
+// new mechanism, reusing the quality dial M12 already built.
+export const EARLY_CHEST_QUALITY_BOOST = 0.5;
+
 // ***** the cost model under-prices crowds ***** //
 //
 // GUESS — SUPERSEDED SHAPE, corrected once, keep reading.

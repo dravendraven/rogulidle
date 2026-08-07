@@ -804,6 +804,52 @@ that were unrelated to M16's own map-generation change. Fixed: the
 guardian's own current index now counts too, so it is never rebuilt lower
 than it already was.
 
+## Pay for the harder opening with loot (M19) — structural, on unconditionally
+
+| Name | Value | Status |
+|---|---|---|
+| `EARLY_CHEST_QUALITY_BOOST` | 0.5 | **INITIAL GUESS**, kept as a minor addition — see below |
+
+M17 raised floor 1 to ~5 creatures and M18 made the bottom tier bite; the
+hero meets that with 10 hp and no weapon, dealing 0.83 hp/turn instead of
+~2.5 with one. The item's own arithmetic named which of its two levers
+would actually matter: *"richer chests further in do not help a hero that
+dies on the way to them — a weapon does. Start with the guaranteed-weapon
+lever, not the cheap one."*
+
+**The cheap lever, built anyway, measured too weak alone.**
+`EARLY_CHEST_QUALITY_BOOST` adds to `depth` before it reaches
+`itemWeights`'s `quality` argument (clamped to 1), fading as
+`EARLY_CHEST_QUALITY_BOOST / level` so it is strongest on floor 1 and
+roughly a tenth of that by floor 10. Measured: on floor 1's small maps,
+position-based `depth` already saturates most chests close to "quality 1"
+even before any boost, so only ~1-3.5% of floor-1 maps see any item
+actually change identity (dagger → axe) — nowhere near enough to move
+the death-floor distribution on its own. Kept anyway: real, harmless,
+free (reuses the existing quality mechanism, no new constant needed
+beyond the one dial).
+
+**The lever that actually matters: a guaranteed weapon near the spawn.**
+No flag, structural — fires whenever the hero is carrying no weapon at
+all (checked against `counts.carry`, so an already-armed descent past
+floor 1 is untouched) and converts the chest nearest the hero into a
+guaranteed, never-empty weapon — reuses the existing chest budget rather
+than adding one, same pattern as M14's guardian and M15's chest guard.
+Which weapon (dagger vs axe) still goes through the same quality dial as
+every other chest, including the boost above.
+
+**Measured, n=40, same seeds before/after, real bot via `playDungeon`:**
+
+    mean death floor         1.75  ->  2.70
+    share dying by floor 2   80%   ->  65%
+
+Runs reaching floor 6-10 appeared for the first time in this sample
+(none did before). No run cleared floor 10 in either sample at this size
+— too small to see clears, not evidence either way. `run-check.html`'s
+`finishes` is the number to watch going forward for the item's own
+worry: richer early gear carries down the whole descent, and a fix sized
+for floor 1 could make floors 5-10 too easy.
+
 ## Defensive progression (M6)
 
 | Name | Value | Status |

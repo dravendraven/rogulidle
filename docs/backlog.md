@@ -39,7 +39,7 @@ session, skip it.
 | # | id | what gets done | status |
 |---|---|---|---|
 | 1 | M24 | Cap the tier from above too — floor 1 can roll wolves and ogres | READY |
-| 2 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
+| 2 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | **REPORTED** |
 | 3 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
 | 4 | X1 | Delete what nothing references | READY |
 | 5 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
@@ -111,7 +111,7 @@ see whether the side effect above is real.
 
 ## M19 · pay for the harder opening with loot
 
-`work agent` · **READY** — after M18 and M17, sized to what they actually did
+`work agent` · **REPORTED** — after M18 and M17, sized to what they actually did
 
 M18 makes the bottom tier bite and M17 puts about five creatures on floor 1
 instead of two. The hero meets that with 10 hp and one axe. If the opening
@@ -156,6 +156,54 @@ cannot be answered by making it safe again.
 **Watch.** Richer early chests feed the hero for the whole descent, not just
 floor 1 — gear carries down the stairs. A change sized to fix floor 1 can
 easily make floors 5–10 too easy, and `finishes` is where that shows up.
+
+### Result
+
+**Built the cheap lever first, measured it was not enough — exactly as the
+item's own arithmetic predicted — then built the one the item said to
+start with.**
+
+`EARLY_CHEST_QUALITY_BOOST` (0.5, fades as `/level`) adds to `depth`
+before it becomes `itemWeights`'s `quality` argument. Measured on floor 1
+before adding the second lever: only 1–3.5% of floor-1 maps saw any item
+actually change identity (dagger → axe). Floor 1's map is small enough
+that position-based `depth` already saturates most chests near "quality
+1" without any boost — there was little room left for this lever to buy.
+Kept in because it is real, free, and touches nothing else, but it is not
+what moved the numbers below.
+
+**A guaranteed weapon near the spawn** — structural, no flag, `spawn.js`
+step 4b. Fires only when the hero carries no weapon at all (checked
+against `counts.carry`, so any floor after 1 with a weapon already in
+hand is untouched) and converts the chest nearest the hero into a
+guaranteed weapon, reusing the existing chest budget the same way M14's
+guardian and M15's chest guard reuse the monster roster. Which weapon
+still goes through the same quality dial as every other chest.
+
+**Measured, n=40, same seeds before and after, real bot via
+`playDungeon`:**
+
+    mean death floor          1.75  ->  2.70
+    share dying by floor 2    80%   ->  65%
+
+Runs reaching floor 6–10 appeared in this sample for the first time — none
+did before either lever. No run cleared floor 10 in either sample at this
+size, so the item's own "Watch" (richer early gear making floors 5–10 too
+easy) is neither confirmed nor ruled out here — `run-check.html`'s
+`finishes` is where to look next, at a larger n than a 40-run A/B affords
+inside one working session.
+
+**What not to do, honoured.** Floor-1 roster and tier are untouched — only
+loot changed.
+
+**Files touched:** `src/sim/balance.js`, `src/sim/spawn.js`,
+`src/sim/dungeon.js` (forwarded `plan.level` and
+`plan.earlyChestQualityBoost` into the per-floor `counts` object —
+neither was reaching `populate()` outside direct `newGame(seed,
+floorPlan(level))` calls, which would have made the fade and the sweep
+override silently inert during real play and in `playDungeon`-based
+tooling), `test/tests.js`, `docs/balance.md`, `docs/rogule-spec.md` (new
+§13.14).
 
 ## M21 · deep floors have something waiting where you land
 

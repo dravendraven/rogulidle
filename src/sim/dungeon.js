@@ -109,6 +109,11 @@ export function playDungeon(seed, makePolicy, options = {}) {
   for (let level = 1; level <= depth; level++) {
     const plan = planFor(level);
     const counts = {
+      // M19 — docs/backlog.md. spawn.js reads this to fade the early-chest
+      // quality boost by floor; every other field here was already read
+      // off `plan`, but `plan.level` itself was never forwarded, which
+      // would have made the boost a no-op outside direct populate() calls.
+      level: plan.level,
       monsters: plan.monsters,
       chests: plan.chests,
       difficultyScale: plan.difficultyScale,
@@ -132,6 +137,9 @@ export function playDungeon(seed, makePolicy, options = {}) {
       sideRoomDepthBonus: plan.sideRoomDepthBonus,
       spineThreatShare: plan.spineThreatShare,
       sideChestBias: plan.sideChestBias,
+      // A fixed value overrides the per-floor one, for sweeping — same
+      // pattern as weaponScarcity above.
+      earlyChestQualityBoost: options.earlyChestQualityBoost ?? plan.earlyChestQualityBoost,
       carry,
       // Rule variants apply to every floor of the descent.
       xpFromKills: options.xpFromKills,

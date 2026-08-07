@@ -994,3 +994,47 @@ deixou fora da faixa voltam para dentro dela sem tocar no teste:
     M23           0,947   0,902   0,852   0,874   0,899   0,911
 
 **Estado atual: construído e ligado, sem flag.** Ver `docs/backlog.md` M23.
+
+### 13.14 Uma arma garantida perto do herói desarmado (M19)
+
+**O problema, com números do próprio M17.** O herói começa desarmado,
+causando 0,83 hp/turno; precisa de ~15 turnos para limpar cinco criaturas
+que causam 0,42 cada uma por turno adjacente. Sozinho ele sobrevive; em
+par — e clusters medem 1,77–2,10 — ele morre. Quatro em cada cinco corridas
+terminavam no andar 2 antes deste item.
+
+**Por que o lever barato não bastava.** `CHEST_QUALITY_BY_DEPTH` já fazia
+a profundidade comprar item melhor, e `EARLY_CHEST_QUALITY_BOOST` (0,5,
+somado a `depth` antes de virar `quality`, desvanecendo como
+`EARLY_CHEST_QUALITY_BOOST / andar`) reforça isso perto da entrada. Medido:
+no andar 1, o mapa é pequeno o bastante para que `depth` já sature a
+maioria dos baús perto de "qualidade 1" mesmo sem reforço — só 1–3,5% dos
+mapas do andar 1 viam algum item trocar de identidade (adaga → machado)
+por causa do reforço. Ficou no jogo por ser real e de graça, mas não
+resolve o problema sozinho — o próprio item já previa isso: "baús mais
+ricos lá na frente não ajudam um herói que morre no caminho até eles."
+
+**Regra nova, estrutural, sem flag.** Dispara sempre que o herói chega
+sem NENHUMA arma no inventário (checado contra `counts.carry` — uma
+descida já armada em qualquer andar depois do 1 fica intocada). Converte
+o baú mais próximo do herói — nunca adiciona um, reaproveita o orçamento
+já existente de baús, mesmo padrão do guardião do santuário (M14) e do
+guarda de baú (M15) — garantindo que ele contenha uma arma, nunca vazio.
+Qual arma (adaga ou machado) ainda segue o mesmo dial de qualidade de
+qualquer outro baú, incluindo o reforço de `EARLY_CHEST_QUALITY_BOOST`.
+
+**Consequência, medida — mesmos 40 seeds antes e depois, bot real via
+`playDungeon`:**
+
+    andar médio de morte     1,75  ->  2,70
+    fração morta até andar2  80%   ->  65%
+
+Corridas alcançando andar 6–10 apareceram pela primeira vez nessa amostra
+— nenhuma chegava lá antes. Nenhuma corrida limpou o andar 10 em nenhuma
+das duas amostras nesse tamanho — amostra pequena demais para julgar
+"finishes", não evidência de nada. `run-check.html` é onde acompanhar o
+risco que o próprio item já registrava: equipamento cedo demais carrega
+para toda a descida, e um ajuste dimensionado para o andar 1 pode deixar
+os andares 5–10 fáceis demais.
+
+**Estado atual: construído e ligado, sem flag.** Ver `docs/backlog.md` M19.

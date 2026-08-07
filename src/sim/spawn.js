@@ -6,10 +6,10 @@
 
 import {
   CHEST_COUNT, CHEST_DIFFICULTY_SCALE, CHEST_GUARD_RADIUS, CHEST_LOOT_RICHER_FAR,
-  CHEST_QUALITY_BY_DEPTH, CHEST_TABLE, ITEM_TABLE, MONSTER_COUNT, MONSTER_DIFFICULTY_SCALE,
-  MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE, MONSTER_WEIGHTS,
-  PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE, SIDE_ACTIVATION_CAP, SIDE_CHEST_BIAS,
-  SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE,
+  CHEST_QUALITY_BY_DEPTH, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST, ITEM_TABLE, MONSTER_COUNT,
+  MONSTER_DIFFICULTY_SCALE, MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE,
+  MONSTER_WEIGHTS, PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE, SIDE_ACTIVATION_CAP,
+  SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE,
 } from './balance.js';
 import {
   draw, drawChance, drawInt, drawLogUniform, drawPick, drawWeighted,
@@ -156,6 +156,14 @@ export function populate(state, map, counts = {}) {
   // crowding the floor arms the player as well as threatening them. Without
   // this the win rate bottoms out around 13% however many you add.
   const dropChance = counts.dropChance ?? MONSTER_DROP_CHANCE;
+  // M19 — docs/backlog.md. Floor 1 is the poorest floor under
+  // CHEST_QUALITY_BY_DEPTH (quality only comes from position, and nowhere
+  // on floor 1 is far from the entrance) at the exact moment M17 and M18
+  // made it the most dangerous one. Fades as 1/level rather than a flat
+  // bonus, so it is strongest exactly where the opening is hardest and
+  // essentially gone by the floors that were never the problem.
+  const level = counts.level ?? 1;
+  const earlyChestBoost = (counts.earlyChestQualityBoost ?? EARLY_CHEST_QUALITY_BOOST) / level;
   const scarcity = {
     weapon: counts.weaponScarcity,
     armour: counts.armourScarcity,
@@ -353,9 +361,11 @@ export function populate(state, map, counts = {}) {
     // Depth buys BETTER loot, not just more of it. Without this a deep chest
     // was merely likelier to hold something, and what it held was drawn from
     // the same pool as the one by the front door — so risk bought quantity
-    // and never quality.
+    // and never quality. M19 adds `earlyChestBoost` on top — WHICH item a
+    // chest holds, same as depth; whether it holds one at all is untouched.
+    const quality = Math.min(1, depth + earlyChestBoost);
     const template = drawWeighted(state, 'spawn',
-      itemWeights(scarcity, 'chest', CHEST_QUALITY_BY_DEPTH ? depth : 0));
+      itemWeights(scarcity, 'chest', CHEST_QUALITY_BY_DEPTH ? quality : 0));
 
     const chest = drawPick(state, 'spawn', CHEST_TABLE);
     state.chests.push({
@@ -369,6 +379,33 @@ export function populate(state, map, counts = {}) {
       // empty slot, which is the replacement for Rogule's junk collectibles.
       drop: hasLoot && template ? makeItem(state, template, pos) : null,
     });
+  }
+
+  // 4b. M19 — docs/backlog.md. A guaranteed weapon near the spawn,
+  // structural, no flag. "Richer chests further in do not help a hero that
+  // dies on the way to them" — M17 put ~5 creatures on floor 1 and M18 made
+  // the bottom tier bite; an unarmed hero deals 0.83 hp/turn against 2.5
+  // with a weapon, and that gap is what kills, not the identity of which
+  // weapon. Fires only when the hero is carrying none at all — floor 1, or
+  // any later floor after a run unlucky enough to still have found none —
+  // so an already-armed descent is untouched. Converts the chest nearest
+  // the spawn (never adds one — the budget is the chest count's, not this
+  // item's, same pattern as M14's guardian and M15's chest guard) to hold
+  // a weapon, weighted by this item's own quality dial like any other
+  // chest, but restricted to the weapon kind and never empty.
+  const hasWeapon = (counts.carry?.inventory ?? []).some((item) => item.dmg > 0);
+  if (!hasWeapon && state.chests.length) {
+    const nearestChest = state.chests.reduce((closest, c) => {
+      const d = Math.abs(c.pos[0] - playerPos[0]) + Math.abs(c.pos[1] - playerPos[1]);
+      return !closest || d < closest.d ? { c, d } : closest;
+    }, null).c;
+    const weaponQuality = CHEST_QUALITY_BY_DEPTH
+      ? Math.min(1, depthAt(nearestChest.pos, 'reward') + earlyChestBoost) : 0;
+    const weaponWeights = ITEM_TABLE
+      .filter((item) => item.kind === 'weapon')
+      .map((item) => [item, Math.pow(item.value, 2 * weaponQuality - 1)]);
+    const weapon = drawWeighted(state, 'spawn', weaponWeights);
+    nearestChest.drop = makeItem(state, weapon, nearestChest.pos);
   }
 
   // 5. Monsters, split between the mandatory route and the side rooms, and
