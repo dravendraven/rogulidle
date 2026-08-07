@@ -881,3 +881,37 @@ deste item — corrigido aqui porque foi aqui que apareceu.
 média de sala 21,9 → 35,8 (+64%), comprimento médio de corredor 2,69 →
 1,91 (−29%). Espinha em faixa em todo andar onde o split é tentado (andar
 4 em diante, `MIN_ROSTER_FOR_SIDE`). Ver `docs/backlog.md` M16.
+
+### 13.11 O rato vira uma criatura de verdade (M18)
+
+**Existe no original, com números diferentes.** A linha 0 de `MONSTER_TABLE`
+era FAITHFUL (`activation 3, xp 1, hp 2`, `generator.cljs:76`) e passa a ser
+divergência deliberada: `activation 8, xp 2, hp 2`.
+
+**Problema no original.** Dano é um sorteio `0..xp−1`. Em `xp 1` esse
+sorteio é `0..0` — não uma criatura fraca, uma que nunca pode acertar um
+golpe. `threat.js` já pulava o rato inteiro do campo de perigo e
+`duelCost` já lia zero para ele; era cenário que só custava turno, não
+ameaça nenhuma. `activation 3` também mal acordava.
+
+**Regra nova.** `xp` sobe para 2 (agora pode acertar, dano esperado 0,42) e
+`activation` sobe para 8 (persegue de longe). `hp` fica em 2. Mantido
+estritamente abaixo do morcego (`xp 2, activation 10, hp 3`) em dois dos
+três números, para as duas linhas não virarem intercambiáveis — a tabela
+continua com onze linhas distintas, não dez.
+
+**Consequência.** A massa do rato (`hp × (xp−1)`) era `2 × 0 = 0` e vira
+`2 × 1 = 2` — o tier mais baixo deixa de ser grátis, o que encarece andares
+rasos e reduz a taxa de crescimento do desafio (a média sobe na base). O
+teste do M11 (`expectedFloorMass`) lê os parâmetros embarcados direto e
+pegaria sozinho qualquer quebra de monotonicidade — não quebrou:
+9,81 → 164,91 do andar 1 ao 10, medido depois da mudança. Também é a
+primeira vez que o rato entra no campo de perigo do bot, o que muda o
+roteamento em andares rasos.
+
+**Feito antes do M17 de propósito.** M17 leva o andar 1 de duas criaturas
+para cerca de cinco; se as duas mudanças chegassem juntas, ninguém
+conseguiria dizer qual tornou a abertura difícil.
+
+**Estado atual: construído e ligado, sem flag.** Ver `docs/backlog.md`
+M18.

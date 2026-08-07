@@ -180,8 +180,15 @@ export const WEAPONS_WIDEN_ROLL = true;
 // ***** monsters ***** //
 
 // xp is both the damage stat and the number drawn above the head.
+//
+// M18 — docs/backlog.md. `rat` was `activation 3, xp 1, hp 2`: xp 1 means
+// the damage roll is `0..0`, exactly zero, so it could never land a blow —
+// not a weak creature, a non-creature. Both raised, FAITHFUL divergence,
+// docs/rogule-spec.md §13.11 — xp to 2 so it can hit, activation to 8 so
+// it chases. hp stays 2. Kept strictly below `bat` (xp 2, activation 10,
+// hp 3) on two of three so the two rows do not become interchangeable.
 export const MONSTER_TABLE = [
-  { name: 'rat',     emoji: '🐀', activation: 3,  xp: 1,  hp: 2 },
+  { name: 'rat',     emoji: '🐀', activation: 8,  xp: 2,  hp: 2 },
   { name: 'bat',     emoji: '🦇', activation: 10, xp: 2,  hp: 3 },
   { name: 'ghost',   emoji: '👻', activation: 10, xp: 3,  hp: 3 },
   { name: 'boar',    emoji: '🐗', activation: 15, xp: 3,  hp: 4 },

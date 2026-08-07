@@ -224,15 +224,18 @@ test('the simulation flag makes combat deterministic', () => {
 
 // ***** combat, spec §5 ***** //
 
-test('a rat can never deal damage', () => {
-  // xp 1 rolls only 0, and monsters have no weapons — so damage is always 0.
+test('xp 1 can never deal damage', () => {
+  // xp 1 rolls only 0, and monsters have no weapons — so damage is always
+  // 0. No MONSTER_TABLE row is xp 1 any more (M18 raised the rat to xp 2,
+  // so it could actually land a blow), so this forces it via override to
+  // keep testing the FORMULA rather than a specific monster.
   const map = tinyMap(['#####', '#...#', '#####']);
   let state = makeState({
     map, playerPos: [2, 1],
-    monsters: [dummy('rat', [1, 1], { activation: 99 })],
+    monsters: [dummy('rat', [1, 1], { xp: 1, activation: 99 })],
   });
   for (let i = 0; i < 200; i++) state = step(state, 'rest').state;
-  assertEq(state.player.hp, PLAYER_HP, 'player took damage from a rat');
+  assertEq(state.player.hp, PLAYER_HP, 'a monster with xp 1 dealt damage');
 });
 
 test('armour soaks the blow whole, and is spent doing it', () => {
@@ -1172,12 +1175,15 @@ test('the closed form agrees with a Monte Carlo cross-check', () => {
 
 test('the lowest tier seen rises across floors 1, 5 and 10', () => {
   // Simulated, not the closed form — this is exactly what a player (or the
-  // bot) would encounter, seed after seed.
+  // bot) would encounter, seed after seed. Table INDEX, not xp — M18 gave
+  // the table's weakest row (still index 0, still named rat) xp 2, so xp
+  // is no longer a proxy for "the bottom tier" the way it used to be.
+  const indexOf = (m) => MONSTER_TABLE.findIndex((t) => t.name === m.name);
   const lowestSeen = (level, seeds = 40) => {
     let lowest = Infinity;
     for (let seed = 0; seed < seeds; seed++) {
       const state = newGame(90000 + seed, floorPlan(level));
-      for (const m of state.monsters) lowest = Math.min(lowest, m.xp);
+      for (const m of state.monsters) lowest = Math.min(lowest, indexOf(m));
     }
     return lowest;
   };
@@ -1185,18 +1191,18 @@ test('the lowest tier seen rises across floors 1, 5 and 10', () => {
   const fl1 = lowestSeen(1);
   const fl5 = lowestSeen(5);
   const fl10 = lowestSeen(10);
-  assertEq(fl1, 1, 'floor 1 should still be able to roll a rat (xp 1)');
-  assert(fl5 > fl1, `floor 5's lowest tier (xp ${fl5}) did not rise above floor 1's (xp ${fl1})`);
-  assert(fl10 > fl5, `floor 10's lowest tier (xp ${fl10}) did not rise above floor 5's (xp ${fl5})`);
+  assertEq(fl1, 0, 'floor 1 should still be able to roll the table\'s bottom row (index 0)');
+  assert(fl5 > fl1, `floor 5's lowest tier (index ${fl5}) did not rise above floor 1's (index ${fl1})`);
+  assert(fl10 > fl5, `floor 10's lowest tier (index ${fl10}) did not rise above floor 5's (index ${fl5})`);
 });
 
-test('no rat survives past some floor', () => {
-  // "No xp 1 creature at all past some floor" — rats are scenery (xp 1
-  // means a 0..0 damage roll), so once the floor rises enough to exclude
-  // index 0, they should stop appearing entirely, not just get rarer.
-  // Finds the shallowest floor whose minIndex guarantees this (>= 1, since
-  // the final slot is clamped up to it — see spawn.js), then simulates
-  // every floor from there to 10 to confirm it actually holds.
+test('the bottom tier does not survive past some floor', () => {
+  // "No index-0 creature at all past some floor" — checked by table INDEX,
+  // not xp (M18: the bottom row's xp is 2 now, not a unique marker any
+  // more). Finds the shallowest floor whose minIndex guarantees this (>= 1,
+  // since the final slot is clamped up to it — see spawn.js), then
+  // simulates every floor from there to 10 to confirm it actually holds.
+  const indexOf = (m) => MONSTER_TABLE.findIndex((t) => t.name === m.name);
   let threshold = null;
   for (let level = 0; level < 10; level++) {
     const p = floorParams(level);
@@ -1204,13 +1210,13 @@ test('no rat survives past some floor', () => {
     const minIndex = Math.floor(p.tierFloorShare * ceilingIndex);
     if (minIndex >= 1) { threshold = level + 1; break; }
   }
-  assert(threshold !== null, 'no floor in the descent ever excludes rats');
+  assert(threshold !== null, 'no floor in the descent ever excludes the bottom tier');
 
   for (let floor = threshold; floor <= 10; floor++) {
     for (let seed = 0; seed < 30; seed++) {
       const state = newGame(92000 + floor * 1000 + seed, floorPlan(floor));
-      assert(!state.monsters.some((m) => m.xp === 1),
-        `a rat appeared at floor ${floor} (>= threshold ${threshold}), seed ${seed}`);
+      assert(!state.monsters.some((m) => indexOf(m) === 0),
+        `the bottom tier appeared at floor ${floor} (>= threshold ${threshold}), seed ${seed}`);
     }
   }
 });

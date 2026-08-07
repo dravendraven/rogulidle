@@ -835,12 +835,12 @@ blows softened. Rogule's original was `max(0, (roll + weapons - armour) * hit)`.
 
 ## Monsters
 
-FAITHFUL — `generator.cljs:76`. `xp` is both the damage stat and the number
-drawn above the monster's head.
+FAITHFUL — `generator.cljs:76`, except row 0 (M18, below). `xp` is both the
+damage stat and the number drawn above the monster's head.
 
 | # | Name | Emoji | `activation` | `xp` | `hp` |
 |---|---|---|---|---|---|
-| 0 | rat | 🐀 | 3 | 1 | 2 |
+| 0 | rat | 🐀 | 8 | 2 | 2 |
 | 1 | bat | 🦇 | 10 | 2 | 3 |
 | 2 | ghost | 👻 | 10 | 3 | 3 |
 | 3 | boar | 🐗 | 15 | 3 | 4 |
@@ -863,6 +863,19 @@ drawn above the monster's head.
 Weights are summed on collision at the table edges, which is our fix for
 spec quirk §9.2 — the original overwrites and makes the target monster
 *less* likely than its neighbour.
+
+**Row 0 (M18) — DIVERGENCE from FAITHFUL `activation 3, xp 1, hp 2`.** At
+xp 1 the damage roll (`0..xp-1`) is exactly `0..0` — not a weak creature,
+one that could never land a blow, skipped by `threat.js`'s danger field
+and priced at 0 by `duelCost`. Raised to xp 2 (can hit, expected damage
+0.42) and activation 8 (chases; was 3, barely woke). hp held at 2. Kept
+strictly below `bat` (xp 2, activation 10, hp 3) on two of three so the
+two rows stay distinct rather than becoming interchangeable. Mass
+(`hp × (xp−1)`) goes from 0 to 2 — the bottom tier stops being free, which
+raises shallow-floor cost and is exactly what `docs/backlog.md` M11's
+`expectedFloorMass` test exists to catch if it ever broke monotonicity;
+it did not (9.81 → 164.91 across floors 1–10, checked). See
+`docs/rogule-spec.md` §13.11.
 
 `MONSTERS_ATTACK_WHEN_ADJACENT` off is FAITHFUL: a monster attacks by
 moving into the player, so standing beside one is only dangerous when it
