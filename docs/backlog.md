@@ -1153,6 +1153,57 @@ so a shallow rate could understate the deep effect); this result narrows the
 comparison method but does not touch that open question, which is the rest
 of I5.
 
+### Addendum, arriving mid-flight — a sharper framing of the same question
+
+**Not a rewrite.** The spec above stands and the work in progress against it
+is not wasted. This is a reframing that arrived after the item was claimed;
+fold it in or finish the current pass first, your call — but say which.
+
+The prompting question was simply: *should the probe not survive all ten
+floors?* Chasing it exposes that **"buffer" is two quantities glued
+together**, and only one of them is measurable by a probe at all.
+
+`isolatedShape` already makes the probe near-immortal — `PROBE_HERO` carries
+400 hp — and that is exactly why challenge and CV are the trustworthy
+numbers. Same instrument at every floor, no survivor selection, no truncated
+window.
+
+Buffer could not follow, and the reason is structural rather than an
+oversight. Buffer is `hp on arrival / mean blow`, and hp on arrival is **what
+the hero accumulated minus what it spent**. Measuring the spending needs a
+hero that can actually spend. An immortal probe arrives at every floor
+essentially full, so making it survive fixes the sampling and destroys the
+quantity.
+
+**So split it:**
+
+    capacity     what the hero accumulates descending — ceiling, gear, grants
+    attrition    how much of that a floor takes back
+    buffer       = capacity − attrition, as seen on arrival
+
+Capacity is cleanly measurable with an immortal probe across all ten floors:
+it still kills, still collects, still earns the per-kill grants — it just
+does not die. Attrition needs a mortal hero, and there the survivor
+selection is intrinsic rather than removable, so it gets **declared rather
+than disguised**.
+
+That also explains the incoherence review 2 could not resolve — the design
+reading "still too hard" while the product reads "too easy". The two halves
+are being measured by one instrument that is right for one of them.
+
+**Consequence.** `isolatedShape` is correct and does not change.
+`builtShape` is the one that has to decide what it is, and it probably
+becomes two passes rather than one.
+
+**And it likely changes the target, not the game.** If capacity and attrition
+are separable, "buffer ≥ 1.00" was a question put to an instrument that
+cannot answer it — an absolute target taken from a DCSS figure derived for a
+real player and applied to a probe reading. The honest replacement is
+comparative: capacity grows, attrition is reported alongside it, and neither
+carries a borrowed absolute number. That is the project agent's error to
+undo, not this item's, but the item is what will show whether it needs
+undoing.
+
 ## M7 · move difficulty off count, onto strength and grouping
 
 `map` · `work agent` · **READY** — the main route for the CV target
