@@ -534,9 +534,10 @@ descent, without capping what can be carried.
 | Name | Value | Status |
 |---|---|---|
 | `DIFFICULTY_REBALANCED` | `true` | **ADOPTED** — Review 2. See `docs/backlog.md` M7 |
-| `MONSTER_GROWTH_REBALANCED` | 1.22 | ADOPTED at 1.15; **raised to 1.22 by M12** to fill floors back up, at the edge of the budget band below |
-| `STRENGTH_GROWTH_REBALANCED` | 1.07 | ADOPTED, sized against the corrected exponent 2.356 (see "Strength ramp" above) |
-| `CLUSTER_SIZE` | 10 | SETTLED at 6; **raised to 10 by M12**, though measured to matter little past 6 once M10 landed (see M12 below) |
+| `MONSTERS_BASE` | 5 | was 2; **raised by M17**, see below |
+| `MONSTER_GROWTH_REBALANCED` | 1.0536 | ADOPTED at 1.15, raised to 1.22 by M12, **REPLACED by M17** — see below, not additive with M12's setting |
+| `STRENGTH_GROWTH_REBALANCED` | 1.108 | ADOPTED at 1.07, **REPLACED by M17** — see below |
+| `CLUSTER_SIZE` | 10 | SETTLED at 6; raised to 10 by M12 (measured to matter little past 6 once M10 landed); untouched by M17 |
 
 Live in `src/sim/difficulty.js` beside `MONSTER_GROWTH` and
 `STRENGTH_GROWTH`, following the same convention already set there.
@@ -597,6 +598,52 @@ was already in, so draws per floor rose from ~3.3 to ~5.4 at floor 10 —
 CV should be expected to give back some ground at the deepest floors
 (`√(3.3/5.4) ≈ 0.78`× the current gain, roughly). The metrics agent's
 standing ruler re-run is what settles how much.
+
+### M17 replaced M12's setting — near-flat count, strength carries the rest
+
+Third attempt at this axis (archived once for a CV that count→strength
+alone never fixed; came back as M7 with clustering; this is what landed
+since M7 changing the ground again — clusters exist, the tier floor rises
+with depth, rooms are 64% bigger). **REPLACES M12's `MONSTER_GROWTH_
+REBALANCED`, not additive with it** — `MONSTERS_BASE` 2 → 5,
+`MONSTER_GROWTH_REBALANCED` 1.22 → 1.0536 (chosen exactly: `(8/5)^(1/9)`,
+the growth that lands floor 10 at 8 given a floor-1 base of 5).
+`STRENGTH_GROWTH_REBALANCED` 1.07 → 1.108, sized to carry what count no
+longer does: `1.34 / 1.0536 = 1.273`, and `1.273^(1/2.356) = 1.108`.
+Creature count: `5,5,6,6,6,6,7,7,8,8`.
+
+**Measured, all three things the item asked for:**
+
+- **Challenge growth: 1.317 ±0.016/floor** (Sonda A, n=80/floor, larger
+  sample than the item's own quick check) — inside the `1.34 ±0.03` band,
+  close to its lower edge (z = −1.48 against the 1.34 centre, under the
+  2σ bar for "confirmed different"). Not a clean pass, not a break either;
+  the number is what it is rather than rounded to look better.
+- **Saturation: never, within the 10-floor descent.** `saturatedAt` with
+  the new ramp returns `null` — `0.35 × 1.108^9 ≈ 0.881` of the table,
+  matching the item's own back-of-envelope estimate almost exactly. The
+  strength ramp gets close to the ceiling without hitting it.
+- **Tier spread within a floor did NOT collapse — measured, not assumed
+  away.** This was the item's own stated risk (strength carrying ×1.108
+  across an 11-row table narrowing deep floors to the same few rows). Real
+  generated floors, n=60 seeds, table-index mean/sd/distinct-count:
+
+  ```
+  floor    mean index   sd    distinct tiers seen
+    1        2.05      1.54   6  (0-5)
+    5        3.40      1.87   7  (1-7)
+   10        6.11      2.06   7  (4-10)
+  ```
+
+  Spread (sd) is comparable to floor 1's, if anything slightly WIDER at
+  floor 10, and the number of distinct tiers actually appearing stayed
+  close to constant (6 → 7 → 7) rather than narrowing. The risk did not
+  materialise at this setting.
+
+**Not adopted because the arithmetic worked — built and measured, per the
+item's own explicit instruction not to adopt on paper alone.** See
+`docs/backlog.md` M17 for what this did to `run-check.html`'s numbers
+(median depth, finishes) and whether the descent is actually playable.
 
 ## An out-of-depth tail (M3) — off by default
 

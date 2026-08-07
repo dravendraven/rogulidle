@@ -17,7 +17,7 @@ import { floorPlan } from '../src/sim/dungeon.js';
 import {
   expectedFloorMass, floorParams, floorStrength, makeFloorPlan, monstersAt,
   outOfDepthChanceAt, saturatedAt,
-  CLUSTER_SIZE, DIFFICULTY_REBALANCED, MONSTER_GROWTH, MONSTER_GROWTH_REBALANCED,
+  CLUSTER_SIZE, DIFFICULTY_REBALANCED, MONSTERS_BASE, MONSTER_GROWTH, MONSTER_GROWTH_REBALANCED,
   MONSTER_STRENGTH, STRENGTH_GROWTH, STRENGTH_GROWTH_REBALANCED,
 } from '../src/sim/difficulty.js';
 import { monstersAhead, valueByItemName } from '../src/bot/loot.js';
@@ -721,9 +721,12 @@ test('a floor puts most of its threat mass on the mandatory route', () => {
 
 test('small floors put everything on the spine', () => {
   // Below MIN_ROSTER_FOR_SIDE the split is too coarse to honour: one side
-  // monster out of two is already half the mass.
+  // monster out of two is already half the mass. M17 raised floor 1's own
+  // count to 5, at or above MIN_ROSTER_FOR_SIDE (4), so no real floor is
+  // small enough for this any more — forced via an explicit override to
+  // keep testing the gate itself, not a floor that happens to be tiny.
   for (let seed = 0; seed < 6; seed++) {
-    const state = newGame(3400 + seed, floorPlan(1));
+    const state = newGame(3400 + seed, { ...floorPlan(1), monsters: 2 });
     assertEq(spineShare(state), 1, 'a two-creature floor hid threat in a side room');
   }
 });
@@ -941,7 +944,7 @@ test('the rebalance is adopted at its shipped value', () => {
   for (let level = 0; level < 10; level++) {
     const p = floorParams(level);
     assertEq(p.clusterSize, CLUSTER_SIZE, `floor ${level + 1} did not use the adopted cluster size`);
-    assertEq(p.monsters, monstersAt(2, MONSTER_GROWTH_REBALANCED, level),
+    assertEq(p.monsters, monstersAt(MONSTERS_BASE, MONSTER_GROWTH_REBALANCED, level),
       `floor ${level + 1} did not use the rebalanced count growth`);
   }
 });
@@ -1233,30 +1236,23 @@ test('the tier floor never exceeds the tier ceiling', () => {
   }
 });
 
-// ***** M12 — fill the floors back up ***** //
+// ***** M17 — a near-flat roster, with strength carrying the difficulty ***** //
+//
+// M12's own "always at least as full as the pre-M12 baseline" test lived
+// here and is gone, not patched: M17 REPLACES M12's setting rather than
+// building on it, and its whole point is trading count for strength, so
+// floors 8-10 now hold FEWER creatures than M12 shipped, not more — the
+// old test's claim is false by design, not by a bug. The M7 budget-ratio
+// check it duplicated already re-validates automatically against whatever
+// is live — see "the rebalanced constants hold the challenge budget".
 
-test('the floors fill back up without reopening the M7 budget', () => {
-  // Baseline this item inherited (MONSTER_GROWTH_REBALANCED was 1.15):
-  // 2,2,3,3,3,4,5,5,6,7. Every floor should hold at least that many now,
-  // and floor 10 — the emptiest, most visible one — strictly more.
-  const before = [2, 2, 3, 3, 3, 4, 5, 5, 6, 7];
-  for (let level = 0; level < 10; level++) {
-    const count = monstersAt(2, MONSTER_GROWTH_REBALANCED, level);
-    assert(count >= before[level],
-      `floor ${level + 1} holds ${count}, fewer than the pre-M12 ${before[level]}`);
-  }
-  assert(monstersAt(2, MONSTER_GROWTH_REBALANCED, 9) > before[9],
-    'floor 10 did not actually fill up');
-
-  // M12 raises count without lowering strength growth to compensate, so
-  // this item is itself bounded by the M7 budget check staying green —
-  // same formula, not a new one, reused here so a future raise cannot
-  // silently drift the budget open by changing this test instead of that
-  // one.
-  const K = 2.356;
-  const ratio = MONSTER_GROWTH_REBALANCED * (STRENGTH_GROWTH_REBALANCED ** K) / MONSTER_GROWTH;
-  assert(Math.abs(ratio - 1) < 0.15,
-    `M12's raised growth pushed the M7 budget ratio to ${ratio.toFixed(3)}, outside its own band`);
+test('creature count lands near the M17 target: ~5, ~6, ~8', () => {
+  const fl1 = monstersAt(MONSTERS_BASE, MONSTER_GROWTH_REBALANCED, 0);
+  const fl5 = monstersAt(MONSTERS_BASE, MONSTER_GROWTH_REBALANCED, 4);
+  const fl10 = monstersAt(MONSTERS_BASE, MONSTER_GROWTH_REBALANCED, 9);
+  assertEq(fl1, 5, `floor 1 holds ${fl1}, not the targeted 5`);
+  assert(fl5 >= 5 && fl5 <= 7, `floor 5 holds ${fl5}, not near the targeted 6`);
+  assertEq(fl10, 8, `floor 10 holds ${fl10}, not the targeted 8`);
 });
 
 test('cluster size grew alongside creature count', () => {
@@ -1334,9 +1330,11 @@ test('a chest guard never empties a small floor\'s spine into the side', () => {
   // The most exposed pre-existing invariant this item could have broken:
   // relocating a monster to guard a chest must never cross the spine/side
   // line, since below MIN_ROSTER_FOR_SIDE every creature is spine by
-  // construction and must stay that way.
+  // construction and must stay that way. M17 raised floor 1's own count to
+  // 5, at or above MIN_ROSTER_FOR_SIDE, so this is forced via an explicit
+  // override rather than relying on a floor that happens to be tiny.
   for (let seed = 0; seed < 20; seed++) {
-    const state = newGame(99000 + seed, floorPlan(1));
+    const state = newGame(99000 + seed, { ...floorPlan(1), monsters: 2 });
     assertEq(spineShare(state), 1,
       `seed ${seed}: a chest guard moved a floor-1 creature into a side room`);
   }

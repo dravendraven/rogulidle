@@ -46,7 +46,15 @@ import { monsterWeightsAround } from './spawn.js';
 // floor 10. Attrition sat in the first three floors. The exponential form
 // spends floors 1-4 gently (2, 3, 3, 4 against the old 2, 4, 6, 8) and buys
 // it back below.
-export const MONSTERS_BASE = 2;
+//
+// RAISED for M17 (docs/backlog.md, "a near-flat roster, with strength
+// carrying the difficulty") — was 2. Shared between the rebalanced and
+// pre-M7 growth paths (`floorParams` branches only on `growth`, never on
+// this), so the pre-M7 reconstruction floorPlan(2 -> {clusterSize:1, ...})
+// callers use also starts from 5 now — nothing currently depends on that
+// path staying at the historical 2 (`monstersOnFloor` in dungeon.js, the
+// one place that might have, is unused).
+export const MONSTERS_BASE = 5;
 
 // WHY 1.3. Net challenge is floor cost over hero capacity, so with cost
 // exponential and capacity roughly flat, net eventually multiplies by this
@@ -133,26 +141,32 @@ export const DIFFICULTY_REBALANCED = true;
 // Slower than MONSTER_GROWTH (1.3), cutting the dilution at its source —
 // fewer draws means less to dilute with.
 //
-// RAISED for M12 (docs/backlog.md, "fill the floors back up"): floor 10 held
-// only 7 creatures on a 32x32 map at 1.15, the price of fighting CV decay
-// paid without anyone looking at what it did to the floor's population. CV
-// depends on DRAWS, not creature count — M10's per-member quota check is
-// what actually holds effective cluster size down (measured ~1.7-2.2
-// regardless of CLUSTER_SIZE, see below), so raising count here does not
-// undo M7's CV win the way raising it at MONSTER_GROWTH's own 1.3 would.
-// 1.22 is the ceiling the EXISTING budget test allows — see
-// STRENGTH_GROWTH_REBALANCED's own comment for why growth*strength^2.356
-// staying within 15% of MONSTER_GROWTH is a real constraint, not a
-// suggestion, and 1.22 sits at 10% over, the edge of the band this was
-// already being held to.
-export const MONSTER_GROWTH_REBALANCED = 1.22;
+// M12 raised this to 1.22 to fill floors back up. M17 (docs/backlog.md,
+// "a near-flat roster, with strength carrying the difficulty") REPLACES
+// that setting rather than adding to it: with MONSTERS_BASE now 5 (was 2),
+// 1.0536 = (8/5)^(1/9) is exactly the growth that lands floor 10 at 8
+// creatures given a floor-1 base of 5 — count 5 -> 8 over ten floors, the
+// item's own target. The CV-diluting effect of count (`1/sqrt(growth)`)
+// drops from 0.905 at 1.22 to 0.974 at this rate — almost the whole reason
+// M7 needed clustering at all stops applying. Strength has to carry the
+// rest of the budget; see STRENGTH_GROWTH_REBALANCED below.
+export const MONSTER_GROWTH_REBALANCED = 1.0536;
 
 // Faster than STRENGTH_GROWTH (1.0, i.e. flat), replacing the difficulty
 // count no longer supplies. Sized against the CORRECTED exponent from the
 // archived count->strength sweep — 2.356, not 2, because strength indexes
 // an 11-row table whose mass runs 0 to 108, not a linear scale. Using 2
 // here would overshoot the budget the same way it did in that sweep.
-export const STRENGTH_GROWTH_REBALANCED = 1.07;
+//
+// RAISED for M17, replacing M12's 1.07: with count now carrying only
+// ×1.0536/floor, strength has to carry `1.34 / 1.0536 = 1.273`, which at
+// the 2.356 exponent is `1.273^(1/2.356) = 1.108`. RISK, flagged by the
+// item itself: strength ramping this fast saturates the 11-row table
+// early (see `saturatedAt` — report where), and once saturated every
+// deeper floor draws from the same narrow top band, so variety WITHIN a
+// floor can fall even as variety BETWEEN floors improves. The CV number
+// only sees the second one.
+export const STRENGTH_GROWTH_REBALANCED = 1.108;
 
 // How many creatures share one placement anchor. 1 means every monster
 // still draws its own independent position — byte-identical to no

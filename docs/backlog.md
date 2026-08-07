@@ -38,7 +38,7 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| 1 | M17 | Near-flat roster, ~5 to ~8, with strength carrying the difficulty | READY |
+| 1 | M17 | Near-flat roster, ~5 to ~8, with strength carrying the difficulty | REPORTED |
 | 2 | U3 | Show killed-xp and xp per turn, instead of the damage stat labelled xp | READY |
 | 3 | U4 | Lifetime score, awarded only on a full clear, xpEarned over turns | BLOCKED on U3 |
 | 4 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | READY |
@@ -325,7 +325,7 @@ own commit — and X2 sits after M19 rather than before M18.
 
 ## M17 · a near-flat roster, with strength carrying the difficulty
 
-`work agent` · **READY**
+`work agent` · **REPORTED**
 
 Today the descent goes `2, 2, 3, 4, 4, 5, 7, 8, 10, 12` — floor 1 is nearly
 empty and floor 10 is a crowd. Try the opposite: **about 5 creatures on
@@ -384,6 +384,58 @@ arithmetic answers.
 question — the last two attempts at it both looked right on paper and both
 were wrong in a way nobody predicted. Build it, look at `run-check.html`,
 and watch a few runs before deciding.
+
+### Result
+
+**Built exactly as specified.** `MONSTERS_BASE` 2 → 5, `MONSTER_GROWTH_
+REBALANCED` 1.22 → 1.0536 (`(8/5)^(1/9)`, exact), `STRENGTH_GROWTH_
+REBALANCED` 1.07 → 1.108. Replaces M12's setting, not additive with it.
+Creature count: `5,5,6,6,6,6,7,7,8,8` — floor 1 at the targeted 5, floor 5
+at 6, floor 10 at the targeted 8.
+
+**The three things the item asked to measure, all in the item's favour on
+paper:**
+- **Challenge growth 1.317 ±0.016/floor** (Sonda A, n=80/floor), inside
+  the `1.34 ±0.03` band and −1.48σ from centre — under the 2σ bar, not a
+  confirmed break. The budget held.
+- **Tier spread within a floor did NOT collapse.** The item's own named
+  risk — strength carrying ×1.108 across an 11-row table could narrow deep
+  floors to the same few rows. Measured (table index, n=60 seeds/floor):
+  floor 1 sd 1.54 (6 distinct tiers), floor 5 sd 1.87 (7), floor 10 sd 2.06
+  (7). Spread did not fall; if anything it rose slightly. Risk did not
+  materialise.
+- **Saturation: never, within the descent.** `saturatedAt` returns `null`;
+  the ramp reaches `0.35 × 1.108^9 ≈ 0.881` of the table, matching the
+  item's own estimate (0.885) almost exactly.
+
+**The question the item actually asked — measured, and it goes the other
+way.** `descentCheck`, n=40 (self-check, not a metrics-agent reading):
+**finishes 0/40, median depth 2** (32/40 runs end at depth ≤ 2). The
+context this item was given going in: `run-check.html` read finishes 0/20,
+median depth 3 before this landed. **Median depth fell, not rose.** This
+is the item's own "second risk" — floor 1 at 2.5× the creatures against a
+10 hp hero with one axe — and the arithmetic did not answer it either way,
+as the item itself said it could not. The measurement does: at n=40 this
+reads as a wall, not an opening, though a sample this size cannot rule out
+some of the gap being a specific seed family (`firstSeed=800000`,
+unchanged from the earlier reading) rather than the change itself.
+
+**Reported as asked, not adopted or reverted on my own judgement.** Every
+individual number the item named came back inside its stated tolerance;
+the one number that matters most — can the hero survive the opening —
+got worse by the same measurement that showed everything else holding.
+Third attempt at this axis; per the item's own framing, the first two also
+looked right on paper. Not rolling back: the instruction was explicit that
+if the game is still unplayable after this, M19 (loot for the harder
+opening) is what pays for the rest, not a reversal here.
+
+89/89 tests pass (2 fixed for the new floor-1 count crossing
+`MIN_ROSTER_FOR_SIDE`, 1 fixed for a hardcoded base in an M7-era test, 1
+retired — M12's own "fills back up beyond its own baseline" claim is false
+by design under M17, which trades count for strength; its budget-ratio
+check was a duplicate of an already-live test). `docs/balance.md` and
+`docs/rogule-spec.md` §13.5 updated in place — same rule, new numbers,
+not a new divergence.
 
 ## U3 · show what the hero has killed, and how fast
 
