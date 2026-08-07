@@ -39,7 +39,7 @@ session, skip it.
 | # | id | what gets done | status |
 |---|---|---|---|
 | 1 | U3 | Show killed-xp and xp per turn, instead of the damage stat labelled xp | REPORTED |
-| 2 | U4 | Lifetime score, awarded only on a full clear, xpEarned over turns | BLOCKED on U3 |
+| 2 | U4 | Lifetime score, awarded only on a full clear, xpEarned over turns | IN FLIGHT |
 | 3 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | REPORTED |
 | 4 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
 | 5 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
@@ -408,7 +408,7 @@ not touched here.
 
 ## U4 · a lifetime score, earned only by finishing
 
-`ui agent` · **BLOCKED on U3's engine half** — one line, then this is all screen
+`ui agent` · **IN FLIGHT** — U3's engine half landed, unblocked
 
 Runs loop forever and **nothing accumulates**. Run 47 has the same
 consequence as run 1, which is the whole of it: a loop, not a sequence. The
