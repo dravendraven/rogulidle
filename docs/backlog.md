@@ -26,8 +26,25 @@ though the metrics agent answers it.
 
 ## The queue
 
-Ordered by what unblocks what and what can be started today. `#` is
-priority and changes; the id is stable and is what your prompt names.
+`#` is priority and changes; the id is stable and is what your prompt names.
+
+**The queue is not sorted by objective.** Objective order is only a
+tiebreaker; three things outrank it.
+
+- **Startable beats important.** M6 is first and cannot be worked on — it
+  waits on the owner. Sorting by objective would stack blocked items at the
+  top.
+- **Dependencies.** M3–M5 sit low because M6 gates their adoption, not
+  because the bot matters more.
+- **Value deliverable now.** B4 fixes a real defect and can be adopted. M3
+  today can only be measured and shelved, and what it teaches only becomes
+  useful once M6 is settled. That is why an objective-2 item outranks an
+  objective-1 item here.
+
+This ordering is contingent on M6. Decide it and M3–M5 leave MEASURE ONLY,
+become adoptable, and rise above the whole bot track. The map queue sits
+where it sits because objective 1 is blocked on the owner, not because it is
+worth less.
 
 | # | id | what and why | feature | agent | status |
 |---|---|---|---|---|---|
