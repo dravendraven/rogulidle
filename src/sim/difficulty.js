@@ -1,3 +1,7 @@
+import {
+  SIDE_ACTIVATION_CAP, SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE,
+} from './balance.js';
+
 // How hard a floor is, from one number: how many creatures are on it.
 //
 // Everything else follows by formula. There is no calibration table, no
@@ -127,6 +131,14 @@ export const DEFAULT_MODEL = {
   armourScarcity: SCARCITY,
   potionScarcity: SCARCITY,
   levels: 10,
+
+  // Map design (docs/map-design.md). Mirrored from balance.js so the lab
+  // page can show and sweep them; populate() would fall back to the same
+  // values if these were left out.
+  spineThreatShare: SPINE_THREAT_SHARE,
+  sideRoomDepthBonus: SIDE_ROOM_DEPTH_BONUS,
+  sideChestBias: SIDE_CHEST_BIAS,
+  sideActivationCap: SIDE_ACTIVATION_CAP,
 };
 
 // Turns a model into the `floorPlan(level)` function the dungeon wants.

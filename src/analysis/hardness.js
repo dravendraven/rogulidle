@@ -93,19 +93,6 @@ export function hardnessCurve(levels, options = {}) {
   return levels.map((level) => floorHardness(level, options));
 }
 
-// The OTHER half, and the one the owner actually asked about: the same
-// curve for a REAL hero, who arrives at floor 8 carrying everything floors
-// 1 to 7 gave them.
-//
-// This is the requirement — floor 10 must be the hardest DESPITE the gear —
-// so it has to be measured against the hero who is really there, not
-// against a yardstick. Net challenge is the floor's cost over what the hero
-// walked in with; above 1.00 the floor demands more than they brought.
-//
-// Survivor bias is real here and is NOT a flaw: deep floors are measured
-// only on heroes who got that far, because those are the only heroes who
-// ever meet them. The `reached` column is the honest sample size — a 0.40
-// off two runs means much less than a 0.40 off thirty.
 const pctOf = ([hit, total]) => (total ? +((100 * hit) / total).toFixed(0) : null);
 
 // Is the difference between two rates real, or is it the sample talking?
@@ -116,7 +103,7 @@ const pctOf = ([hit, total]) => (total ? +((100 * hit) / total).toFixed(0) : nul
 // needs the z alongside them, so `z` is returned rather than left to the
 // reader's optimism. Above about 2 the difference is worth explaining;
 // below it, collect more seeds before building anything on it.
-function compareRates(a, b) {
+export function compareRates(a, b) {
   const [aHit, aN] = a;
   const [bHit, bN] = b;
   if (!aN || !bN) return { gap: null, z: null, aN, bN };
@@ -133,6 +120,19 @@ function compareRates(a, b) {
   };
 }
 
+// The OTHER half, and the one the owner actually asked about: the same
+// curve for a REAL hero, who arrives at floor 8 carrying everything floors
+// 1 to 7 gave them.
+//
+// This is the requirement — floor 10 must be the hardest DESPITE the gear —
+// so it has to be measured against the hero who is really there, not
+// against a yardstick. Net challenge is the floor's cost over what the hero
+// walked in with; above 1.00 the floor demands more than they brought.
+//
+// Survivor bias is real here and is NOT a flaw: deep floors are measured
+// only on heroes who got that far, because those are the only heroes who
+// ever meet them. The `reached` column is the honest sample size — a 0.40
+// off two runs means much less than a 0.40 off thirty.
 export function descentCurve(options = {}) {
   const {
     runs = 30, firstSeed = 90000, maxTurns = 1500,
@@ -234,8 +234,17 @@ export function descentCurve(options = {}) {
     chestGoodPct: pctOf(row.chestGood),
     chestBadPct: pctOf(row.chestBad),
     chestSpinePct: pctOf(row.chestSpine),
-    chestGoodN: row.chestGood[1],
-    chestBadN: row.chestBad[1],
+    // Raw [opened, total] as well as the percentages. Anything merging two
+    // batches has to add these, not average the percentages — a floor
+    // reached twice and one reached thirty times do not weigh the same.
+    chestGood: row.chestGood.slice(),
+    chestBad: row.chestBad.slice(),
+    chestSpine: row.chestSpine.slice(),
+    // Same reason: the mass totals, so spine share can be re-pooled exactly.
+    spineMassRaw: row.spineMass,
+    massRaw: row.mass,
+    sideKilledRaw: row.sideKilled,
+    sideTotalRaw: row.sideTotal,
   }));
 
   // Pooled across every floor, because the question is about the design as a

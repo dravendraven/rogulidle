@@ -126,6 +126,23 @@ by how many creatures they hold, not by what kind.</p>
 <i>less</i> likely to hold anything (spec quirk §9.3). Either way the
 probability sweeps 10%→100%; we point it so that walking deeper pays.</p>
 
+<h2>The spine and its detours</h2>
+<p class="note">Nothing is dug differently for this. The digger already makes
+maps with a route from hero to shrine and rooms hanging off it; a
+classification pass reads that structure back. A room is <b>spine</b> when the
+hero→shrine path crosses its rectangle, <b>side</b> otherwise. Because it only
+reads, it cannot fail to produce a floor and it consumes no randomness.</p>
+<div class="formula" id="fSpine"></div>
+<p class="note">Risk and reward are drawn <b>separately</b>, and that is the
+whole design. Sharing one bonus made every detour offer the same ratio — and a
+gamble with a fixed favourable ratio is not a gamble, it is a free lunch that
+is always right to take. Measured that way, forbidding the detour, requiring
+it and permitting it produced identical dungeons.</p>
+<p class="note">The split is by <b>mass</b>, not headcount: cost tracks
+<code>hp × (xp−1)</code>, so a floor can put 70% of its bodies on the route and
+still hide the dangerous half in a side room. Placement is greedy against a
+running share, so it converges without knowing the roster total in advance.</p>
+
 <h2>Loot and scarcity</h2>
 <p class="note">The two sources hold different things, by design: <b>chests
 give weapons and armour</b> — gear comes from exploring — and <b>corpses give
@@ -191,12 +208,42 @@ which drops a fixed reference hero straight into it.</p>
 </fieldset>
 
 <fieldset>
+  <legend>map design — the spine and its detours</legend>
+  <div class="row">
+    <div><label>threat mass on the route <small>(0–1)</small></label><input id="spineThreatShare" type="number" step="0.05" min="0" max="1"></div>
+    <div><label>side room depth bonus <small>(risk = reward = 2× this, rolled apart)</small></label><input id="sideRoomDepthBonus" type="number" step="0.05" min="0"></div>
+    <div><label>side chest bias <small>(×, weight not quota)</small></label><input id="sideChestBias" type="number" step="0.5" min="0"></div>
+    <div><label>side wake radius <small>(99 = uncapped)</small></label><input id="sideActivationCap" type="number" step="1" min="1"></div>
+  </div>
+  <p class="note">Set the depth bonus to 0 and side rooms become ordinary —
+  same creatures, same chests, no gamble. The two rolls are drawn separately
+  over <code>[0, 2×bonus]</code>, so the average room stays put while
+  individual ones range from a den of ogres guarding a dagger to a lone bat
+  sitting on an axe.</p>
+</fieldset>
+
+<fieldset>
+  <legend>bot</legend>
+  <div class="row">
+    <div><label>must kill before the shrine</label>
+      <select id="requireClear">
+        <option value="spine">spine — only what is on the route</option>
+        <option value="all">all — the old hard R0</option>
+        <option value="none">none — may bolt for the stairs</option>
+      </select></div>
+    <div><label>campaign horizon <small>(0 = value gear for this floor only)</small></label><input id="horizon" type="number" step="0.1" min="0" max="1"></div>
+    <div><label>charge detours for the guards they wake</label>
+      <select id="guardPricing"><option value="true">yes</option><option value="false">no</option></select></div>
+    <div><label>extra bot options <small>(JSON, wins over the above)</small></label><input id="botOptions" type="text" value="{}"></div>
+  </div>
+</fieldset>
+
+<fieldset>
   <legend>run</legend>
   <div class="row">
     <div><label>dungeons</label><input id="runs" type="number" value="24" min="1"></div>
     <div><label>first seed</label><input id="firstSeed" type="number" value="90000"></div>
     <div><label>max turns / floor</label><input id="maxTurns" type="number" value="1500"></div>
-    <div><label>bot options <small>(JSON)</small></label><input id="botOptions" type="text" value="{}"></div>
   </div>
 </fieldset>
 
@@ -212,11 +259,12 @@ which drops a fixed reference hero straight into it.</p>
 import {
   CHEST_DIFFICULTY_SCALE, HIT_CHANCE, ITEM_TABLE, MAP_SIZE, MONSTER_SKIP_CHANCE,
   MONSTER_TABLE, MONSTER_WEIGHTS, PLAYER_HP, PLAYER_XP, POTION_HEAL,
-  WEAPONS_WIDEN_ROLL, XP_FROM_KILLS, CORRIDOR_LENGTH,
+  WEAPONS_WIDEN_ROLL, XP_FROM_KILLS, CORRIDOR_LENGTH, LOOT_CAMPAIGN_HORIZON,
+  MAP_DUG_PERCENTAGE, MIN_ROSTER_FOR_SIDE,
 } from './src/sim/balance.js';
 import { DEFAULT_MODEL, makeFloorPlan } from './src/sim/difficulty.js';
 import { itemWeights } from './src/sim/spawn.js';
-import { descentCurve } from './src/analysis/hardness.js';
+import { compareRates, descentCurve } from './src/analysis/hardness.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -328,6 +376,27 @@ $('tItems').innerHTML =
   + `<th>value <small>(higher = rarer)</small></th><th>source</th></tr></thead>`
   + `<tbody>${itemRows}</tbody>`;
 
+$('fSpine').textContent = `spine room   the hero -> shrine path crosses its rectangle
+side  room   it does not: reachable, but never on the way out
+corridors    never side ground — committing to a detour means crossing them
+
+Each SIDE room draws two independent numbers over [0, 2 x bonus]:
+
+    risk    added to depth when picking its creatures  -> stronger
+    reward  added to depth when filling its chests     -> better loot
+
+    edge = reward - risk        positive means a good bargain
+
+Depth already drove both, so one bonus made them move together. Drawn
+apart, the AVERAGE side room stays where it was while individual ones
+range from a den of ogres guarding a dagger to a lone bat on an axe.
+
+Floors with fewer than ${MIN_ROSTER_FOR_SIDE} creatures put everything on the spine: with
+two creatures, one in a side room is already half the mass.
+
+Dug percentage is ${MAP_DUG_PERCENTAGE} against ROT's default 0.2 — fewer, smaller
+rooms, so that a mandatory path exists at all.`;
+
 $('fModel').textContent = `creatures(N) = base x growth^(N - 1)      EXPONENTIAL, compounds
 chests(N)    = flat + perCreature x creatures(N)
 strength     = fixed for every floor
@@ -351,10 +420,31 @@ xp from kills ${XP_FROM_KILLS ? 'ON' : 'OFF — gear and potions are the only pr
 
 const FIELDS = ['monstersBase','monsterGrowth','monstersPerLevel','chests',
   'chestsPerMonster','strength','levels','weaponScarcity','armourScarcity',
-  'potionScarcity','dropChance'];
+  'potionScarcity','dropChance','spineThreatShare','sideRoomDepthBonus',
+  'sideChestBias','sideActivationCap'];
+
+// Bot settings that have their own control rather than living in the JSON
+// box. Read as strings and coerced, so the page cannot silently send a
+// string where the bot expects a number.
+function readBotOptions() {
+  const extra = JSON.parse($('botOptions').value || '{}');
+  return {
+    requireClear: $('requireClear').value,
+    horizon: Number($('horizon').value),
+    guardPricing: $('guardPricing').value === 'true',
+    ...extra,
+  };
+}
 
 function loadDefaults() {
   for (const f of FIELDS) $(f).value = String(DEFAULT_MODEL[f]);
+  // Bot defaults come from the bot, not from a second copy here — a
+  // hardcoded rule field is exactly how run-curve.html ended up measuring
+  // a rule the game no longer used.
+  $("requireClear").value = "spine";
+  $("horizon").value = String(LOOT_CAMPAIGN_HORIZON);
+  $("guardPricing").value = "true";
+  $("botOptions").value = "{}";
   showPreview();
 }
 
@@ -434,6 +524,12 @@ const COLUMNS = [
     'Steps taken on this floor. Rogule scores on fewest steps, so this is the tiebreaker among heroes who all survive.'],
   ['net challenge',
     'damage / capacity in. 1.00 means the floor cost exactly everything the hero brought to it. A hero can pass 1.00 and live by drinking a potion found here, since capacity is measured on arrival. Should RISE with depth — that is the whole requirement.'],
+  ['spine',
+    'Share of the floor\'s threat mass sitting on the mandatory route to the shrine. The design asks for 0.70 and up: below that, reaching the shrine stops meaning fighting most of the floor. Reads 1.00 on small floors, which put everything on the route by design.'],
+  ['side killed',
+    'How much of the OPTIONAL threat the hero killed anyway. Low means detours are being declined; near 100% means the side rooms are not really optional in practice.'],
+  ['chest good/bad',
+    'Chests opened in side rooms whose reward roll beat their risk roll, against those where it did not. If the gamble works these should differ; measured over 50 descents they do not (87% vs 86%, z = 0.64). Read the pooled z under the table, not these per-floor numbers — one floor never has enough chests to say anything.'],
 ];
 
 function render(result) {
@@ -455,7 +551,10 @@ function render(result) {
       + `<td>${r.capacity}</td><td class="thin">${r.gear}</td>`
       + `<td>${r.damagePerRun}</td><td class="thin">${r.kills}</td>`
       + `<td class="thin">${r.turns}</td>`
-      + `<td>${r.netChallenge.toFixed(2)} <span class="bar ${cls}" style="width:${width}px"></span></td>`;
+      + `<td>${r.netChallenge.toFixed(2)} <span class="bar ${cls}" style="width:${width}px"></span></td>`
+      + `<td class="${r.spineShare < 0.65 ? 'no' : 'thin'}">${r.spineShare.toFixed(2)}</td>`
+      + `<td class="thin">${r.sideCleared}%</td>`
+      + `<td class="thin">${r.chestGoodPct === null ? '—' : r.chestGoodPct + '/' + r.chestBadPct}</td>`;
     body.append(tr);
   }
   table.append(body);
@@ -500,6 +599,24 @@ function render(result) {
     + `average depth ${result.avgDepth} of ${result.levels}. `
     + `Depths: ${result.depths.join(', ')}.</span>`;
 
+  // The side-room gamble, stated with its z rather than left to be eyeballed.
+  // The first time this was measured a 1.3-sigma gap was reported as a
+  // finding and given a causal explanation within the hour; the verdict now
+  // refuses to call anything under 2 sigma a difference.
+  const d = result.discrimination;
+  if (d && d.z !== null) {
+    const real = Math.abs(d.z) >= 2;
+    verdict.innerHTML += `<br><span class="${real ? (d.gap > 0 ? 'ok' : 'no') : 'thin'}">`
+      + `side chests taken — favourable ${d.goodPct}% (n=${d.aN}), `
+      + `unfavourable ${d.badPct}% (n=${d.bN}), z ${d.z}</span> — `
+      + (real
+        ? (d.gap > 0
+          ? 'the hero prefers the good gambles, which is the design working.'
+          : 'the hero prefers the BAD gambles: something is pointing backwards.')
+        : 'within noise. Either the gamble is not a decision, or there are not '
+          + 'enough dungeons yet to tell — n below a few hundred chests cannot.');
+  }
+
   $('verdict').innerHTML = '';
   $('verdict').append(verdict);
   $('out').innerHTML = '';
@@ -523,7 +640,7 @@ $('run').addEventListener('click', async () => {
   $('out').innerHTML = ''; $('verdict').innerHTML = '';
 
   let botOptions;
-  try { botOptions = JSON.parse($('botOptions').value || '{}'); }
+  try { botOptions = readBotOptions(); }
   catch (error) {
     $('status').textContent = 'bot options are not valid JSON: ' + error.message;
     $('run').disabled = false; $('stop').disabled = true; return;
@@ -560,6 +677,10 @@ $('run').addEventListener('click', async () => {
   }
 });
 
+const pct01 = ([hit, total]) => (total ? +((100 * hit) / total).toFixed(0) : null);
+const rowsGood = (acc, key) => [...acc.values()]
+  .reduce((sum, c) => [sum[0] + c[key][0], sum[1] + c[key][1]], [0, 0]);
+
 // Each slice measured one dungeon, so the per-floor figures have to be
 // re-averaged over their true weights rather than averaged again.
 function mergeParts(parts, model) {
@@ -573,7 +694,9 @@ function mergeParts(parts, model) {
     for (const r of part.rows) {
       const cur = acc.get(r.level) || { level: r.level, monsters: r.monsters,
         chests: r.chests, reached: 0, survived: 0, stalled: 0,
-        capacity: 0, gear: 0, mass: 0, damage: 0, kills: 0, turns: 0 };
+        capacity: 0, gear: 0, mass: 0, damage: 0, kills: 0, turns: 0,
+        spineMass: 0, sideKilled: 0, sideTotal: 0,
+        cGood: [0, 0], cBad: [0, 0], cSpine: [0, 0] };
       cur.reached += r.reached;
       cur.survived += Math.round(r.reached * r.survivalPct / 100);
       cur.stalled += r.stalled;
@@ -584,6 +707,14 @@ function mergeParts(parts, model) {
       cur.damage += r.damagePerRun * r.reached;
       cur.kills += r.kills * r.reached;
       cur.turns += r.turns * r.reached;
+      // Raw counts, added rather than averaged — see hardness.js.
+      cur.spineMass += r.spineMassRaw;
+      cur.sideKilled += r.sideKilledRaw;
+      cur.sideTotal += r.sideTotalRaw;
+      for (const [into, from] of [[cur.cGood, r.chestGood],
+        [cur.cBad, r.chestBad], [cur.cSpine, r.chestSpine]]) {
+        into[0] += from[0]; into[1] += from[1];
+      }
       acc.set(r.level, cur);
     }
   }
@@ -599,10 +730,19 @@ function mergeParts(parts, model) {
     kills: +(c.kills / c.reached).toFixed(1),
     turns: +(c.turns / c.reached).toFixed(0),
     netChallenge: +(c.damage / c.capacity).toFixed(2),
+    spineShare: c.mass > 0 ? +(c.spineMass / c.mass).toFixed(2) : 1,
+    sideCleared: c.sideTotal ? +((100 * c.sideKilled) / c.sideTotal).toFixed(0) : 0,
+    chestGoodPct: pct01(c.cGood), chestBadPct: pct01(c.cBad),
   }));
+
+  // Pooled over every floor: no single floor ever holds enough chests to
+  // say anything about the gamble.
+  const good = rowsGood(acc, 'cGood');
+  const bad = rowsGood(acc, 'cBad');
 
   return {
     rows, runs: parts.length, cleared, levels: model.levels,
+    discrimination: { goodPct: pct01(good), badPct: pct01(bad), ...compareRates(good, bad) },
     depths: depths.slice().sort((a, b) => a - b),
     avgDepth: +(depths.reduce((a, b) => a + b, 0) / depths.length).toFixed(1),
     rise: rows.length > 1
