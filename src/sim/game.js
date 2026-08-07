@@ -76,6 +76,18 @@ export function playGame(seed, policy, options = {}) {
   let observation = observe(state);
   let belief = foldBelief(emptyBelief(), observation);
 
+  // What the floor held before anything was touched. Analysis needs it to
+  // ask which chests were opened and which were walked past, and the only
+  // other way to get it is to regenerate the whole floor — so a handful of
+  // fields is recorded here instead. Deliberately NOT the whole state: this
+  // travels with every run and a deep copy would dominate a batch.
+  const start = {
+    chests: state.chests.map((c) => ({ id: c.id, side: c.side, edge: c.edge })),
+    monsters: state.monsters.map((m) => ({
+      id: m.id, side: m.side, edge: m.edge, xp: m.xp, hp: m.hpMax,
+    })),
+  };
+
   const actions = [];
   let decisions = 0;
 
@@ -94,6 +106,7 @@ export function playGame(seed, policy, options = {}) {
   return {
     state,
     belief,
+    start,
     outcome: state.outcome,
     turns: state.turn,
     // The engine is deterministic, so a seed plus the action list replays a

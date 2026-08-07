@@ -133,7 +133,47 @@ Four candidate fixes were implemented and measured. **None moved the ratio:**
 Guard pricing helped slightly and was kept. The activation cap made it worse
 and is off. The crowd scaling changed literally nothing and was reverted.
 
-### The cause is NOT known, and one wrong answer is recorded here
+### Settled: there was no inversion, and the choice is simply always taken
+
+Measured properly — 50 full descents, `descentCurve().discrimination`:
+
+```
+favourable   87%  (n = 538)
+unfavourable 86%  (n = 449)
+gap 1.4 points, z = 0.64        => within noise
+```
+
+**The inversion was not real.** The earlier 46% / 53% was noise, and it was
+also measured wrong: those runs dropped a *fresh, unarmed* hero onto floors 5
+to 8 in isolation, where they die early — so "chests opened" was mostly
+measuring how far the hero got before dying, not what they chose. In a real
+descent, with a hero carrying what the floors above gave them, the two rates
+are the same.
+
+**What is true is duller and more useful: the bot opens 87% of everything.**
+Good room, bad room, spine room — it takes the lot. There is no discrimination
+to explain because there is no discrimination at all, in either direction. The
+gamble is still a free lunch; the variance made individual rooms differ without
+making any of them worth refusing.
+
+That is the thing to attack next, and it is about the *level* of the reward
+rather than its spread: while a chest is worth its walk 87% of the time, no
+amount of varying the odds will produce a decision.
+
+Two other readings from the same run, both worth watching:
+
+```
+floor         1     3     4     5     7    10
+spine share  1.00  1.00  0.58  0.71  0.68  0.73
+side cleared   0%    0%   82%   65%   74%   86%
+```
+
+Floor 4 comes out at **0.58**, under the 0.70 the design calls for — it is the
+first floor to attempt the split (`MIN_ROSTER_FOR_SIDE`) and four creatures is
+still coarse. And `side cleared` sits at 65–86%: the hero kills most of the
+optional threat too, which is the same finding from the monsters' side.
+
+### An earlier wrong answer, kept on purpose
 
 A first diagnosis was written and is **retracted**. It claimed the mass budget
 inverts headcount — a low-risk room needing more bodies to fill its share —
@@ -163,7 +203,10 @@ errors, and those variants share seeds, so they are not independent replays.
 The direction was consistent, which is suggestive, but the effect was reported
 above with far more confidence than the sample supports.
 
-**Next step is a measurement, not a fix.** Enough seeds to put the difference
-several standard errors clear of zero, before anything is built on it. The
-mass-quota change is still a reasonable idea on its own terms; it is not
-justified by anything measured so far.
+**That measurement has since been taken** (above): z = 0.64, no effect. The
+mass-quota change it recommended was never justified and is not needed.
+
+The lesson worth keeping: the gap was reported as a finding at 1.3 standard
+errors, and a causal story was built on top of it within the same session.
+`descentCurve().discrimination` now returns `z` alongside the rates so the
+next such gap has to clear the bar before it gets a story.

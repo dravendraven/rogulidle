@@ -10,6 +10,10 @@ import { observe, emptyBelief, foldBelief } from '../src/sim/observe.js';
 import { weaponDamage, armourValue } from '../src/sim/combat.js';
 import { findPath, playerPassable, posKey } from '../src/sim/mapgen.js';
 import { makeRng } from '../src/sim/rng.js';
+import { classifyRooms, spineShare } from '../src/sim/spine.js';
+import { itemWeights } from '../src/sim/spawn.js';
+import { floorPlan } from '../src/sim/dungeon.js';
+import { monstersAhead, valueByItemName } from '../src/bot/loot.js';
 
 // ***** tiny test harness ***** //
 
@@ -537,6 +541,178 @@ test('the belief never leaks the full map', () => {
   const walkableTotal = state.map.tiles.filter(Boolean).length;
   assert(belief.tiles.size < walkableTotal, 'the first observation revealed everything');
   assert(belief.shrine === null || belief.tiles.size > 0, 'belief is empty');
+});
+
+// ***** map design: the spine and its detours ***** //
+//
+// docs/map-design.md. Every "70% of the threat mass is on the mandatory
+// route" figure rests on classifyRooms being right, and until these existed
+// it had never been checked against a map whose answer was known in advance.
+
+// Two rooms side by side through a door, with a third hanging below the
+// first by a corridor. Walking A -> C never enters B, so B is the detour,
+// and that is true whatever the generator would have done.
+//
+//   0123456789
+// 0 ##########
+// 1 #...#...##     A = x1-3, C = x5-7, both rows 1-3
+// 2 #...+...##     the door at 4,2 is the only way across
+// 3 #...#...##
+// 4 #-########     corridor at 1,4 drops out of the bottom of A
+// 5 #..#######
+// 6 #..#######     B = x1-2, rows 5-6: reachable, never on the route
+// 7 ##########
+function spineFixture() {
+  const map = tinyMap([
+    '##########',
+    '#...#...##',
+    '#...+...##',
+    '#...#...##',
+    '#-########',
+    '#..#######',
+    '#..#######',
+    '##########',
+  ]);
+  // tinyMap leaves rooms empty; classifyRooms needs the rectangles.
+  map.rooms = [
+    { x1: 1, y1: 1, x2: 3, y2: 3, center: [2, 2], doors: [] },   // A, the start
+    { x1: 5, y1: 1, x2: 7, y2: 3, center: [6, 2], doors: [] },   // C, the shrine
+    { x1: 1, y1: 5, x2: 2, y2: 6, center: [1, 5], doors: [] },   // B, the detour
+  ];
+  return map;
+}
+
+test('a room the route never enters is classified as side', () => {
+  const map = spineFixture();
+  const zones = classifyRooms(map, [2, 2], [6, 2]);
+
+  assertEq(zones.side.length, 1, 'expected exactly one side room');
+  assertEq(zones.spine.length, 2, 'expected the start and shrine rooms on the spine');
+  assert(zones.side[0].center[0] === 1 && zones.side[0].center[1] === 5,
+    'the detour room was not the one classified as side');
+});
+
+test('the rooms the hero starts and ends in are always spine', () => {
+  const map = spineFixture();
+  const zones = classifyRooms(map, [2, 2], [6, 2]);
+  // The path begins inside A and ends inside C, so neither can be optional.
+  assert(!zones.isSide([2, 2]), 'the room the hero starts in was called optional');
+  assert(!zones.isSide([6, 2]), "the shrine room was called optional");
+  assert(zones.isSide([1, 6]), "the detour room was not called optional");
+});
+
+test('corridors are never side ground', () => {
+  const map = spineFixture();
+  const zones = classifyRooms(map, [2, 2], [6, 2]);
+  // 1,4 is the corridor leading down to the detour. It belongs to no room,
+  // so it is not optional ground — committing to the detour means crossing
+  // it, and anything standing there is unavoidable once you do.
+  assertEq(zones.roomOf([1, 4]), null, 'a corridor tile was assigned to a room');
+  assert(!zones.isSide([1, 4]), 'a corridor was treated as side ground');
+});
+
+test('spine share counts mass, not bodies', () => {
+  // Four rats on the route, one dragon in a side room. The rats are 80% of
+  // the CREATURES and 0% of the threat — hp × (xp − 1) is zero for xp 1.
+  const state = {
+    monsters: [
+      { hpMax: 2, xp: 1, side: false }, { hpMax: 2, xp: 1, side: false },
+      { hpMax: 2, xp: 1, side: false }, { hpMax: 2, xp: 1, side: false },
+      { hpMax: 15, xp: 8, side: true },
+    ],
+  };
+  assertEq(spineShare(state), 0, 'headcount leaked into the mass share');
+});
+
+test('a floor puts most of its threat mass on the mandatory route', () => {
+  // The requirement from docs/map-design.md, checked on real generated maps
+  // rather than by inspection. Floor 5 and up, where the roster is large
+  // enough for the split to be attempted at all (MIN_ROSTER_FOR_SIDE).
+  let total = 0;
+  let floors = 0;
+  for (let seed = 0; seed < 12; seed++) {
+    const state = newGame(3300 + seed, floorPlan(7));
+    total += spineShare(state);
+    floors++;
+  }
+  const mean = total / floors;
+  assert(mean >= 0.6, `mean spine share ${mean.toFixed(2)} is far below the 0.7 target`);
+  assert(mean <= 0.95, `mean spine share ${mean.toFixed(2)} means side rooms are empty`);
+});
+
+test('small floors put everything on the spine', () => {
+  // Below MIN_ROSTER_FOR_SIDE the split is too coarse to honour: one side
+  // monster out of two is already half the mass.
+  for (let seed = 0; seed < 6; seed++) {
+    const state = newGame(3400 + seed, floorPlan(1));
+    assertEq(spineShare(state), 1, 'a two-creature floor hid threat in a side room');
+  }
+});
+
+// ***** chest quality by depth ***** //
+
+test('quality 0 reproduces the shipped 1/value pool exactly', () => {
+  // The switch-off guarantee: if this drifts, every measurement taken with
+  // quality on is being compared against a baseline that no longer exists.
+  const plain = itemWeights({}, 'chest');
+  const q0 = itemWeights({}, 'chest', 0);
+  assertEq(q0.length, plain.length, 'the pool changed size');
+  for (let i = 0; i < plain.length; i++) {
+    assertEq(q0[i][0], plain[i][0], 'the pool order changed');
+    assert(Math.abs(q0[i][1] - plain[i][1]) < 1e-12, 'quality 0 changed a weight');
+  }
+});
+
+test('depth makes the strong item the common one', () => {
+  const weightOf = (entries, name) => {
+    const found = entries.find(([item]) => item && item.name === name);
+    return found ? found[1] : 0;
+  };
+  const shallow = itemWeights({}, 'chest', 0);
+  const deep = itemWeights({}, 'chest', 1);
+
+  // At the entrance the axe (value 4) is rarer than the dagger (value 3).
+  assert(weightOf(shallow, 'axe') < weightOf(shallow, 'dagger'),
+    'the strong weapon was not the rare one at depth 0');
+  // At the shrine that inverts.
+  assert(weightOf(deep, 'axe') > weightOf(deep, 'dagger'),
+    'depth did not make the strong weapon the common one');
+});
+
+test('quality never changes how often a chest is empty', () => {
+  // Quality tilts WHICH item comes out; scarcity alone decides whether one
+  // comes out at all. If these ever couple, the scarcity dials stop meaning
+  // what balance.md says they mean.
+  const emptyAt = (q) => {
+    const found = itemWeights({ weapon: 3, armour: 3 }, 'chest', q).find(([i]) => i === null);
+    return found ? found[1] : 0;
+  };
+  assert(Math.abs(emptyAt(0) - emptyAt(1)) < 1e-12,
+    'chest quality changed the empty share');
+});
+
+// ***** the bot's campaign horizon ***** //
+
+test('monsters ahead sums the floors still to come', () => {
+  // Floor 9 of 10 has only floor 10 left, which holds 21 by the growth law.
+  assertEq(monstersAhead(9, 10, 2, 1.3), 21, 'the last floor was miscounted');
+  assertEq(monstersAhead(10, 10, 2, 1.3), 0, 'the last floor has nothing ahead');
+  assertEq(monstersAhead(null, null, 2, 1.3), 0,
+    'a single floor played alone must have no future');
+  assert(monstersAhead(1, 10, 2, 1.3) > monstersAhead(5, 10, 2, 1.3),
+    'the descent ahead did not shrink with depth');
+});
+
+test('a weapon is worth more with a campaign ahead than with one floor', () => {
+  const belief = foldBelief(emptyBelief(), observe(newGame(4242, floorPlan(3))));
+  const near = valueByItemName(belief, 6, 0);
+  const far = valueByItemName(belief, 6, 40);
+  assert(far.get('axe') > near.get('axe'),
+    'the horizon did not raise what a weapon is worth');
+  // A potion is capped by the hero's missing hp, so the horizon must not
+  // touch it — otherwise the bot would hoard potions it cannot drink.
+  assertEq(far.get('health'), near.get('health'),
+    'the horizon changed what a potion is worth');
 });
 
 // ***** run it ***** //

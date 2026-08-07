@@ -148,7 +148,14 @@ export function playDungeon(seed, makePolicy, options = {}) {
 
     // hpMax and xp survive a monster's death, so the roster can be read back
     // from the finished state without regenerating the floor.
-    const roster = run.state.monsters.map((m) => ({ xp: m.xp, hp: m.hpMax }));
+    const roster = run.state.monsters.map((m) => ({
+      xp: m.xp, hp: m.hpMax, side: m.side, edge: m.edge, dead: m.dead,
+    }));
+
+    // Which chests were opened and which were walked past. An opened chest
+    // is removed from the list, so what remains is what the hero declined.
+    const stillShut = new Set(run.state.chests.map((c) => c.id));
+    const chests = run.start.chests.map((c) => ({ ...c, opened: !stillShut.has(c.id) }));
 
     // What the floor actually took out of the hero. Read from the log
     // rather than from hp before/after, because potions and shields picked
@@ -172,6 +179,7 @@ export function playDungeon(seed, makePolicy, options = {}) {
       gear: player.inventory.filter((i) => i.dmg || i.armour).length,
       arrivedWith,
       roster,
+      chests,
       replay: run.replay,
     });
 

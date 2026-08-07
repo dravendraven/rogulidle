@@ -106,6 +106,33 @@ export function hardnessCurve(levels, options = {}) {
 // only on heroes who got that far, because those are the only heroes who
 // ever meet them. The `reached` column is the honest sample size — a 0.40
 // off two runs means much less than a 0.40 off thirty.
+const pctOf = ([hit, total]) => (total ? +((100 * hit) / total).toFixed(0) : null);
+
+// Is the difference between two rates real, or is it the sample talking?
+//
+// This exists because the side-room result was first reported as a finding
+// when it was about 1.3 standard errors from zero — a gap that size appears
+// by chance roughly one run in five. Anything reading these proportions
+// needs the z alongside them, so `z` is returned rather than left to the
+// reader's optimism. Above about 2 the difference is worth explaining;
+// below it, collect more seeds before building anything on it.
+function compareRates(a, b) {
+  const [aHit, aN] = a;
+  const [bHit, bN] = b;
+  if (!aN || !bN) return { gap: null, z: null, aN, bN };
+
+  const pa = aHit / aN;
+  const pb = bHit / bN;
+  const pooled = (aHit + bHit) / (aN + bN);
+  const se = Math.sqrt(pooled * (1 - pooled) * (1 / aN + 1 / bN));
+
+  return {
+    gap: +(100 * (pa - pb)).toFixed(1),
+    z: se > 0 ? +((pa - pb) / se).toFixed(2) : null,
+    aN, bN,
+  };
+}
+
 export function descentCurve(options = {}) {
   const {
     runs = 30, firstSeed = 90000, maxTurns = 1500,
@@ -137,6 +164,11 @@ export function descentCurve(options = {}) {
         level: lvl.level, monsters: lvl.monsters, chests: planFor(lvl.level).chests,
         reached: 0, died: 0, stalled: 0, damage: 0, capacity: 0,
         turns: 0, kills: 0, gear: 0, mass: 0,
+        // Map design (docs/map-design.md). Counters rather than means,
+        // because the question they answer is a proportion and the sample
+        // sizes differ per floor.
+        spineMass: 0, sideKilled: 0, sideTotal: 0,
+        chestGood: [0, 0], chestBad: [0, 0], chestSpine: [0, 0],
       });
       row.reached++;
       if (lvl.outcome === 'died') row.died++;
@@ -152,6 +184,20 @@ export function descentCurve(options = {}) {
       // predicts duel cost. Lets a floor that came out soft be told apart
       // from a bot that played it well.
       row.mass += lvl.roster.reduce((sum, m) => sum + m.hp * Math.max(0, m.xp - 1), 0);
+
+      // Did the floor come out at the 70% the design asks for, and did the
+      // hero take the good gambles? Both are proportions, so they are
+      // accumulated as raw counts and divided once at the end.
+      for (const m of lvl.roster) {
+        const mass = m.hp * Math.max(0, m.xp - 1);
+        if (!m.side) row.spineMass += mass;
+        else { row.sideTotal++; if (m.dead) row.sideKilled++; }
+      }
+      for (const c of lvl.chests) {
+        const bucket = !c.side ? row.chestSpine : (c.edge > 0 ? row.chestGood : row.chestBad);
+        bucket[1]++;
+        if (c.opened) bucket[0]++;
+      }
     }
 
     if (onProgress) onProgress(i + 1, runs);
@@ -173,10 +219,38 @@ export function descentCurve(options = {}) {
     turns: +(row.turns / row.reached).toFixed(0),
     kills: +(row.kills / row.reached).toFixed(1),
     netChallenge: +(row.damage / row.capacity).toFixed(2),
+
+    // Share of the floor's threat mass on the mandatory route. The design
+    // asks for 0.70 and up; below that, reaching the shrine stops meaning
+    // fighting most of the floor.
+    spineShare: row.mass > 0 ? +(row.spineMass / row.mass).toFixed(2) : 1,
+    // How much of the optional threat the hero took on anyway.
+    sideCleared: row.sideTotal ? +((100 * row.sideKilled) / row.sideTotal).toFixed(0) : 0,
+    // THE OPEN QUESTION. Chests opened, split by whether the room's reward
+    // roll beat its risk roll. If the design works, `good` should sit
+    // clearly above `bad`; measured so far it does not, and the gap has
+    // never been more than about two standard errors from zero. `n` is
+    // there so significance can be judged instead of assumed.
+    chestGoodPct: pctOf(row.chestGood),
+    chestBadPct: pctOf(row.chestBad),
+    chestSpinePct: pctOf(row.chestSpine),
+    chestGoodN: row.chestGood[1],
+    chestBadN: row.chestBad[1],
   }));
+
+  // Pooled across every floor, because the question is about the design as a
+  // whole and no single floor ever has enough chests to answer it.
+  const good = floors.reduce((acc, r) => [acc[0] + r.chestGood[0], acc[1] + r.chestGood[1]], [0, 0]);
+  const bad = floors.reduce((acc, r) => [acc[0] + r.chestBad[0], acc[1] + r.chestBad[1]], [0, 0]);
 
   return {
     rows, runs, cleared, levels,
+    // Does the hero prefer the favourable detours? Positive gap means yes.
+    // Read `z` before reading `gap` — see compareRates.
+    discrimination: {
+      goodPct: pctOf(good), badPct: pctOf(bad),
+      ...compareRates(good, bad),
+    },
     depths: depths.slice().sort((a, b) => a - b),
     avgDepth: +(depths.reduce((a, b) => a + b, 0) / depths.length).toFixed(1),
     // Does the curve actually rise? The whole requirement in one number:
