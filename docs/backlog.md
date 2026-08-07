@@ -43,9 +43,10 @@ session, skip it.
 | 3 | M12 | Raise creature count and cluster size together, holding draws constant | map | work | READY · batch |
 | 4 | M14 | Put one top-tier-for-the-floor creature next to the shrine | map | work | READY · batch |
 | 5 | M15 | Give chests a creature nearby, spine included | map | work | READY · batch |
-| 6 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | READY |
-| 7 | E1 | Expose one resumable turn loop from src/sim so the four copies stop drifting | engine | work | READY |
-| 8 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | READY · M10 unblocked it |
+| 6 | X1 | Delete the ~1200 lines nothing references, and the pages of closed items | chore | work | READY · after the batch |
+| 7 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | READY |
+| 8 | E1 | Expose one resumable turn loop from src/sim so the four copies stop drifting | engine | work | READY |
+| 9 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | READY · M10 unblocked it |
 | — | M10 | Allocate cluster zones against the mass quota so side rooms stop emptying | map | work | **DONE** · live, unflagged |
 | — | M3 | Unlock the strength ceiling with small probability | map | work | **ARCHIVED** · pushes CV the wrong way |
 | — | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | **DONE** |
@@ -437,6 +438,68 @@ M12's, not this item's.
 
 **Assert.** Fraction of chests with a live creature within N tiles, at
 floors 1, 5, 10. It should be high and roughly flat with depth.
+
+
+## X1 · delete what nothing uses
+
+`chore` · `work agent` · **READY**
+
+Roughly 1200 lines of code and 400 of docs exist because nobody removed
+them. Each was built for a question that has since been answered or
+abandoned, and every one of them is a thing a future session has to read and
+decide is irrelevant.
+
+**Zero references anywhere — delete outright.**
+
+    src/analysis/features.js     170
+    src/analysis/winnable.js     109
+    src/analysis/power.js         61
+    src/bot/placeholder.js        43
+
+Verified with a grep across `src/`, `*.html` and `test/`. Re-verify before
+deleting rather than trusting this list.
+
+**Superseded and already declared so — delete with their pages.**
+
+    src/analysis/curve.js  +  run-curve.html
+    src/analysis/shape.js  +  run-shape.html
+
+`curve.js` prices clean 1v1 duels and read 0.23 on a floor that killed four
+heroes of seven; `CLAUDE.md` already says it is "kept only until curve.js
+goes". `shape.js` is built on `campaignCost`, which was retired for the same
+reason and replaced by `observed-ruler.js`.
+
+**One-off pages whose items are closed.**
+
+    run-cluster.html    served I2
+    run-i3.html         served I3
+
+The analysis modules they drive stay — `clustering.js` is still the source
+of the finishes and per-turn damage numbers.
+
+**Docs.**
+
+    docs/curve-shape.md              superseded twice, says so at the top
+    docs/clustering-i2.md            fold into project/decisions.md
+    docs/clustering-i3.md            fold into project/decisions.md
+
+Fold rather than delete: those two hold the actual write-ups for I2 and I3,
+and `decisions.md` is where closed work lives.
+
+**Do not touch.** `hardness.js` (run-lab uses it), `batch.js`,
+`clustering.js`, `observed-ruler.js`.
+
+**After the M11–M15 batch, not during.** That batch is editing `spawn.js`
+and `difficulty.js`; this touches `src/analysis/` and pages. They would not
+conflict, but a deletion commit landing between two behaviour commits makes
+a bisect harder to read if the batch turns out to have broken something.
+
+**Assert.** `run-tests.html` still green, `index.html` still plays a
+descent, `run-ruler.html` and `run-lab.html` still produce numbers. Nothing
+else — this item removes, it does not change behaviour.
+
+**If something turns out to be referenced after all, leave it and say so.**
+The list is a grep, not a proof.
 
 
 ---
