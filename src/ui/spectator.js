@@ -12,8 +12,9 @@ import { hashSeeds, seedFromString } from '../sim/rng.js';
 import { difficultyToParams } from '../sim/difficulty.js';
 import { makeBot } from '../bot/bot.js';
 import { dangerField } from '../bot/threat.js';
-import { buildGrid, renderFrame, renderHud, renderLog, renderHistory } from './render.js';
+import { buildGrid, renderFrame, renderHud, renderLog, renderHistory, renderScore } from './render.js';
 import { tileSvg } from './tiles.js';
+import { award, readScore, resetScore } from './score.js';
 
 const MAX_TURNS = 900;       // per floor
 const BASE_DELAY = 110;      // ms per turn at 1x
@@ -45,6 +46,7 @@ function grab() {
     'grid', 'hp', 'dmg', 'xpEarned', 'xpRate', 'steps', 'kills', 'inventory',
     'remaining', 'run', 'seed', 'tally', 'log', 'summary', 'summaryTitle',
     'summaryBody', 'playPause', 'speed', 'debug', 'goal', 'floor', 'history',
+    'score', 'resetScore',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -177,9 +179,19 @@ async function runForever(sessionSeed) {
 
 function tallyDescent(run) {
   session.runsPlayed++;
-  if (run.cleared) session.cleared++;
 
   const lastFloor = run.levels[run.levels.length - 1];
+  if (run.cleared) {
+    session.cleared++;
+    // Only a full clear pays — that gate is what keeps the rate formula
+    // from being maximised by dying early after a fast start. Total turns
+    // and final xpEarned both come straight from playDungeon's own
+    // per-floor records, not from anything the renderer tracked.
+    const totalTurns = run.levels.reduce((sum, level) => sum + level.turns, 0);
+    const score = award(lastFloor.xpEarned, totalTurns);
+    if (el.score) renderScore(el.score, score);
+  }
+
   session.history.unshift({
     run: session.runNumber,
     depth: run.depth,
@@ -268,6 +280,11 @@ function wireControls() {
     session.speed = speeds[(speeds.indexOf(session.speed) + 1) % speeds.length];
     el.speed.textContent = session.speed + '×';
   });
+
+  el.resetScore.addEventListener('click', () => {
+    if (!confirm('Reset the lifetime score? This cannot be undone.')) return;
+    renderScore(el.score, resetScore());
+  });
 }
 
 export function start() {
@@ -278,6 +295,10 @@ export function start() {
   // Half speed by default — easier to follow than the old 1x default.
   session.speed = 0.5;
   el.speed.textContent = '0.5×';
+
+  // Read before the first run so a returning visitor sees their past
+  // total immediately, not just after their next clear.
+  renderScore(el.score, readScore());
 
   // ?seed=whatever makes a whole session reproducible, which is how you go
   // back and look at a run the bot played badly.
