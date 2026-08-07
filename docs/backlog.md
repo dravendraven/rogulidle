@@ -59,9 +59,11 @@ its standing job, which is not a task and so has no row of its own.
 |---|---|---|---|---|---|---|
 | 1 | I5 | Does the probe under-read hp? Design says too hard, product says too easy | map | metrics | REPORTED | n/a |
 | 2 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | IN FLIGHT | — |
-| 3 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
-| 4 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
-| — | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | **DONE** · adopted provisionally | done |
+| 3 | I6 | Reward has no instrument, so M9 and M5 cannot be judged at all | map | metrics | READY · after I5 | n/a |
+| 4 | M9 | A t-rex and a rat pay the same loot — tie the drop to what you killed | map | work | BLOCKED on I6 | — |
+| 5 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
+| 6 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
+| — | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | **DONE** · built, flag OFF | done |
 | — | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | FOLDED into M7 | — |
 | — | M5 | Best item is axe +2, so no reward is ever an event | map | work | ON HOLD · no instrument | — |
 | — | I3 | Settle clustering's sign test; spike and CV wait for M2 to exist | map | metrics | **DONE** | n/a |
@@ -86,8 +88,8 @@ restarts. Do not pick up a PARKED item without the owner saying so.
 
 That leaves one loop, and it is deliberately serial:
 
-    work agent      M6 → M7 → then M4 and M3 only if still needed
-    ui agent        U1
+    work agent      M9 (waits on I6) → M7 → then M4 and M3 if still needed
+    metrics agent   I5 → I6
     metrics agent   I3 part 1, then re-run the ruler after EACH landing
 
 **M7 replaces the patch queue as the main route.** An audit of the map items
@@ -1321,6 +1323,74 @@ damage is `0..xp−1`. Near the top of the table one blow can take almost
 everything. The reaction window must shrink, not vanish — report the
 distribution of damage per blow, not its mean. The tail is what kills.
 
+## I6 · give reward an instrument
+
+`map` · `metrics agent` · **READY**
+
+Reward is the only quantity with no way to read it, and two items are stuck
+behind that: M9 and M5 both move reward and neither can be judged.
+
+**Why the probes cannot answer it.** Sonda B picks up only what it steps
+over and never detours, so its reward figure describes *its own policy*
+rather than what the floor holds. That is why `reward/challenge` reads flat
+and around 1% of challenge at every depth, and why reward has no row in the
+targets table. Recorded first as I1 review point 4 and never closed.
+
+**What is needed is a definition, and the definition is most of the work.**
+Two shapes, and choosing between them matters more than implementing either:
+
+- **What the floor contains** — sum the value of every chest and every drop
+  the floor holds, whether or not anyone takes it. A property of generation,
+  independent of any player, comparable across floors by construction.
+- **What is obtainable** — a third probe that detours for loot, so reward is
+  what a player willing to pay for it can actually get. Closer to the real
+  question, but reintroduces policy into the measurement.
+
+The first is cleaner and probably right for design work; the second answers
+"does descending pay", which is the ratio that was in the targets block.
+They may both be needed, as separate numbers with separate names, in which
+case say so rather than blending them.
+
+**Acceptance.** A reward figure that moves when the floor's contents move
+and does not move when only a policy changes. Report it per floor with its
+CV, alongside the existing challenge series so the ratio can be rebuilt.
+
+**Watch.** M9 makes drop value depend on the creature carrying it. Any
+definition that reads reward from the item table alone, without looking at
+who holds it, will be blind to exactly that change — which is the first
+thing this instrument will be asked to measure.
+
+## M9 · tie the drop to the creature that carries it
+
+`map` · `work agent` · **BLOCKED on I6** — the owner's preferred direction
+
+`spawn.js:359` draws a monster's drop from a table that never looks at the
+monster: `drawWeighted(state, 'spawn', monsterWeights)` ignores `template`.
+**Killing a t-rex and killing a rat pay the same expected loot.**
+
+In DCSS a monster's loot *is* its equipment — the orc warrior is dangerous
+because it carries an axe, and the axe is what you get. Risk and reward are
+the same object, so "is this fight worth it" is answerable by looking at the
+monster. Here the payment does not know what you killed.
+
+**And the share this affects grows with depth.** Chests are flat at 6 while
+drops scale with creature count:
+
+    floor 1     78% chest,  22% drop
+    floor 10    26% chest,  74% drop
+
+Every deliberate reward decision in the map design applies to **chests
+only** — so the designed channel shrinks to a quarter of the loot exactly
+where the design was meant to matter most, and the growing majority is
+undifferentiated. This is also the likeliest reason the probe reads
+`reward/challenge` as flat and about 1% of challenge: what it steps over
+deep down is mostly generic drop.
+
+Cheap to change — centre the drop's weight on the creature's own table index,
+the same way the creature itself is chosen. But it moves reward, and reward
+is the one quantity with **no instrument at all**; M5 is ON HOLD for exactly
+that reason. Building here means moving a number nobody can read.
+
 ## M4 · scale the side-room bonus with depth
 
 `map` · `work agent` · **READY** — fine tuning, only if M7 leaves a gap
@@ -2042,6 +2112,26 @@ protocol requires. It does not mean the rate is settled. If I5 finds the
 buffer target unreachable on this instrument, the target changes, not the
 game — and this rate gets re-read against whatever replaces it.
 
+### Adoption reversed — flag back OFF (owner)
+
+The reasoning above rested on M7 being next. It is not: the owner prefers
+M9, and with the order changed the case for keeping M6 live collapses.
+
+What it was buying: +0.095 of buffer, short of a target that **I5 may show
+is unreachable on this instrument anyway**. What it costs: 26 points of
+finishes, well outside its band. Holding a bound-breaking change live to
+serve as a baseline for work that is no longer next is not a trade worth
+making.
+
+This is the owner's call and it is better than the project agent's. "Adopt
+provisionally" was reasonable only under the sequence it assumed, and the
+sequence changed underneath it.
+
+Nothing about the mechanism is retracted — it works, it does what its spec
+asked, and the sweep behind it stands. `HP_FROM_KILLS` goes back to `false`
+and M6 waits on I5, which decides whether the target it missed was a real
+target at all.
+
 ---
 
 ## Candidates — recorded, not scheduled
@@ -2087,35 +2177,6 @@ was never written against.
 
 And it is the only candidate here that changes what is **seen**. Ten floors
 out of the same digger are visually monotonous.
-
-### M9 · tie the drop to the creature that carries it
-
-`spawn.js:359` draws a monster's drop from a table that never looks at the
-monster: `drawWeighted(state, 'spawn', monsterWeights)` ignores `template`.
-**Killing a t-rex and killing a rat pay the same expected loot.**
-
-In DCSS a monster's loot *is* its equipment — the orc warrior is dangerous
-because it carries an axe, and the axe is what you get. Risk and reward are
-the same object, so "is this fight worth it" is answerable by looking at the
-monster. Here the payment does not know what you killed.
-
-**And the share this affects grows with depth.** Chests are flat at 6 while
-drops scale with creature count:
-
-    floor 1     78% chest,  22% drop
-    floor 10    26% chest,  74% drop
-
-Every deliberate reward decision in the map design applies to **chests
-only** — so the designed channel shrinks to a quarter of the loot exactly
-where the design was meant to matter most, and the growing majority is
-undifferentiated. This is also the likeliest reason the probe reads
-`reward/challenge` as flat and about 1% of challenge: what it steps over
-deep down is mostly generic drop.
-
-Cheap to change — centre the drop's weight on the creature's own table index,
-the same way the creature itself is chosen. But it moves reward, and reward
-is the one quantity with **no instrument at all**; M5 is ON HOLD for exactly
-that reason. Building here means moving a number nobody can read.
 
 ## Archived
 
