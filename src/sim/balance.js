@@ -394,9 +394,18 @@ export const TACTICAL_OVERRIDE_MARGIN = 0.5;
 // until the turn limit. Seen in about one run in nine.
 //
 // DEFAULT 0 — it does NOT fix it. Sweeping 0 / 1.5 / 6 moved the reversal
-// rate only 0.238 -> 0.205 and cost a few points of win rate. The two-cycle
-// is a symptom and the cause is still unidentified; left as a dial so the
-// next attempt starts from measured ground rather than from a hunch.
+// rate only 0.238 -> 0.205 and cost a few points of win rate.
+//
+// LOCATED, bot-strategy §4.5: an extended trace (goal identity + which
+// layer actually chose the returned action) over two independent seed
+// families puts 61-64% of reversal episodes and turns on the TACTICAL
+// VETO overriding a STABLE goal, not on goal selection flipping (~7-11%).
+// A third, unnamed locus — the ROUTE to a stable goal alternating on its
+// own, veto never even consulted — accounts for another 14-21%, likely
+// fog-of-war revealing map on each step and flipping a tied-cost route.
+// This penalty sits in the right layer for the dominant case but was swept
+// as a flat hp cost against ANY reversal; it never distinguished "the veto
+// undid a real back-step" from "the veto turned a sideways plan into one".
 export const REVERSAL_PENALTY = 0;
 
 // GUESS — a fight is worth starting only while its EXPECTED cost stays

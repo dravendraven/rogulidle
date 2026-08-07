@@ -536,8 +536,27 @@ export function makeBot(options = {}) {
     // that the run has to end.
     // Debug hook: lets the spectator draw what the bot was thinking. Off
     // unless somebody asks — see run-tests / index.html debug mode.
+    //
+    // The entry is pushed here but finished below, at whichever return
+    // actually fires: `planned` is decided already, but the tactical veto
+    // (right below) can still overrule it, and which layer wins is exactly
+    // what a ping-pong investigation needs to see. `final`/`vetoed` stay
+    // undefined if the trace is read before this decide() call returns —
+    // callers that only care about the plan (the spectator) can keep
+    // ignoring them.
+    let traceEntry = null;
     if (settings.trace) {
-      settings.trace.push({ goal: { ...goal }, planned, turn: belief.turn });
+      traceEntry = {
+        goal: { ...goal },
+        // Stable across turns for the SAME target, so a reader can ask
+        // "is this the goal I had last turn" without comparing objects.
+        // Monsters/items/chests keep their id; a frontier or the shrine
+        // have none, so the tile stands in for one.
+        goalId: `${goal.kind}:${goal.id ?? key(goal.pos)}`,
+        planned,
+        turn: belief.turn,
+      };
+      settings.trace.push(traceEntry);
     }
 
     if (settings.tactical && monsterWithin(belief, field, TACTICAL_RANGE)) {
@@ -567,11 +586,13 @@ export function makeBot(options = {}) {
           }
         }
         lastAction = bestAction;
+        if (traceEntry) { traceEntry.final = bestAction; traceEntry.vetoed = bestAction !== planned; }
         return bestAction;
       }
     }
 
     lastAction = planned;
+    if (traceEntry) { traceEntry.final = planned; traceEntry.vetoed = false; }
     return planned;
   };
 }

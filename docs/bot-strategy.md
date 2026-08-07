@@ -616,6 +616,105 @@ o custo cresce rápido. Vale mais atacar o problema de raio longo (genie,
 vampiro) na camada estratégica, decidindo *onde* travar a luta, do que
 simular fundo.
 
+### 4.5 Onde o ping-pong nasce: veto tático, não escolha de objetivo
+
+`REVERSAL_PENALTY` (balance.js) documentava a causa como **não
+identificada**, depois de uma tentativa de conserto que varreu 0 / 1,5 / 6 e
+moveu a taxa de reversão só de 0,238 para 0,205, custando vitórias no
+caminho. A questão em aberto era em qual **camada** o loop nasce:
+
+```
+objetivo ALTERNANDO junto com o passo  → nasce na ESCOLHA DE OBJETIVO
+objetivo ESTÁVEL e só o passo alterna  → nasce no VETO TÁTICO
+```
+
+O remédio que já falhou mora no veto — evidência fraca a favor da primeira,
+não prova.
+
+**Instrumentação.** O hook `trace` (bot.js) gravava `goal` e `planned` antes
+do veto tático decidir, então nunca capturava a ação **de fato** tomada
+quando o veto discordava do plano. Estendido para gravar também `final` (o
+que `decide()` de fato retorna) e `vetoed` (`final !== planned`), sem mudar
+nenhuma decisão — só grava mais no array que o chamador já passava.
+
+**Método.** Definição de reversão = a mesma que `REVERSAL_PENALTY` já usa:
+`final[t] === OPPOSITE[final[t-1]]`, sobre a ação **final**, não a
+planejada. Um episódio é uma janela maximal de ≥4 ações alternando
+estritamente A,B,A,B,... Para cada episódio, classifiquei pela identidade do
+objetivo (`goalId`, estável entre turnos para monstro/item/baú via seu id;
+posição do tile para fronteira/santuário) e por quantos turnos o veto
+disparou:
+
+```
+goalChanges == 0  e  vetoed nunca dispara  e  planned já alterna sozinho
+    → ROTEAMENTO (terceira camada, não prevista pela bifurcação)
+
+goalChanges == 0  e  vetoed domina os turnos do episódio
+    → VETO TÁTICO
+
+goalChanges  > 0  e  vetoed nunca dispara
+    → ESCOLHA DE OBJETIVO
+```
+
+**Medido, duas famílias de seeds independentes** (a segunda nunca usada para
+ajustar nada acima):
+
+```
+                        primária (n=60)      confirmação (n=60, seeds novas)
+floors com episódio     20,1%                 21,8%
+taxa de reversão geral  0,174                 0,210
+
+                episódios          turnos gastos          comprimento médio
+veto tático     61%                62%                    13,1
+roteamento      15%                14%                    12,8
+objetivo        11%                10%                     8% (turnos)
+outro/misto     13%                14%                    —
+```
+
+(percentuais de turnos e episódios batem entre si dentro de cada categoria
+nas duas famílias; a tabela acima resume as duas rodadas — números completos
+na medição.)
+
+**Resposta à bifurcação: veto tático, dominante e consistente.** Não
+escolha de objetivo. ~61-64% dos episódios e dos turnos perdidos vêm de
+`scoreActions` derrubando o plano de um lado para o outro enquanto o
+objetivo estratégico fica **parado no mesmo alvo** o episódio inteiro —
+tipicamente uma fronteira, às vezes por 14+ turnos seguidos. Isso explica
+por que `REVERSAL_PENALTY` quase não moveu a agulha: ele ataca o sintoma
+certo (desfazer o passo anterior), mas dentro da camada errada de contexto —
+o padrão observado não é "ataca, recua, ataca, recua" como o comentário
+original supunha, é o veto alternando entre duas direções **perpendiculares**
+do plano (ex.: `up`/`right`) e convertendo uma delas (`right`) na sua
+**oposta** (`down`), fabricando a reversão a partir de um plano que sozinho
+nunca teria sido classificado como reversão.
+
+**Escolha de objetivo é real, mas minoritária (~7-11%).** A suspeita
+registrada na tarefa se confirma como mecanismo, só não como causa
+dominante: baú/item são reavaliados do zero todo turno (`chooseGoal` passo
+1, sem o amortecimento de `GOAL_STICKINESS`, que só cobre `kind === 'monster'`
+— bot.js §"Stick with the current target"), então dois alvos de valor líquido
+próximo trocam de lugar no ranking a cada passo, porque o passo em direção a
+um muda a distância dos dois. Episódios deste tipo mostram `goalId`
+alternando entre exatamente dois baús, a cada turno, sem o veto nunca
+disparar.
+
+**Uma terceira camada que a bifurcação não previa (~14-21%): roteamento.**
+Objetivo **parado** no mesmo baú, veto **nunca** chega a disparar (nenhum
+monstro por perto), e ainda assim `planned` alterna sozinho entre duas
+direções opostas por até 17 turnos seguidos. A hipótese mais provável, a
+confirmar: `believedWalkable` trata tile nunca visto como andável
+(deliberado — é o que permite mirar no escuro), então o caminho mais barato
+até um baú fixo muda conforme o fog-of-war revela mais mapa a cada passo —
+duas rotas de custo empatado sob incerteza podem trocar de lugar puramente
+por causa do que acabou de ser visto, sem o objetivo nem o veto participarem
+da decisão.
+
+**Consequência prática.** Um conserto para este bug pertence ao veto tático
+(`scoreActions`/`bestValue` em tactics.js, ou a forma como o penalty de
+reversão é aplicado ali), não a `chooseGoal`. Mas resolver só o veto deixa
+de fora 14-21% dos episódios — o bloco de roteamento — que nasce antes de o
+veto ser sequer consultado.
+
 ### A incerteza que sobra, e como medi-la
 
 Duas fontes, nenhuma precisando de constante mágica:
