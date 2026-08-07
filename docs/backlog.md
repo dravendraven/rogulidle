@@ -25,7 +25,7 @@ its standing job, which is not a task and so has no row of its own.
 
 | # | id | what and why | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
-| 1 | I7 | The probe survives because it is huge — that dilutes capacity and hides selection | map | metrics | READY · now | n/a |
+| 1 | I7 | The probe survives because it is huge — that dilutes capacity and hides selection | map | metrics | IN FLIGHT | n/a |
 | 2 | I6 | Reward has no instrument, so M9 and M5 cannot be judged at all | map | metrics | READY | n/a |
 | 3 | M3 | Spike never rose — M7 raised lethality by attrition, not by a bigger hit | map | work | READY · the gap M7 left | — |
 | 4 | M9 | A t-rex and a rat pay the same loot — tie the drop to what you killed | map | work | BLOCKED on I6 | — |
@@ -154,7 +154,7 @@ map change made by the work agent.
 
 ## I7 · separate immortality from starting hp
 
-`map` · `metrics agent` · **READY**
+`map` · `metrics agent` · **IN FLIGHT**
 
 The probe survives **because** it carries 400 hp, which welds two
 independent things together and costs two different measurements.
