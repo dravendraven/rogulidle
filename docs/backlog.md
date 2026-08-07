@@ -57,12 +57,12 @@ its standing job, which is not a task and so has no row of its own.
 
 | # | id | what and why | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
-| 1 | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | REPORTED · blocker fixed | REPORTED |
-| 2 | I5 | Ruler cannot see buffer past floor 6, and M6 moves the window it is measured in | map | metrics | IN FLIGHT · window closed, main question open | n/a |
-| 3 | U1 | The screen plays one synthetic floor, not the descent everything is designed around | product | ui | IN FLIGHT | n/a |
-| 4 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | READY · the main route | — |
-| 5 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
-| 6 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
+| 1 | I5 | Does the probe under-read hp? Design says too hard, product says too easy | map | metrics | IN FLIGHT · now the highest-value item | n/a |
+| 2 | U1 | The screen plays one synthetic floor, not the descent everything is designed around | product | ui | IN FLIGHT | n/a |
+| 3 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | READY · the main route | — |
+| 4 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
+| 5 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
+| — | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | **DONE** · adopted provisionally | done |
 | — | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | FOLDED into M7 | — |
 | — | M5 | Best item is axe +2, so no reward is ever an event | map | work | ON HOLD · no instrument | — |
 | — | I3 | Settle clustering's sign test; spike and CV wait for M2 to exist | map | metrics | **DONE** | n/a |
@@ -1551,7 +1551,7 @@ attempting a fifth.
 
 ## M6 · defensive progression
 
-`map` · `work agent` · **REPORTED** — decided, see "The decision" below
+`map` · `work agent` · **DONE** — adopted provisionally, see Review 2 at the end
 
 Progression is **entirely offensive**, and the value table says why:
 
@@ -1887,6 +1887,63 @@ stands, per review 1's ruling. No new option was needed for this fix.
 
 Did not start M7. Status left at REPORTED — the verdict on whether any rate
 can be adopted is the owner's, not mine to close out.
+
+### Review 2 — verdict and decision. ADOPTED, provisionally
+
+Against the targets, using I5's paired numbers over the common window
+(floors 1–6, 1500 descents per arm):
+
+    challenge, CV      unmoved to the digit    constraint HELD
+    challenge/power    1.386 → 1.171           bound ≥1.15, passes narrowly
+    buffer             0.863 → 0.958           goal ≥1.00, MISSED by 0.042
+    finishes           30.7% → 56.7%           bound 15–40%, BLOWN by 17 pts
+
+**Decision: adopt at the shipped rate — 1 hp per 2 kills, flag ON.** Four
+things behind that.
+
+**1. No rate satisfies both criteria, so "pick a safer rate" is not
+available.** The sweep is decisive: at 0.125 hp/kill the buffer does not
+move at all (z = 0.32) and finishes is *already* at 44.7%, outside the band.
+Every tested rate breaks the bound. The choice is not where to sit on a
+trade-off curve; it is whether to have defensive progression at all, and
+that was decided.
+
+**2. The small rates are strictly worse, and this inverts the usual
+instinct.** Finishes moves even where buffer does not. A cautious grant
+therefore pays the full price in finishes and buys nothing on the goal.
+**If you are going to pay, pay for something** — ship the rate that at least
+moves the number it exists to move, or ship none at all.
+
+**3. The band is knowingly violated, and deliberately not widened.** Moving
+a bound to fit the result it just failed is the exact failure this file
+guards against, and the band would be moved on no evidence at all — it was
+invented before any measurement existed. M7 is next and changes where
+difficulty comes from, which moves finishes, plausibly downward. **Judge the
+bound after M7, on evidence.** If finishes is still above 40% then, the band
+gets revisited as a decision rather than as a convenience.
+
+**4. The buffer target is now suspect, and that is my error to own.** I set
+≥1.00 from a probe measurement without knowing the probe under-reads this
+lever. The same grant produced **+0.095 of buffer on the probe and +26
+points of finishes on the real bot**. The dumb probe cannot exploit extra hp
+the way a competent bot can, so a grant large enough to push probe-buffer to
+1.00 would put finishes somewhere absurd.
+
+That leaves an incoherence worth stating plainly: the design reads "still
+too hard" (buffer falling) while the product reads "too easy" (finishes 57%)
+**at the same time**. Both cannot be true. One of the two instruments is
+mis-describing the game, and until that is settled, buffer ≥1.00 is not a
+target anyone should chase.
+
+**This is I5's open question and it is now the highest-value thing on the
+metrics lane** — higher than it was when I wrote it, because a decision has
+just been taken on a number it may invalidate.
+
+**Adoption is provisional in a specific sense**: the flag goes on so M7 is
+measured against a baseline that includes it, which is what the serial
+protocol requires. It does not mean the rate is settled. If I5 finds the
+buffer target unreachable on this instrument, the target changes, not the
+game — and this rate gets re-read against whatever replaces it.
 
 ---
 
