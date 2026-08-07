@@ -45,9 +45,10 @@ session, skip it.
 | 5 | M14 | One top-tier-for-the-floor creature next to the shrine | REPORTED |
 | 6 | M15 | Chests get a creature nearby, spine included | REPORTED |
 | 7 | M16 | Bigger rooms, shorter corridors | REPORTED |
-| 8 | X1 | Delete what nothing references | READY |
-| 9 | M4 | Side-room risk/reward spread scales with depth | READY |
-| 10 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 8 | M17 | Near-flat roster, ~5 to ~8, with strength carrying the difficulty | READY |
+| 9 | X1 | Delete what nothing references | READY |
+| 10 | M4 | Side-room risk/reward spread scales with depth | READY |
+| 11 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 **I8 first, and it runs alongside everything else** — different agent,
 different files, and it is what the batch gets checked with when it lands.
@@ -739,6 +740,68 @@ M3's tests asserted a property rather than a number.
 `CORRIDOR_LENGTH` was FAITHFUL at `[1,5]` and is now `[1,3]`, recorded as a
 deliberate divergence in `rogule-spec.md` §13.10. Correct handling — it is a
 rule change and it went where rule changes go.
+
+## M17 · a near-flat roster, with strength carrying the difficulty
+
+`work agent` · **READY**
+
+Today the descent goes `2, 2, 3, 4, 4, 5, 7, 8, 10, 12` — floor 1 is nearly
+empty and floor 10 is a crowd. Try the opposite: **about 5 creatures on
+floor 1 and about 8 on floor 10**, with the difficulty coming from what they
+are rather than how many.
+
+**This is the third attempt at this axis** and the two before it are why it
+might work now. It was archived once because count→strength alone never
+fixed the CV — the only setting that did left two creatures on every floor.
+It came back as M7 with clustering filling that gap. What has landed since
+then changes the ground again: clusters exist, the tier floor rises with
+depth so deep floors no longer draw rats, and rooms are 64% bigger with
+somewhere to put things.
+
+**The arithmetic, so the budget is not broken by accident.** Total challenge
+growth holds at ~1.34 per floor, and the two levers trade as
+`count × strength^2.356`:
+
+    count   5 → 8 over ten floors   = ×1.053 per floor
+    so strength must carry          1.34 / 1.053 = ×1.273
+    which is a strength growth of   1.273^(1/2.356) = ×1.108 per floor
+
+`MONSTERS_BASE` goes 2 → 5 and `MONSTER_GROWTH_REBALANCED` 1.22 → ~1.053.
+That **replaces** M12's setting rather than adding to it.
+
+**Why it might be better than what is there.** The CV decay from count is
+`1/√growth` — today `1/√1.22 = 0.905`, at 1.053 it is `0.974`. Almost all of
+the dilution M7 was built to fight simply stops existing. And floor 1 stops
+being empty, which is half of what M12 was for and the half it could not
+reach from a base of 2.
+
+It also makes M15 work: five creatures against six chests can plausibly
+guard them; two cannot, which is exactly why floor-1 coverage sat at 56%.
+
+**The risk, and it is the one to measure.** Strength has to carry ×1.108 per
+floor across an 11-row table, ending near 0.885 of it. The top floors would
+all draw from the same narrow band — every deep creature a dragon or a
+t-rex — and **variety within a floor could fall even as variety between
+floors improves**. Those pull opposite ways and only one of them is what
+the CV number sees.
+
+Report the tier spread within a floor at 1, 5 and 10, not just the mean.
+
+**Second risk: floor 1 gets 2.5× more crowded.** Against a 10 hp hero with
+one axe. Whether that is a real opening or a wall is not something the
+arithmetic answers.
+
+**Assert.**
+- Creatures per floor at 1, 5, 10 — roughly 5, 6, 8.
+- Challenge growth still ~1.34 ±0.03. If it moves, the budget was not held
+  and nothing else in the report is interpretable.
+- Tier spread within a floor, at 1, 5, 10.
+- Where the strength curve saturates the table, by floor.
+
+**Do not adopt it because the arithmetic works.** This one is a genuine
+question — the last two attempts at it both looked right on paper and both
+were wrong in a way nobody predicted. Build it, look at `run-check.html`,
+and watch a few runs before deciding.
 
 ## X1 · delete what nothing uses
 
