@@ -399,6 +399,15 @@ export function botFinishesAndSpike(options = {}) {
   let cleared = 0;
   const allTurnDamage = [];
   const perLevel = Array.from({ length: levels }, () => []);
+  // M7 review 2: the pooled p95/p99 above are dominated by walking turns —
+  // the overwhelming majority of a descent is not combat, so p95=0 mostly
+  // says "most turns aren't a fight," not "the fights are gentle." These
+  // two mirror the pooled ones but condition on `adjacent >= 1` (at least
+  // one live monster next to the player that turn) — cheap, since `turns`
+  // already carries `adjacent` per turn from playFromState, no replay
+  // needed.
+  const allTurnDamageAdjacent = [];
+  const perLevelAdjacent = Array.from({ length: levels }, () => []);
 
   for (let i = 0; i < runs; i++) {
     let carry = null;
@@ -429,6 +438,10 @@ export function botFinishesAndSpike(options = {}) {
       for (const t of turns) {
         allTurnDamage.push(t.dmg);
         perLevel[level - 1].push(t.dmg);
+        if (t.adjacent >= 1) {
+          allTurnDamageAdjacent.push(t.dmg);
+          perLevelAdjacent[level - 1].push(t.dmg);
+        }
       }
 
       if (endState.outcome !== 'ascended') { carry = null; break; }
@@ -448,6 +461,18 @@ export function botFinishesAndSpike(options = {}) {
       p99: percentile(allTurnDamage, 0.99),
     },
     perLevel: perLevel.map((xs, i) => ({
+      level: i + 1, n: xs.length, p95: percentile(xs, 0.95), p99: percentile(xs, 0.99),
+    })),
+    // Conditioned on a live monster adjacent that turn — see the note above
+    // allTurnDamageAdjacent. `n` here is turns-in-a-fight, not turns overall,
+    // so it is far smaller than `pooled.n` by construction; that shrink is
+    // the point, not a defect.
+    pooledAdjacent: {
+      n: allTurnDamageAdjacent.length,
+      p95: percentile(allTurnDamageAdjacent, 0.95),
+      p99: percentile(allTurnDamageAdjacent, 0.99),
+    },
+    perLevelAdjacent: perLevelAdjacent.map((xs, i) => ({
       level: i + 1, n: xs.length, p95: percentile(xs, 0.95), p99: percentile(xs, 0.99),
     })),
   };

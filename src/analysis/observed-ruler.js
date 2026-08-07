@@ -60,6 +60,8 @@ import { newGame, playGame } from '../sim/game.js';
 import { playDungeon, floorPlan, LEVELS } from '../sim/dungeon.js';
 import { hashSeeds } from '../sim/rng.js';
 import { findPath } from '../sim/mapgen.js';
+import { step } from '../sim/step.js';
+import { observe, emptyBelief, foldBelief } from '../sim/observe.js';
 import { effectiveHp, expectedDamage, weaponDamage } from '../sim/combat.js';
 import { PLAYER_HP, PLAYER_XP } from '../sim/balance.js';
 import {
@@ -491,20 +493,126 @@ function driveDescent(seed, makePolicy, startHero, maxTurns, levels, dungeonOpti
   return { levels: perFloor, cleared: true, depth: levels };
 }
 
+// ***** I7 — capacity at the MORTAL series' own base ***** //
+//
+// I5's capacity used `PROBE_HERO` (400 hp) so the probe would never die —
+// but that welds two independent things into one number: immortality AND
+// a 400-hp base. A growth rate is not scale-invariant (the same +42 hp
+// grant reads ~×1.011/floor on 400 and ~×1.20/floor on a real hero's 10),
+// so capacity's own rate was mostly an artefact of the instrument's size,
+// and subtracting it from the mortal series (`builtShape`, base
+// `PLAYER_HP`) mixed that dilution in with the survivor-selection effect
+// I5 was trying to isolate — unattributably, since the two series differed
+// in mortality AND base at once.
+//
+// The fix: start at `PLAYER_HP`, same as the mortal series, and suppress
+// DEATH ONLY — not damage. `step()` (src/sim/step.js) freezes a floor the
+// instant `state.outcome` is set, which is exactly what stops a mortal run;
+// there is no flag for "keep playing after hp hits 0" because nothing
+// needed one before. Rather than ask the work agent to add a suppression
+// flag to `src/sim/combat.js` and wait, this drives `step()` directly, one
+// turn at a time (same move as `clustering.js`'s `playFromState`, built for
+// I2), and clears `outcome` back to null the instant it reads 'died' —
+// BEFORE the next `step()` call, which is the only place the engine checks
+// it. Everything else about that turn already happened: `applyDamage`
+// clamps hp at 0 without touching the LOGGED blow size, so attrition keeps
+// accumulating normally even after hp cannot fall any further — the probe
+// really does "reach hp 0 and keep going," not stop losing hp, which is
+// what makes the two series subtractable at all.
+function driveDescentSuppressed(seed, makePolicy, startHero, maxTurns, levels, dungeonOptions = {}, floorPlanFn = floorPlan) {
+  let carry = startHero ? carryFromPlayer(startHero) : null;
+  const perFloor = [];
+
+  for (let level = 1; level <= levels; level++) {
+    const plan = floorPlanFn(level);
+    const counts = {
+      monsters: plan.monsters,
+      chests: plan.chests,
+      difficultyScale: plan.difficultyScale,
+      clusterSize: plan.clusterSize,
+      dropChance: plan.dropChance,
+      weaponScarcity: plan.weaponScarcity,
+      armourScarcity: plan.armourScarcity,
+      potionScarcity: plan.potionScarcity,
+      monsterSpread: plan.monsterSpread,
+      sideActivationCap: plan.sideActivationCap,
+      sideRoomDepthBonus: plan.sideRoomDepthBonus,
+      spineThreatShare: plan.spineThreatShare,
+      sideChestBias: plan.sideChestBias,
+      carry,
+      xpFromKills: dungeonOptions.xpFromKills,
+      hpFromKills: dungeonOptions.hpFromKills,
+      attackWhenAdjacent: dungeonOptions.attackWhenAdjacent,
+      weaponsWidenRoll: dungeonOptions.weaponsWidenRoll,
+    };
+
+    const arrivedWith = carry
+      ? carryFromPlayer(carry)
+      : {
+        hp: PLAYER_HP, hpMax: PLAYER_HP, armour: 0, xp: PLAYER_XP, inventory: [], kills: [],
+      };
+
+    let state = newGame(hashSeeds(seed, level), counts);
+    let observation = observe(state);
+    let belief = foldBelief(emptyBelief(), observation);
+    const policy = makePolicy();
+    let decisions = 0;
+    const maxDecisions = maxTurns * 4;
+    let damage = 0;
+    let diedCount = 0; // how many times this floor suppressed a death — reported, not hidden
+
+    while (!state.outcome && state.turn < maxTurns && decisions < maxDecisions) {
+      const beforeLog = state.log.length;
+      const action = policy(belief, observation);
+      const result = step(state, action);
+      let next = result.state;
+
+      damage += next.log.slice(beforeLog)
+        .filter((e) => e.type === 'attack' && e.target === 'player')
+        .reduce((sum, e) => sum + e.damage, 0);
+
+      if (next.outcome === 'died') {
+        diedCount++;
+        next = { ...next, outcome: null, killedBy: null };
+      }
+      state = next;
+      observation = observe(state); // re-derive from the corrected state, not result.observation
+      belief = foldBelief(belief, observation);
+      decisions++;
+    }
+
+    perFloor.push({
+      level, arrivedWith, damage, diedCount, outcome: state.outcome || 'timeout',
+    });
+
+    // 'died' cannot reach here (suppressed above); only 'ascended' or a
+    // genuine timeout stop the sequence.
+    if (state.outcome !== 'ascended') return { levels: perFloor, cleared: false, depth: level };
+    carry = carryFromPlayer(state.player);
+  }
+  return { levels: perFloor, cleared: true, depth: levels };
+}
+
 export function capacityShape(options = {}) {
   const {
     runs = 150, firstSeed = 950000, maxTurns = 4000, levels = LEVELS,
     dungeonOptions = {}, floorPlanFn = floorPlan,
+    // I7: default unchanged (PROBE_HERO, no suppression needed since it
+    // never dies) so every number already committed reproduces exactly.
+    // Pass `startHero: <PLAYER_HP hero>, suppressDeath: true` to read
+    // capacity at the mortal series' own base instead.
+    startHero = PROBE_HERO, suppressDeath = false,
   } = options;
 
   const rows = Array.from({ length: levels }, (_, i) => ({
-    level: i + 1, power: [], hpMax: [], reached: 0,
+    level: i + 1, power: [], hpMax: [], reached: 0, died: 0,
   }));
   const depths = [];
   let cleared = 0;
+  const drive = suppressDeath ? driveDescentSuppressed : driveDescent;
 
   for (let i = 0; i < runs; i++) {
-    const result = driveDescent(firstSeed + i, makeSondaPolicy, PROBE_HERO, maxTurns, levels, dungeonOptions, floorPlanFn);
+    const result = drive(firstSeed + i, makeSondaPolicy, startHero, maxTurns, levels, dungeonOptions, floorPlanFn);
     depths.push(result.depth);
     if (result.cleared) cleared++;
 
@@ -513,6 +621,7 @@ export function capacityShape(options = {}) {
       row.reached++;
       row.power.push(heroPower(lvl.arrivedWith));
       row.hpMax.push(lvl.arrivedWith.hpMax);
+      if (lvl.diedCount) row.died++;
     }
   }
 
@@ -522,6 +631,10 @@ export function capacityShape(options = {}) {
       reached: r.reached,
       power: summarise(r.power),
       hpMax: summarise(r.hpMax),
+      // Only meaningful under suppressDeath — how many of the descents that
+      // REACHED this floor had already had a death suppressed getting
+      // there. 0 always under the default (PROBE_HERO never dies).
+      diedBeforeOrOn: r.died,
     })),
     cleared,
     runs,

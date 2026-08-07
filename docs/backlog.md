@@ -28,7 +28,7 @@ repeating it in the table only made the queue slower to scan.
 
 | # | id | what gets done | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
-| 1 | I7 | Measure capacity with death suppressed at PLAYER_HP, not on a 400 hp probe | map | metrics | IN FLIGHT | n/a |
+| 1 | I7 | Measure capacity with death suppressed at PLAYER_HP, not on a 400 hp probe | map | metrics | REPORTED | n/a |
 | 2 | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | READY | n/a |
 | 3 | M3 | Unlock the strength ceiling with small probability, so a rare blow can be huge | map | work | REPORTED | — |
 | 4 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | BLOCKED on I6 | — |
@@ -157,7 +157,7 @@ map change made by the work agent.
 
 ## I7 · separate immortality from starting hp
 
-`map` · `metrics agent` · **IN FLIGHT**
+`map` · `metrics agent` · **REPORTED**
 
 The probe survives **because** it carries 400 hp, which welds two
 independent things together and costs two different measurements.
@@ -192,6 +192,77 @@ until they share a base.
 must still take blows and still spend hp, or attrition disappears from the
 capacity arm and the two series stop being subtractable. It should reach hp
 0 and keep going, not stop losing hp.
+
+### Result
+
+Measured at commit `8eb8c39`. Full numbers and the reliable-window table are
+in `docs/kpi.md` under "I7 — capacity at the mortal series' own base"; this
+is the summary.
+
+**Built it as a new driver, not a flag on the old one.** `driveDescent`
+calls `playGame` once per floor, which runs a floor to completion
+internally and cannot be interrupted mid-death. Suppression needs a per-turn
+hook, so this is a second function, `driveDescentSuppressed`, that drives
+`step()` directly — same pattern `clustering.js`'s `playFromState` already
+used for I2 — and clears `state.outcome`/`killedBy` back to null the instant
+it reads `'died'`, before the next `step()` call, which is the only place
+the engine checks it. `applyDamage` clamps hp at 0 without touching the
+logged blow size, so attrition kept accumulating correctly straight through
+— checked directly: `diedBeforeOrOn` rose from 14/150 at floor 1 to 142/150
+by floor 10, and hp really does sit at 0 and keep taking hits rather than
+stopping. `capacityShape` gained two options, default-off
+(`suppressDeath`, `startHero`) — omitting both reproduces every number
+already committed exactly, so nothing upstream broke.
+
+**Same base confirmed the right way:** passing `startHero: null` gives
+`carry = null` on floor 1, which is the exact code path `builtShape` already
+uses for the mortal series (no synthetic hero object, just the engine's own
+default start) — not a hand-built "PLAYER_HP hero" that might drift from
+what the mortal series actually starts with.
+
+**The selection effect, as a number:** gap = mortal power − capacity power,
+same base, same flags. Not distinguishable from zero at floor 2
+(z = −0.41). Clears this project's 2σ bar at floor 3 (z = 2.12) and is
+unambiguous at floor 4 (z = 3.30) — the last floor with ≥50 survivors on
+both sides; floor 5 is bigger still (+4.95) but the mortal arm only has 33
+survivors there, below `MIN_RELIABLE_N`, so it's a footnote. As a rate over
+the reliable window: capacity shrinks at ×0.842/floor, survivors hold flat
+at ×0.988/floor, ratio ×1.17/floor.
+
+**What surprised me:** that ratio lands almost exactly on I5's original
+×1.19/floor — the number that was declared unattributable because it mixed
+selection with base dilution. Turns out dilution was a minor contaminant of
+that estimate, not the dominant one; removing it barely moved the number.
+I expected the fix to matter more than it did.
+
+**What I could not resolve:** capacity and attrition still cannot be
+compared to each other, same base or not — attrition is only defined for a
+hero that can actually die, and a suppressed-death hero has none to give.
+`docs/kpi.md` says this explicitly now. That was never this item's
+acceptance criteria (it asks for the selection effect, not an
+attrition/capacity subtraction), so it isn't a gap in what was delivered,
+just a boundary worth stating plainly rather than letting someone assume
+I7 closed it.
+
+**Scope note — M7 was adopted mid-task.** Commit `25f45a1` landed
+`DIFFICULTY_REBALANCED = true` while I7 was in flight, so every number above
+is against the *current* shipped default, not the pre-adoption state I7 was
+originally spec'd against. This doesn't change what I7 measures (capacity
+vs. mortal, same base, either way) but it does mean "M7 off" no longer
+describes anything shipped — noted in `kpi.md` so the Objective 1 table's
+`f42f085` columns aren't mistaken for live state.
+
+**Optional, from M7 review 2 (cheap, so done; not I7's own acceptance):**
+p95/p99 of per-turn damage conditioned on a live monster being adjacent that
+turn, added to `botFinishesAndSpike` in `clustering.js` since `playFromState`
+already tracks `adjacent` per turn — no replay needed. Pooled unconditioned
+stays flat (p95 = 0, p99 = 1) exactly as M7's review reported; conditioned on
+`adjacent ≥ 1` it moves to p95 = 1, p99 = 3 on about 15% of all turns played.
+The flat pooled number was walking-turn dilution, not a flat hit
+distribution. Whether that settles M3 is the reviewer's call, not mine — I
+did not re-run the old-vs-new comparison M7's review was asking about, since
+M7 adoption already made "old" not the shipped state, and re-deriving it is
+outside what was cheap here.
 
 ## I6 · give reward an instrument
 
