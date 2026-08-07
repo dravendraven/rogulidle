@@ -5,7 +5,10 @@
 // depends on how long it takes to kill, so a wolf and an ogre share xp 4
 // while the ogre costs about half again as much.
 
-import { KILLS_PER_XP, MONSTER_SKIP_CHANCE, XP_FROM_KILLS } from '../sim/balance.js';
+import {
+  CROWD_COST_BASE, CROWD_COST_EXPONENT, KILLS_PER_XP, MONSTER_SKIP_CHANCE,
+  XP_FROM_KILLS,
+} from '../sim/balance.js';
 import { effectiveHp, expectedDamage, weaponDamage } from '../sim/combat.js';
 
 // Monsters carry no inventory, so they never get a weapon bonus — the item
@@ -42,7 +45,18 @@ export function duelCost(player, monster) {
 // true regardless, which quietly credited the hero with levelling up
 // mid-campaign after xp growth had been switched off — making every cost
 // this produced optimistic.
-export function campaignCost(player, monsters, growsXp = XP_FROM_KILLS) {
+// How much the clean-duel sum under-states a real crowd. See balance.js —
+// measured, structured, and the reason the count-vs-strength sweep was
+// invalid. One `pow` per call, against an O(n^2) loop: free.
+export function crowdFactor(count, on = true) {
+  if (!on || count <= 0) return 1;
+  return CROWD_COST_BASE * Math.pow(count, CROWD_COST_EXPONENT);
+}
+
+// `crowd` is a flag rather than a constant so the correction can be A/B'd
+// against the model it replaces. OFF reproduces every number measured
+// before it exactly.
+export function campaignCost(player, monsters, growsXp = XP_FROM_KILLS, crowd = true) {
   let xp = player.xp;
   let kills = player.kills ? player.kills.length : 0;
   let total = 0;
@@ -62,5 +76,8 @@ export function campaignCost(player, monsters, growsXp = XP_FROM_KILLS) {
     kills++;
     if (growsXp && kills % KILLS_PER_XP === 0) xp++;
   }
-  return total;
+  // The correction lands here and not inside the loop on purpose: the
+  // per-duel maths is not what is wrong, the assumption that duels happen
+  // one at a time is.
+  return total * crowdFactor(monsters.length, crowd);
 }

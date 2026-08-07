@@ -70,6 +70,67 @@ Measured with these, 12 dungeons: 4 cleared, depths 2, 2, 2, 4, 5, 7, 7, 8,
 floor 10 — the hero builds up and is worn away, which is the arc worth
 having.
 
+## Crowd correction — the cost model under-prices numbers
+
+> ⚠️ **The ruler changed here.** Every challenge/cost figure recorded ABOVE
+> this section, and in `docs/curve-shape.md`, was measured with the
+> uncorrected model. They are **pre-change** and are not comparable with
+> anything measured after it. Do not read a new measurement against them.
+
+| Name | Value | Status |
+|---|---|---|
+| `CROWD_COST_BASE` | 1.32 | **INITIAL GUESS** |
+| `CROWD_COST_EXPONENT` | 0.106 | **INITIAL GUESS** |
+
+```
+campaignCost(roster) *= CROWD_COST_BASE × roster.length ^ CROWD_COST_EXPONENT
+```
+
+Applied to `campaignCost` only, **never to `duelCost`**. The one-on-one model
+is right; what is wrong is the sum.
+
+### The error, measured
+
+A hero with 400 hp — so nothing is selected by dying — dropped into floors
+with no chests and no drops, `requireClear: all`, so the hero never changes
+and clears everything, which is exactly what the model predicts.
+`ratio = real damage taken / modelled cost`:
+
+```
+count varied, strength 0.35        strength varied, count 8
+mon   ratio        crowding        strength  ratio        crowding
+  2   2.10 +-0.31   0.17             0.35    1.77 +-0.11    0.62
+  4   1.65 +-0.19   0.27             0.50    1.43 +-0.07    0.65
+  6   1.43 +-0.13   0.35             0.65    1.47 +-0.07    0.59
+  9   1.77 +-0.12   0.77             0.80    1.31 +-0.07    0.60
+ 13   1.57 +-0.09   1.10             0.95    1.30 +-0.19    0.66  (n=5)
+ 17   1.87 +-0.10   1.55
+ 21   1.85 +-0.10   1.94
+ 28   1.90 +-0.09   2.47
+```
+
+**The error rises with count and falls with strength.** A pure calibration
+error would be flat in both. This is the model being wrong about crowds
+specifically, which is what justified changing it rather than scaling it.
+
+It also reproduces the failed count×strength sweep quantitatively: 21
+creatures are under-priced 1.85×, five creatures about 1.5×, so a count-heavy
+floor really costs ~1.23× more than the model says relative to a force-heavy
+one of equal modelled cost. Measured then: count-heavy cleared 30%,
+force-heavy 43%.
+
+### Why the strength axis falls
+
+If the overhead were "other monsters hit you while you duel", it would be
+proportional to their blow and the ratio would be **flat** in strength. It
+falls, because duels against stronger creatures last longer and dilute a
+roughly fixed overhead. So the shape is `real ≈ modelled + overhead`, with
+overhead growing with the crowd and barely with strength.
+
+**Fitted at strength 0.35**, which is what the game ships. `STRENGTH_GROWTH`
+is off; if it is ever switched on, this fit has to be redone, because the
+strength axis moves the ratio the other way.
+
 ## Strength ramp — the second way difficulty could grow
 
 | Name | Value | Status |

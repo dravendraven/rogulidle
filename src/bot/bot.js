@@ -210,8 +210,9 @@ function guardCost(belief, pos, enabled) {
   return total;
 }
 
-function lootGoals(belief, field, danger, total, stepCost, future = 0, guards = true) {
-  const values = valueByItemName(belief, total, future);
+function lootGoals(belief, field, danger, total, stepCost, future = 0, guards = true,
+  crowd = true) {
+  const values = valueByItemName(belief, total, future, crowd);
   const chestValue = expectedChestValue(values);
   const out = [];
 
@@ -253,8 +254,9 @@ function lootGoals(belief, field, danger, total, stepCost, future = 0, guards = 
 // (there is no clock, spec §8) and a monster that follows the bot never
 // closes the gap — it moves after the player does, so retreating holds
 // the distance. Delay is genuinely cheap; only dead ends are not.
-function preparationGoals(belief, field, danger, total, stepCost, future = 0, guards = true) {
-  const useful = lootGoals(belief, field, danger, total, stepCost, future, guards)
+function preparationGoals(belief, field, danger, total, stepCost, future = 0, guards = true,
+  crowd = true) {
+  const useful = lootGoals(belief, field, danger, total, stepCost, future, guards, crowd)
     .filter((g) => g.gross > 0);
   if (useful.length) {
     return useful.reduce((a, b) => {
@@ -274,7 +276,7 @@ function chooseGoal(belief, field, danger, current, options) {
   if (options.loot) {
     const worthwhile = lootGoals(
       belief, field, danger, options.monsterCount, options.stepCost,
-      options.monstersAhead, options.guardPricing,
+      options.monstersAhead, options.guardPricing, options.crowdCost,
     ).filter((g) => g.net > 0);
     if (worthwhile.length) {
       return worthwhile.reduce((a, b) => (b.net > a.net ? b : a));
@@ -300,7 +302,7 @@ function chooseGoal(belief, field, danger, current, options) {
     if (options.refuseLostFights && !best.worthStarting) {
       const prepare = preparationGoals(
         belief, field, danger, options.monsterCount, options.stepCost,
-        options.monstersAhead, options.guardPricing,
+        options.monstersAhead, options.guardPricing, options.crowdCost,
       );
       if (prepare) return prepare;
       // Nothing left to prepare with. Take it — the bot is not allowed to
@@ -382,6 +384,12 @@ export function makeBot(options = {}) {
 
     // Charge a detour for the guards it will wake. See guardCost.
     guardPricing: true,
+
+    // Whether campaignCost carries the crowd correction. A flag so the
+    // correction can be A/B'd against the model it replaces — the bot was
+    // tuned against the OLD one, so some constants may be compensating for
+    // the bias and would need re-reading rather than re-tuning.
+    crowdCost: true,
 
     // Where in the dungeon this floor sits. Only used to price gear against
     // the floors still ahead; leave them out and the bot values loot for

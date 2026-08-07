@@ -1,5 +1,14 @@
 # The shape of the curve — measured
 
+> ⚠️ **PRE-CHANGE. The ruler moved after this was measured.** Every
+> challenge figure here — the series, the growth rates, and the
+> challenge/power and challenge/buffer ratios — used `campaignCost` WITHOUT
+> the crowd correction (balance.md, "Crowd correction"). That model
+> under-priced crowds by 1.4x to 1.9x, and by an amount that grew with the
+> creature count. **Do not compare a new measurement against these numbers.**
+> Re-run `run-shape.html` to get a current set. Reward, power and buffer are
+> unaffected; only challenge and the two ratios built on it moved.
+
 Diagnostic, not tuning. Nothing here changes a balance value. Produced by
 `run-shape.html` / `src/analysis/shape.js`; re-run it rather than trusting the
 numbers below, which are a snapshot.

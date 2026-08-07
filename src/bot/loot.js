@@ -74,10 +74,10 @@ function withItem(player, item) {
 
 // One value per item TYPE rather than per item on the floor — there are 7
 // types and can be dozens of items, and the value only depends on the type.
-export function valueByItemName(belief, total = MONSTER_COUNT, future = 0) {
+export function valueByItemName(belief, total = MONSTER_COUNT, future = 0, crowd = true) {
   const player = belief.player;
   const monsters = monstersStillToFight(belief, total, future);
-  const baseline = campaignCost(player, monsters);
+  const baseline = campaignCost(player, monsters, undefined, crowd);
 
   const values = new Map();
   for (const template of ITEM_TABLE) {
@@ -99,7 +99,8 @@ export function valueByItemName(belief, total = MONSTER_COUNT, future = 0) {
       values.set(template.name, 0);           // no combat use
       continue;
     }
-    values.set(template.name, baseline - campaignCost(withItem(player, template), monsters));
+    values.set(template.name,
+      baseline - campaignCost(withItem(player, template), monsters, undefined, crowd));
   }
   return values;
 }

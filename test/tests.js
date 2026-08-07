@@ -18,6 +18,7 @@ import {
 } from '../src/sim/difficulty.js';
 import { monstersAhead, valueByItemName } from '../src/bot/loot.js';
 import { growthOf, summarise, ITEM_VALUE } from '../src/analysis/shape.js';
+import { campaignCost, crowdFactor, duelCost } from '../src/bot/duel.js';
 
 // ***** tiny test harness ***** //
 
@@ -774,6 +775,40 @@ test('spread does not break determinism', () => {
   const b = newGame(31415, floorPlan(9));
   assertEq(a.monsters.length, b.monsters.length, 'same seed gave different sizes');
   assertEq(JSON.stringify(a.monsters), JSON.stringify(b.monsters), 'rosters differ');
+});
+
+// ***** the crowd correction ***** //
+
+test('the crowd correction is confined to campaignCost', () => {
+  // The one-on-one model is right; the SUM is what was wrong. If this ever
+  // leaks into duelCost, single-target decisions get scaled by how many
+  // OTHER creatures exist, which is nonsense.
+  const hero = { xp: 3, inventory: [], hp: 10, hpMax: 10, armour: 0, kills: [] };
+  const wolf = { xp: 4, hp: 5 };
+  const alone = duelCost(hero, wolf).hpLost;
+  const one = campaignCost(hero, [wolf], false, false);
+  assert(Math.abs(alone - one) < 1e-9, 'duelCost and an uncorrected single-monster campaign differ');
+  assert(campaignCost(hero, [wolf], false, true) > one, 'the correction did not apply');
+});
+
+test('the crowd correction switches off exactly', () => {
+  // Off must reproduce every number measured before it, to the bit — that is
+  // what makes the before/after comparison meaningful at all.
+  assertEq(crowdFactor(20, false), 1, 'the flag did not disable the factor');
+  assertEq(crowdFactor(0, true), 1, 'an empty roster was scaled');
+});
+
+test('the crowd correction grows with the crowd', () => {
+  // The whole point: the error had structure in the count. A flat factor
+  // would have been calibration, which the measurement ruled out.
+  let previous = 0;
+  for (const n of [1, 2, 6, 13, 21, 28]) {
+    const f = crowdFactor(n, true);
+    assert(f > previous, `factor did not rise at n=${n}`);
+    previous = f;
+  }
+  // And stays in the range the measurement supports rather than running away.
+  assert(crowdFactor(28, true) < 2.5, 'the factor extrapolates absurdly');
 });
 
 // ***** the strength ramp is an instrument, and must stay off ***** //

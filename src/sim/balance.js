@@ -191,6 +191,31 @@ export const CHEST_LOOT_RICHER_FAR = true;
 // half way, and the common outcome at the shrine. See spawn.js itemWeights.
 export const CHEST_QUALITY_BY_DEPTH = true;
 
+// ***** the cost model under-prices crowds ***** //
+//
+// GUESS — `campaignCost` sums clean one-on-one duels, and measured against a
+// hero who cannot die (so nothing is selected by dying), on floors with no
+// loot (so the hero never changes), it under-states the real bill by 1.4x to
+// 1.9x — and the error has STRUCTURE:
+//
+//     count 2 -> 28 at strength 0.35 : ratio 1.43 -> 1.90   (rises)
+//     strength 0.35 -> 0.80 at count 8 : ratio 1.77 -> 1.31 (falls)
+//
+// A calibration error would be flat in both. Rising with the crowd and
+// falling with strength is the signature of a roughly fixed overhead per
+// creature that longer duels dilute — so the shape is `real = modelled +
+// overhead`, not `real = k * modelled`.
+//
+//     campaignCost *= CROWD_COST_BASE * n^CROWD_COST_EXPONENT
+//
+// Applied to campaignCost ONLY, never to duelCost. The one-on-one model is
+// right; the sum is what is wrong.
+//
+// Fitted at strength 0.35, which is what ships. If STRENGTH_GROWTH is ever
+// switched on, refit — the strength axis moves this the other way.
+export const CROWD_COST_BASE = 1.32;
+export const CROWD_COST_EXPONENT = 0.106;
+
 // ***** floor spread: making deep floors lotteries ***** //
 //
 // GUESS — how wide the whole floor's shared roll is, by depth:
