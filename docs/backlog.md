@@ -28,17 +28,17 @@ repeating it in the table only made the queue slower to scan.
 
 | # | id | what gets done | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
-| 1 | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | REPORTED | n/a |
-| 2 | M10 | Allocate cluster zones against the mass quota so side rooms stop emptying | map | work | IN FLIGHT | — |
-| 3 | M3 | Unlock the strength ceiling with small probability, so a rare blow can be huge | map | work | REPORTED · review 1 passed | — |
-| 4 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | BLOCKED on I6 | — |
-| 5 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | BLOCKED on M10 | — |
+| 1 | M10 | Allocate cluster zones against the mass quota so side rooms stop emptying | map | work | IN FLIGHT | — |
+| 2 | M3 | Unlock the strength ceiling with small probability, so a rare blow can be huge | map | work | REPORTED · review 1 passed | — |
+| 3 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | READY | — |
+| 4 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | BLOCKED on M10 | — |
+| — | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | **DONE** | n/a |
 | — | M7 | Move difficulty off creature count onto strength and same-type clusters | map | work | **DONE** · adopted, flag ON | done |
 | — | I7 | Measure capacity with death suppressed at PLAYER_HP, not on a 400 hp probe | map | metrics | **DONE** | n/a |
 | — | I5 | Split buffer into capacity and attrition and measure each on its own terms | map | metrics | **DONE** | n/a |
 | — | M6 | Grant max and current hp every N kills, mirroring the xp progression | map | work | **DONE** · built, flag OFF | done |
 | — | M2 | Place creatures in clusters instead of independently | map | work | FOLDED into M7 | — |
-| — | M5 | Add a rare high-value item to the loot table | map | work | ON HOLD · no instrument | — |
+| 5 | M5 | Add a rare high-value item to the loot table | map | work | READY · unblocked by I6 | — |
 | — | I3 | Settle clustering with a sign test, a damage percentile and a CV re-read | map | metrics | **DONE** | n/a |
 | — | B1 | Trace goal and action per turn to find which layer creates the ping-pong | bot | work | PARKED · reported | — |
 | — | B2 | Characterise what the tactical veto alternates between, and why | bot | work | PARKED | — |
@@ -51,7 +51,7 @@ repeating it in the table only made the queue slower to scan.
 | — | I2 | Retest clustering with a mortal hero, measuring lethality instead of cost | map | metrics | **DONE** | n/a |
 
     work agent      M10 (M7 regression) → M9 (waits on I6) → M4 after M10
-    metrics agent   I6, plus the ruler re-run after each landing
+    metrics agent   idle — the ruler re-run after each landing
     ui agent        idle
 
 **The bot lane is PARKED by owner decision** — the focus is map design
@@ -417,6 +417,49 @@ for the detour-and-find version yet, and the manifest version already
 satisfies this item's acceptance criteria on its own. Left as a candidate
 if a later item specifically needs "what a player willing to pay for it can
 get," rather than built speculatively now.
+
+### Review — DONE. Reward is measurable, and it was never 1%
+
+Accepted, and the design choice is the good part.
+
+**It measures the floor's contents by play rather than by a price list.**
+Reading `chests[].drop` and `monsters[].drop` off a fresh unplayed state
+gives the manifest with no exploration policy attached — those are decided
+the instant `newGame` returns. Handing that manifest to a probe at turn 0
+and taking `challenge − its damage` keeps the answer in hp and keeps a
+hand-rolled point-per-item out of it, which is exactly what `campaignCost`
+was retired for being. The item warned that a definition reading value from
+the item table would be blind to M9; this one is not, because M9 changes
+what is *in* the manifest.
+
+**The finding is large and it corrects a number this project has been
+quoting.** Old reward read about 1% of challenge; the manifest reads
+**8–30%**, growing ×1.282 against challenge's ×1.351. Not a revised
+estimate of the same thing — the old probe was structurally blind to
+anything off its kill-and-explore path, and most chests are exactly that.
+
+So "descending barely pays" was an artefact of the instrument. Reward does
+lose ground to challenge, at ×0.949 per floor, but from a base twenty times
+higher than believed and much nearer parity. That is consistent with the
+deliberate design in `balance.md` — flat chests so threat outpaces supply —
+rather than the near-zero it looked like.
+
+**It is a ceiling, and should always be quoted as one.** The probe holds
+everything from turn 0, including the axe that really sits in a chest at the
+far end and would be collected on turn 300. Potions compound it further:
+untied from tiles, drunk exactly when hurt, which no real hero can do. The
+simplification is disclosed in the code and in the report, which is right —
+but the number is "the most this floor could be worth", not "what a floor is
+worth". Anyone comparing it to challenge to ask whether descending pays is
+reading an upper bound.
+
+**Not building the obtainable version was the right call.** The spec allowed
+both; nothing downstream asks for the detour-and-find one yet, and building
+it speculatively would be a second instrument to keep honest for no current
+question.
+
+**Unblocks M9 and M5.** Both were held only because reward could not be
+judged. It can now.
 
 ## M7 · move difficulty off count, onto strength and grouping
 
