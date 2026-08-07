@@ -641,3 +641,133 @@ export function capacityShape(options = {}) {
     depths: depths.slice().sort((a, b) => a - b),
   };
 }
+
+// ***** I6 — reward: what the floor holds, not what a policy finds ***** //
+//
+// `isolatedShape`'s reward describes Sonda B's OWN pickup policy, not the
+// floor: loot is never a movement target for either probe (see the file
+// header), so anything off the explore/kill path is invisible to it. I1's
+// own review flagged this and it stayed open — this closes it.
+//
+// `state.chests[].drop` and `state.monsters[].drop` are decided the instant
+// `newGame` returns, before a single tile has been walked. Reading them
+// off a fresh, unplayed state is "what the floor contains, whether or not
+// anyone takes it" (docs/backlog.md's own framing for this item) with zero
+// play involved — and it already looks at WHO holds an item, not a flat
+// item table, which is the thing M9 (drop value tied to the carrying
+// creature) needs and this item's own Watch note asked for.
+//
+// Turning that manifest into an hp figure comparable to challenge still
+// needs real play, for the same reason the whole observed-ruler exists: a
+// hand-rolled point value per item is exactly the kind of model this
+// project replaced `campaignCost` to get away from. So the manifest is
+// handed to a probe from turn 0 rather than priced by formula — but ALL of
+// it at once, not accumulated by walking a path, which is what removes the
+// policy dependence Sonda B had.
+//
+// Weapons and armour equip cleanly at turn 0: `weaponDamage`/the armour
+// bar already SUM across everything ever picked up (src/sim/combat.js,
+// spec-faithful, not a choice made here), so handing over the floor's full
+// weapon/armour manifest at once reproduces exactly what a hero who found
+// every last one of them would be carrying — no ordering effect exists to
+// get wrong.
+//
+// Potions do not equip this way. A potion at full hp heals nothing and is
+// not consumed (step.js's own pickup rule) — crediting every potion at
+// turn 0, when the probe is still at full hp, would silently discard
+// almost all of their value. They travel as a queue instead and are drunk
+// turn-by-turn, only when hurt: the same "wasted at full health" rule the
+// engine already enforces, just not tied to a map tile. That untying is a
+// real simplification — a real potion needs the hero to walk to it, this
+// one is drunk on demand — and is stated here rather than left implicit.
+function driveReward(seed, plan, maxTurns, gameOptions = {}) {
+  const scan = newGame(seed, { ...plan, ...gameOptions, carry: heroCopy(PROBE_HERO) });
+  const manifest = [...scan.chests.map((c) => c.drop), ...scan.monsters.map((m) => m.drop)]
+    .filter(Boolean);
+  const potionQueue = manifest.filter((i) => i.heal > 0).map((i) => i.heal);
+  const gear = manifest.filter((i) => !(i.heal > 0));
+
+  const hero = heroCopy(PROBE_HERO);
+  hero.inventory.push(...gear.map((i) => ({ ...i })));
+  hero.armour += gear.reduce((sum, i) => sum + (i.armour || 0), 0);
+
+  let state = newGame(seed, {
+    ...plan, ...gameOptions, carry: hero, noPickup: true,
+  });
+  let observation = observe(state);
+  let belief = foldBelief(emptyBelief(), observation);
+  const policy = makeSondaPolicy();
+  let decisions = 0;
+  const maxDecisions = maxTurns * 4;
+
+  while (!state.outcome && state.turn < maxTurns && decisions < maxDecisions) {
+    while (potionQueue.length && state.player.hp < state.player.hpMax) {
+      state.player.hp = Math.min(state.player.hpMax, state.player.hp + potionQueue.shift());
+    }
+    const action = policy(belief, observation);
+    const result = step(state, action);
+    state = result.state;
+    observation = result.observation;
+    belief = foldBelief(belief, observation);
+    decisions++;
+  }
+
+  const clearedAll = state.monsters.length > 0 && state.monsters.every((m) => m.dead);
+  const damage = state.log
+    .filter((e) => e.type === 'attack' && e.target === 'player')
+    .reduce((sum, e) => sum + e.damage, 0);
+  return {
+    clearedAll, damage, potionsHeld: potionQueue.length, gearHeld: gear.length,
+  };
+}
+
+// Same pairing shape as `isolatedShape` (isolated floors, paired same-seed
+// probes, discarded on non-clear) so the two series sit side by side and
+// the reward/challenge ratio can be rebuilt exactly as before. `reward`
+// here is challenge minus the manifest-equipped probe's own damage, same
+// sign convention as the original: positive means the floor's loot, ALL of
+// it, saves hp.
+export function rewardShape(options = {}) {
+  const {
+    runs = 60, firstSeed = 800000, maxTurns = 4000, levels = LEVELS,
+    gameOptions = {}, floorPlanFn = floorPlan,
+  } = options;
+  const rows = [];
+
+  for (let level = 1; level <= levels; level++) {
+    const plan = floorPlanFn(level);
+    const challenge = [];
+    const reward = [];
+    const gearCount = [];
+    const potionCount = [];
+    let discardedA = 0;
+    let discardedR = 0;
+
+    for (let i = 0; i < runs; i++) {
+      const seed = hashSeeds(firstSeed + i, level);
+      const a = driveFloor(seed, plan, false, maxTurns, gameOptions);
+      const r = driveReward(seed, plan, maxTurns, gameOptions);
+      if (!a.clearedAll) { discardedA++; continue; }
+      if (!r.clearedAll) { discardedR++; continue; }
+      challenge.push(a.damage);
+      reward.push(a.damage - r.damage);
+      gearCount.push(r.gearHeld);
+      potionCount.push(r.potionsHeld);
+    }
+
+    rows.push({
+      level,
+      nominal: plan.monsters,
+      n: challenge.length,
+      discardedA,
+      discardedR,
+      challenge: summarise(challenge),
+      reward: summarise(reward),
+      // Manifest size, for sanity-checking the number against what the
+      // floor actually generated — not a statistic anyone should plot.
+      meanGear: gearCount.reduce((s, x) => s + x, 0) / (gearCount.length || 1),
+      meanPotions: potionCount.reduce((s, x) => s + x, 0) / (potionCount.length || 1),
+    });
+  }
+  return rows;
+}

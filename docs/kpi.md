@@ -36,7 +36,7 @@ see the note at the bottom for why that matters.
 | challenge/power (× / floor) | 1.261 ±0.055 | 1.193 ±0.069 | fl 1–6 / fl 1–7 | 1500 | ≥ 1.15 |
 | finishes, real bot | 31.3% ±3.8 (47/150) | 20.0% ±3.3 (30/150) | full descent | 150 | 15–40% |
 | p95 / p99 per-turn dmg, real bot | 0 / 1 | 0 / 1 | pooled fl 1–10 | ~140k turns | spike should rise |
-| reward | — | — | — | — | no instrument, see I6 |
+| reward | 0.5–4.7, rising | — | fl 1–10 | 56–60/level | see I6 below, not directly comparable to the row above |
 
 **Capacity's `hpMax` is flat at 400 in both columns because `HP_FROM_KILLS`
 is off for this reading** — there is no grant to accumulate. This is
@@ -141,7 +141,59 @@ that call belongs to whoever reviews M3 — but it confirms the pooled 0/1
 reported for M7 was walking-turn dilution, not evidence the hit distribution
 itself is flat.
 
-## Objective 2 — bot
+### I6 — reward: what the floor holds, not what a probe found
+
+Measured at commit `8eb8c39` (shipped default, M7 on). 60 seeds/level,
+`src/analysis/observed-ruler.js`'s new `rewardShape`. Full numbers in
+`scratchpad` are not committed; the table below is complete.
+
+**Definition, briefly** (full reasoning is in the code comment above
+`driveReward`): `state.chests[].drop` / `state.monsters[].drop` are decided
+at generation, before anyone moves — reading them off a fresh, unplayed
+state is the floor's full loot manifest, no exploration policy involved.
+Weapons and armour equip onto a probe all at once at turn 0 (the real
+pickup rule already sums them additively, so this is exact, not modelled).
+Potions cannot equip this way — one at full hp is wasted — so they travel
+as a queue and are drunk only when the probe is hurt, same "wasted at full
+health" rule the engine already enforces, just untied from a map tile.
+`reward = challenge(Sonda A, no loot) − damage(probe holding the entire
+manifest)`, same seed, same sign convention as the old number (positive =
+the loot saves hp).
+
+| floor | challenge | reward | reward/challenge | mean gear | mean potions | n |
+|---|---|---|---|---|---|---|
+| 1 | 2.18 ±0.31 | 0.50 ±0.16 | 0.23 | 1.65 | 0.25 | 60 |
+| 2 | 1.97 ±0.29 | 0.59 ±0.20 | 0.30 | 1.63 | 0.24 | 59 |
+| 3 | 5.28 ±0.79 | 1.32 ±0.36 | 0.25 | 1.48 | 0.22 | 60 |
+| 4 | 6.27 ±0.87 | 0.68 ±0.22 | 0.11 | 1.29 | 0.20 | 59 |
+| 5 | 5.70 ±0.97 | 0.95 ±0.38 | 0.17 | 1.33 | 0.18 | 60 |
+| 6 | 8.10 ±1.12 | 0.62 ±0.44 | 0.08 | 1.22 | 0.23 | 60 |
+| 7 | 11.18 ±1.64 | 1.77 ±0.74 | 0.16 | 1.42 | 0.21 | 57 |
+| 8 | 16.88 ±2.72 | 4.31 ±1.26 | 0.26 | 1.66 | 0.21 | 58 |
+| 9 | 24.02 ±3.48 | 4.73 ±1.88 | 0.20 | 1.39 | 0.23 | 56 |
+| 10 | 32.23 ±4.22 | 3.74 ±1.10 | 0.12 | 1.40 | 0.14 | 57 |
+
+Growth: challenge ×1.351 ±0.031/floor (reproduces the shipped-default
+challenge rate exactly, as it should — this is the unchanged Sonda A),
+reward ×1.282 ±0.067/floor. Both series had 56–60 survivors at every floor
+— the 400-hp probe barely discards (0–4/60) — so unlike I7 there is no
+thin-tail floor to exclude; every row above is reliable.
+
+**This does not extend or replace `isolatedShape`'s existing reward
+column** (still Sonda A vs Sonda B, still committed, still what
+`docs/observed-ruler.md`'s baseline numbers describe) — `rewardShape` is a
+new, separate function reported here as its own series, per this item's own
+"say so rather than blending them" instruction.
+
+**The finding:** the old reward read flat and near 1% of challenge at every
+depth (the number this replaces). The floor-manifest reward instead runs
+**8–30% of challenge**, with no strong trend either direction — an order of
+magnitude larger and not the shape the old instrument showed at all. That
+gap is entirely the old instrument's own blind spot (a policy that never
+detours for loot cannot see loot it never walks past), not a change in what
+floors generate. **`reward/challenge` cannot be directly compared to the
+old ratio** — this is a different definition of "loot," not a revised
+estimate of the same one.
 
 Parked. Left here so the shape of the file does not have to change when the
 lane restarts.

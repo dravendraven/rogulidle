@@ -29,7 +29,7 @@ repeating it in the table only made the queue slower to scan.
 | # | id | what gets done | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
 | 1 | I7 | Measure capacity with death suppressed at PLAYER_HP, not on a 400 hp probe | map | metrics | REPORTED | n/a |
-| 2 | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | IN FLIGHT | n/a |
+| 2 | I6 | Build an instrument that reads what a floor holds, not what a probe picked up | map | metrics | REPORTED | n/a |
 | 3 | M3 | Unlock the strength ceiling with small probability, so a rare blow can be huge | map | work | REPORTED | — |
 | 4 | M9 | Draw a monster's drop from its own tier instead of a table that ignores it | map | work | BLOCKED on I6 | — |
 | 5 | M4 | Scale the side-room risk and reward spread with depth instead of holding it flat | map | work | READY · fine tuning | — |
@@ -266,7 +266,7 @@ outside what was cheap here.
 
 ## I6 · give reward an instrument
 
-`map` · `metrics agent` · **IN FLIGHT**
+`map` · `metrics agent` · **REPORTED**
 
 Reward is the only quantity with no way to read it, and two items are stuck
 behind that: M9 and M5 both move reward and neither can be judged.
@@ -300,6 +300,55 @@ CV, alongside the existing challenge series so the ratio can be rebuilt.
 definition that reads reward from the item table alone, without looking at
 who holds it, will be blind to exactly that change — which is the first
 thing this instrument will be asked to measure.
+
+### Result
+
+Measured at commit `8eb8c39` (shipped default, M7 on). Full table in
+`docs/kpi.md` under "I6 — reward: what the floor holds, not what a probe
+found"; this is the summary.
+
+**Which shape, and why.** Went with "what the floor contains," not "what is
+obtainable" — but built it to still be MEASURED by real play, not priced by
+a formula, because a hand-rolled point value per item is exactly what
+`campaignCost` was retired for being. The resolution: `state.chests[].drop`
+and `state.monsters[].drop` are already decided the instant `newGame`
+returns, before any tile is walked, so reading them off a fresh unplayed
+state is the floor's full manifest with zero exploration policy attached —
+then that manifest is handed to a probe from turn 0, all at once, and
+`reward = challenge − that probe's own damage`. Weapons and armour equip
+exactly (the pickup rule already sums them additively across everything
+ever picked up, so handing over the full manifest at once reproduces a
+"found everything" hero exactly, no model). Potions are the one item that
+cannot equip at turn 0 — one drunk at full hp is wasted — so they travel as
+a queue and are drunk only when the probe is hurt, untied from a map tile.
+That untying is a real simplification, stated in the code, not hidden: a
+real potion needs the hero to walk to it, this one is drunk on demand.
+
+**Acceptance, read literally:** reward moves with the floor's contents
+(depth-scaled loot quality, `CHEST_QUALITY_BY_DEPTH`, is exactly what
+drives its rise from floor 1 to floor 10) and cannot move from a policy
+change, because there is no pickup policy left in the measurement at all —
+the probe never explores for loot, it already holds everything. Reported
+per floor with CV (in `kpi.md`'s table), alongside challenge, so the ratio
+rebuilds directly.
+
+**The finding.** The old (`isolatedShape`) reward — Sonda B, picks up only
+what it steps over — reads "flat and around 1% of challenge at every
+depth" per this item's own framing. The floor-manifest reward instead runs
+**8–30% of challenge**, no strong trend, both growing at a similar clip
+(challenge ×1.351/floor, reward ×1.282/floor). That is not a revised
+estimate of the same quantity — it is roughly 10–20x larger because the
+old instrument was structurally blind to any loot off Sonda B's kill/explore
+path, and most of a floor's chests are exactly that. `docs/kpi.md` states
+explicitly that the two ratios are not comparable.
+
+**What I did not build.** The second shape from the spec ("what is
+obtainable," a third probe that detours for loot) — the spec allowed both
+to ship as separate numbers if needed, but nothing downstream (M9, M5) asks
+for the detour-and-find version yet, and the manifest version already
+satisfies this item's acceptance criteria on its own. Left as a candidate
+if a later item specifically needs "what a player willing to pay for it can
+get," rather than built speculatively now.
 
 ## M7 · move difficulty off count, onto strength and grouping
 
