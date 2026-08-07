@@ -58,7 +58,7 @@ its standing job, which is not a task and so has no row of its own.
 | # | id | what and why | feature | agent | status | reading |
 |---|---|---|---|---|---|---|
 | 1 | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | REPORTED · blocker fixed | REPORTED |
-| 2 | I5 | Ruler cannot see buffer past floor 6, and M6 moves the window it is measured in | map | metrics | IN FLIGHT | n/a |
+| 2 | I5 | Ruler cannot see buffer past floor 6, and M6 moves the window it is measured in | map | metrics | IN FLIGHT · window closed, main question open | n/a |
 | 3 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | READY · the main route | — |
 | 4 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
 | 5 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
@@ -993,6 +993,67 @@ follow.
 the floor holds — I1 review point 4, still open, and why reward has no entry
 in the targets table. Not this item; noted so it is not forgotten twice.
 
+### Result — the asymmetric window, closed
+
+Answered the narrow question first, as asked; the rest of I5 (can buffer be
+measured at depth at all) is still open. Re-ran `isolatedShape`/`builtShape`
+against `hpFromKills` explicit on both arms (same discipline as M6's
+reading — off does not rely on the balance.js default, on does not either),
+120 isolated floor-pairs/level, **1500** descents/condition this time
+(against 800 in the M6 reading, specifically to give the off arm its best
+chance at reaching floor 6). Seed base 800000, max 4000 turns.
+
+**Reach, both arms, this run:**
+
+```
+floor            1     2     3    4    5    6    7    8    9   10
+reached, off  1500  1361   913  499  220   76   25    8    2    —
+reached, on   1500  1361  1040  708  433  244  148   84   59   47
+```
+
+Off reaches `n ≥ 50` (the reliability line) through **floor 6** this time
+(76 ≥ 50) — one floor further than the M6 reading's 800-run sample managed,
+purely from the bigger sample, confirming the M6 reading's own floor-1–5
+window was a sample-size artefact rather than a hard ceiling. On reaches
+through floor 9. **Common window: floors 1–6.**
+
+**Both arms refit over exactly that window — paired, as asked for:**
+
+```
+                        off (hpFromKills:false)     on (shipped rate)
+challenge/power          1.292 ±0.052 / floor         1.192 ±0.044 / floor
+challenge/buffer         1.572 ±0.045 / floor         1.417 ±0.044 / floor
+buffer                   0.863 ±0.021 / floor         0.958 ±0.024 / floor
+power                    1.050 ±0.038 / floor         1.139 ±0.036 / floor
+buffer at floor 6        6.64                          11.45
+power at floor 6         10.08                         15.46
+descents fully cleared   0/1500                        38/1500
+```
+
+**Direct answer: the earlier (unpaired) reading overstated the improvement.**
+Paired on the common window, buffer moves 0.863 → 0.958 (gap +0.095). The
+M6 reading's own numbers — fit each arm over its OWN reliable window,
+floors 1–5 off against 1–7 on — read 0.842 → 0.980 (gap +0.138), about 45%
+larger. Both readings agree on the two things that matter for M6's verdict:
+buffer **still falls** on the shipped rate (0.958 < 1.00, short of the ≥1.00
+bar), and the flag **does** raise it. The paired number is the one to quote
+going forward — it is not a new finding so much as the old one corrected of
+an inflation the mismatched window was quietly adding.
+
+**What surprised me.** The size of the correction. I expected the mismatched
+window to bias the gap in this direction (fitting "on" further out than
+"off" lets it capture more of the region where the grant has had more kills
+to compound) but did not expect a 45% swing in the headline gap from a
+bookkeeping fix rather than a new measurement.
+
+**What I could not resolve.** Whether floor 6 is close enough to floor 10 —
+where the buffer target is actually about — for a floors-1–6 rate to be
+trusted extrapolated that far. The item's own text already flags this as
+unknown or worse (the grant's cumulative-kills advantage grows with depth,
+so a shallow rate could understate the deep effect); this result narrows the
+comparison method but does not touch that open question, which is the rest
+of I5.
+
 ## M7 · move difficulty off count, onto strength and grouping
 
 `map` · `work agent` · **READY** — the main route for the CV target
@@ -1748,6 +1809,13 @@ discrepancy; not done here for time.
 **What I could not resolve.** Whether the buffer-on gap (0.980 vs 0.910) is
 noise from the differing floor window or something else worth chasing before
 review 2 reads it. Flagging rather than picking one number to quote.
+
+**Superseded by I5.** The window mismatch above (off fit 1–5, on fit 1–7)
+is exactly what I5's "asymmetric window" answers. Paired over the common
+window (1–6, 1500 descents/arm): buffer **0.863 → 0.958** (gap +0.095), not
+the 0.842 → 0.980 (gap +0.138) read here. Conclusion for review 2 is
+unchanged — buffer still falls on — but quote I5's paired number, not this
+one; this section is kept for the record of how the mismatch was found.
 
 ### Blocker fixed (work agent)
 
