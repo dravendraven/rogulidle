@@ -91,7 +91,20 @@ are set to next. The 2.18/1.97 "defect" that prompted it was sampling noise.
 The tier floor had to clamp the drawn slot, not the index it was drawn
 around.
 
-**Rats still deal exactly zero damage.** The tier floor moved where they
+**A green test is not always a meaningful one.** Three tests used `xp === 1`
+as a proxy for "the table's bottom row". When row 0 stopped being xp 1, two
+failed loudly and one went **vacuously true** — no monster could ever match,
+so the assertion could never fire, and it stayed green while testing
+nothing. Caught by reasoning about the change, not by the suite. Assert on
+the thing you mean (the table index) rather than on a value that happens to
+identify it today.
+
+**A test that reads the shipped parameters guards changes nobody
+anticipated.** M11's `expectedFloorMass` passed unchanged when the monster
+table was edited under it, because it reads `MONSTER_TABLE` live rather than
+from a snapshot.
+
+**Rats used to deal exactly zero damage.** Now `expectedDamage(2,0) = 0.417`. The tier floor moved where they
 appear — up to floor 4 — but not what they are. Any floor holding one holds
 a creature that cannot hurt the hero at all.
 

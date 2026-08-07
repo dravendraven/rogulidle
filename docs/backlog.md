@@ -38,14 +38,13 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| 1 | M18 | The rat gets a real attack and a real chase radius | REPORTED |
-| 2 | M17 | Near-flat roster, ~5 to ~8, with strength carrying the difficulty | READY |
-| 3 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | READY |
-| 4 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
-| 5 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
-| 6 | X1 | Delete what nothing references | READY |
-| 7 | M4 | Side-room risk/reward spread scales with depth | READY |
-| 8 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 1 | M17 | Near-flat roster, ~5 to ~8, with strength carrying the difficulty | READY |
+| 2 | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | READY |
+| 3 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
+| 4 | X2 | Bisect, if the map work has not already answered where it went wrong | READY · after the map |
+| 5 | X1 | Delete what nothing references | READY |
+| 6 | M4 | Side-room risk/reward spread scales with depth | READY |
+| 7 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -321,87 +320,6 @@ anyway. Measuring a half-finished map attributes nothing.
 
 The queue continues at M18. The bisect stays available — each change is its
 own commit — and X2 sits after M19 rather than before M18.
-
-## M18 · the rat becomes a creature
-
-`work agent` · **REPORTED** — before M17
-
-`MONSTER_TABLE` row 0 is `activation 3, xp 1, hp 2`. Damage is a roll over
-`0 .. xp-1`, so a rat's die has one face and it reads **zero**. `threat.js`
-skips it from the danger field entirely and `duelCost` returns 0. And an
-activation of 3 means it barely wakes.
-
-It is scenery that costs turns. Make it the weakest real creature instead of
-a non-creature.
-
-**Do.** Raise `xp` to 2 so it can land a blow, and the activation to
-something that chases — around 8. Keep `hp` at 2. Both values are FAITHFUL
-and this is a deliberate divergence: `rogule-spec.md` §13.
-
-**Keep it below the bat.** At `xp 2, activation 10, hp 3` the bat is the
-next row up; a rat at `xp 2, activation 8, hp 2` is still strictly weaker on
-two of three. If the two end up interchangeable, the table has ten rows
-instead of eleven and the change cost more than it bought.
-
-**What it moves, and why the order matters.** A rat's mass is `hp × (xp−1)`,
-which is `2 × 0 = 0` today and becomes `2 × 1 = 2`. **The bottom tier stops
-being free**, so shallow floors get more expensive and the challenge growth
-rate falls, since its mean rises at the bottom. M11's `expectedFloorMass`
-test reads the shipped parameters and will catch any monotonicity break by
-itself.
-
-It also puts rats into the bot's danger field for the first time, which
-changes routing on shallow floors.
-
-**Do this before M17.** M17 raises floor 1 from two creatures to about five.
-If those five start biting in the same change, nobody will be able to say
-which made the opening hard. One at a time, and floor 1 is the floor most
-likely to become a wall.
-
-**Assert.** A rat's expected damage is above zero. It wakes and closes from
-a distance a floor-1 hero will actually meet. Challenge per floor still
-rises at every step — the existing test covers this.
-
-### Result
-
-**Built: `MONSTER_TABLE` row 0 → `activation 8, xp 2, hp 2`** (was
-`activation 3, xp 1, hp 2`). FAITHFUL values, deliberate divergence —
-`docs/rogule-spec.md` §13.11.
-
-**Assert, checked:**
-- Expected damage above zero: `expectedDamage(2, 0) = 0.417`, was 0.
-- Below the bat on two of three (`activation`, `hp`) — kept, not
-  interchangeable, still eleven distinct rows.
-- Challenge per floor still rises at every step: M11's own
-  `expectedFloorMass` test (which reads `MONSTER_TABLE` live, not a
-  snapshot) passed unchanged after the edit — 9.81 → 164.91 across floors
-  1–10, strictly monotonic. Exactly the "will catch it by itself" the item
-  predicted; no hand-checking needed.
-
-**Three tests broke, all for the same reason, all fixed at the root.**
-`xp === 1` was being used as a proxy for "the table's bottom row" in three
-places, and that proxy stopped meaning anything the moment row 0 stopped
-being xp 1:
-- `a rat can never deal damage` — renamed `xp 1 can never deal damage` and
-  now forces `xp: 1` via override rather than relying on `dummy('rat', …)`
-  to supply it. Still tests the FORMULA (damage rolls `0..xp-1`), not a
-  specific monster — the rule this guarded didn't go anywhere, only its
-  one concrete example did.
-- `the lowest tier seen rises across floors 1, 5 and 10` (M13) — switched
-  from checking `m.xp` to checking table INDEX (`MONSTER_TABLE.findIndex`
-  by name). Floor 1's lowest is now asserted as index 0, not "xp 1".
-- `no rat survives past some floor` (M13) — renamed `the bottom tier does
-  not survive past some floor`, same index-based fix. This one did NOT
-  show up as a failure — it had gone vacuously true (no monster is ever
-  `xp === 1` any more, so the assertion could never fire) and would have
-  silently stopped testing anything. Caught by reasoning about the change,
-  not by the suite, which is worth recording: a green test is not always
-  a meaningful one.
-
-89/89 pass. `docs/balance.md`'s Monsters table and `docs/rogule-spec.md`
-§13.11 updated.
-
-**Stopping here, before M17, per instruction.**
 
 ## M17 · a near-flat roster, with strength carrying the difficulty
 
