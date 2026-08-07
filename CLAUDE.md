@@ -34,14 +34,18 @@ files rather than deleted — see `SIDE_ACTIVATION_CAP` in balance.js and
 
 ## Sessions and roles
 
-Three sessions may run against this repo at once. Your opening prompt says
+Four sessions may run against this repo at once. Your opening prompt says
 which one you are. If it does not, ask before touching anything.
 
 - **project & design agent** — decides what to work on and why, proposes
-  design direction, and writes the prompts for the other two. May edit
+  design direction, and writes the prompts for the other three. May edit
   `docs/`, never `src/`.
 - **work agent** — changes game and bot code. Never redefines scope, and
   never changes what a metric means without saying so explicitly.
+- **ui agent** — owns what the spectator sees: `src/ui/`, `index.html`,
+  `style.css`. Never touches `src/sim/`, `src/bot/` or `src/analysis/`. If
+  the screen needs something the engine does not expose, report it rather
+  than adding it.
 - **metrics agent** — builds and runs instruments, and reports baselines.
   Never touches `src/bot/` and never changes a balance value. It measures
   the real game and nothing else: it does not build a variant of the map or
@@ -54,7 +58,7 @@ fix and you can see exactly what it should be. The measurement ruler and the
 thing being measured are deliberately kept in different hands; a helpful fix
 across that line is the failure mode this split exists to prevent.
 
-`docs/balance.md` is the one file all three may touch. Different sections,
+`docs/balance.md` is the one file all four may touch. Different sections,
 small commits, and say in the commit message which role you are.
 
 `docs/backlog.md` holds the task list, what each task is worth, and its
@@ -63,7 +67,7 @@ full before starting, and report against ITS criteria rather than your own
 sense of finished.
 
 Your FIRST action on any task is to set it to IN FLIGHT and commit that
-alone — three sessions share this repo and cannot see each other, so an
+alone — four sessions share this repo and cannot see each other, so an
 unclaimed item is one two agents can start at once. If it is already IN
 FLIGHT, stop and say so. When you finish, set it to REPORTED and append a
 `### Result` block — see the legend at the top of that file. Only the

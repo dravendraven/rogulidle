@@ -59,9 +59,10 @@ its standing job, which is not a task and so has no row of its own.
 |---|---|---|---|---|---|---|
 | 1 | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | REPORTED · blocker fixed | REPORTED |
 | 2 | I5 | Ruler cannot see buffer past floor 6, and M6 moves the window it is measured in | map | metrics | IN FLIGHT · window closed, main question open | n/a |
-| 3 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | READY · the main route | — |
-| 4 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
-| 5 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
+| 3 | U1 | The screen plays one synthetic floor, not the descent everything is designed around | product | ui | READY · now | n/a |
+| 4 | M7 | CV falls because difficulty comes from COUNT — move it to strength and grouping | map | work | READY · the main route | — |
+| 5 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY · fine tuning | — |
+| 6 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY · fine tuning | — |
 | — | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | FOLDED into M7 | — |
 | — | M5 | Best item is axe +2, so no reward is ever an event | map | work | ON HOLD · no instrument | — |
 | — | I3 | Settle clustering's sign test; spike and CV wait for M2 to exist | map | metrics | **DONE** | n/a |
@@ -87,6 +88,7 @@ restarts. Do not pick up a PARKED item without the owner saying so.
 That leaves one loop, and it is deliberately serial:
 
     work agent      M6 → M7 → then M4 and M3 only if still needed
+    ui agent        U1
     metrics agent   I3 part 1, then re-run the ruler after EACH landing
 
 **M7 replaces the patch queue as the main route.** An audit of the map items
@@ -913,6 +915,52 @@ value. What is missing is an estimate of how many chests a dark region holds
 
 **Interaction with B3.** B4 may resolve the ping-pong on its own. Measure
 B4's effect on the reversal rate before concluding B3 still has work to do.
+
+## U1 · the spectator watches a different game than the one being designed
+
+`product` · `ui agent` · **READY**
+
+`index.html` does not play a descent. It plays **one synthetic floor**,
+picked by the difficulty dial — `difficultyToParams(dial)` in
+`src/ui/spectator.js` builds a standalone floor at some depth, and the run
+ends when that floor ends.
+
+**Everything in this backlog is about a ten-floor descent.** Buffer falling
+across the ladder, CV collapsing with depth, finishes, the whole curve. None
+of it is visible on the only screen anyone actually watches. The owner
+cannot see the product, and neither can anyone judging whether a change made
+the game better to watch — which is the broad goal all of this serves.
+
+The banner text is evidence of how long this has been true: "leaves only
+once all five are dead", "winning a little under 3 runs in 5". That is
+single-floor language describing a bot and a rule set that have both moved
+on.
+
+**What it should do.**
+
+- Run the real descent, floors 1 to 10, using `playDungeon` in
+  `src/sim/dungeon.js` — the same entry point the batch runner and the ruler
+  already use, so what is watched is what is measured.
+- Drop the difficulty dial from the main view. It selects a synthetic floor
+  and has no meaning in a descent. Keep `?difficulty=` working if it is
+  cheap, as a lab affordance; do not keep the slider.
+- Show, per run, **which floor the hero reached**, and keep the last several
+  visible. That log is the readable form of `finishes` — the bound named in
+  the targets table — and seeing the distribution of depths is worth more
+  than seeing one number.
+- Show current floor during the run.
+- Rewrite the banner to describe what is actually being watched.
+
+**Acceptance.** A run visibly descends, the reached floor is recorded per
+run and the recent history is on screen, and nothing in `src/sim/` or
+`src/bot/` changed to make it work — if the descent cannot be driven from
+the existing entry point, report that rather than reaching into the engine.
+
+**Why it is worth doing now rather than later.** It costs little, it does not
+touch the map or bot lanes, and it is the only way the owner can form an
+opinion about whether the curve work is producing a better spectacle. Sub-
+goal 3 says a run should read like a horse race; nobody can check that on a
+screen showing one floor.
 
 ## I5 · the ruler cannot see the buffer where the target lives
 
