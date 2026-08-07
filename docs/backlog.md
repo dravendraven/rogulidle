@@ -547,6 +547,52 @@ separately).
 items, five commits, no measurement requested between them, per the
 owner's batch instruction.
 
+### Review of M12, M14 and M15 — all three kept
+
+**M12.** Its own theory was tested and failed, and the report says so rather
+than picking numbers that would let it stand. Raising `CLUSTER_SIZE` does
+nothing past 6, swept 6/12/20 identical, because M10's per-member quota
+fires on mass balance and was already binding below the cap. So the
+compensating lever the item was built around does not exist, draws rose
+instead of holding, and that is stated plainly.
+
+Count went 1.15 → 1.22 and creatures per floor `2,2,3,4,4,5,7,8,10,12`
+against the old `…,5,6,7`. Floor 10 nearly doubles, which is what the item
+was for.
+
+**And it caught an error of mine.** Effective cluster size was recorded at
+3.97–4.87 and re-measures at **1.77–2.10**, three independent ways. I quoted
+the old figure in M10's Review 2 to argue my own CV worry away. The
+conclusion survived — the CV reading was direct and bit-identical — but the
+reasoning under it was wrong by a factor of two.
+
+What that number actually means is worth more than the correction:
+**clusters are pairs, not sixes.** M7's whole mechanism is fewer independent
+draws, and a cluster of two buys a √2 reduction. That is the entire CV gain,
+and there is headroom nobody can reach — because M10's quota, which keeps
+side rooms populated, is the same thing throttling cluster growth. **Spine
+share and CV pull against each other**, and the quota currently wins.
+
+**M14.** Clean. Found its own bug in the first test run — M12's larger
+rosters can drop more than one cluster member next to the shrine, which the
+first cut did not expect — and verified across 750 floor/seed combinations
+rather than the 60 the item asked for. Guardian tier computed *after* M3's
+reskin rather than from the ceiling, which is the difference between "at or
+above every other creature" and "at or above what we assumed they would be".
+No `balance.md` constant, correctly: the rule has no free parameter.
+
+**M15.** Caught two interaction bugs on the first run, both real — guarding
+a side-room chest could pull a monster off the spine, undoing M10; and it
+could steal M14's guardian. Both fixed at the cause.
+
+Coverage rises with depth (floor 1 ~56%, floor 10 ~99%) instead of the flat
+profile the item hoped for, reported plainly with the reason: floor 1 holds
+two or three creatures against six chests and no radius fixes that.
+
+**That is better than what the item asked for.** Unguarded loot on floor 1
+is a gentle opening, and 99% by floor 10 is the design working where it
+matters. The item's "roughly flat" was my guess, not a requirement.
+
 ## M16 · bigger rooms, shorter corridors
 
 `work agent` · **READY** — last of the batch

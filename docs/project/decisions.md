@@ -64,8 +64,21 @@ grows with depth, so it fires where cost is already highest, and raising the
 deep mean lowers sd/mean even while raising sd. Swept to its ceiling and
 archived.
 
-**Cluster size went inert once cluster zones were checked per member.** The
-mass-quota check is the real constraint, not the cap.
+**Cluster size went inert once cluster zones were checked per member.**
+Swept 6/12/20 with identical results at every floor. The mass-quota check
+fires on the roster's mass balance, not on how large the cap allows a
+cluster to grow, and it was already binding well below 6.
+
+**Effective cluster size is about 2, not 6.** Measured three independent
+ways. The constant never described reality, and a recorded figure of
+3.97–4.87 failed to reproduce — a project-agent argument had already been
+built on it. Clusters of two give roughly a √2 reduction in draws, which is
+all of what M7's CV gain actually came from.
+
+**Spine share and CV pull against each other.** The per-member quota check
+that keeps side rooms populated is the same thing that stops clusters
+growing. There is no setting where both are maximised; the quota currently
+wins.
 
 **Floor depth sets the tier ceiling, never the floor.** Tier is
 `depthAt(pos) × difficultyScale` where `depthAt` is position *within* the
