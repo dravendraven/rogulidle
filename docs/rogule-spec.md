@@ -652,3 +652,45 @@ ao lado com o viés de sobrevivência declarado, e buffer só é citado junto da
 janela de andares em que foi ajustado — o sinal dele se inverte entre 1–6 e
 1–10, e o I5 mostrou que essa inversão é **seleção por sobrevivência**, não
 o jogo ficando tolerante. Ver `docs/backlog.md`, "Targets for objective 1".
+
+### 13.5 Criaturas nascem em grupos, com um tipo compartilhado (M7)
+
+**Não existe no original.** Rogule posiciona cada criatura de forma
+independente — uma posição e um tipo por sorteio, sem relação com as
+vizinhas.
+
+**Problema no original.** A dificuldade cresce quase inteiramente pela
+CONTAGEM de criaturas por andar, e o CV de uma soma de `n` sorteios
+independentes cai com `1/√n` — quanto mais criaturas, mais previsível fica
+o andar, mesmo que cada criatura continue tão variável quanto antes. Nada
+que mude uma criatura por vez resolve um problema que é sobre o número
+delas.
+
+**Regra nova.** Atrás de uma flag (`DIFFICULTY_REBALANCED`, desligada por
+padrão): o motor sorteia uma zona e uma âncora por CLUSTER, não por
+criatura; um único tier é sorteado para o cluster inteiro a partir da
+profundidade da âncora; e as posições do grupo saem de uma busca (BFS) que
+respeita a mesma zona (espinha/lateral) da âncora. `CLUSTER_SIZE = 1`
+reproduz exatamente o sorteio antigo, criatura por criatura, sorteio por
+sorteio — é para isso que a flag desligada resolve. Junto do clustering,
+dois outros diais se movem para manter o mesmo orçamento de desafio
+(`docs/backlog.md`, M7): a contagem cresce mais devagar (1,3 → 1,15/andar) e
+a força passa a crescer onde antes era plana (1,0 → 1,07/andar, expoente
+2,356 sobre a tabela de monstros).
+
+**Consequência.** Um cluster é sempre um único tipo de criatura — "grupo de
+ratos", não um bicho aleatório ao lado de outro — o que aproxima o sorteio
+de um único draw em vez de `k` independentes, cortando a diluição do CV sem
+esvaziar o andar. Testado e descartado no meio do trabalho: agrupar só por
+posição, com cada criatura ainda sorteando seu próprio tipo, não move o CV
+nada (medido 0,945 contra uma base de 0,944) — a proximidade sozinha não
+compra nada; o grupo precisa ser um tipo só.
+
+**Estado atual: construído, `DIFFICULTY_REBALANCED = false`.** Com a flag
+desligada o motor é byte-idêntico ao de antes do M7. Ver `docs/backlog.md`
+M7 para os números medidos — desafio dentro do orçamento (1,337 ±0,029
+contra a meta de 1,343 ±0,03), CV subiu de 0,944 para 0,986 por andar
+(dentro do ruído da meta de ≥1,00, ambição de 1,05 não alcançada), e um
+teto estrutural em torno de `CLUSTER_SIZE = 6`: com a contagem já mais
+lenta, o andar 10 chega a apenas 7 criaturas, então um cluster de 6 já é
+quase o andar inteiro e não sobra o que agrupar.

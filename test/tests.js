@@ -325,14 +325,13 @@ test('by default killing does not raise xp at all', () => {
   assertEq(state.player.xp, startXp, 'xp grew despite the default being off');
 });
 
-test('the player gains max AND current hp every second kill, by default', () => {
-  // ON by default (Review 2, docs/backlog.md M6): adopted provisionally
-  // despite missing its own buffer target, because no rate in the sweep
-  // cleared both bounds and the smaller rates were strictly worse — see the
-  // review for the full argument. This is the inverse default from xp
-  // (frozen), which is the whole point of the item.
+test('the player gains max AND current hp every second kill, when hp-from-kills is on', () => {
+  // OFF by default (M6 adoption reversed, docs/backlog.md, ca5c6f9): M7 was
+  // expected to be next when this was adopted provisionally; the owner
+  // picked M9 instead, so the flag has to be asked for explicitly here —
+  // see the test below for the default.
   let state = makeState({
-    map: ROOM_5x5, playerPos: [2, 2],
+    map: ROOM_5x5, playerPos: [2, 2], hpFromKills: true,
     monsters: [dummy('rat', [1, 2]), dummy('rat', [3, 2])],
   });
   const startHp = state.player.hp;
@@ -352,12 +351,12 @@ test('the player gains max AND current hp every second kill, by default', () => 
     + 'grant with no matching current-hp grant would not move the buffer');
 });
 
-test('hp-from-kills can be switched off, for A/B measurement', () => {
-  // Guards the override path itself — the rule above can pass while this
-  // one silently breaks if the flag ever stops reaching combat.js (it did
-  // once: step.js's cloneState dropped it after the first turn).
+test('by default killing does not raise hp at all', () => {
+  // Guards the shipped default, since the rule above can pass while this
+  // one silently flips — it did once, when step.js's cloneState dropped the
+  // override after the first turn.
   let state = makeState({
-    map: ROOM_5x5, playerPos: [2, 2], hpFromKills: false,
+    map: ROOM_5x5, playerPos: [2, 2],
     monsters: [dummy('rat', [1, 2]), dummy('rat', [3, 2])],
   });
   const startHp = state.player.hp;

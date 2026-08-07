@@ -100,10 +100,14 @@ export const XP_FROM_KILLS = false;
 // suspect — the same grant read +0.095 buffer on the dumb probe against
 // +26 points of finishes on the real bot, which the probe cannot exploit
 // the way a competent bot can. That gap is I5's open question, not settled
-// here. This flag is ON so downstream work (M7) measures against the
-// baseline the game actually ships, per the serial-adoption protocol —
-// it is not a claim that 0.910 is acceptable.
-export const HP_FROM_KILLS = true;
+// here.
+//
+// REVERSED (docs/backlog.md M6, ca5c6f9): M7 was expected to be next when
+// this was adopted provisionally; the owner picked M9 instead, so what this
+// flag bought (+0.095 buffer against a target I5 may show is unreachable)
+// no longer justifies what it cost (+26 points of finishes outside band).
+// The mechanism itself is not retracted — only the default.
+export const HP_FROM_KILLS = false;
 
 // GUESS — same cadence as KILLS_PER_XP (2) on purpose: reuse the pacing
 // that already exists rather than introduce a second rhythm to reason

@@ -499,6 +499,23 @@ cluster. They are different mechanisms, so any clustering measurement taken
 through the analysis file no longer describes the flag-on game. That is the
 metrics agent's file and its call.
 
+### Two Review 1 actions taken; the reading can proceed
+
+`HP_FROM_KILLS = false` in `src/sim/balance.js` — one line, mechanism not
+retracted, comment updated to point at `ca5c6f9`. This flipped the shipped
+default under a test that asserted the old default's behaviour with no
+explicit override (`the player gains max AND current hp every second kill,
+by default`) — same recurring failure mode as the first M6 flip, fixed the
+same way: split into an explicit-on test and a by-default-off test, mirror
+of the existing `xpFromKills` pair. 72/72 pass.
+
+`docs/rogule-spec.md` §13.5 added — clustering as a deliberate rule
+divergence (Rogule places independently; the engine now anchors a cluster
+and shares one tier), same structure as §13.1–13.4.
+
+Stopping here, as instructed. The M7 reading is the metrics agent's from
+here.
+
 ## M9 · tie the drop to the creature that carries it
 
 `map` · `work agent` · **BLOCKED on I6** — the owner's preferred direction
