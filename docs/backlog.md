@@ -314,10 +314,10 @@ Two reasons it must not become a target:
 
 - **It can sit at its number while the game is bad.** A dumb bot reaching
   the bottom one run in ten looks random rather than dramatic, and a flat
-  curve is boring at any clear rate. Hitting the number proves nothing on
+  curve is boring at any level of finishes. Hitting the number proves nothing on
   its own.
-- **The number is trivially reachable.** Any clear rate can be dialled in by
-  moving creature count alone, learning nothing. Aiming at sub-goal 3
+- **The number is trivially reachable.** Any level of finishes can be dialled
+  in by moving creature count alone, learning nothing. Aiming at sub-goal 3
   directly is the fastest way to hit it for the wrong reason.
 
 So it stays a falsifier: it can say the sum failed, never what to fix.
@@ -335,7 +335,26 @@ Concrete numbers, so every map item has an acceptance figure rather than
 | buffer | 0.855 ±0.023 | ≥ 1.00 | 1.16 | goal |
 | CV challenge | 0.944 ±0.012 | ≥ 1.00 | ~1.05 | goal |
 | challenge/power | ≥1.307 | ≥ 1.15 | — | **bound** |
-| clear rate, real bot | ~30% | 15–40% | — | **bound** |
+| **finishes**, real bot | ~30% | 15–40% | — | **bound** |
+
+**`finishes`** is the fraction of runs where the bot reaches the bottom —
+what used to be called the clear rate. The name is deliberate: finishes is
+something you read and bet on, not something you maximise. "Clear rate"
+reads like a performance figure to be pushed up, which is exactly the wrong
+instinct for a bound.
+
+**And it is measured on the real bot, not on the probes — that is the
+point.** Everything else on this page describes the design against a fixed,
+deliberately dumb reference player. The probe cannot exploit a game that got
+easier the way a competent bot can, so it systematically under-reports how
+much a change moves the actual product.
+
+M6 proved it: the probe's buffer moved 0.846 to 0.910, a modest and
+carefully-argued improvement, while finishes went from 30.7% to 56.7%. On
+the probes alone that change looks safe. **`finishes` is the only number on
+this page that catches a design change whose effect on the game is far
+larger than its effect on the reference player** — and it costs nothing,
+since the batch runner already reports it.
 
 **Challenge is a constraint, not a goal.** It is calibrated and no map item
 is licensed to move it. An item that improves a ratio by making floors
@@ -360,7 +379,7 @@ floors at least as unpredictable as shallow ones, with ~1.05 as a reasonable
 ambition and anything above 1.00 counting as fixed.
 
 **Two bounds, not goals.** `challenge/power` must not fall below about 1.15
-and clear rate must stay inside 15–40%. Both drift the same way when the
+and finishes must stay inside 15–40%. Both drift the same way when the
 hero gets stronger, which M6 does on purpose. They are there to catch a fix
 that works by making the game easy, and if either leaves its band the answer
 is a smaller change, never a difficulty re-tune.
@@ -1035,7 +1054,7 @@ Get this wrong and the budget silently stops being constant.
   original sweep.
 - Floors stay populated. Report creatures per floor at 1, 5 and 10; the
   degenerate corner is the failure mode this item exists to avoid.
-- `challenge/power` ≥ 1.15 and clear rate inside 15–40%.
+- `challenge/power` ≥ 1.15 and finishes inside 15–40%.
 
 **How to measure.** On the probes, flag off against flag on, with M6 already
 landed and its reading taken first. Paired seeds, confirmed on seeds not
@@ -1453,7 +1472,7 @@ That is why M6 runs before M3–M5 rather than after them.
 **Taken: the hero gets growing maximum capacity, accepting the divergence
 from Rogule.** Alongside it, `challenge/power` is deliberately left where it
 is — see the ratio block near the top for why copying DCSS's 0.95 into a
-ten-floor race collapses the clear rate.
+ten-floor race collapses finishes.
 
 **Capacity, not refill — this is the whole point.** Potions and shields
 refill the bar; neither raises its ceiling. `PLAYER_HP` is fixed at 10, so
@@ -1497,8 +1516,8 @@ target. Paired seeds, confirmed on seeds not used for tuning.
 damage`, so raising hp raises power too, and `challenge/power` will fall
 toward DCSS's 0.95 as a side effect. That direction is fine in itself — but
 it is exactly the movement that was just decided against, because it lifts
-the clear rate. Report `challenge/power` and the real bot's clear rate
-alongside the buffer numbers. If the clear rate leaves its band, the fix is
+the finishes. Report `challenge/power` and the real bot’s finishes
+alongside the buffer numbers. If finishes leaves its band, the fix is
 a smaller hp grant, not a difficulty change: difficulty is calibrated and
 this item is not licensed to move it.
 
@@ -1543,7 +1562,7 @@ lever, and I did not pick a side silently.** Swept the grant rate
 spec-mandated cadence:
 
 ```
-rate (hp/kill)   buffer ×/floor, fl 1-6      real-bot clear rate (paired, n=150 unless noted)
+rate (hp/kill)   buffer ×/floor, fl 1-6      real-bot finishes (paired, n=150 unless noted)
 0     (off)      0.846 ±0.026                 46/150 = 30.7% ±3.8
 0.125 (per=8)    0.857 ±0.022   z=0.32 n.s.    67/150 = 44.7% ±4.1   z=2.5 vs off
 0.25  (per=4)    0.895 ±0.022   z=1.44 n.s.    n=80, different sample, 48.0%
@@ -1558,28 +1577,28 @@ not the ~1.16 target, not even flat. **Clear rate:** every tested rate
 moves it, including one (0.125) that moves NOTHING detectable in buffer.
 That last point is the headline finding — it means the real bot's clear
 rate is a more sensitive detector of marginal hp than the buffer probe is,
-so "shrink the grant until clear rate stops moving" and "shrink the grant
+so "shrink the grant until finishes stop moving" and "shrink the grant
 until buffer still shows an effect" pull in the same direction but never
-meet: by the time a rate is small enough to leave clear rate alone, it has
+meet: by the time a rate is small enough to leave finishes alone, it has
 already stopped doing anything measurable to buffer either.
 
 `challenge/power` did **not** turn out to be the binding constraint the
 brief's interaction note expected: it moved from ≈1.354 to ≈1.258 at the
 shipped rate (challenge 1.343 fixed, power fl1-6 off 0.992→on 1.068) —
-nowhere near DCSS's 0.95. The real bot's clear rate moved far more than
+nowhere near DCSS's 0.95. The real bot's finishes moved far more than
 that ratio's shift would predict; the dumb probe under-reacts relative to
 the smart bot.
 
 **Shipped at the only point with a real buffer effect, not because it meets
 the item's own bar — it does not.** Clear rate nearly doubles (30.7% →
 56.7%), which by "does not blow up" is a breach on its own terms. Reported
-plainly rather than picking a smaller rate to make the clear-rate number
+plainly rather than picking a smaller rate to make the finishes number
 look better while quietly delivering a buffer change indistinguishable from
 zero, or picking a larger one to hit the buffer target while hiding how far
-clear rate would move.
+finishes would move.
 
 **What surprised me.** The asymmetry above — that a grant too small to
-register on the buffer probe still moves the real bot's clear rate by 14
+register on the buffer probe still moves the real bot’s finishes by 14
 points, significantly. I expected the two measurements to at least be
 comparably sensitive since they are both reading the same mechanism; they
 are not, by a wide margin.
@@ -1592,7 +1611,7 @@ are not, by a wide margin.
   between the two to isolate.
 - Whether a **second lever** (e.g. `PLAYER_HP` itself, or item values —
   both explicitly out of this item's licence per "Why it needs a decision
-  rather than a spec") could reach the buffer target without the clear-rate
+  rather than a spec") could reach the buffer target without the finishes
   cost this one carries. Not tested — those levers cost fidelity and are
   the owner's call, not mine to spend against a measurement.
 - The "n.s." rate=0.25 point used n=80 on a different seed range than the
@@ -1601,10 +1620,10 @@ are not, by a wide margin.
   bracket, not re-run at n=150 for time.
 
 **Out of scope, for the project agent to evaluate.** The buffer target and
-the clear-rate band are in genuine tension at every tested point, not just
+the finishes band are in genuine tension at every tested point, not just
 at the extremes — this is a NEEDS-DECISION-shaped problem sitting inside an
 item marked DECIDED. Three ways out, none of them mine to pick: accept a
-higher clear-rate band, accept buffer only partially fixed (what is
+higher finishes band, accept buffer only partially fixed (what is
 shipped), or spend a FAITHFUL lever (`PLAYER_HP`, item values) that this
 item was explicitly not licensed to touch.
 
@@ -1630,7 +1649,7 @@ true` in `balance.js`, against a protocol that says every map item ships
 behind an off-by-default flag and that adoption is a separate act. That
 alone would be procedural. What makes it a blocker is the item's own
 numbers: the shipped rate leaves the buffer at 0.910 — still falling, short
-of the ≥1.00 it had to reach — and puts the real bot's clear rate at 56.7%,
+of the ≥1.00 it had to reach — and puts the real bot’s finishes at 56.7%,
 **outside the 15–40% bound**. A configuration that misses its goal and
 breaks a bound is live in the default game.
 
@@ -1662,7 +1681,7 @@ call, and the sweep that establishes it is the evidence for the decision I
 now owe. Same for correcting its own transcription error mid-item and
 recomputing the z-scores.
 
-**Not settled here:** whether to accept a higher clear-rate band, accept a
+**Not settled here:** whether to accept a higher finishes band, accept a
 partially-fixed buffer, or spend a FAITHFUL lever. That is mine, and it
 needs the ruler reading first.
 
