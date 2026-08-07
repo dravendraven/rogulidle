@@ -36,12 +36,9 @@ tiebreaker; two things outrank it.
 - **Dependencies.** An item that unblocks two others outranks one that
   unblocks none, whatever objective each serves.
 
-With M6 decided, both rules and objective order now agree: the map lane runs
-first, M6 → M3 → M4 → M5, re-measuring the ratios after each one rather than
-after the set.
-
 **The work agent takes one track at a time, in batches.** Do not interleave
-map and bot items.
+map and bot items — currently moot, since the bot lane is PARKED, but it is
+the rule when it restarts.
 
 The reason is asymmetric. Map measurements are insulated from the bot — the
 probes are frozen, which is what they were built for — so bot changes cannot
@@ -50,11 +47,6 @@ reversal rate and chests-opened all move when the map changes, and
 `balance.md` is explicit that difficulty here is defined against an
 opponent. Interleaving therefore invalidates every bot A/B against the
 previous one, while costing a context switch on top.
-
-The batch boundary falls out on its own. The startable bot track is B4 → B2
-→ B3, and then it runs dry: B5 waits on M2 and B6 on I4. That is where the
-work agent should move to the map, and it is roughly when M6 will have been
-settled.
 
 The table is **always in execution order** — what happens next is row one.
 It is re-sorted whenever a status changes, so a row moving up or down is
@@ -101,20 +93,20 @@ are frozen, so a re-run is cheap and paired by construction.
 The work agent does not start the next map item until the previous one has
 been read. Waiting is the point.
 
-**M6 is decided and the map lane opens.** The owner accepted the divergence
-from Rogule: the hero gets growing maximum capacity, because a falling
-buffer turns the variance programme into sudden death. M3–M5 leave MEASURE
-ONLY and become adoptable, and the map lane runs before the bot lane —
-inverting the previous order, which existed only because objective 1 was
-blocked.
+**M6 and I3 run in parallel and that is fine.** M6 changes the hero's
+capacity; I3 measures clustering. They touch different things, and M6 should
+not move the ruler at all: challenge is damage taken, which is set by how
+long fights last — a function of damage dealt, not of how much hp the hero
+is carrying. Buffer moves, which is the whole point; challenge and CV should
+sit still. **If challenge does move after M6, that is itself a finding**
+and should be reported rather than absorbed.
 
-Re-read the ratios on the probes **after each** of M6, M3, M4 and M5.
-Stacked and measured once they cannot be told apart, and at least one of the
-four probably does not pay.
+The one discipline required: **state which commit each measurement ran
+against.** With two items in flight, a reading that straddles M6's landing
+is otherwise unattributable.
 
-**Rows with no rank need nothing from an agent.** I1 is closed. I2 and B1
-are answered and wait only on review — I3 stays blocked until I2's review
-lands, because its whole shape depends on what I2 found.
+**Rows with no rank need nothing from an agent.** I1 and I2 are closed. B1
+is answered and parked with the rest of the bot lane.
 
 ## How to use this file
 
@@ -136,8 +128,6 @@ Status legend:
     READY           spec is complete, can be started
     IN FLIGHT       claimed — someone is on it right now. Set this BEFORE
                     doing anything else, and commit it on its own
-    MEASURE ONLY    build it and report what it moves, but leave it OFF by
-                    default — adoption waits on something else
     BLOCKED         waiting on a named task; spec is deliberately thin
     REPORTED        work done and result written down, awaiting review by
                     the project agent
