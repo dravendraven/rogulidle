@@ -825,7 +825,7 @@ Not used until P3. Listed here so there is one place to look.
 |---|---|---|
 | `BOT_KNOWS_MONSTER_COUNT` | `true` | decided — see bot-strategy §4.1 |
 | `STEP_COST_IN_HP` | 0.01 | **INITIAL GUESS** |
-| `GOAL_STICKINESS` | 1.15 | **INITIAL GUESS** — being raised, see below |
+| `GOAL_STICKINESS` | 1.4 | **INITIAL GUESS** — raised from 1.15, see below |
 | `UNKNOWN_MONSTER_ESTIMATE` | `{ xp: 4, hp: 7 }` | **INITIAL GUESS** |
 | `CHEST_LOOT_CHANCE` | 0.60 | measured over 150 maps |
 
@@ -887,4 +887,25 @@ hasty and reckless; lower it and it gets patient and slow. This is the
 knob that shows up as personality on screen, and the main thing P4 sweeps.
 
 `GOAL_STICKINESS` stops the bot dithering between two near-equal targets:
-a new one has to be 15% better before it switches.
+a new one has to be 40% better before it switches, raised from 15% — at
+15% a new target only needed to be a little better to win, which was not
+much stickiness at all.
+
+**Only covers `monster` targets.** `chooseGoal` (`bot.js:314`) checks
+`current.kind === 'monster'` before applying the stickiness comparison at
+all — chest and item goals (`bot.js:270`, step 1) are re-picked by plain
+best-net-value every single call, with no reference to the current target
+and no hysteresis whatsoever. The real fix there would be extending the
+hysteresis check to loot goals — not attempted here, reported instead.
+
+**Self-checked (work agent, not a metrics-agent reading), and the null
+result confirmed rather than assumed.** `descentCheck` (`clustering.js`),
+12 runs, firstSeed 800000, paired: 1.15 and 1.4 produced BYTE-IDENTICAL
+output on every field — reversal rate 44.56%, depths reached, kills, event
+gaps, all of it. Not a caching artifact; the live `GOAL_STICKINESS` value
+was read back from the module on each pass to confirm the edit had taken.
+Consistent with the caveat above — these seeds' decision sequences never
+turned on the 15%-vs-40% threshold for a `monster` target, so there was
+nothing for the raise to move. A real read needs either more seeds or the
+loot-goal extension; this one self-check does not distinguish "raise did
+nothing" from "these 12 runs never hit the case it affects".

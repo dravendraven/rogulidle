@@ -455,8 +455,11 @@ export const STEP_COST_IN_HP = 0.01;
 
 // GUESS — a new target must beat the current one by this factor before the
 // bot switches. Without it, two near-equal targets make it dither on the
-// spot instead of committing to either.
-export const GOAL_STICKINESS = 1.15;
+// spot instead of committing to either. Raised from 1.15 (only needed 15%
+// better to switch, not much stickiness) — see docs/balance.md for the
+// caveat this comes with: `bot.js`'s check only applies to `monster`
+// targets, chest/item goals have no hysteresis at all.
+export const GOAL_STICKINESS = 1.4;
 
 // GUESS — stand-in stats for a monster the bot has not met yet. It knows
 // how many are still unaccounted for (BOT_KNOWS_MONSTER_COUNT) but not what
