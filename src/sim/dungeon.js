@@ -110,6 +110,7 @@ export function playDungeon(seed, makePolicy, options = {}) {
       chests: plan.chests,
       difficultyScale: plan.difficultyScale,
       clusterSize: plan.clusterSize,
+      tierFloorShare: plan.tierFloorShare,
       outOfDepthChance: plan.outOfDepthChance,
       dropChance: plan.dropChance,
       // A fixed rate overrides the per-floor one, for sweeping.

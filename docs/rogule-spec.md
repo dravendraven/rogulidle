@@ -743,3 +743,37 @@ desligada nada muda: a chance é sempre zero e nenhum sorteio extra é feito
 (um sorteio que nunca dispara ainda consumiria um valor do stream de RNG, o
 que empurraria toda geração depois dele). Ver `docs/backlog.md` M3 para o
 que foi medido.
+
+### 13.7 O piso do tier sobe com a profundidade (M13)
+
+**Não existe no original.** Em Rogule (e no motor antes deste item) o tier
+de uma criatura é `min(1, profundidade_no_mapa × difficultyScale)` —
+`profundidade_no_mapa` é posição DENTRO do andar, não o número do andar, e
+perto da entrada ela é ~0 em qualquer andar. Um ladrilho perto da entrada
+sorteia um rato no andar 10 tão facilmente quanto no andar 1.
+
+**Problema no original.** O teto por andar (`difficultyScale`) sobe com a
+profundidade, mas nunca existiu um PISO — só o teto varia, o chão sempre foi
+zero. E rato não é ameaça nenhuma: `xp 1` dá um dano `0..0`, exatamente
+zero; `threat.js` e `duelCost` já tratam rato como zero. É cenário que só
+custa turno.
+
+**Regra nova.** Sem flag, ligado sem condição (é conserto estrutural, não
+ajuste fino). `tierFloorShare(andar)` cresce de 0 (andar 1, sem piso — a
+entrada continua território de rato) até no máximo metade do ÍNDICE do
+teto daquele andar. O piso é uma FRAÇÃO do índice do teto, não um valor
+absoluto — isso garante `piso ≤ teto` por construção em qualquer
+profundidade, sem precisar de nenhum clamp extra.
+
+**A correção que a implementação exigiu.** A primeira versão limitava o
+ÍNDICE CENTRAL antes do sorteio: `índice = max(piso, sorteio_normal)`.
+Medido (não assumido) que isso ainda deixava ratos passarem — o espalhamento
+de `monsterWeightsAround` (quirk §9.2) alcança o slot 0 a partir de um
+centro até 2 acima dele. Corrigido sorteando do centro normal como antes e
+limitando o SLOT FINAL sorteado: `slot = max(piso, sorteio_normal)`. É essa
+troca — limitar o resultado, não o centro — que de fato exclui o rato a
+partir de certo andar.
+
+**Estado atual: construído e ligado, sem flag.** Medido: piso atinge índice
+1 (exclui rato) a partir do andar 5; tier mais baixo visto sobe 1 → 1 → 2 →
+3 → 3 nos andares 1, 3, 5, 7, 10. Ver `docs/backlog.md` M13.

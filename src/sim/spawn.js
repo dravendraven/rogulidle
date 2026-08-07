@@ -143,6 +143,10 @@ export function populate(state, map, counts = {}) {
   // How far up the monster table the deepest tiles reach. The third dial of
   // difficulty, alongside how many monsters and how much loot.
   const difficultyScale = counts.difficultyScale ?? MONSTER_DIFFICULTY_SCALE;
+  // M13 — docs/backlog.md. Share of the ceiling's own index the tier is
+  // never allowed to fall below. Zero by default (unset callers, direct
+  // populate() calls in older tooling) so this is a pure opt-in dial.
+  const tierFloorShare = counts.tierFloorShare ?? 0;
   // Needed as its own dial: piling on monsters also piles on their drops, so
   // crowding the floor arms the player as well as threatening them. Without
   // this the win rate bottoms out around 13% however many you add.
@@ -442,7 +446,20 @@ export function populate(state, map, counts = {}) {
     // changes in that case.
     const difficulty = Math.min(1, depthAt(anchor, 'risk') * difficultyScale);
     const index = Math.floor(difficulty * (MONSTER_TABLE.length - 1));
-    const slot = drawWeighted(state, 'spawn', monsterWeightsAround(index));
+    const rawSlot = drawWeighted(state, 'spawn', monsterWeightsAround(index));
+    // M13 — docs/backlog.md. Within-map position used to vary the tier
+    // between 0 (a rat, every floor, forever) and the floor's own ceiling.
+    // A rat is scenery — xp 1 means its damage roll is exactly `0..0` — so
+    // a tile near the entrance kept rolling one on floor 10 same as floor 1.
+    // `tierFloorShare` raises the FLOOR of the DRAWN slot, as a share of the
+    // ceiling's own index, so it can never exceed the ceiling. Clamping the
+    // final slot rather than the centre index is what actually excludes a
+    // rat once the floor is high enough — the centre index alone is not
+    // enough, since `monsterWeightsAround`'s own -2 spread still reaches
+    // down to slot 0 from a centre as high as 2.
+    const ceilingIndex = Math.floor(difficultyScale * (MONSTER_TABLE.length - 1));
+    const minIndex = Math.floor(tierFloorShare * ceilingIndex);
+    const slot = Math.max(minIndex, rawSlot);
     const template = MONSTER_TABLE[slot];
 
     // M10 — docs/backlog.md. A cluster big enough to hold the whole roster

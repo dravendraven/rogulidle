@@ -1137,26 +1137,92 @@ test('the closed form agrees with a Monte Carlo cross-check', () => {
   // closed form. A bug in the bucket-width maths would show up here even if
   // it happened to leave monotonicity intact.
   const mass = (t) => t.hp * Math.max(0, t.xp - 1);
-  const sampledMonsterMass = (scale, samples = 5000) => {
+  const sampledMonsterMass = (scale, minIndex, samples = 5000) => {
     let sum = 0;
     for (let i = 0; i < samples; i++) {
       const depth = (i + 0.5) / samples;
       const index = Math.floor(Math.min(1, depth * scale) * (MONSTER_TABLE.length - 1));
       const entries = monsterWeightsAround(index);
       const total = entries.reduce((s, [, w]) => s + w, 0);
-      sum += entries.reduce((s, [slot, w]) => s + w * mass(MONSTER_TABLE[slot]), 0) / total;
+      // Clamp each slot in the blend, not the centre index — matches
+      // spawn.js: the centre alone cannot exclude a rat, since the -2
+      // spread reaches slot 0 from a centre as high as 2.
+      sum += entries.reduce(
+        (s, [slot, w]) => s + w * mass(MONSTER_TABLE[Math.max(slot, minIndex)]), 0,
+      ) / total;
     }
     return sum / samples;
   };
 
   for (const level of [0, 4, 9]) {
     const p = floorParams(level);
-    const sampled = p.monsters * sampledMonsterMass(p.difficultyScale);
+    const ceilingIndex = Math.floor(p.difficultyScale * (MONSTER_TABLE.length - 1));
+    const minIndex = Math.floor(p.tierFloorShare * ceilingIndex);
+    const sampled = p.monsters * sampledMonsterMass(p.difficultyScale, minIndex);
     const closedForm = expectedFloorMass(level);
     const gap = Math.abs(sampled - closedForm) / closedForm;
     assert(gap < 0.01,
       `floor ${level + 1}: closed form ${closedForm.toFixed(3)} vs sampled `
       + `${sampled.toFixed(3)}, ${(100 * gap).toFixed(2)}% apart`);
+  }
+});
+
+// ***** M13 — the tier floor rises with depth ***** //
+
+test('the lowest tier seen rises across floors 1, 5 and 10', () => {
+  // Simulated, not the closed form — this is exactly what a player (or the
+  // bot) would encounter, seed after seed.
+  const lowestSeen = (level, seeds = 40) => {
+    let lowest = Infinity;
+    for (let seed = 0; seed < seeds; seed++) {
+      const state = newGame(90000 + seed, floorPlan(level));
+      for (const m of state.monsters) lowest = Math.min(lowest, m.xp);
+    }
+    return lowest;
+  };
+
+  const fl1 = lowestSeen(1);
+  const fl5 = lowestSeen(5);
+  const fl10 = lowestSeen(10);
+  assertEq(fl1, 1, 'floor 1 should still be able to roll a rat (xp 1)');
+  assert(fl5 > fl1, `floor 5's lowest tier (xp ${fl5}) did not rise above floor 1's (xp ${fl1})`);
+  assert(fl10 > fl5, `floor 10's lowest tier (xp ${fl10}) did not rise above floor 5's (xp ${fl5})`);
+});
+
+test('no rat survives past some floor', () => {
+  // "No xp 1 creature at all past some floor" — rats are scenery (xp 1
+  // means a 0..0 damage roll), so once the floor rises enough to exclude
+  // index 0, they should stop appearing entirely, not just get rarer.
+  // Finds the shallowest floor whose minIndex guarantees this (>= 1, since
+  // the final slot is clamped up to it — see spawn.js), then simulates
+  // every floor from there to 10 to confirm it actually holds.
+  let threshold = null;
+  for (let level = 0; level < 10; level++) {
+    const p = floorParams(level);
+    const ceilingIndex = Math.floor(p.difficultyScale * (MONSTER_TABLE.length - 1));
+    const minIndex = Math.floor(p.tierFloorShare * ceilingIndex);
+    if (minIndex >= 1) { threshold = level + 1; break; }
+  }
+  assert(threshold !== null, 'no floor in the descent ever excludes rats');
+
+  for (let floor = threshold; floor <= 10; floor++) {
+    for (let seed = 0; seed < 30; seed++) {
+      const state = newGame(92000 + floor * 1000 + seed, floorPlan(floor));
+      assert(!state.monsters.some((m) => m.xp === 1),
+        `a rat appeared at floor ${floor} (>= threshold ${threshold}), seed ${seed}`);
+    }
+  }
+});
+
+test('the tier floor never exceeds the tier ceiling', () => {
+  // By construction, checked directly: minIndex is a SHARE of the
+  // ceiling's own index, so it can never climb past it, at any floor.
+  for (let level = 0; level < 10; level++) {
+    const p = floorParams(level);
+    const ceilingIndex = Math.floor(p.difficultyScale * (MONSTER_TABLE.length - 1));
+    const minIndex = Math.floor(p.tierFloorShare * ceilingIndex);
+    assert(minIndex <= ceilingIndex,
+      `floor ${level + 1}: tier floor ${minIndex} exceeds its own ceiling ${ceilingIndex}`);
   }
 });
 

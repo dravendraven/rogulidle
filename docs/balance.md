@@ -528,6 +528,35 @@ metrics agent's reading is meant to answer — the distribution of damage
 per blow, not its mean, since a rare near-lethal hit is exactly the point
 and a mean would wash it out.
 
+## Tier floor (M13) — structural, on unconditionally
+
+| Name | Value | Status |
+|---|---|---|
+| `TIER_FLOOR_SHARE_BASE` | 0 | **INITIAL GUESS** — zero on floor 1 by design |
+| `TIER_FLOOR_SHARE_PER_LEVEL` | 0.08 | **INITIAL GUESS** |
+| `TIER_FLOOR_SHARE_CAP` | 0.5 | **INITIAL GUESS** — floor never exceeds half the ceiling's own index |
+
+No flag: `docs/backlog.md` batch note calls this a structural fix with an
+obvious criterion, not an attempt on a ratio, so it ships on directly and
+is guarded by a dedicated test rather than a reading.
+
+A creature's tier index used to range from 0 (a rat, on any floor) up to
+the floor's own ceiling — position within the map decided where in that
+range, but the floor of the range itself never moved. `tierFloorShare` is
+a SHARE of the ceiling's own index (`floor(tierFloorShare × ceilingIndex)`),
+not an absolute value, so the tier floor can never exceed the ceiling at
+any depth, however far the ceiling itself has climbed.
+
+The final DRAWN SLOT is clamped, not the roll's centre index — the centre
+alone is not enough, because `monsterWeightsAround`'s own spread (spec
+quirk 9.2) reaches slot 0 from a centre as high as 2. Measured, not
+assumed: the first cut clamped only the centre and rats still appeared past
+where they were meant to stop.
+
+Measured (self-tested): the tier floor first excludes rats (`minIndex`
+reaches 1) at floor 5, and lowest tier seen rises 1 → 1 → 2 → 3 → 3 across
+floors 1, 3, 5, 7, 10.
+
 ## Defensive progression (M6)
 
 | Name | Value | Status |

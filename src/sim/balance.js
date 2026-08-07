@@ -227,6 +227,21 @@ export const OUT_OF_DEPTH_CHANCE_BASE = 0;
 export const OUT_OF_DEPTH_CHANCE_PER_LEVEL = 0.02;
 export const OUT_OF_DEPTH_CHANCE_CAP = 0.15;
 
+// ***** M13 — the tier floor rises with depth, docs/backlog.md M13 ***** //
+// `difficultyScale` (above) is a CEILING — position within the map still
+// puts the tier anywhere from 0 up to it, so a tile near the entrance rolls
+// a rat on floor 10 exactly as often as on floor 1. A rat is scenery, not a
+// threat: xp 1 means its damage roll is `0..0`, and `threat.js`/`duelCost`
+// already treat it as zero. Structural, not tunable by feel: no flag, on by
+// construction, verified by a dedicated test (docs/backlog.md batch note).
+//
+// GUESS — zero on floor 1 (the entrance stays a rat's territory), rising
+// toward at most HALF the floor's own ceiling index, so there is always
+// room left between floor and ceiling for position to still matter.
+export const TIER_FLOOR_SHARE_BASE = 0;
+export const TIER_FLOOR_SHARE_PER_LEVEL = 0.08;
+export const TIER_FLOOR_SHARE_CAP = 0.5;
+
 // ***** items ***** //
 
 // Pick weight is 1/value, so a HIGH value means a RARE item.

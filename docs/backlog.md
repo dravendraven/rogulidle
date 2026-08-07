@@ -40,7 +40,7 @@ session, skip it.
 |---|---|---|---|
 | 1 | I8 | One page saying whether the map is good, in five numbers | READY · start now |
 | 2 | M11 | Floor n+1 is never cheaper than floor n | REPORTED |
-| 3 | M13 | Tier floor rises with depth — rats stop appearing deep | READY |
+| 3 | M13 | Tier floor rises with depth — rats stop appearing deep | REPORTED |
 | 4 | M12 | Raise creature count and cluster size together | READY |
 | 5 | M14 | One top-tier-for-the-floor creature next to the shrine | READY |
 | 6 | M15 | Chests get a creature nearby, spine included | READY |
@@ -176,7 +176,7 @@ no `rogule-spec.md` divergence (no player-visible rule changed).
 
 ## M13 · the tier floor rises with depth
 
-`map` · `work agent` · **READY**
+`map` · `work agent` · **REPORTED**
 
 A creature's tier is `min(1, depthAt(pos) × difficultyScale)`, and `depthAt`
 is position **within the map**, not the floor number. Near the entrance it
@@ -196,6 +196,56 @@ between zero and a ceiling.
 
 **Assert.** Lowest tier seen at floors 1, 5, 10 rises. No `xp 1` creature at
 all past some floor.
+
+### Result
+
+**Built: `TIER_FLOOR_SHARE_{BASE,PER_LEVEL,CAP}` in `balance.js`,
+`tierFloorShare(level)` in `difficulty.js`, threaded through `floorParams`/
+`makeFloorPlan`/`dungeon.js` like every other dial — no flag, on
+unconditionally, per the batch note (structural fix, not a ratio).**
+`tierFloorShare` is a SHARE of the floor's own ceiling INDEX, not an
+absolute value, so `floor <= ceiling` holds by construction at every depth
+however far the ceiling itself has climbed — no clamping needed to enforce
+it separately (also directly tested).
+
+**One correction mid-build, worth recording.** First cut clamped the
+CENTRE index before drawing: `index = max(minIndex, floor(difficulty×10))`.
+Measured (not assumed) that this still let rats through past the intended
+floor — `monsterWeightsAround`'s own spec-quirk-9.2 spread reaches slot 0
+from a centre as high as 2 (offset -2), so raising the centre to 1 was not
+enough to exclude it. Fixed by drawing from the natural centre as before
+and clamping the FINAL DRAWN SLOT instead: `slot = max(minIndex,
+drawWeighted(...))`. This is what "varies between a floor and a ceiling"
+in the spec actually meant — the OUTCOME's range, not the roll's centre.
+
+**Assert, built and passing (self-simulated, n=40 seeds/floor):**
+
+    floor        1    3    5    7    10
+    lowest xp    1    1    2    3    3
+
+Rises at every checkpoint, and floor 1 still rolls a rat (`xp 1`) — the
+spec's own example, kept intact rather than over-corrected. `minIndex`
+(the actual guarantee, computed from `tierFloorShare × ceilingIndex`)
+reaches 1 at floor 5 and never drops back below it, so "no rat past some
+floor" is checked directly against that threshold and simulated for every
+floor from there to 10 — a dedicated test finds the threshold itself
+(floor 5) rather than a hardcoded one. `minIndex` sequence across floors
+1–10: 0,0,0,0,1,1,2,2,3,3.
+
+**M11's closed form updated to match, not left stale.** `expectedFloorMass`
+existed one item ago and claimed to describe "the game that actually
+runs" — leaving it ignorant of M13's floor would have made that claim
+false the moment this landed. `expectedMonsterMass` now takes `minIndex`
+and clamps each slot inside the weighted blend, exactly mirroring the
+spawn.js correction above (not the naive centre-clamp either). Re-ran
+`expected floor mass never drops across the descent` with the corrected
+model — still holds. 4 new tests (lowest tier rises, no rat past
+threshold, floor never exceeds ceiling, plus the M11 Monte Carlo
+cross-check updated for the new clamp). 82/82 total.
+
+`docs/rogule-spec.md` §13.7 added, same structure as §13.5/§13.6 — Rogule's
+tier index has no per-floor minimum either, so this is a genuine rule
+divergence, not just a constant's shape changing.
 
 ## M12 · fill the floors back up
 

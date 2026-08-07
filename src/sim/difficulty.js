@@ -3,6 +3,7 @@ import {
   OUT_OF_DEPTH_CHANCE_BASE, OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_CHANCE_PER_LEVEL,
   OUT_OF_DEPTH_TAIL,
   SIDE_ACTIVATION_CAP, SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE,
+  TIER_FLOOR_SHARE_BASE, TIER_FLOOR_SHARE_CAP, TIER_FLOOR_SHARE_PER_LEVEL,
 } from './balance.js';
 import { monsterWeightsAround } from './spawn.js';
 
@@ -195,12 +196,25 @@ export function outOfDepthChanceAt(level, model = {}) {
   return Math.max(0, Math.min(cap, base + perLevel * Math.max(0, level)));
 }
 
+// ***** M13 — the tier floor rises with depth, docs/backlog.md M13 ***** //
+// What SHARE of the floor's own ceiling INDEX the minimum tier climbs to.
+// A share rather than an absolute index keeps the floor at or under the
+// ceiling by construction at every depth, however far `difficultyScale`
+// itself has climbed — no clamping needed to keep floor <= ceiling.
+export function tierFloorShare(level, model = {}) {
+  const base = model.tierFloorShareBase ?? TIER_FLOOR_SHARE_BASE;
+  const perLevel = model.tierFloorSharePerLevel ?? TIER_FLOOR_SHARE_PER_LEVEL;
+  const cap = model.tierFloorShareCap ?? TIER_FLOOR_SHARE_CAP;
+  return Math.max(0, Math.min(cap, base + perLevel * Math.max(0, level)));
+}
+
 // Everything the generator needs for floor N, zero-based.
 //
 // With DIFFICULTY_REBALANCED off, this is byte-identical to before M7: the
 // three lines below all read the ORIGINAL constants (MONSTER_GROWTH,
 // STRENGTH_GROWTH's own default, clusterSize 1). The flag is the only
-// branch in this function, alongside OUT_OF_DEPTH_TAIL for M3.
+// branch in this function, alongside OUT_OF_DEPTH_TAIL for M3. M13's
+// `tierFloorShare` has no flag — it is a structural fix, on unconditionally.
 export function floorParams(level) {
   const growth = DIFFICULTY_REBALANCED ? MONSTER_GROWTH_REBALANCED : MONSTER_GROWTH;
   const strengthGrowth = DIFFICULTY_REBALANCED ? STRENGTH_GROWTH_REBALANCED : STRENGTH_GROWTH;
@@ -213,6 +227,7 @@ export function floorParams(level) {
     chests: CHESTS_PER_FLOOR,
     difficultyScale: floorStrength(level, { strengthGrowth }),
     clusterSize,
+    tierFloorShare: tierFloorShare(level),
     // Zero when the flag is off, so spawn.js skips the roll entirely rather
     // than drawing a `drawChance(..., 0)` that always fails — a draw of any
     // kind, even one that never fires, would still perturb the RNG stream.
@@ -251,6 +266,11 @@ export const DEFAULT_MODEL = {
   outOfDepthChanceBase: 0,
   outOfDepthChancePerLevel: 0,
   outOfDepthChanceCap: OUT_OF_DEPTH_CHANCE_CAP,
+  // M13. Unconditional — a page opts OUT by setting these to 0, not in, the
+  // same way spread/spine dials above already work.
+  tierFloorShareBase: TIER_FLOOR_SHARE_BASE,
+  tierFloorSharePerLevel: TIER_FLOOR_SHARE_PER_LEVEL,
+  tierFloorShareCap: TIER_FLOOR_SHARE_CAP,
   dropChance: DROP_CHANCE,
   weaponScarcity: SCARCITY,
   armourScarcity: SCARCITY,
@@ -283,6 +303,7 @@ export function makeFloorPlan(model = {}) {
       chests: Math.max(0, Math.round(m.chests + m.chestsPerMonster * monsters)),
       difficultyScale: floorStrength(level - 1, m),
       clusterSize: m.clusterSize,
+      tierFloorShare: tierFloorShare(level - 1, m),
       outOfDepthChance: outOfDepthChanceAt(level - 1, m),
       dropChance: m.dropChance,
       weaponScarcity: m.weaponScarcity,
@@ -322,12 +343,20 @@ export function threatMass(state) {
 // scale * 10)` — a step function of `depth`. Integrating that exactly, rather
 // than sampling it, means this can never itself be the source of a false
 // "it dropped" — the closed form has no sampling noise to produce one.
-function expectedMonsterMass(scale) {
+// `minIndex` folds in M13's tier floor — spawn.js draws the slot from the
+// natural centre-index spread and THEN clamps the result up to minIndex
+// (clamping the centre alone is not enough: `monsterWeightsAround`'s own
+// -2 offset still reaches slot 0 from a centre as high as 2). `massAt`
+// mirrors that exactly — clamp each slot in the blend, not the centre —
+// so at minIndex 0 it reduces to exactly the pre-M13 integral.
+function expectedMonsterMass(scale, minIndex = 0) {
   const mass = (t) => t.hp * Math.max(0, t.xp - 1);
   const massAt = (index) => {
     const entries = monsterWeightsAround(index);
     const total = entries.reduce((sum, [, w]) => sum + w, 0);
-    return entries.reduce((sum, [slot, w]) => sum + w * mass(MONSTER_TABLE[slot]), 0) / total;
+    return entries.reduce(
+      (sum, [slot, w]) => sum + w * mass(MONSTER_TABLE[Math.max(slot, minIndex)]), 0,
+    ) / total;
   };
 
   const top = MONSTER_TABLE.length - 1;
@@ -351,5 +380,7 @@ function expectedMonsterMass(scale) {
 // describes the game that actually runs.
 export function expectedFloorMass(level) {
   const p = floorParams(level);
-  return p.monsters * expectedMonsterMass(p.difficultyScale);
+  const ceilingIndex = Math.floor(p.difficultyScale * (MONSTER_TABLE.length - 1));
+  const minIndex = Math.floor(p.tierFloorShare * ceilingIndex);
+  return p.monsters * expectedMonsterMass(p.difficultyScale, minIndex);
 }
