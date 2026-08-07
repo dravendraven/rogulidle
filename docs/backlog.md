@@ -40,12 +40,13 @@ session, skip it.
 |---|---|---|---|
 | — | M20 | Hero and shrine at the two furthest-apart rooms, not hero-then-furthest | **DONE** · half kept, see M23 |
 | 1 | M23 | Shrine in a distant room, not the furthest possible — keep the room spawn | READY |
-| 2 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
-| 3 | B7 | Raise STEP_COST_IN_HP so turns cost the bot something | READY · after M19 |
-| 4 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
-| 5 | X1 | Delete what nothing references | READY |
-| 6 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 7 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 2 | M24 | Cap the tier from above too — floor 1 can roll wolves and ogres | READY |
+| 3 | M19 | Pay for the harder opening with loot, sized after M18 and M17 land | READY |
+| 4 | B7 | Raise STEP_COST_IN_HP so turns cost the bot something | READY · after M19 |
+| 5 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M19 |
+| 6 | X1 | Delete what nothing references | READY |
+| 7 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
+| 8 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -492,6 +493,52 @@ loose to be doing anything.
 
 **Before M19**, because M19 sizes a weapon against how deadly floor 1 is,
 and this changes how far the hero walks through it.
+
+## M24 · the ceiling is a centre, not a cap
+
+`work agent` · **READY** — before M19
+
+Floor 1's mean creature reads `xp 2.7`, which looks fine. **The mean is not
+the problem — the tail is.**
+
+A creature's tier is `floor(depthAt(pos) × difficultyScale × 10)`, so on
+floor 1 the centre reaches **index 3**. Then `MONSTER_WEIGHTS` spreads ±2
+from there with nothing stopping it going up:
+
+    index 4   wolf   hp 5, xp 4   17% of draws from centre 3
+    index 5   ogre   hp 7, xp 4    8% of draws from centre 3
+
+Against a hero with 10 hp, no weapon and 0.83 damage a turn, **one wolf is
+six turns of combat and 7.5 hp of damage — three quarters of the hero.**
+Floor 1 holds five creatures.
+
+**M13 made the bottom a real floor. Nobody made the top a real ceiling.**
+What `difficultyScale` sets is a centre that the spread walks above.
+
+**Do.** Clamp the drawn slot from above, exactly mirroring M13's clamp from
+below — and M13's own mid-build lesson applies here unchanged: **clamp the
+drawn slot, not the centre.** Raising or lowering the index the roll is
+built around does not bound the outcome, because the spread reaches past it.
+
+**Make the cap depth-dependent, like M13's floor.** Tight on shallow floors,
+loosening with depth. A fixed cap would flatten deep floors too, and
+`spread within a floor` is a health metric that is already falling
+(60% → 49%).
+
+**A likely side effect worth measuring rather than assuming.** Narrowing
+floor 1 while leaving depth alone should make that metric *rise* — the
+number is about whether spread shrinks with depth, and today's fall is
+partly floor 1 being unusually wide because its tail runs three tiers above
+its centre.
+
+**Before M19.** M19 sizes a weapon against how deadly floor 1 is. Fixing the
+tail first means it is sized against the floor that ships rather than
+against a wolf that should not have been there.
+
+**Assert.** Highest tier seen at floors 1, 5 and 10 — floor 1's should drop
+by two indices. Mean xp per floor, which should barely move, since this cuts
+a tail and not a centre. Cost of floor 1. And `spread within a floor`, to
+see whether the side effect above is real.
 
 ## M19 · pay for the harder opening with loot
 
