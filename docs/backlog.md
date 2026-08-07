@@ -86,6 +86,47 @@ because a bot judged by whoever wrote it is a weak counterweight.
 Note that `feature` and `agent` are independent. I4 is a bot question
 answered by the metrics agent; M3 is a map change made by the work agent.
 
+## Goals
+
+The broad goal is that a run is **worth watching**. That is not measurable
+and no attempt should be made to measure it directly. Three sub-goals are,
+and everything in the queue serves one of them.
+
+**1. The curve shape approaches DCSS's.** Only the signs of the ratios are
+the target; the magnitudes are derived from attribute scales rather than
+observed play. Served by the map queue, measured on the probes.
+
+**2. The bot is intelligent.** The spectator should see decisions, not
+flailing. Served by the bot queue, measured on bot-internal metrics.
+
+**3. The outcome is worth betting on.** The descent should read like a horse
+race: reaching the bottom is plausible but not assured, so the viewer builds
+an expectation and it can be broken. Too certain is boring; pure coin-flip
+is also boring, because nothing the viewer sees explains the result.
+
+Sub-goal 3 decomposes into three things that can be measured:
+
+- **Clear rate** — plausible but not assured. Currently around 30% for the
+  real bot, which is inside a reasonable band; the number to argue about is
+  whether it should be lower.
+- **When the outcome is decided** — late is drama, early is no arc. If most
+  deaths happen on floors 2–3, there is no race to watch however good the
+  odds look on paper.
+- **How much of the result is legible** — `balance.md` already measured
+  this: 46.5% of outcome variance came from the map and 53.5% from the
+  combat dice. All dice means the viewer cannot read anything; all map means
+  the run was decided at generation.
+
+**Sub-goal 3 is the integration test.** Sub-goals 1 and 2 are measured in
+isolation, on frozen probes and on bot internals — deliberately, so that
+neither contaminates the other. Sub-goal 3 is the only one measured with the
+real bot playing the real map, and it is the only one that can tell you the
+other two added up to something.
+
+Nothing in the queue currently serves sub-goal 3 directly. That is a gap,
+and it is deliberate for now: measuring it against a bot with known defects
+would measure the defects.
+
 ## The problem all of this serves
 
 Measured: difficulty grows ×1.34 per floor while the hero's power grows far
