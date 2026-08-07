@@ -67,10 +67,16 @@ every reading; nobody else edits it. Targets live in `docs/backlog.md` and
 belong to the project agent. If a number in prose anywhere disagrees with
 `kpi.md`, `kpi.md` wins and the prose is stale.
 
-`docs/backlog.md` holds the task list, what each task is worth, and its
-acceptance criteria. Your opening prompt names your task — read that item in
-full before starting, and report against ITS criteria rather than your own
-sense of finished.
+`docs/backlog.md` holds the task list and its acceptance criteria — the one
+file you need to pick up a task and finish it. Your opening prompt names your
+task; read that item in full before starting, and report against ITS criteria
+rather than your own sense of finished.
+
+The reasoning behind it lives in `docs/project/`, and you do not need it to
+deliver: `objectives.md` is why the work exists and what the targets are,
+`decisions.md` is closed items with their results and reviews, and
+`candidates.md` is ideas with no slot. Read them when an item points you
+there, or when something in a spec looks arbitrary.
 
 Your FIRST action on any task is to set it to IN FLIGHT and commit that
 alone — four sessions share this repo and cannot see each other, so an
