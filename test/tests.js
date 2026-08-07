@@ -1256,6 +1256,42 @@ test('cluster size grew alongside creature count', () => {
   assert(CLUSTER_SIZE >= 10, `CLUSTER_SIZE is ${CLUSTER_SIZE}, expected the M12 raise to at least 10`);
 });
 
+// ***** M14 — a guardian at the shrine ***** //
+
+test('every floor has exactly one guardian at the shrine, at or above every other creature', () => {
+  const indexOf = (m) => MONSTER_TABLE.findIndex((t) => t.name === m.name);
+  for (const level of [1, 5, 10]) {
+    for (let seed = 0; seed < 20; seed++) {
+      const state = newGame(94000 + level * 1000 + seed, floorPlan(level));
+      const neighbours = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+        .map(([dx, dy]) => [state.shrine.pos[0] + dx, state.shrine.pos[1] + dy]);
+      const guardians = state.monsters.filter((m) => neighbours
+        .some((pos) => pos[0] === m.pos[0] && pos[1] === m.pos[1]));
+      assertEq(guardians.length, 1,
+        `floor ${level} seed ${seed}: expected exactly one guardian, found ${guardians.length}`);
+      const guardIndex = indexOf(guardians[0]);
+      for (const m of state.monsters) {
+        assert(indexOf(m) <= guardIndex,
+          `floor ${level} seed ${seed}: ${m.name} outranks the guardian (${guardians[0].name})`);
+      }
+    }
+  }
+});
+
+test('the guardian replaces a roster member rather than adding one', () => {
+  // monsterSpread forced to 0 so the nominal count is exact, not a range —
+  // isolates the guardian mechanism from the unrelated count-roll variance.
+  for (const level of [1, 5, 10]) {
+    const plan = { ...floorPlan(level), monsterSpread: 0 };
+    for (let seed = 0; seed < 10; seed++) {
+      const state = newGame(95000 + level * 1000 + seed, plan);
+      assertEq(state.monsters.length, plan.monsters,
+        `floor ${level} seed ${seed}: roster size changed (got ${state.monsters.length}, `
+        + `expected ${plan.monsters})`);
+    }
+  }
+});
+
 // ***** curve-shape diagnostics ***** //
 //
 // growthOf is the one piece of real maths the shape report rests on: every

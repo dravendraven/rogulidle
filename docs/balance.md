@@ -587,6 +587,18 @@ Measured (self-tested): the tier floor first excludes rats (`minIndex`
 reaches 1) at floor 5, and lowest tier seen rises 1 → 1 → 2 → 3 → 3 across
 floors 1, 3, 5, 7, 10.
 
+## A guardian at the shrine (M14) — structural, on unconditionally
+
+No new constant — nothing to tune, so nothing lives in `balance.js` for
+this one. Exactly one creature ends up adjacent to the shrine on every
+floor, at or above every other creature the floor ended up holding
+(computed AFTER M3's rare reskin, not assumed from the ceiling alone, since
+M3 can push a different monster past it). Replaces an existing roster
+member — reuses whichever is already closest, or relocates any surplus
+already-adjacent monster away — so the budget M7/M12 spend does not move.
+Verified 750 floor/seed combinations, zero misses. See `docs/backlog.md`
+M14 and `docs/rogule-spec.md` §13.8.
+
 ## Defensive progression (M6)
 
 | Name | Value | Status |

@@ -143,6 +143,11 @@ export function populate(state, map, counts = {}) {
   // How far up the monster table the deepest tiles reach. The third dial of
   // difficulty, alongside how many monsters and how much loot.
   const difficultyScale = counts.difficultyScale ?? MONSTER_DIFFICULTY_SCALE;
+  // What the floor's own ceiling means as a table INDEX rather than a 0..1
+  // scale — a floor-level constant, not a per-cluster one, so it is
+  // computed once here and reused by M13's floor and M14's guardian below,
+  // rather than recomputed identically on every loop iteration.
+  const ceilingIndex = Math.floor(difficultyScale * (MONSTER_TABLE.length - 1));
   // M13 — docs/backlog.md. Share of the ceiling's own index the tier is
   // never allowed to fall below. Zero by default (unset callers, direct
   // populate() calls in older tooling) so this is a pure opt-in dial.
@@ -457,7 +462,6 @@ export function populate(state, map, counts = {}) {
     // rat once the floor is high enough — the centre index alone is not
     // enough, since `monsterWeightsAround`'s own -2 spread still reaches
     // down to slot 0 from a centre as high as 2.
-    const ceilingIndex = Math.floor(difficultyScale * (MONSTER_TABLE.length - 1));
     const minIndex = Math.floor(tierFloorShare * ceilingIndex);
     const slot = Math.max(minIndex, rawSlot);
     const template = MONSTER_TABLE[slot];
@@ -510,6 +514,75 @@ export function populate(state, map, counts = {}) {
     victim.activation = victim.side
       ? Math.min(template.activation, counts.sideActivationCap ?? SIDE_ACTIVATION_CAP)
       : template.activation;
+  }
+
+  // 7. M14 — docs/backlog.md. One creature guards the shrine, adjacent to
+  // it, at or above every other creature on the floor. No flag — structural,
+  // ships on. Runs AFTER the M3 reskin above so "at or above every other
+  // creature" is checked against what the floor actually ended up holding,
+  // not assumed from the ceiling alone (M3 can push one monster past it).
+  if (state.monsters.length) {
+    const neighbours = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+      .map(([dx, dy]) => [state.shrine.pos[0] + dx, state.shrine.pos[1] + dy])
+      .filter((pos) => passable(pos[0], pos[1]));
+
+    // Prefer a monster already standing next to the shrine — nothing to
+    // relocate. Otherwise move the nearest one to a free neighbouring tile
+    // rather than adding a body, so the roster size (and the budget it
+    // spends) does not move.
+    const alreadyAdjacent = state.monsters.filter((m) => neighbours
+      .some((pos) => pos[0] === m.pos[0] && pos[1] === m.pos[1]));
+    let guardian = alreadyAdjacent[0];
+
+    // EXACTLY one — a roster large enough (M12) can otherwise place more
+    // than one cluster member next to the shrine by chance. Move every
+    // extra to any other free tile rather than leaving a second guard the
+    // spec did not ask for.
+    for (let i = 1; i < alreadyAdjacent.length; i++) {
+      const extra = alreadyAdjacent[i];
+      const elsewhere = [...free.values()].find((pos) => !neighbours
+        .some((n) => n[0] === pos[0] && n[1] === pos[1]));
+      if (!elsewhere) continue;
+      free.set(posKey(extra.pos), extra.pos);
+      free.delete(posKey(elsewhere));
+      extra.pos = elsewhere;
+      extra.side = zones.isSide(elsewhere);
+      extra.edge = edgeAt(elsewhere);
+    }
+
+    if (!guardian) {
+      const target = neighbours.find((pos) => free.has(posKey(pos)));
+      if (target) {
+        guardian = state.monsters.reduce((closest, m) => {
+          const d = Math.abs(m.pos[0] - target[0]) + Math.abs(m.pos[1] - target[1]);
+          return !closest || d < closest.d ? { m, d } : closest;
+        }, null).m;
+        free.set(posKey(guardian.pos), guardian.pos);
+        free.delete(posKey(target));
+        guardian.pos = target;
+        guardian.side = zones.isSide(target);
+        guardian.edge = edgeAt(target);
+      }
+      // No free neighbour at all (shrine boxed in by chests/geometry) — rare
+      // enough on a real map that skipping this floor's guardian rather than
+      // forcing a tile conflict is the safer failure mode.
+    }
+
+    if (guardian) {
+      const maxOtherIndex = state.monsters
+        .filter((m) => m !== guardian)
+        .reduce((max, m) => Math.max(max, MONSTER_TABLE.findIndex((t) => t.name === m.name)), 0);
+      const guardIndex = Math.min(MONSTER_TABLE.length - 1, Math.max(ceilingIndex, maxOtherIndex));
+      const template = MONSTER_TABLE[guardIndex];
+      guardian.name = template.name;
+      guardian.emoji = template.emoji;
+      guardian.hp = template.hp;
+      guardian.hpMax = template.hp;
+      guardian.xp = template.xp;
+      guardian.activation = guardian.side
+        ? Math.min(template.activation, counts.sideActivationCap ?? SIDE_ACTIVATION_CAP)
+        : template.activation;
+    }
   }
 
   // Items lying loose on the floor. Starts empty: everything enters this list

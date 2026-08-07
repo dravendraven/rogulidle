@@ -780,3 +780,31 @@ partir de certo andar.
 **Estado atual: construído e ligado, sem flag.** Medido: piso atinge índice
 1 (exclui rato) a partir do andar 5; tier mais baixo visto sobe 1 → 1 → 2 →
 3 → 3 nos andares 1, 3, 5, 7, 10. Ver `docs/backlog.md` M13.
+
+### 13.8 Um guardião protege o santuário (M14)
+
+**Não existe no original.** Em Rogule nada guarda a saída — chegar ao
+santuário é só o momento em que o andar para de ser perigoso, não um
+obstáculo em si.
+
+**Regra nova.** Sem flag, ligado sem condição. Depois de todo o resto do
+andar estar povoado (inclusive o sorteio raro do M3), exatamente UMA
+criatura fica adjacente ao santuário, com tier no topo do que aquele andar
+alcança — ou acima, se alguma outra criatura do andar (por exemplo um
+sorteio do M3) já tiver ficado mais forte. Substitui um membro já existente
+do elenco em vez de adicionar corpo: se já havia uma criatura adjacente,
+essa vira o guardião; senão, a mais próxima é realocada para lá. Se por
+acaso mais de uma criatura já estava adjacente (elenco grande o bastante,
+depois do M12), as extras são movidas para qualquer outro ladrilho livre —
+exatamente uma, nunca mais.
+
+**Consequência.** O `ceilingIndex` sozinho não bastava para garantir "no
+mínimo tão forte quanto qualquer outra criatura do andar" — o sorteio raro
+do M3 pode passar do teto normal do andar. Por isso o guardião usa
+`max(ceilingIndex, maior índice já colocado no andar)`, calculado depois de
+todo o resto (inclusive o M3) já ter decidido, não assumido de antemão.
+
+**Estado atual: construído e ligado, sem flag.** Verificado em 750
+combinações de andar/seed (andares 1, 3, 5, 7, 10 — 150 seeds cada):
+sempre exatamente um guardião, sempre no topo ou acima de todo o resto do
+elenco. Ver `docs/backlog.md` M14.

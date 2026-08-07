@@ -42,7 +42,7 @@ session, skip it.
 | 2 | M11 | Floor n+1 is never cheaper than floor n | REPORTED |
 | 3 | M13 | Tier floor rises with depth — rats stop appearing deep | REPORTED |
 | 4 | M12 | Raise creature count and cluster size together | REPORTED |
-| 5 | M14 | One top-tier-for-the-floor creature next to the shrine | READY |
+| 5 | M14 | One top-tier-for-the-floor creature next to the shrine | REPORTED |
 | 6 | M15 | Chests get a creature nearby, spine included | READY |
 | 7 | M16 | Bigger rooms, shorter corridors | READY |
 | 8 | X1 | Delete what nothing references | READY |
@@ -342,7 +342,7 @@ forked into a new subsection.
 
 ## M14 · a guardian at the shrine
 
-`map` · `work agent` · **READY**
+`map` · `work agent` · **REPORTED**
 
 Nothing guards the exit. Reaching the shrine is currently the moment the
 floor stops being dangerous.
@@ -354,6 +354,38 @@ so the budget does not move.
 
 **Assert.** Every floor has exactly one, its tier is at or above every other
 creature on that floor, and creature count is unchanged.
+
+### Result
+
+**Built, no flag, runs after M3's step** — `src/sim/spawn.js` step 7, so
+"at or above every other creature" is checked against what the floor
+actually ended up holding (M3's rare reskin can exceed the normal ceiling)
+rather than assumed from `ceilingIndex` alone: `guardIndex =
+max(ceilingIndex, maxOtherIndex)`, computed after M3, not before.
+
+**Reuses a roster member, in order of preference:** a monster already
+adjacent to the shrine (nothing to move) → the nearest monster, relocated
+to a free adjacent tile → skipped for that floor only if the shrine has no
+free or already-occupied-by-a-monster neighbour at all (rare geometry,
+accepted rather than engineered around). No new body added at any point.
+
+**One correction found by testing, not assumed away.** First cut only
+looked for a SINGLE already-adjacent monster and reskinned it, missing that
+a large enough roster (M12 raised counts) can land MORE than one cluster
+member next to the shrine by chance — caught at floor 10, seed 19, in the
+very first test run ("found 2"). Fixed by relocating every extra
+already-adjacent monster to any other free tile before picking the one
+that stays.
+
+**Assert, verified:** own tests (2, floors 1/5/10, 20 seeds each) plus a
+wider self-check — 750 floor/seed combinations (floors 1, 3, 5, 7, 10 ×
+150 seeds), zero misses on either exactly-one or at-or-above. Roster size
+unchanged, checked with `monsterSpread` forced to 0 so the nominal count is
+exact rather than a range. 2 new tests, 86/86 total.
+
+`docs/rogule-spec.md` §13.8 added — genuine new rule, nothing like it in
+Rogule. No `docs/balance.md` constant — nothing to tune, the rule has no
+free parameter.
 
 ## M15 · loot rooms have a guard
 
