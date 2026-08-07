@@ -162,6 +162,17 @@ A supply that is finite and fixed at generation has no such exploit.
 **Armour as a spent second bar, not damage reduction.** Gear buys blows
 absorbed rather than blows softened.
 
+**A typical position's furthest room tracks the map's radius, not its
+diameter.** Randomising where the hero starts caps the hero-shrine path at
+the pre-M20 level however generous the shrine's threshold — no share value
+can reach past it. Keeping the hero at one end of the global-maximum pair is
+what makes a distant shrine reachable at all.
+
+**Two numbers pinned near the same ceiling cannot be ordered.** M15's test
+asserted chest coverage rises with depth; once floor 1 saturated at 99%
+against floor 10's 97%, the assertion was measuring noise. Assert both clear
+a bar instead.
+
 **Room size is not what breaks the spine share — dug percentage is.**
 Bigger rooms push the share up. Raising `dugPercentage` to ROT's own 0.20
 dropped floor 7 to 0.70.
