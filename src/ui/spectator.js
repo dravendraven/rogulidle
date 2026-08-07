@@ -30,6 +30,9 @@ const session = {
   cleared: 0,
   runsPlayed: 0,
   history: [],
+  // Turns banked from floors already finished this run — see renderHud's
+  // xp-rate comment in render.js. 0 in legacy single-floor mode.
+  turnOffset: 0,
   paused: false,
   speed: 1,
   debug: false,
@@ -39,9 +42,9 @@ const el = {};
 
 function grab() {
   for (const id of [
-    'grid', 'hp', 'xp', 'steps', 'kills', 'inventory', 'remaining',
-    'run', 'seed', 'tally', 'log', 'summary', 'summaryTitle', 'summaryBody',
-    'playPause', 'speed', 'debug', 'goal', 'floor', 'history',
+    'grid', 'hp', 'dmg', 'xpEarned', 'xpRate', 'steps', 'kills', 'inventory',
+    'remaining', 'run', 'seed', 'tally', 'log', 'summary', 'summaryTitle',
+    'summaryBody', 'playPause', 'speed', 'debug', 'goal', 'floor', 'history',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -227,6 +230,7 @@ async function runDescentForever(sessionSeed) {
     }, { maxTurns: MAX_TURNS });
 
     let finalState = null;
+    session.turnOffset = 0;
     for (let i = 0; i < run.levels.length; i++) {
       const levelResult = run.levels[i];
       if (el.floor) el.floor.textContent = `floor ${levelResult.level} / ${LEVELS}`;
@@ -240,6 +244,7 @@ async function runDescentForever(sessionSeed) {
 
       await playFrames(frames, alignedTrace, descentTallyText);
       finalState = frames[frames.length - 1].state;
+      session.turnOffset += levelResult.turns;
     }
 
     tallyDescent(run);

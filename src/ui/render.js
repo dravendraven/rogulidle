@@ -169,7 +169,22 @@ export function renderHud(elements, state, session) {
   const player = state.player;
 
   elements.hp.innerHTML = hearts(player.hp, player.hpMax, player.armour);
-  elements.xp.textContent = player.xp + ' xp';
+
+  // Rogule calls the hero's damage roll "xp" — the same word it puts over a
+  // monster's head. That number still matters, but it is not what a run has
+  // achieved, so it gets its own label here rather than sharing "xp" with
+  // the total below and making both wrong to read.
+  elements.dmg.textContent = player.xp + ' dmg';
+
+  // xpEarned carries across floors; state.turn resets to 0 at each one. The
+  // rate is only meaningful over the whole run, so session.turnOffset (the
+  // turn count banked from floors already finished) makes up the gap — 0
+  // for the legacy single-floor mode, where there is nothing to add.
+  const totalTurns = (session.turnOffset || 0) + state.turn;
+  elements.xpEarned.textContent = player.xpEarned + ' xp';
+  elements.xpRate.textContent =
+    (totalTurns > 0 ? (player.xpEarned / totalTurns).toFixed(2) : '0.00') + ' xp/turn';
+
   elements.steps.textContent = state.turn + ' 👣';
   elements.kills.textContent = player.kills.length
     ? '⚔️ ' + player.kills.length
