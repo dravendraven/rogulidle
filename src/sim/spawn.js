@@ -8,7 +8,7 @@ import {
   CHEST_COUNT, CHEST_DIFFICULTY_SCALE, CHEST_GUARD_RADIUS, CHEST_LOOT_RICHER_FAR,
   CHEST_QUALITY_BY_DEPTH, CHEST_TABLE, ITEM_TABLE, MONSTER_COUNT, MONSTER_DIFFICULTY_SCALE,
   MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE, MONSTER_WEIGHTS,
-  PLAYER_HP, PLAYER_XP, SIDE_ACTIVATION_CAP, SIDE_CHEST_BIAS,
+  PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE, SIDE_ACTIVATION_CAP, SIDE_CHEST_BIAS,
   SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE,
 } from './balance.js';
 import {
@@ -179,24 +179,24 @@ export function populate(state, map, counts = {}) {
     return positions[drawInt(state, 'spawn', 0, positions.length - 1)];
   };
 
-  // 1. Player and shrine, at the two ends of the longest walkable path
-  // between any pair of room centres — docs/backlog.md M20.
+  // 1. Player, at one end of the longest walkable path between any pair of
+  // room centres — docs/backlog.md M20, and the half of it that M23 keeps.
+  // Never a corridor tile, and no `pickFree()` in the hero's placement.
   //
-  // Half of this already existed: the shrine went in the room furthest
-  // from the hero, which is itself a deliberate divergence from spec §9.1
-  // (the original sorts by path VECTOR, not length, and scatters the
-  // shrine into an arbitrary room). What was missing was choosing the
-  // PAIR — the hero landed on a random free tile first, and only then did
-  // the shrine take the room furthest from wherever that happened to be.
-  // Land in a central room and "furthest" was merely moderate.
+  // Kept deliberately, not just left alone: M23 only replaces step 3 below
+  // (the SHRINE's placement). A hero dropped on a "random" room centre
+  // measures statistically identical to the old pre-M20 `pickFree()`
+  // reading (~27.9 tiles to the furthest room either way) — a corridor and
+  // a central room cost the same because both are "typical" points, and
+  // the furthest room from a typical point tracks the map's RADIUS, not
+  // its diameter. Only a genuinely peripheral hero — one end of the
+  // longest pair, same as M20 computed — pulls that ceiling up towards the
+  // diameter, which is what leaves SHRINE_DISTANCE_SHARE below room to
+  // land the shrine strictly between the pre-M20 and M20 levels rather
+  // than reproducing pre-M20 exactly at every share.
   //
   // `map.rooms.length` is a handful (measured ~3-5 after M16), so an
-  // O(rooms^2) pairwise `findPath` between centres is cheap — no need for
-  // a real flood-fill. If (A, B) is the GLOBAL maximum-distance pair, B is
-  // guaranteed to also be the room furthest from A specifically (a closer
-  // pair would have been the global maximum instead), so `furthestLength`
-  // below still comes out equal to the hero-shrine distance without any
-  // special-casing.
+  // O(rooms^2) pairwise `findPath` between centres is cheap.
   let bestPair = null;
   for (let i = 0; i < map.rooms.length; i++) {
     for (let j = i + 1; j < map.rooms.length; j++) {
@@ -246,12 +246,30 @@ export function populate(state, map, counts = {}) {
     ? roomPaths[roomPaths.length - 1].path.length
     : 0;
 
-  // 3. Shrine — the other end of `bestPair`, already decided in step 1.
-  // Falls back to the old "furthest room from the player" reading only in
-  // the degenerate no-pair case above.
-  const shrinePos = bestPair
-    ? bestPair.b.center
-    : (roomPaths.length ? roomPaths[roomPaths.length - 1].center : playerPos);
+  // 3. Shrine — docs/backlog.md M23, replacing M20's "always `bestPair.b`,
+  // the exact other end of the pair". That maximised the hero-shrine path
+  // on purpose, and a room is spine whenever the mandatory path crosses
+  // it — maximising the path IS maximising the spine share, the same
+  // quantity measured twice, which is why M20 pushed spine share from
+  // 0.82-0.89 to 0.93-0.97 against a 0.95 ceiling. Not a bug, so not fixed
+  // by tuning that number — fixed by not asking for the extreme any more.
+  //
+  // Picks from the FAR TAIL of the hero's own distance distribution
+  // instead: any room within SHRINE_DISTANCE_SHARE of the furthest one
+  // reachable counts as "distant", and one of those is drawn at random —
+  // still genuinely far, just not always THE single farthest point on the
+  // map. `bestPair.b` is always exactly at 100% of that tail (proof: no
+  // room can be further from `bestPair.a` than `bestPair.b`, or the pair
+  // would not have been the global maximum), so SHRINE_DISTANCE_SHARE of
+  // 1.0 reproduces M20 exactly; lower values widen the candidate pool.
+  // Falls back to the furthest room if none clear the bar (small floors,
+  // or a `furthestLength` of 0).
+  const distanceThreshold = furthestLength * SHRINE_DISTANCE_SHARE;
+  const distantRooms = roomPaths.filter((entry) => entry.path.length >= distanceThreshold);
+  const shrineEntry = distantRooms.length
+    ? distantRooms[drawInt(state, 'spawn', 0, distantRooms.length - 1)]
+    : (roomPaths.length ? roomPaths[roomPaths.length - 1] : null);
+  const shrinePos = shrineEntry ? shrineEntry.center : playerPos;
   takeFree(shrinePos);
   state.shrine = { id: nextId(state), emoji: '⛩️', pos: shrinePos };
 

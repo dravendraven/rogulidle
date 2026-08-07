@@ -3,7 +3,7 @@
 
 import {
   CHEST_GUARD_RADIUS, HP_GRANT_AMOUNT, ITEM_TABLE, MIN_ROSTER_FOR_SIDE, MONSTER_TABLE,
-  OUT_OF_DEPTH_TAIL, PLAYER_HP,
+  OUT_OF_DEPTH_TAIL, PLAYER_HP, SHRINE_DISTANCE_SHARE,
 } from '../src/sim/balance.js';
 import { newGame, playGame, replayGame } from '../src/sim/game.js';
 import { step, ACTIONS } from '../src/sim/step.js';
@@ -553,18 +553,23 @@ test('monsters never share a tile', () => {
 
 // ***** generation, spec §2 ***** //
 
-test('the shrine sits in the furthest room', () => {
+test('the shrine sits in a distant room', () => {
   // Our fix for spec quirk §9.1 — the original sorts by the path vector.
+  // docs/backlog.md M23 — the shrine no longer has to be THE furthest room,
+  // only within SHRINE_DISTANCE_SHARE of it.
   for (const seed of [11, 22, 33]) {
     const state = newGame(seed);
     const passable = playerPassable(state.map);
     const toShrine = findPath(state.player.pos, state.shrine.pos, passable).length;
 
+    let furthest = 0;
     for (const room of state.map.rooms) {
       const path = findPath(state.player.pos, room.center, passable);
-      if (!path.length) continue;
-      assert(toShrine >= path.length, `a room is further than the shrine on seed ${seed}`);
+      if (path.length > furthest) furthest = path.length;
     }
+    const threshold = furthest * SHRINE_DISTANCE_SHARE;
+    assert(toShrine >= threshold,
+      `shrine path ${toShrine} on seed ${seed} fell short of the distant tail (>= ${threshold.toFixed(1)})`);
   }
 });
 
@@ -1318,14 +1323,17 @@ test('the guardian replaces a roster member rather than adding one', () => {
 
 // ***** M15 — loot rooms have a guard ***** //
 
-test('chest guard coverage is high at floor 10 and rises with depth', () => {
-  // "High and roughly flat" was the item's hope; measured, floor 1 falls
-  // well short (~56% at this radius) because it holds only 2-3 creatures
-  // against 6 flat chests and this item may only reuse the roster, not add
-  // to it (M12's budget, not this one's) — disclosed in the Result rather
-  // than forced. What DOES hold, and what this test checks: floor 10,
-  // where the roster is plentiful, reaches "high", and coverage rises
-  // rather than falls as the roster grows.
+test('chest guard coverage is high at floor 10, and floor 1 no longer falls short', () => {
+  // "High and roughly flat" was the item's hope; when M15 landed, floor 1
+  // fell well short (~56% at this radius) with only 2-3 creatures against 6
+  // flat chests, and this item only reuses the roster rather than adding to
+  // it (M12's budget, not this one's). M17 later raised floor 1 to ~5
+  // creatures, and docs/backlog.md M23 shrank the mandatory path — both put
+  // more of a small floor's ground within reach of the roster the guard
+  // mechanism has to work with. Measured now: floor 1 saturates alongside
+  // floor 10 rather than trailing it, so both get the same "high" bar
+  // rather than a fragile floor10-beats-floor1 comparison between two
+  // numbers pinned near the same ceiling.
   const guardedFraction = (level, seeds = 40) => {
     let guarded = 0;
     let total = 0;
@@ -1343,8 +1351,7 @@ test('chest guard coverage is high at floor 10 and rises with depth', () => {
   const fl1 = guardedFraction(1);
   const fl10 = guardedFraction(10);
   assert(fl10 >= 0.9, `floor 10 guard coverage ${(100 * fl10).toFixed(0)}% is not "high"`);
-  assert(fl10 > fl1,
-    `floor 10 (${(100 * fl10).toFixed(0)}%) did not exceed floor 1 (${(100 * fl1).toFixed(0)}%)`);
+  assert(fl1 >= 0.9, `floor 1 guard coverage ${(100 * fl1).toFixed(0)}% is not "high" any more`);
 });
 
 test('a chest guard never empties a small floor\'s spine into the side', () => {
@@ -1395,26 +1402,36 @@ test('rooms are bigger than the old default, and spine share holds in band', () 
   }
 });
 
-// ***** M20 — hero and shrine at the two furthest-apart rooms ***** //
+// ***** M23 — a distant shrine, not the furthest possible one ***** //
 
-test('hero and shrine are the furthest-apart pair of rooms', () => {
-  // Recomputes every pairwise room-centre distance independently of
-  // spawn.js's own logic and checks the hero-shrine path matches the map's
-  // actual longest one — not just "some far room", the GLOBAL maximum.
+test('the hero always lands on a room centre, never a corridor', () => {
+  // The half of M20 that M23 explicitly keeps.
   for (let seed = 0; seed < 15; seed++) {
+    const state = newGame(960000 + seed, floorPlan(5));
+    const onARoomCentre = state.map.rooms.some((room) => posKey(room.center) === posKey(state.player.pos));
+    assert(onARoomCentre, `seed ${seed}: hero did not land on a room centre`);
+  }
+});
+
+test('the shrine is not always the single furthest room any more', () => {
+  // M20 put the shrine at the map's global-maximum room pair every time —
+  // maximising the path IS maximising the spine share, the same quantity
+  // twice. M23 draws it from the distant tail instead, so across enough
+  // seeds it should land short of the true maximum at least sometimes.
+  let sawShortOfMax = false;
+  for (let seed = 0; seed < 30; seed++) {
     const state = newGame(960000 + seed, floorPlan(5));
     const passable = playerPassable(state.map);
     let maxLen = 0;
-    for (let i = 0; i < state.map.rooms.length; i++) {
-      for (let j = i + 1; j < state.map.rooms.length; j++) {
-        const path = findPath(state.map.rooms[i].center, state.map.rooms[j].center, passable);
-        if (path.length > maxLen) maxLen = path.length;
-      }
+    for (const room of state.map.rooms) {
+      const path = findPath(state.player.pos, room.center, passable);
+      if (path.length > maxLen) maxLen = path.length;
     }
-    const actual = findPath(state.player.pos, state.shrine.pos, passable);
-    assertEq(actual.length, maxLen,
-      `seed ${seed}: hero-shrine path (${actual.length}) is not the map's longest room-pair path (${maxLen})`);
+    const actual = findPath(state.player.pos, state.shrine.pos, passable).length;
+    assert(actual <= maxLen, `seed ${seed}: shrine path ${actual} exceeds the map's actual furthest room ${maxLen}`);
+    if (actual < maxLen) sawShortOfMax = true;
   }
+  assert(sawShortOfMax, 'the shrine landed on the single furthest room every time across 30 seeds');
 });
 
 // ***** curve-shape diagnostics ***** //

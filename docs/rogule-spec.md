@@ -948,5 +948,49 @@ CV do desafio por andar (Sonda A, `n=30`) também não caiu de forma clara
 — média cruzando os dez andares foi de 0,614 para 0,637, dentro do ruído
 esperado nessa amostra.
 
-**Estado atual: construído e ligado, sem flag; dois andares fora da faixa
-de espinha, disclosed e não escondido.** Ver `docs/backlog.md` M20.
+**Estado atual: metade revertida por decisão do dono.** O spawn do herói
+numa sala centro fica — é o que impede o corredor. A colocação do
+santuário na ponta EXATA do par foi substituída em M23, §13.13 abaixo, por
+maximizar a espinha ser um bug de design, não um custo aceitável. Ver
+`docs/backlog.md` M20 e M23.
+
+### 13.13 Santuário numa sala distante, não a mais distante possível (M23)
+
+**Por que M20 não bastava.** Uma sala é espinha exatamente quando o
+caminho obrigatório herói→santuário a atravessa — então maximizar esse
+caminho maximiza a espinha, a mesma grandeza medida duas vezes por
+construção, não por acidente. Não dava para consertar ajustando
+`SPINE_THREAT_SHARE`; o mecanismo em si pedia o extremo.
+
+**Regra nova.** O herói continua na ponta do par de maior distância do
+mapa — mecanismo do M20, mantido inteiro, porque é o que garante sala
+(nunca corredor). O que muda é só o santuário: em vez de travado na OUTRA
+ponta exata do par, ele é sorteado entre as salas que ficam a pelo menos
+`SHRINE_DISTANCE_SHARE` (0,65) da distância da sala mais distante
+alcançável a partir do herói. A ponta exata do par continua sendo uma
+candidata válida (está sempre a 100% da própria cauda) — só deixou de ser
+a única.
+
+**Consequência, medida (andar 5, `n=3000`, mesmos seeds em todas as três
+versões).** Comprimento do caminho herói→santuário:
+
+    versão            média   erro padrão
+    antes do M20      28,63   0,19
+    M20               31,54   0,20
+    M23 (0,65)        29,94   0,20
+
+M23 caiu do nível do M20 (~5,8 sigma) e ficou acima do nível anterior ao
+M20 (~4,7 sigma) — não voltou ao valor original, então a constante está
+fazendo algo. `SHRINE_DISTANCE_SHARE` em 0,6 media 29,4, estatisticamente
+achatado contra a linha de base anterior ao M20 (28,6) — solto demais para
+contar como distante. Em 0,7 a espinha do andar 6 voltava a passar de
+0,95. 0,65 foi o valor que resolveu as duas pontas.
+
+Espinha, mesmos andares e seeds do M20 acima — os dois andares que o M20
+deixou fora da faixa voltam para dentro dela sem tocar no teste:
+
+    espinha       andar1  andar2  andar3  andar5  andar7  andar10
+    M20           0,949   0,964   0,943   0,969   0,928   0,944
+    M23           0,947   0,902   0,852   0,874   0,899   0,911
+
+**Estado atual: construído e ligado, sem flag.** Ver `docs/backlog.md` M23.

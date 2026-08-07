@@ -389,6 +389,7 @@ fewer but nastier creatures and better chests.
 | `SIDE_ACTIVATION_CAP` | 99 | **MEASURED NEGATIVE, kept off** — see below |
 | `SIDE_CHEST_BIAS` | 3 | **INITIAL GUESS** |
 | `MIN_ROSTER_FOR_SIDE` | 4 | **INITIAL GUESS** |
+| `SHRINE_DISTANCE_SHARE` | 0.65 | **SWEPT** — see below |
 
 `SPINE_THREAT_SHARE` is the share of a floor's THREAT MASS — not headcount
 — placed on the mandatory route. Mass, because cost tracks `hp × (xp − 1)`:
@@ -427,6 +428,23 @@ spine — the mass split is too coarse to honour below it (a two-creature
 floor's single side monster is already half the mass), and a lone creature
 behind a detour is not a gamble anyway. Measured 68%/63% spine on floors 1
 and 3 against the 70% target before this gate existed.
+
+`SHRINE_DISTANCE_SHARE` — docs/backlog.md M23. The hero still lands at one
+end of the map's longest room-pair (M20's mechanism, kept — it is what
+keeps the hero out of corridors), but the shrine no longer has to be the
+exact other end. Any room within this share of the hero's own furthest
+reachable room is a candidate, and one is drawn at random; 1.0 would
+reproduce M20 exactly. M20 forced the shrine to the literal extreme, which
+maximises the mandatory path on purpose — and a room is spine whenever
+that path crosses it, so maximising the path IS maximising spine share,
+the same quantity twice. That pushed spine share to 0.93–0.97 against the
+0.95 ceiling above. Swept 0.6/0.65/0.7/0.75/0.8/0.9 on floor 5, hero-shrine
+path length, n=3000/value: 0.6 measured statistically flat against the
+pre-M20 baseline (29.4 vs 28.6) — too loose to be doing anything. 0.7
+reached 30.5 but pushed floor 6 spine share back over 0.95. 0.65 clears
+both: spine share back in `[0.6, 0.95]` everywhere the split applies, and
+path length at 29.9 — clearly between the pre-M20 baseline (28.6) and
+M20's (31.5), not pinned to either end.
 
 ## Where the current numbers live
 

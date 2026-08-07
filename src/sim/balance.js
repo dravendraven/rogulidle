@@ -413,6 +413,32 @@ export const FLOOR_SPREAD_CAP = 0.9;
 // in a side room.
 export const SPINE_THREAT_SHARE = 0.7;
 
+// ***** M23 — a distant shrine, not the furthest possible one ***** //
+// How close to the hero's own furthest reachable room still counts as
+// "distant" for the shrine. M20 put the shrine at the single longest
+// room-pair on the map — maximising the path — but a room is spine
+// whenever the mandatory path crosses it, so maximising the path maximises
+// spine share directly: the same quantity measured twice. That pushed
+// spine share to 0.93-0.97 against the 0.95 ceiling `SPINE_THREAT_SHARE`
+// above is calibrated against. This is the tail, not the extreme: any room
+// within this share of the furthest one reachable is a candidate, and one
+// is drawn at random — still genuinely far, just not always THE one
+// farthest point on the map. `bestPair.b` (M20's own choice) is always
+// exactly at 100% of the tail, so 1.0 reproduces M20 exactly.
+//
+// Swept 0.6 / 0.65 / 0.7 / 0.75 / 0.8 / 0.9 on floor 5, hero-shrine path
+// length, n=3000/value: 0.6 landed at 29.4, statistically flat against the
+// pre-M20 baseline of 28.6 (a difference too small to trust — the exact
+// failure mode the item warned against, the constant doing nothing). 0.7
+// reached 30.5, clearly below M20's 31.5, but pushed floor 6 spine share
+// to 0.95+ against the two spine-share tests M20 left failing, which this
+// item has to bring back to green WITHOUT editing them. 0.65 clears both:
+// spine share back in [0.6, 0.95] at every floor the split applies to, and
+// path length lands at 29.9 — ~4.7 sigma above the pre-M20 baseline and
+// ~5.8 sigma below M20's, genuinely between the two rather than pinned to
+// either end.
+export const SHRINE_DISTANCE_SHARE = 0.65;
+
 // GUESS — a side room is treated as if it sat this much deeper than it is.
 //
 // ONE constant drives both halves of the bargain, which is why it is the
