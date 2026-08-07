@@ -98,6 +98,10 @@ function posKey(pos) {
   return pos[0] + ',' + pos[1];
 }
 
+function samePos(a, b) {
+  return a[0] === b[0] && a[1] === b[1];
+}
+
 // Pathing only ever crosses tiles the belief already knows are floor. This
 // is deliberately dumber than "unexplored is walkable" (bot-strategy §4.3):
 // that convention exists to let a bot plan INTO the dark on purpose, which
@@ -149,7 +153,23 @@ function stepToward(from, path) {
 //   2. No monster known: the nearest frontier tile — go widen what is seen.
 //   3. Nothing left to fight or explore: the shrine, if known.
 //   4. Nothing at all: rest (should only ever be hit at the very end).
+//
+// PERFORMANCE NOTE, not a behaviour change: monsters are re-targeted fresh
+// EVERY turn (cheap — few candidates, one A* each) because they can move,
+// so nothing about them is safe to cache. Frontier and shrine targets are
+// different: terrain never moves, so once a leg toward one is planned it
+// stays valid for the whole walk, and only that leg is cached across turns.
+// This is what makes the exploration phase cheap — the frontier scan reads
+// every known tile and A*s to each candidate, and used to run on every
+// single turn of every walk instead of once per walk. A monster becoming
+// reachable still pre-empts the cached leg immediately, every turn, exactly
+// as it did before caching existed — so the ROUTE PRIORITY is unchanged.
+// The one real approximation: once a frontier tile is committed to, the
+// walk does not re-check whether vision revealed an even closer one along
+// the way: it did not before, this is not the kill-order-relevant behaviour.
 export function makeSondaPolicy() {
+  let cachedPath = null; // only ever a leg toward a frontier tile or the shrine
+
   return function sondaPolicy(belief) {
     const from = belief.player.pos;
     const passable = knownPassable(belief);
@@ -157,13 +177,31 @@ export function makeSondaPolicy() {
     const liveMonsters = [...belief.monsters.values()]
       .filter((m) => !m.dead)
       .map((m) => m.pos);
+    const monster = nearestPath(from, liveMonsters, passable);
+    if (monster) {
+      cachedPath = null; // a monster always pre-empts an exploration leg
+      return stepToward(from, monster.path) || 'rest';
+    }
 
-    let target = nearestPath(from, liveMonsters, passable);
-    if (!target) target = nearestPath(from, frontierTiles(belief), passable);
-    if (!target && belief.shrine) target = nearestPath(from, [belief.shrine.pos], passable);
-    if (!target) return 'rest';
+    if (cachedPath) {
+      if (samePos(cachedPath[0], from)) {
+        // Did not move last turn (blocked opening a chest, say) — same leg.
+      } else if (cachedPath.length > 1 && samePos(cachedPath[1], from)) {
+        cachedPath = cachedPath.slice(1);
+      } else {
+        cachedPath = null; // desynced from reality somehow — replan below
+      }
+      if (cachedPath && cachedPath.length < 2) cachedPath = null;
+    }
 
-    return stepToward(from, target.path) || 'rest';
+    if (!cachedPath) {
+      let target = nearestPath(from, frontierTiles(belief), passable);
+      if (!target && belief.shrine) target = nearestPath(from, [belief.shrine.pos], passable);
+      if (!target) return 'rest';
+      cachedPath = target.path;
+    }
+
+    return stepToward(from, cachedPath) || 'rest';
   };
 }
 
