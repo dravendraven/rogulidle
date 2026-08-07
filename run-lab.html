@@ -170,7 +170,8 @@ which drops a fixed reference hero straight into it.</p>
   <legend>floor model</legend>
   <div class="row">
     <div><label>creatures, floor 1 <small>(base)</small></label><input id="monstersBase" type="number" step="1" min="0"></div>
-    <div><label>creatures added per floor</label><input id="monstersPerLevel" type="number" step="1"></div>
+    <div><label>growth per floor <small>(×, compounds)</small></label><input id="monsterGrowth" type="number" step="0.05" min="1"></div>
+    <div><label>…or added per floor <small>(0 = use growth)</small></label><input id="monstersPerLevel" type="number" step="1" min="0"></div>
     <div><label>covers per floor <small>(flat)</small></label><input id="covers" type="number" step="1" min="0"></div>
     <div><label>covers per creature <small>(extra)</small></label><input id="coversPerMonster" type="number" step="0.5" min="0"></div>
     <div><label>strength <small>(0–1, table reach)</small></label><input id="strength" type="number" step="0.05" min="0" max="1"></div>
@@ -323,17 +324,30 @@ $('tItems').innerHTML =
   + `<th>value <small>(higher = rarer)</small></th><th>source</th></tr></thead>`
   + `<tbody>${itemRows}</tbody>`;
 
-$('fModel').textContent = `creatures(N) = base + (N - 1) x perLevel
+$('fModel').textContent = `creatures(N) = base x growth^(N - 1)      EXPONENTIAL, compounds
 covers(N)    = flat + perCreature x creatures(N)
 strength     = fixed for every floor
+
+Net challenge is cost / capacity. With cost exponential and capacity
+roughly flat, net ends up multiplying by "growth" every floor, so the
+span from half the hero's capacity to all of it is:
+
+    ln 2 / ln(growth)  floors
+
+    growth  1.15   1.25   1.30   1.50   2.00
+    floors   5.0    3.1    2.6    1.7    1.0
+
+Past about 1.4 the ladder is a wall rather than a ramp: trivial,
+trivial, trivial, dead.
 
 hero starts   hp ${PLAYER_HP}, xp ${PLAYER_XP}, armour 0, empty handed
 xp from kills ${XP_FROM_KILLS ? 'ON' : 'OFF — gear and potions are the only progression'}`;
 
 /* ---------------------- inputs ---------------------- */
 
-const FIELDS = ['monstersBase','monstersPerLevel','covers','coversPerMonster',
-  'strength','levels','weaponScarcity','armourScarcity','potionScarcity','dropChance'];
+const FIELDS = ['monstersBase','monsterGrowth','monstersPerLevel','covers',
+  'coversPerMonster','strength','levels','weaponScarcity','armourScarcity',
+  'potionScarcity','dropChance'];
 
 function loadDefaults() {
   for (const f of FIELDS) $(f).value = String(DEFAULT_MODEL[f]);
@@ -357,14 +371,27 @@ function showPreview() {
     const none = w.find(([item]) => item === null);
     return pct(none ? none[1] : 0);
   };
-  const parts = [];
-  for (const lvl of [1, Math.ceil(model.levels / 2), model.levels]) {
-    const p = plan(lvl);
-    parts.push(`floor ${lvl}: ${p.monsters} creatures, ${p.covers} covers`);
-  }
-  $('preview').innerHTML = parts.join(' · ')
+  const ladder = [];
+  for (let lvl = 1; lvl <= Math.min(model.levels, 20); lvl++) ladder.push(plan(lvl));
+
+  // With compounding the whole ladder is worth seeing at once — the point of
+  // the exponential form is WHERE the growth sits, and two numbers hide that.
+  const additive = model.monstersPerLevel > 0;
+  const band = additive ? null : Math.log(2) / Math.log(Math.max(1.001, model.monsterGrowth));
+
+  $('preview').innerHTML =
+    `creatures: ${ladder.map((p) => p.monsters).join(', ')}`
+    + ` &nbsp;·&nbsp; covers: ${ladder.map((p) => p.covers).join(', ')}`
     + `<br>a cover comes up empty ${empty('weapon','cover')} of the time, `
-    + `a corpse ${empty('potion','monster')} — before the depth roll.`;
+    + `a corpse ${empty('potion','monster')} — before the depth roll.`
+    + (band === null
+      ? '<br>additive growth: the jumps FADE, so the biggest step is at the top where the hero is weakest.'
+      : `<br>compounding, so net challenge eventually multiplies by `
+        + `${model.monsterGrowth} per floor: <b>${band.toFixed(1)} floors</b> `
+        + `from half the hero's capacity to all of it. `
+        + (model.monsterGrowth > 1.4
+          ? '<span class="no">Above ~1.4 that is a wall, not a ramp.</span>'
+          : ''));
 }
 
 for (const f of FIELDS) $(f).addEventListener('input', showPreview);

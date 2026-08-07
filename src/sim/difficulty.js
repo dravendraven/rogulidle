@@ -23,9 +23,34 @@
 // Linear is what you want in a dial. Doubling the creatures doubles the
 // demand, predictably, with no thresholds to fall off.
 
-// Creatures on floor N (zero-based): 2, 4, 6, 8 …
+// Creatures on floor N: `base × growth^N`, so 2, 3, 3, 4, 6, 7, 10, 13, 16, 21.
+//
+// EXPONENTIAL, not additive, and the difference is about where the growth
+// sits rather than where it ends. `2 + 2N` and `2 × 1.3^N` both land near 20
+// on floor ten, but the additive one front-loads: floor 2 has TWICE floor
+// one, while floor 10 has 11% more than floor nine. Growth that fades is
+// backwards — the hero is at their weakest at the top, with nothing looted
+// yet, and that is exactly where the old curve threw its biggest jump.
+//
+// Measured on the additive model: of 24 heroes, all 24 met floor 2 and 2 met
+// floor 10. Attrition sat in the first three floors. The exponential form
+// spends floors 1-4 gently (2, 3, 3, 4 against the old 2, 4, 6, 8) and buys
+// it back below.
 export const MONSTERS_BASE = 2;
-export const MONSTERS_PER_LEVEL = 2;
+
+// WHY 1.3. Net challenge is floor cost over hero capacity, so with cost
+// exponential and capacity roughly flat, net eventually multiplies by this
+// number every floor. The span from "half the hero's capacity" to "all of
+// it" is therefore ln2 / ln(growth) floors:
+//
+//   growth  1.15   1.25   1.30   1.5   2.0
+//   floors   5.0    3.1    2.6    1.7   1.0
+//
+// Past about 1.4 the ladder stops being a ramp and becomes a wall: trivial,
+// trivial, trivial, dead. 1.3 is the largest value that still leaves a
+// couple of floors of real fight, and it is also what lands floor ten near
+// the 20 creatures the additive model ended on (10^(1/9) = 1.29).
+export const MONSTER_GROWTH = 1.3;
 
 // FLAT, not per-monster. Rogule ships 15 covers to 5 monsters, but Rogule
 // is one floor — nothing carries forward, so the ratio can be generous.
@@ -53,9 +78,21 @@ export const SCARCITY = 3;
 // Chance a corpse leaves a potion behind.
 export const DROP_CHANCE = 0.5;
 
+// Creature count on a floor, `step` floors below the first.
+//
+// Both growth laws live here so the lab page can put them side by side.
+// `growth` above 1 compounds; pass a `perLevel` instead for the old additive
+// form. At least one creature always, or a "floor" is just a walk.
+export function monstersAt(base, growth, step, perLevel = null) {
+  const raw = perLevel === null
+    ? base * Math.pow(growth, step)
+    : base + step * perLevel;
+  return Math.max(1, Math.round(raw));
+}
+
 // Everything the generator needs for floor N, zero-based.
 export function floorParams(level) {
-  const monsters = MONSTERS_BASE + Math.max(0, level) * MONSTERS_PER_LEVEL;
+  const monsters = monstersAt(MONSTERS_BASE, MONSTER_GROWTH, Math.max(0, level));
   return {
     level,
     monsters,
@@ -74,7 +111,10 @@ export function floorParams(level) {
 // game actually runs; this is for asking "what if".
 export const DEFAULT_MODEL = {
   monstersBase: MONSTERS_BASE,
-  monstersPerLevel: MONSTERS_PER_LEVEL,
+  // The shipped law. Set `monstersPerLevel` above 0 to switch the plan back
+  // to the additive form and compare the two curves.
+  monsterGrowth: MONSTER_GROWTH,
+  monstersPerLevel: 0,
   covers: COVERS_PER_FLOOR,
   // Covers tied to the creature count. Zero by default, and deliberately:
   // at 2 per monster loot grows exactly as fast as threat, and since the
@@ -94,8 +134,8 @@ export const DEFAULT_MODEL = {
 export function makeFloorPlan(model = {}) {
   const m = { ...DEFAULT_MODEL, ...model };
   return (level) => {
-    const monsters = Math.max(0,
-      Math.round(m.monstersBase + Math.max(0, level - 1) * m.monstersPerLevel));
+    const monsters = monstersAt(m.monstersBase, m.monsterGrowth,
+      Math.max(0, level - 1), m.monstersPerLevel > 0 ? m.monstersPerLevel : null);
     return {
       level,
       monsters,

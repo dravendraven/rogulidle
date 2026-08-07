@@ -35,32 +35,45 @@
 // scarce each slowed the RATE of accumulation, and none of them capped it.
 // Only spending the resource did.
 //
-// WHAT IS STILL WRONG: attrition is front-loaded. Of 24 heroes, 24 saw
-// floor 2 and 2 saw floor 10 — half are dead by floor 5, so the hardest
-// floors are the ones almost nobody meets. The curve has the right shape
-// and the wrong survival budget.
+// FRONT-LOADED ATTRITION, since fixed. Under the old additive law all 24
+// heroes met floor 2 and only 2 met floor 10 — the hardest floors were the
+// ones almost nobody saw. Exponential growth moved the jumps downward and
+// bought back the bottom of the dungeon:
+//
+//                       additive      exponential
+//   cleared               1/16            8/24
+//   average depth          5.1             7.1
+//   reached floor 10         2               9
+//
+// WHAT IS WRONG NOW: capacity climbs again, 10.0 -> 11.8. A gentle opening
+// lets the hero bank gear cheaply — six covers on a three-creature floor is
+// generous — so they outgrow the dungeon by the middle. Net challenge on
+// floor 10 fell from 1.00 to 0.71 as a result. Covers are the lever, not
+// the growth rate.
 
 import { PLAYER_HP, PLAYER_XP } from './balance.js';
 import { hashSeeds } from './rng.js';
-import { floorParams, MONSTERS_BASE, MONSTERS_PER_LEVEL } from './difficulty.js';
+import {
+  floorParams, monstersAt, MONSTERS_BASE, MONSTER_GROWTH,
+} from './difficulty.js';
 import { playGame } from './game.js';
 
 export const LEVELS = 10;
 
-// Floor N holds `MONSTERS_BASE + (N-1) × MONSTERS_PER_LEVEL` creatures, and
+// Floor N holds `MONSTERS_BASE × MONSTER_GROWTH^(N-1)` creatures, and
 // everything else on the floor follows from that count. Floor 1 gets two,
-// floor 10 gets twenty.
+// floor 10 gets twenty-one.
 //
 // No interpolation, no anchors, no calibration table. Difficulty is the
-// creature count, and creature count is a straight line — which is the
-// right shape, because clearing cost scales linearly with how many there
-// are (see difficulty.js for why individual strength does not).
+// creature count, and count is the right dial because clearing cost scales
+// linearly with how many there are — individual strength scales it
+// quadratically, which no one can steer by (see difficulty.js).
 export function floorPlan(level) {
   return { ...floorParams(level - 1), level };
 }
 
 export function monstersOnFloor(level) {
-  return MONSTERS_BASE + (level - 1) * MONSTERS_PER_LEVEL;
+  return monstersAt(MONSTERS_BASE, MONSTER_GROWTH, level - 1);
 }
 
 // What survives the stairs.

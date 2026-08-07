@@ -10,10 +10,46 @@ There is no calibration table any more. A floor is described by how many
 creatures it holds, and everything else is a constant:
 
 ```
-monsters(N) = 2 + N × 2        floor 1 gets 2, floor 10 gets 20
+monsters(N) = 2 × 1.3^(N-1)    2, 3, 3, 4, 6, 7, 10, 13, 16, 21
 covers      = 6                flat, every floor
 strength    = 0.35             how far up the monster table a floor reaches
 ```
+
+Growth **compounds** rather than adding. Both laws land near 20 creatures on
+floor ten; what differs is where the growth sits. `2 + 2N` front-loads — floor
+2 has twice floor one, floor 10 has 11% more than floor nine — and that is
+backwards, because the hero is weakest at the top with nothing looted yet.
+
+The growth rate is the number that decides whether the ladder is playable.
+Net challenge eventually multiplies by it every floor, so the span from half
+the hero's capacity to all of it is `ln2 / ln(growth)` floors:
+
+```
+growth  1.15   1.25   1.30   1.50   2.00
+floors   5.0    3.1    2.6    1.7    1.0
+```
+
+Past about 1.4 the ladder stops being a ramp and becomes a wall: trivial,
+trivial, trivial, dead. 1.3 is the largest value leaving a couple of floors of
+real fight, and `10^(1/9) = 1.29` is what keeps floor ten near where it was.
+
+MEASURED, 24 dungeons, against the additive model it replaced:
+
+```
+                    additive      exponential
+cleared               1/16            8/24
+average depth          5.1             7.1
+reached floor 10         2               9
+net, floor 1          0.26            0.27
+net, deepest solid    0.71 (fl 7)     0.71 (fl 10)
+capacity 1 -> 10      10.0 -> 10.3    10.0 -> 11.8
+```
+
+It bought what it was meant to buy: the descent is now played to the bottom
+instead of ending in its first three floors. The cost is that **capacity now
+rises**, so the hero is once more outgrowing the dungeon — six covers on a
+three-creature floor is generous, and the gentle opening lets gear bank
+cheaply. Covers are the obvious next lever, not the growth rate.
 
 **Why count and not strength.** Clearing cost tracks `Σ hp × (xp − 1)`, so
 individual strength scales cost quadratically — a strong monster hits harder
