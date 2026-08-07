@@ -29,21 +29,16 @@ though the metrics agent answers it.
 `#` is priority and changes; the id is stable and is what your prompt names.
 
 **The queue is not sorted by objective.** Objective order is only a
-tiebreaker; three things outrank it.
+tiebreaker; two things outrank it.
 
-- **Startable beats important.** M6 is first and cannot be worked on — it
-  waits on the owner. Sorting by objective would stack blocked items at the
-  top.
-- **Dependencies.** M3–M5 sit low because M6 gates their adoption, not
-  because the bot matters more.
-- **Value deliverable now.** B4 fixes a real defect and can be adopted. M3
-  today can only be measured and shelved, and what it teaches only becomes
-  useful once M6 is settled. That is why an objective-2 item outranks an
-  objective-1 item here.
+- **Startable beats important.** A blocked item does not sit at the top just
+  because its objective ranks first.
+- **Dependencies.** An item that unblocks two others outranks one that
+  unblocks none, whatever objective each serves.
 
-This ordering was contingent on M6, which is now decided. The map lane
-therefore runs first: M6 → M3 → M4 → M5, re-measuring the ratios after each
-one rather than after the set.
+With M6 decided, both rules and objective order now agree: the map lane runs
+first, M6 → M3 → M4 → M5, re-measuring the ratios after each one rather than
+after the set.
 
 **The work agent takes one track at a time, in batches.** Do not interleave
 map and bot items.
@@ -68,27 +63,27 @@ normal and does not mean the item changed.
 | # | id | what and why | feature | agent | status |
 |---|---|---|---|---|---|
 | 1 | M6 | Buffer falls while difficulty rises — give the hero growing capacity | map | work | READY · now |
-| 2 | I1 | Model ruler misprices crowds — replace it with two frozen probes that play | map | metrics | REPORTED · 2 fixes |
-| 3 | I2 | Clustering may change lethality, not cost — retest with a normal hero | map | metrics | READY · next |
-| 4 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY |
-| 5 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY |
-| 6 | M5 | Best item is axe +2, so no reward is ever an event | map | work | READY |
-| 7 | I4 | Bot may open more bad side rooms than good — is that real? | bot | metrics | READY |
-| 8 | B4 | Bot values darkness at zero, so it never explores for reward | bot | work | READY · after the map batch |
-| 9 | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | BLOCKED on B1 |
-| 10 | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | BLOCKED on B2 |
-| 11 | I3 | No ruler sees clustering — build one measuring lethality, not cost | map | metrics | BLOCKED on I2 |
-| 12 | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | BLOCKED on I3 |
-| 13 | B6 | Fix side-room discrimination, once I4 shows the inversion is real | bot | work | BLOCKED on I4 |
-| 14 | B5 | Clustering makes crowd tiles common, so the inert crowd penalty starts mattering | bot | work | BLOCKED on M2 |
-| 15 | B1 | Ping-pong is the ugliest visible defect — find which layer creates it | bot | work | REPORTED · review only |
+| 2 | M3 | Strongest blow is frozen at every depth — add a rare out-of-depth tail | map | work | READY |
+| 3 | M4 | The only structural variance is constant — scale side-room spread with depth | map | work | READY |
+| 4 | M5 | Best item is axe +2, so no reward is ever an event | map | work | READY |
+| 5 | I4 | Bot may open more bad side rooms than good — is that real? | bot | metrics | READY · now |
+| 6 | B4 | Bot values darkness at zero, so it never explores for reward | bot | work | READY · after the map batch |
+| 7 | B2 | Characterise the veto loop: what alternates, and why the plan flips | bot | work | BLOCKED on B1 |
+| 8 | B3 | Fix the ping-pong with the cheapest change the evidence supports | bot | work | BLOCKED on B2 |
+| 9 | I3 | No ruler sees clustering — build one measuring lethality, not cost | map | metrics | BLOCKED on I2 review |
+| 10 | M2 | Group creatures to cut independent draws and raise damage per turn | map | work | BLOCKED on I3 |
+| 11 | B6 | Fix side-room discrimination, once I4 shows the inversion is real | bot | work | BLOCKED on I4 |
+| 12 | B5 | Clustering makes crowd tiles common, so the inert crowd penalty starts mattering | bot | work | BLOCKED on M2 |
+| — | I2 | Clustering may change lethality, not cost — retest with a normal hero | map | metrics | REPORTED · review only |
+| — | B1 | Ping-pong is the ugliest visible defect — find which layer creates it | bot | work | REPORTED · review only |
+| — | I1 | Model ruler misprices crowds — replace it with two frozen probes that play | map | metrics | **DONE** |
 
 Archived: the count→strength route. Measured, does not pay. See the end.
 
 Two agents run at once, so the single rank is a flattening of two lanes:
 
     work agent      M6 → M3 → M4 → M5  ‖  then B4 → B2 → B3
-    metrics agent   I1 fixes → I2 → I4 → I3
+    metrics agent   I4 → I3
 
 **M6 is decided and the map lane opens.** The owner accepted the divergence
 from Rogule: the hero gets growing maximum capacity, because a falling
@@ -101,11 +96,9 @@ Re-read the ratios on the probes **after each** of M6, M3, M4 and M5.
 Stacked and measured once they cannot be told apart, and at least one of the
 four probably does not pay.
 
-**REPORTED rows are ranked by work remaining, not by importance.** I1 sits
-high because two cheap fixes are outstanding (refit over floors 1–6, correct
-the buffer reading — neither needs a new run). B1 sits last because nothing
-remains but review; its answer, "tactical veto", already landed and inverted
-the premise B2 and B3 were sketched against.
+**Rows with no rank need nothing from an agent.** I1 is closed. I2 and B1
+are answered and wait only on review — I3 stays blocked until I2's review
+lands, because its whole shape depends on what I2 found.
 
 ## How to use this file
 
@@ -284,7 +277,7 @@ reading of the ratios above, not a separate instrument.
 
 ## I1 · replace the modelled ruler with observed probes
 
-`map` · `metrics agent` · **REPORTED**
+`map` · `metrics agent` · **DONE**
 
 Two probes differing in one thing only: A clears the floor and collects
 nothing, B clears it and picks up what is on the way. Neither hunts loot, so
@@ -516,9 +509,39 @@ consulted — a fix scoped only to `scoreActions` / `bestValue` in
 `tactics.js` cannot reach it. Worth a decision on whether routing gets its
 own item or stays folded into B2's scope.
 
+### Review of the fixes — CLOSED
+
+Both accepted, and one landed better than asked.
+
+`power 1.022 ±0.042` and `buffer 0.855 ±0.023` over floors 1–6. The values
+barely moved, but the standard error on power nearly doubled against the
+full-ladder fit — which was the point, and the report says so rather than
+treating the agreement as vindication of the old window: *"the thin tail did
+not secretly reverse the trend this time — but that agreement is not
+guaranteed in general."*
+
+The buffer correction carries an independent check nobody asked for: the raw
+floor-1-to-6 ratio, 6.4 / 14.7 = 0.44, agrees with the fitted 0.855⁵ = 0.457.
+That confirms the finding outside the fit, which is stronger than refitting.
+
+**Better than requested: the fix went into the instrument, not just the
+document.** `run-ruler.html` now fits power and buffer only over floors with
+`reached ≥ 50`, as a constant that adapts to run size, and a 60/60 check
+confirmed it reports `-` rather than fabricating a fit from two points. The
+error cannot come back on the next run, which is the only kind of fix that
+holds.
+
+Review points 3 and 4 were left untouched and declared, as instructed.
+
+One note that changes nothing but is worth carrying: `power 1.022 ±0.042`
+has an interval covering 1.0, so **power growth is statistically
+indistinguishable from flat**. That strengthens the `challenge/power` story
+rather than weakening it — the ≥1.307 quoted in the ratio block is
+conservative.
+
 ## I2 · spread against grouped, with a normal hero
 
-`map` · `metrics agent` · **READY**
+`map` · `metrics agent` · **REPORTED**
 
 A previous test concluded the same roster spread out or grouped costs the
 same, and on that basis the "simultaneity" hypothesis was rejected. That
@@ -548,6 +571,62 @@ and M3–M5 become the main plan. If the bot is successfully un-grouping, M2
 does not die — its design changes, because clustering only becomes a lever
 where the map prevents escape (open rooms, no corridor) or the creatures are
 fast enough not to be separated. That is design information, not a dead end.
+
+### Result
+
+Full write-up, per-floor table and both figures below in
+`docs/clustering-i2.md` — summarised here, not repeated. Built
+`src/analysis/clustering.js` (roster generated by the shipped `populate()`
+unchanged; only monster position is rewritten afterwards into clusters) and
+`run-cluster.html`. Nothing in `src/sim/` or `src/bot/` changed — the
+per-run driver reimplements `playGame`'s loop against a pre-built state
+using only already-exported pure functions (`step`, `observe`,
+`foldBelief`), because `playGame` only ever builds its own state from a
+seed. Both conditions are played by the real bot (`makeBot`, default
+settings) — an I4-style question, not an I1-style frozen probe — starting
+at `REFERENCE_HERO`, not the bare level-1 kit: tested with the literal
+starting kit, floor 10 saturated near 100% dead in BOTH conditions (5/5
+spread, 4/5 grouped on a throwaway sample) before this fix, which destroys
+the comparison's power regardless of any real effect.
+
+**Baseline** (60 paired seeds/level, cluster size 3, seed base 300000):
+
+    death rate, pooled     spread 10.2% (61/600)   grouped 13.2% (79/600)
+                            gap 3.0 pp, z = 1.62
+    crowded fraction        higher under grouping at ALL 10 floors,
+    (2+ adjacent)            clears 2 sigma at 3 of them (z up to 3.16),
+                             gap widens with monster count
+    worst single turn       no consistent gap (z from -0.74 to 2.27)
+
+**Direct answer.** Leaning toward "clustering raises lethality" but not
+settled: the pooled death gap alone is short of 2 sigma, but its sign is
+positive at 8 of 10 floors and tied (not reversed) at the other 2 — zero
+floors go the other way, which is the same sign-consistency argument
+`balance.md` already leans on elsewhere. **The un-grouping confound did not
+happen**, or not fully: if the bot were converting clusters back into
+sequential duels, crowded fraction should read flat between conditions, and
+instead it is higher under grouping everywhere and significantly so at three
+floors. The earlier null result is better explained by cost being the wrong
+quantity (as suspected) than by bot behaviour erasing the effect.
+
+**What surprised me.** Crowded fraction and worst-turn damage did not move
+together. More turns with 2+ monsters adjacent did not translate into
+bigger worst-single-turn spikes — likely because "adjacent" is not "landed a
+blow" (5/6 hit chance, independent per monster), so 60 seeds/floor may be
+too few to resolve a rare tail event. A mean is the wrong statistic for a
+tail; a percentile would answer this better.
+
+**What I could not resolve.** The death-rate z (1.62) is a judgement call,
+not a clean pass — a 2-3x larger sample, or pooling just the high-count
+floors (7-10) where absolute rates are largest, would settle it either way.
+Grouping also ignores the spine/side split by design (disclosed in the doc)
+so this answers "does clustering matter at all", not "does it matter once
+it respects spine/side" — and cluster size (3) was chosen, not swept.
+
+**Out of scope, for the project agent to weigh.** I3 (blocked on this item)
+named two candidate metrics; this experiment's clearest signal came from a
+third — fraction of turns with 2+ adjacent — which is already built and
+instrumented here. I3 may be mostly done rather than a fresh build.
 
 ## B4 · give exploration a value
 
