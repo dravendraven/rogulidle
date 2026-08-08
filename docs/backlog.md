@@ -2336,6 +2336,26 @@ gave `runningUnbanked = 2` after floor 2 — exact match, not the same
 code path agreeing with itself. `run-tests.html`: 121/121, untouched (no
 `src/sim/` file read or written).
 
+### Review — ADOPTED
+
+**Correctly recognised there was nothing new to build rather than
+inventing a second tracked value to justify the item.** U5 already
+accumulated exactly what this item specified; a second counter doing the
+same sum would only have created a place for the two to quietly drift
+apart. Renaming `coins` to `unbankedCoins` so U6c reads a field named for
+what it holds, not for where it was first displayed, is small and the
+right kind of small — it is API hygiene for the next item in the arc, not
+padding.
+
+**The verification is the standard to hold every item in this arc to.**
+Independently reconstructing the exact live seed, replaying it through
+`playDungeon`/`replayGame`, and hand-computing the formula to check
+against a paused frame is testing against a second, independent path — not
+the same code agreeing with itself, which a bare "does it match what the
+display shows" check would have been. Correctly stayed out of
+`wallet.js` — persistence is named as U6c's job and this item did not
+reach for it early.
+
 ## U6c · bank or clear the run's coin at run end, per the death rule
 
 `ui agent` · READY · **third of six, the rule itself**
