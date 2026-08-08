@@ -1,0 +1,6 @@
+# Local dev-server output. Regenerated on every run, machine-specific,
+# and nothing reads it back — see `tools/dev-server.py`.
+*.log
+
+# NOT ignored, deliberately: `.claude/launch.json` is the dev-server config
+# every machine needs, so it stays tracked.
