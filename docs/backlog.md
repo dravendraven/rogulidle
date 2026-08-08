@@ -43,11 +43,11 @@ session, skip it.
 | 3 | M27 | Chests hold armour and potions — after M26, not with it | **DONE** |
 | 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **DONE** · shipped OFF |
 | 5 | B9 | Teach the bot that a creature carries something | **REPORTED** · shipped OFF |
-| 6 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
-| 7 | D1 | The crowd-correction fit is overdue for its own redo | READY |
-| 8 | X1 | Delete what nothing references | READY · list refreshed |
-| 9 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 10 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 7 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
+| 8 | D1 | The crowd-correction fit is overdue for its own redo | READY |
+| 9 | X1 | Delete what nothing references | READY · list refreshed |
+| 10 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
+| 11 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -1190,6 +1190,75 @@ destination stabilizing the tactical veto) had a specific, falsifiable
 reason not to fire, and that reason is now on record for whoever picks the
 wall-bump lead up next.
 
+
+## B10 · weight the route toward a frontier by what it would reveal
+
+`bot agent` · READY · **owner idea, scoped against a specific known risk —
+read the risk section before writing any code**
+
+### The idea
+
+B3 left routing as the entire zigzag residue (259 episodes at
+`REVERSAL_PENALTY` 6, versus 0 for veto and 0-1 for goal). B4 attacked the
+same residue by ranking WHICH frontier to choose as a goal
+(`exploreValue`) and found it inert — frontier goals are sticky, so the
+ranking is barely ever consulted.
+
+This is a different lever: not which frontier to walk to, but **how to walk
+there**. Weight a tile's step cost by `wouldReveal` (already built,
+`bot.js:149`) only along routes to an already-chosen frontier goal, so among
+paths of similar length the router prefers the one that grazes more fog on
+the way, instead of the one closest to a wall. The bet is that a route which
+tracks the frontier is more stable turn to turn than one indifferent to it,
+which is a different mechanism than B4's ranking and untested.
+
+### Do
+
+**A second, goal-conditional field, not a change to the shared one.**
+`bot.js:627`'s `dijkstra` field feeds `routeTo` for every goal kind — chest,
+monster, frontier alike. Discounting cost by `wouldReveal` there biases
+travel toward chests and monsters too, which nobody asked for. Compute the
+discount only when `goal.kind === 'frontier'`, as its own field, so every
+other goal's routing is untouched.
+
+**Small, a tie-breaker, not a comparable term.** The weight has to sit well
+under `stepCost`/`danger.priceAt`'s scale — this nudges between similarly
+priced routes, it does not re-rank a long detour ahead of a short one. Pick
+a value and say why it is small relative to the existing terms, not just
+that it is small.
+
+### The risk — the reason this needs scoping before it needs code
+
+`wouldReveal` counts **unseen tiles** as reveal-worthy, and
+`believedWalkable` already treats a never-seen tile as passable — `"never
+seen — worth trying"` (`nav.js:26`). Discounting cost toward high-reveal
+tiles pulls the route further into exactly the territory where that
+optimistic assumption lives — the same mechanism B3 already found breaks
+route commitment: a committed route aims into what turns out to be rock,
+the bump costs an action without costing a turn, and the re-plan is another
+chance to reverse.
+
+**So the discount must not itself be earned by stepping onto unseen tiles.**
+Score a candidate tile's `wouldReveal` for the purpose of this weight only
+over tiles already in `belief.tiles` — walk toward the fog's edge, don't
+get credit for guessing what's past it. If this constraint turns out to
+gut the effect (there may be too little already-seen fog-adjacent terrain
+for it to matter), that is a finding, not a failure to route around.
+
+### Assert
+
+**Add a wall-bump counter to `run-zigzag.html` before measuring.** Nothing
+today logs a step that does not pass a turn (`step()` returns `blocked`,
+nothing records it) — this item's own risk is specifically that bumps go
+up, so build the instrument that would catch it before trusting any other
+number.
+
+Then, same discipline as B3/B4: `run-zigzag.html`, before/after in one
+session, paired seeds, two seed families. Report bumps per run, actions per
+run, turns-inside-episodes, and chests opened per floor (B4's own instrument
+addition) side by side — a route that reveals more but bumps more or misses
+more chests is not a win. If bumps rise on either seed family, that is the
+signal to stop, not to re-tune the weight down and try again once.
 
 ## B9 · the bot does not know a creature is carrying anything
 
