@@ -38,7 +38,7 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| 1 | B8 | Set REVERSAL_PENALTY to 6 — one line, measured by B3 | READY |
+| 1 | B8 | Set REVERSAL_PENALTY to 6 — one line, measured by B3 | **REPORTED** |
 | 2 | M26 | Weapons come off creatures, gated by strength — the only permanent power | READY |
 | 3 | M27 | Chests hold armour and potions — after M26, not with it | READY |
 | 4 | B4 | Give exploration a value — routing is the whole zigzag residue | READY |
@@ -511,7 +511,7 @@ rewriting someone else's record. Fix it here.
 
 ## B8 · set REVERSAL_PENALTY to 6
 
-`work agent` · READY · **one line**
+`work agent` · **REPORTED** · **one line**
 
 B3 measured this and could not ship it — the line is in `src/sim/balance.js`
 and B3 was forbidden that directory while the map session was in it. The
@@ -524,6 +524,53 @@ measurement is done and reviewed; this is the commit.
 session** and confirm turns-inside-episodes roughly halves; report actions
 per run beside it. If median depth drops on both seed families rather than
 one, say so — that was the single reservation in the review.
+
+### Result
+
+**The line was already committed** — `c5957e9`, landed the turn before this
+prompt arrived, same change B8 asks for (`balance.js` + the `balance.md`
+row + the detailed section, which had been left saying "does not fix what
+it targets" and would have contradicted the new value in the same file).
+Nothing left to commit here; this item is the Assert.
+
+**Re-run in one session, `run-zigzag.html`, `reversalPenalty` 0 vs 6 via
+the page's own override field — `balance.js` untouched by the
+measurement, n=60 both families:**
+
+    seeds 800000 (primary)          0        6
+    turns in episodes            23.8%     9.8%
+    pooled rate                  25.8%    15.7%
+    veto-layer episodes            124        0
+    actions per run                 453      486
+    median depth                      4        4
+
+    seeds 910000 (confirmation)     0        6
+    turns in episodes            29.9%     7.2%
+    pooled rate                  31.1%    16.7%
+    veto-layer episodes            244        0
+    actions per run                 436      385
+    median depth                    3.5        3
+
+**Turns-inside-episodes more than halves on both** (23.8→9.8, 29.9→7.2).
+Veto-layer episodes hit exactly zero on both, same mechanism check as B3's
+own run. Actions per run still move in opposite directions between the two
+families (486 vs 453 up; 385 vs 436 down) — the same length-control
+disagreement B3 reported, reproduced.
+
+**The reservation asked about — does median depth drop on both families
+rather than one — still holds as "one, not both".** Primary: 4 → 4,
+unchanged. Confirmation: 3.5 → 3, the same direction B3 flagged, not a new
+family joining it. Absolute levels differ a little from B3's own numbers
+(pooled rates read a few points higher here on both arms at penalty 0,
+e.g. 25.8% vs B3's 23.6%) — plausible drift from bot changes landed since
+B3's session (c38dc9e gave the bot its own floor number) rather than
+anything about this change; the DIRECTION and SIZE of the 0→6 effect is
+what B8 exists to confirm, and it reproduces.
+
+**Nothing failed.** The only thing worth flagging as a surprise is that
+this item arrived already done — the code half of B8 and the previous
+turn's REVERSAL_PENALTY commit were the same change, described from two
+different angles.
 
 ## M3 · un-archive the out-of-depth tail
 
