@@ -49,7 +49,8 @@ session, skip it.
 | 9 | D1 | The crowd-correction fit is overdue for its own redo | READY |
 | 10 | X1 | Delete what nothing references | READY · list refreshed |
 | 11 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 12 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 12 | U5 | Show the coin formula live on a real run | READY |
+| 13 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -1593,6 +1594,44 @@ what makes a detour a gamble rather than a free lunch.
 **Acceptance.** CV per floor rises; the spine/side mass split stays at its
 ≥70% target; the average side room at floor 5 is not made harder, only the
 spread widened. Measured on the probes.
+
+## U5 · show the coin formula live, on the real run — not a batch instrument
+
+`ui agent` · READY · **metrics idea, closes U3's open question cheaply**
+
+`docs/project/candidates.md`'s U3 (parked coin/shop meta-progression idea)
+left one thing unresolved before pricing means anything: does today's real
+xp/turn even clear the cheapest item's threshold on a typical surviving
+floor? The metrics agent already validated the formula in `run-check.html`
+— `coins = round(xpEarned-this-floor / turns-this-floor * 10)`, summed per
+run — and paired it against the dumb probe: the bot earns 9.5 coins/turn
+against the probe's 4-5.5, because the probe dies early and loses whole
+floors of future earning. That is exactly the shape of number U3 needed and
+did not have.
+
+**Why this is UI work and not a metrics-instrument extension.** Both
+`state.player.xpEarned` (unconditional, `combat.js:127`, updates regardless
+of `XP_FROM_KILLS`) and `state.turn` already exist on the live game state.
+No batch, no `run-check.html` machinery needed — this reads the one run
+already playing and renders a number, same shape as the floor indicator
+`bot agent` already added to the UI once before (owner-authorised
+crossing, see the M19-opt-out and floor-number commits). Fog of war does
+not apply — that rule binds what the bot may act on, not what the UI may
+render — so reading `state` directly here is not a boundary problem.
+
+**Do.** Per floor completed, compute and display the coin figure using the
+already-validated formula. Owner's call whether it accumulates a running
+total across the run or resets each floor; either is cheap.
+
+**Naming caution, not a blocker.** Label it as an efficiency read, not as
+game currency — U3 (if it ever ships) may spend coins differently than this
+raw formula computes (banked vs. unbanked balance, floor-completion vs.
+run-completion payout). Calling this "moedas teóricas" or similar in the
+UI avoids implying a shop exists that does not.
+
+**Assert.** Number appears and updates correctly across a full descent,
+visually. No test needed beyond that — this is a read of already-tested
+fields, not new game logic.
 
 ## E1 · expose a resumable turn loop from src/sim
 
