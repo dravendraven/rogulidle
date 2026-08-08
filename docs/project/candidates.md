@@ -427,8 +427,9 @@ means: state it as a decision when this is scoped, not discover it mid-build.
 ### Validation gate, as proposed, is the right one and should not be
 ### skipped
 
-Distinct behavioural signatures per persona (Pawa explores more tiles/turn,
-Vito fights more/floor) via batch comparison, before this counts as done.
+Distinct behavioural signatures per persona (Pawa's armour-purchase timing
+and its effect on fights survived, Vito fights more/floor) via batch
+comparison, before this counts as done.
 Same discipline as `bot-strategy.md` §4.4's own lesson: a single aggregate
 number (like win rate) can hide the real effect or invent a fake one.
 
