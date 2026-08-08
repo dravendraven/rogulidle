@@ -58,6 +58,13 @@ function clearedTheFloor(belief, total, mode = 'spine') {
   return !monsters.some((m) => !m.dead && !m.side);
 }
 
+// Shrine is reachable if it has been seen and is physically accessible.
+function canReachShrine(belief, field) {
+  if (!belief.shrine) return false;
+  const distance = field.dist.get(key(belief.shrine.pos));
+  return Number.isFinite(distance) && distance > 0;
+}
+
 function liveMonsters(belief) {
   return [...belief.monsters.values()].filter((m) => !m.dead);
 }
@@ -414,16 +421,18 @@ function chooseGoal(belief, field, danger, current, options) {
     return best;
   }
 
-  // 3. Nothing known to fight and the floor is not clear — the rest are out
+  // 3. Leave if the shrine is reachable — no requirement to clear first.
+  if (canReachShrine(belief, field)) {
+    return { kind: 'shrine', pos: belief.shrine.pos };
+  }
+
+  // 4. Nothing known to fight and the floor is not clear — the rest are out
   //    there in the dark. Go and look. Still a fallback, but it now looks
   //    in the most promising direction rather than the nearest one, and
   //    branch 1 above may have taken this decision already.
   if (!clearedTheFloor(belief, options.monsterCount, options.requireClear)) {
     return bestFrontier(belief, field, options);
   }
-
-  // 4. Floor clear: leave, if the way out has been found.
-  if (belief.shrine) return { kind: 'shrine', pos: belief.shrine.pos };
 
   // 5. Cleared but the shrine was never seen — keep looking for it.
   return bestFrontier(belief, field, options);
@@ -443,7 +452,7 @@ function stillValid(goal, belief, field, total, mode) {
 
   if (goal.kind === 'item' && !belief.items.has(goal.id)) return false;
   if (goal.kind === 'chest' && !belief.chests.has(goal.id)) return false;
-  if (goal.kind === 'shrine' && !clearedTheFloor(belief, total, mode)) return false;
+  if (goal.kind === 'shrine' && !canReachShrine(belief, field)) return false;
 
   if (goal.kind === 'frontier') {
     const stillDark = frontiers(belief).some((pos) => key(pos) === key(goal.pos));
