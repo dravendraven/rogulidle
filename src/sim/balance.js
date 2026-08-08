@@ -235,9 +235,31 @@ export const MONSTER_WEIGHTS = [
 // frozen well below `t-rex`, and M7 raised lethality by ATTRITION (more
 // creatures acting together) rather than by a bigger single hit. This is a
 // RARE, INDEPENDENT roll — separate from the per-cluster tier draw — that
-// can reach the table's true top regardless of local depth. Off by
-// default — self-tested, not yet adopted.
-export const OUT_OF_DEPTH_TAIL = false;
+// can reach the table's true top regardless of local depth.
+//
+// ON. Archived once as a measured negative, un-archived and adopted after
+// M24 — and the archiving was a MEASUREMENT error, not a design one:
+//
+//   - It was judged by CV. CV was what everything was judged by at the
+//     time, but this item exists to shrink the REACTION WINDOW, which is
+//     spike, not variance. Worse, an out-of-depth tail pushes CV the wrong
+//     way BY CONSTRUCTION — its chance grows with depth, so it fires where
+//     cost is already highest, raising the deep mean and lowering sd/mean
+//     even as it raises sd. It could never have passed that test.
+//   - The spike reading that failed it was p95/p99 pooled over EVERY turn
+//     including walking. I7 showed that was dilution.
+//   - It had no room to work: the ±2 spread made above-tier creatures
+//     ROUTINE (wolf 17%, ogre 8% of draws), so a deliberate 8% tail was
+//     invisible against a 25% background. M24 clamped that spread and made
+//     this the only source of an above-tier creature on floors 2-9.
+//
+// Re-measured on PEAK, denominator-free (worst single turn per run), 240
+// paired descents per arm: share of runs taking a >=7 blow went 0.4% ->
+// 7.5% (z=4.05), >=8 went 0/240 -> 4.2% (z=3.23). Against a 10 hp hero
+// that is 70-80% of the bar in one turn. The effect is confined to the far
+// tail — the >=4 threshold does NOT move (z=1.21) — which is exactly what
+// "a rare shock, not a routine one" is supposed to look like.
+export const OUT_OF_DEPTH_TAIL = true;
 
 // GUESS — zero on floor 1 by design: nothing is "out of depth" yet at the
 // very top of the dungeon. Grows with depth and stays capped well under
@@ -245,6 +267,19 @@ export const OUT_OF_DEPTH_TAIL = false;
 // only the rare one. `PLAYER_HP` is 10 with no regeneration and damage is
 // `0..xp-1`, so a `t-rex` (xp 10) can take nearly a full health bar in one
 // blow — the cap keeps that a rare shock, not a routine one.
+//
+// STILL GUESSES, and deliberately left as shipped. `PER_LEVEL` has never
+// been swept; the plan was to sweep it if the peak did not move at these
+// values, and the peak moved decisively (see OUT_OF_DEPTH_TAIL above), so
+// there was nothing to buy. `CAP` was swept once and found not to move CV
+// — that sweep says nothing here, since CV is not this item's test and
+// never should have been.
+//
+// If a later item does sweep `PER_LEVEL`, note the shape it runs into:
+// `CAP` binds from floor 8 at the shipped 0.02 (chance is
+// `min(0.15, 0.02 x floorIndex)`), so raising `PER_LEVEL` alone only moves
+// the SHALLOW floors and leaves 8-10 untouched. The two have to move
+// together to change the deep end.
 export const OUT_OF_DEPTH_CHANCE_BASE = 0;
 export const OUT_OF_DEPTH_CHANCE_PER_LEVEL = 0.02;
 export const OUT_OF_DEPTH_CHANCE_CAP = 0.15;

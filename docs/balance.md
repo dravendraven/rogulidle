@@ -63,7 +63,7 @@ statement about today. Only this table is current.
 | `OUT_OF_DEPTH_CHANCE_BASE` | `0` | balance.js |
 | `OUT_OF_DEPTH_CHANCE_CAP` | `0.15` | balance.js |
 | `OUT_OF_DEPTH_CHANCE_PER_LEVEL` | `0.02` | balance.js |
-| `OUT_OF_DEPTH_TAIL` | `false` | balance.js |
+| `OUT_OF_DEPTH_TAIL` | `true` | balance.js |
 | `PLAYER_HP` | `10` | balance.js |
 | `PLAYER_XP` | `3` | balance.js |
 | `POTION_HEAL` | `3` | balance.js |
@@ -856,14 +856,14 @@ item's own explicit instruction not to adopt on paper alone.** See
 `docs/backlog.md` M17 for what this did to `run-check.html`'s numbers
 (median depth, finishes) and whether the descent is actually playable.
 
-## An out-of-depth tail (M3) — off by default
+## An out-of-depth tail (M3) — ON, adopted after M24
 
 | Name | Value | Status |
 |---|---|---|
-| `OUT_OF_DEPTH_TAIL` | `false` | **OFF by default** — built and self-tested, no reading requested yet. See `docs/backlog.md` M3 |
+| `OUT_OF_DEPTH_TAIL` | `true` | **ON** — archived once on the wrong test, re-measured on peak and adopted. See below |
 | `OUT_OF_DEPTH_CHANCE_BASE` | 0 | **INITIAL GUESS** — zero on floor 1 by design |
-| `OUT_OF_DEPTH_CHANCE_PER_LEVEL` | 0.02 | **INITIAL GUESS** |
-| `OUT_OF_DEPTH_CHANCE_CAP` | 0.15 | **INITIAL GUESS** |
+| `OUT_OF_DEPTH_CHANCE_PER_LEVEL` | 0.02 | **INITIAL GUESS** — never swept, and did not need to be |
+| `OUT_OF_DEPTH_CHANCE_CAP` | 0.15 | **INITIAL GUESS** — swept once against CV, which was the wrong test |
 
 Live in `src/sim/balance.js` beside `MONSTER_TABLE` and `MONSTER_WEIGHTS`;
 the growth function (`outOfDepthChanceAt`) lives in `src/sim/difficulty.js`
@@ -887,12 +887,88 @@ spike moves. With the flag off (chance always 0), `spawn.js` skips the
 draw entirely rather than rolling a chance that can never fire — verified
 RNG-identical to before this item existed.
 
-Self-tested, not yet measured on the probes: `PLAYER_HP` is 10 with no
-regeneration and damage is `0..xp−1`, so a `t-rex` (xp 10) can take close
-to a full health bar in one blow. See `docs/backlog.md` M3 for what the
-metrics agent's reading is meant to answer — the distribution of damage
-per blow, not its mean, since a rare near-lethal hit is exactly the point
-and a mean would wash it out.
+`PLAYER_HP` is 10 with no regeneration and damage is `0..xp−1`, so a
+`t-rex` (xp 10) can take close to a full health bar in one blow. That is
+the point, and it is why the mean was never the right reading.
+
+### Archived once, on the wrong test — three separate mistakes
+
+**It was judged by CV.** Everything was judged by CV at the time, but this
+item exists to shrink the REACTION WINDOW, which is spike, not variance.
+And an out-of-depth tail pushes CV the wrong way *by construction*: its
+chance grows with depth, so it fires where cost is already highest,
+raising the deep mean and lowering sd/mean even while raising sd. It could
+never have passed the test it was given.
+
+**The spike reading that failed it was diluted.** p95/p99 pooled over
+every turn including walking; I7 later showed that was dilution.
+
+**It had no room to work.** The ±2 spread made above-tier creatures
+routine — wolf 17% of draws, ogre 8% — so a deliberate 8% tail was
+invisible against a 25% background. **M24 is what changed that**, clamping
+the drawn slot from above and leaving this as the only source of an
+above-tier creature on floors 2-9.
+
+### Re-measured on peak, and the peak has to be denominator-free
+
+Above-tier creatures after M24, tail off vs on (n=300 floors per cell,
+"above tier" = table index above the floor's own ceiling index):
+
+| floor | ceiling | tail off | tail on |
+|---|---|---|---|
+| 1 | 2 | 0% | 0% (chance is 0 there by design) |
+| 3 | 3 | 0% | 1.7% of floors |
+| 5 | 4 | 0% | 7.7% of floors |
+| 7 | 6 | 0% | 12.7% of floors |
+| 10 | 8 | 40% of floors | 46.3% of floors |
+
+Floors 1-7 read a clean **0% with the tail off** — M24 closed the routine
+route completely. Floor 10's 40% baseline is M24's own +1 index of slack
+at that depth, not this item.
+
+**Conditioning on combat-adjacent turns — I7's fix — is STILL not enough
+here, and this is the trap worth recording.** Measured that way the tail
+looks like it does nothing, or slightly less than nothing:
+
+    adjacent-turn damage      off        on
+    p95                       1          1
+    p99                       2          2
+    share >= 3                0.99%      0.67%
+    adjacent turns (80 runs)  12,586     17,257
+
+The tail makes fights LONGER (an out-of-depth creature has far more hp),
+so it adds low-damage adjacent turns to the denominator faster than it
+adds high-damage ones to the numerator. **Any share-of-turns statistic is
+diluted by a treatment that changes how many turns there are.** The fix is
+a peak with no denominator at all: the worst single turn per run, and per
+floor.
+
+Measured that way, 240 paired descents per arm, same seeds both arms:
+
+| worst single turn in a run | tail off | tail on | z |
+|---|---|---|---|
+| p95 | 5 | 7 | — |
+| p99 | 5 | 9 | — |
+| max seen | 7 | 10 | — |
+| share of runs >= 5 | 6.3% | 14.6% | 3.02 |
+| share of runs >= 6 | 0.8% | 9.6% | 4.40 |
+| share of runs >= 7 | 0.4% | 7.5% | 4.05 |
+| share of runs >= 8 | 0% (0/240) | 4.2% | 3.23 |
+
+Per-floor peak agrees: `>= 6` goes 0.2% → 2.2% (z=4.30), `>= 7` goes 0.1%
+→ 1.7% (z=3.97).
+
+**The effect is confined to the far tail, which is the acceptance
+criterion rather than a caveat.** The `>= 4` threshold does NOT move
+(z=1.21) — routine fights are untouched. What moves is `>= 6` and above:
+against a 10 hp hero, a single turn taking 7-8 is 70-80% of the bar, and
+that went from essentially never (1 run in 240) to about 1 run in 13.
+
+**`PER_LEVEL` was left unswept on purpose.** The plan was to sweep it if
+the peak did not move at the shipped guesses; it moved decisively, so
+there was nothing to buy. Note for whoever does sweep it: `CAP` binds from
+floor 8 at the shipped 0.02, so raising `PER_LEVEL` alone only moves
+shallow floors — the two have to move together to reach the deep end.
 
 ## Tier floor (M13) — structural, on unconditionally
 

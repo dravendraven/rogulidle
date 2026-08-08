@@ -3,7 +3,8 @@
 
 import {
   CHEST_GUARD_RADIUS, EARLY_CHEST_QUALITY_BOOST, HP_GRANT_AMOUNT, ITEM_TABLE,
-  MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_TAIL, PLAYER_HP, SHRINE_DISTANCE_SHARE,
+  MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_TAIL,
+  PLAYER_HP, SHRINE_DISTANCE_SHARE,
 } from '../src/sim/balance.js';
 import { newGame, playGame, replayGame } from '../src/sim/game.js';
 import { step, ACTIONS } from '../src/sim/step.js';
@@ -1153,14 +1154,66 @@ test('a cluster too big for the map degrades instead of hanging or crashing', ()
 
 // ***** M3 — an out-of-depth tail, and it must stay off ***** //
 
-test('the tail is a no-op at its shipped value', () => {
-  // Mirrors the M7 no-op guard: a measuring instrument, not a shipped
-  // change, until it is adopted.
-  assertEq(OUT_OF_DEPTH_TAIL, false, 'OUT_OF_DEPTH_TAIL is no longer off by default');
+test('the tail ships ON, zero on floor 1, rising and capped below certainty', () => {
+  // Was "the tail is a no-op at its shipped value" — a guard for the era
+  // when this was an unadopted instrument. Adopted after M24 (see
+  // docs/balance.md), so the guard now describes the opposite shipped
+  // state. What it still protects is the SHAPE, which is what keeps this a
+  // rare shock rather than a routine one.
+  assertEq(OUT_OF_DEPTH_TAIL, true, 'OUT_OF_DEPTH_TAIL is no longer on');
+
+  assertEq(floorParams(0).outOfDepthChance, 0,
+    'floor 1 must never roll an out-of-depth creature — nothing is out of depth at the top');
+
+  let previous = -1;
   for (let level = 0; level < 10; level++) {
-    assertEq(floorParams(level).outOfDepthChance, 0,
-      `floor ${level + 1} carried a nonzero out-of-depth chance with the flag off`);
+    const chance = floorParams(level).outOfDepthChance;
+    assert(chance >= previous, `floor ${level + 1} chance ${chance} fell below floor ${level}'s`);
+    assert(chance <= OUT_OF_DEPTH_CHANCE_CAP,
+      `floor ${level + 1} chance ${chance} exceeded the cap ${OUT_OF_DEPTH_CHANCE_CAP}`);
+    assert(chance < 0.5,
+      `floor ${level + 1} chance ${chance} is no longer a TAIL — the median floor would feel it`);
+    previous = chance;
   }
+});
+
+test('the tail is the only route to an above-tier creature on mid floors', () => {
+  // The interaction that un-archived this item: M24 clamps the ordinary
+  // drawn slot, so with the tail off nothing on floors 2-7 can exceed the
+  // floor's own ceiling index. That is what makes a deliberate 8% tail
+  // visible instead of lost against a 25% background of routine wolves and
+  // ogres. Floor 10 is excluded — M24 allows one index of slack that deep,
+  // so it has its own above-tier source and this property is not expected
+  // to hold there.
+  const indexOf = (m) => MONSTER_TABLE.findIndex((t) => t.name === m.name);
+  for (const level of [2, 4, 6]) {
+    const plan = floorPlan(level);
+    const ceiling = Math.floor(plan.difficultyScale * (MONSTER_TABLE.length - 1));
+    for (let seed = 0; seed < 40; seed++) {
+      const off = newGame(96500 + level * 1000 + seed, { ...plan, outOfDepthChance: 0 });
+      assert(!off.monsters.some((m) => indexOf(m) > ceiling),
+        `floor ${level} seed ${seed}: an above-tier creature appeared with the tail OFF`);
+    }
+  }
+});
+
+test('the tail actually fires, and reaches above the floor it fires on', () => {
+  // The other half — "only route" is satisfiable by there being no route.
+  // Forced to certainty rather than waiting on the shipped rate, so this
+  // stays a fast deterministic check of the MECHANISM; the shipped RATE is
+  // shape-checked above and its effect measured in docs/balance.md.
+  const indexOf = (m) => MONSTER_TABLE.findIndex((t) => t.name === m.name);
+  const plan = floorPlan(5);
+  const ceiling = Math.floor(plan.difficultyScale * (MONSTER_TABLE.length - 1));
+  let sawAbove = 0;
+  for (let seed = 0; seed < 40; seed++) {
+    const on = newGame(96600 + seed, { ...plan, outOfDepthChance: 1 });
+    if (on.monsters.some((m) => indexOf(m) > ceiling)) sawAbove++;
+    assertEq(on.monsters.length, newGame(96600 + seed, { ...plan, outOfDepthChance: 0 }).monsters.length,
+      `seed ${seed}: the tail changed the roster SIZE — it must reskin, not add`);
+  }
+  assert(sawAbove >= 35,
+    `the tail fired on only ${sawAbove}/40 floors at chance 1 — it should reskin every time`);
 });
 
 test('zero chance draws nothing extra', () => {

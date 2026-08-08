@@ -728,8 +728,8 @@ possível fica congelado bem abaixo do `t-rex`. O M7 elevou a letalidade por
 DESGASTE (mais criaturas agindo juntas), não por um golpe único maior — essa
 é a lacuna que o M3 existe para preencher.
 
-**Regra nova.** Atrás de uma flag (`OUT_OF_DEPTH_TAIL`, desligada por
-padrão): depois que o andar termina de ser povoado, um sorteio RARO e
+**Regra nova.** Atrás de uma flag (`OUT_OF_DEPTH_TAIL`, hoje LIGADA):
+depois que o andar termina de ser povoado, um sorteio RARO e
 INDEPENDENTE do sorteio de tier por cluster — cuja chance é zero no andar 1
 e cresce com a profundidade, sempre limitada bem abaixo da certeza (ver
 `docs/balance.md`) — pode substituir UMA criatura já posicionada por outra
@@ -743,11 +743,35 @@ golpe. Isso tem que continuar sendo um choque raro, não uma rotina: por
 isso a chance fica sempre pequena e cresce devagar com a profundidade, em
 vez de um salto abrupto em algum andar fixo.
 
-**Estado atual: construído, `OUT_OF_DEPTH_TAIL = false`.** Com a flag
-desligada nada muda: a chance é sempre zero e nenhum sorteio extra é feito
-(um sorteio que nunca dispara ainda consumiria um valor do stream de RNG, o
-que empurraria toda geração depois dele). Ver `docs/backlog.md` M3 para o
-que foi medido.
+**Estado atual: `OUT_OF_DEPTH_TAIL = true`, adotado depois do M24.** Com a
+flag desligada nada muda: a chance é sempre zero e nenhum sorteio extra é
+feito (um sorteio que nunca dispara ainda consumiria um valor do stream de
+RNG, o que empurraria toda geração depois dele).
+
+**Foi arquivado uma vez, por erro de medição — não de design.** Era julgado
+por CV, mas este item existe para encolher a JANELA DE REAÇÃO, que é pico,
+não variância; e uma cauda fora de profundidade empurra o CV para o lado
+errado por construção, já que dispara onde o custo já é mais alto. A
+leitura de pico que o reprovou era p95/p99 agregado sobre todos os turnos,
+inclusive de caminhada — diluição, como o I7 mostrou depois. E não tinha
+espaço para funcionar: o spread ±2 entregava lobo em 17% e ogre em 8% dos
+sorteios, então uma cauda deliberada de 8% era invisível contra um fundo de
+25%. **O M24 é o que mudou isso**, fechando a rota rotineira e deixando
+esta como a única fonte de criatura acima do tier nos andares 2–9.
+
+**Remedido em PICO, sem denominador** (pior turno único de uma corrida
+inteira, 240 descidas pareadas por braço): a fração de corridas que levam
+um golpe de 7 ou mais foi de 0,4% para 7,5% (z=4,05), e de 8 ou mais foi de
+zero em 240 para 4,2% (z=3,23). Contra 10 de hp, isso é 70–80% da barra num
+turno só. O limiar de 4 NÃO se move (z=1,21) — a briga rotineira fica
+intocada, que é exatamente o que "choque raro, não rotina" quer dizer.
+
+**Armadilha registrada:** condicionar em turnos com criatura adjacente — a
+correção do I7 — ainda não basta aqui. A criatura fora de profundidade tem
+muito mais hp, então alonga a briga e enche o denominador de turnos sem
+dano; medido assim a cauda parece não fazer nada. Qualquer estatística de
+fração-de-turnos é diluída por um tratamento que muda quantos turnos
+existem. Ver `docs/balance.md` para os números.
 
 ### 13.7 O piso do tier sobe com a profundidade (M13)
 
