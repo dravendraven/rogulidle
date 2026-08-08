@@ -45,7 +45,7 @@ session, skip it.
 | 5 | B9 | Teach the bot that a creature carries something | **DONE** · shipped ON, one z-score owed |
 | 6 | M29 | Turn off the guaranteed dagger, soften floor 1 via generation | READY |
 | 7 | M28 | Belief clones a monster's drop before it should be knowable | **DONE** |
-| 8 | B10 | Weight the route toward a frontier by what it would reveal | **REPORTED** · shipped OFF, inert |
+| 8 | B10 | Weight the route toward a frontier by what it would reveal | **DONE** · shipped OFF, inert |
 | 9 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
 | 10 | D1 | The crowd-correction fit is overdue for its own redo | READY |
 | 11 | X1 | Delete what nothing references | READY · list refreshed |
@@ -1349,6 +1349,37 @@ counter, `frontierRouting` field), `test/tests.js` (one test). `src/sim/`
 touch is the one new balance constant, same footprint B9's `priceDrops`
 left — no engine behaviour changes, only a number the bot reads.
 
+### Review — ADOPTED, shipped off is correct, and the diagnosis is the find
+
+The wall-bump instrument being built FIRST, before any other number was
+trusted, is exactly the sequencing the item demanded and it is what makes
+the rest of this report credible.
+
+**The result is a clean null, not a shrug.** Every number flat to three
+figures on the primary family, bumps not up on either family — the item's
+own stop-signal never fired, and the mechanism explanation is specific and
+falsifiable rather than post-hoc: a weighted-dijkstra route on a
+procedurally generated map essentially never has a second route at EXACTLY
+equal cost, so a tie-breaker sized at under half of one `STEP_COST_IN_HP`
+almost never has anything to decide between. **The same constraint that
+made this safe (small, seen-tiles-only, to avoid B3's route-commitment
+trap) is the same constraint that made it powerless.** That is a real,
+transferable lesson about tie-breaker-shaped fixes on this kind of cost
+field, not specific to frontiers.
+
+**Skipping the hand-built maze fixture was the right call, not a shortcut
+taken.** The real-play measurement across two independent families already
+answered the question a maze would have asked, and a small fixture fighting
+`VISIBLE_DIST` 9 lighting most of itself immediately was correctly judged
+riskier (a subtly-wrong fixture) than informative.
+
+**One loose end for X1, not this item.** The wall-bump counter this item
+added to `run-zigzag.html` is general-purpose — useful for any future
+routing change, not just this one — while the rest of that page's reason
+to exist (B3/B8) is closed. X1 should decide explicitly whether to keep the
+bump counter somewhere before deleting the page it currently lives in,
+rather than losing it by reflex.
+
 ## B9 · the bot does not know a creature is carrying anything
 
 `bot agent` · **REPORTED** · shipped ON · **re-measured after review, adopted verdict reopened — see below**
@@ -1772,6 +1803,14 @@ divergence, and a boolean parameter is not a tunable.
 **`run-zigzag.html` and `run-b9.html` are both clear to delete now** —
 B3's condition (keep only if B8 has not shipped) and B9's (not meant to
 outlive the item) have both resolved: B8 and B9 are DONE.
+
+**Before deleting `run-zigzag.html`, decide where its wall-bump counter
+goes.** B10 added a general-purpose "did this step pass a turn" counter to
+that page — useful for any future routing change, not specific to B10 —
+while the rest of the page's reason to exist (B3/B8) is closed. Losing the
+counter by reflex when the page goes is the trap; port it into
+`run-check.html` or wherever the next routing item's instrument lives, or
+say explicitly it is not worth keeping and let it go.
 
 `work agent` · **READY** — list refreshed after the metrics agent's own pass
 
