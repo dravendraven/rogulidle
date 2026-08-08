@@ -367,6 +367,22 @@ export const ITEM_TABLE = [
   { name: 'axe',    emoji: '🪓',  value: 4, dmg: 2, kind: 'weapon' },
 ];
 
+// ***** M26 — weapons come off creatures, docs/backlog.md M26 ***** //
+// GUESS — the minimum MONSTER_TABLE index (0 = rat, 10 = t-rex) a killed
+// creature has to reach before `axe` is even a candidate in its drop pool.
+// A FILTER, not a tilt: below this index `itemWeights` removes `axe`
+// entirely, so the owner's "axe nao dropa de criaturas fraca" is a
+// mechanism check (the axe is provably absent) rather than a rare event
+// that happens not to have shown up. `dagger` is unaffected and can still
+// drop from anything down to a rat.
+//
+// Set at `wolf` (index 4): floor 1-3's own tier ceiling under M25 never
+// reaches it (2, then 3), so those floors cannot hand out an axe by
+// construction, independent of the roll. Floor 5's ceiling (4) just
+// clears it. Needs a sweep if the measured cumulative-damage curve does
+// not land where M26's supply arithmetic predicts.
+export const WEAPON_AXE_MIN_TIER = 4;
+
 // DIVERGENCE: Rogule dresses these as scenery — potted plant, rock, wood
 // block — because there they are cover you kick over. Ours are the reward
 // container of the map design, so they look like what they are. One row,

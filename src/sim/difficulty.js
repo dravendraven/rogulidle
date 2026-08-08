@@ -237,8 +237,29 @@ export const STRENGTH_GROWTH_REBALANCED = 1.1358;
 export const CLUSTER_SIZE = 10;
 
 // One draw in three yields something; the rest come up empty. Equal across
-// weapons, armour and potions.
+// armour and potions.
 export const SCARCITY = 3;
+
+// ***** M26 — weapons come off creatures, docs/backlog.md M26 ***** //
+// SWEPT — weapon split off from the shared SCARCITY once weapons moved
+// from chests to monsters (spawn.js), since chests no longer hold a
+// `weapon` kind and the two uses can no longer collide.
+//
+// Swept 3/2.5/2/1.7/1.5 against the item's own acceptance band — total
+// weapon damage across a descent within ~20% of the pre-M26 chest-sourced
+// baseline (10.37, measured against a snapshot of the pre-M26 mechanism):
+//
+//     scarcity   cum. weapon dmg
+//     3.0            6.76   (the shared default — 35% short, outside the band)
+//     2.5            7.83   (24% short, still outside)
+//     2.0            9.69   (6.6% short — shipped)
+//     1.7           11.49   (within band, but closer to "unchanged" than "rarer")
+//     1.5           12.79   (over the pre-M26 baseline)
+//
+// 2.0 lands inside the band without landing on "basically unchanged" —
+// there is still a real, measured cut, just not the near-doubling the
+// item's own arithmetic warned a naive move would produce.
+export const WEAPON_SCARCITY = 2;
 
 // Chance a corpse leaves a potion behind.
 export const DROP_CHANCE = 0.5;
@@ -332,7 +353,7 @@ export function floorParams(level) {
     // for, just a fixed "how close counts as guarded".
     chestGuardRadius: CHEST_GUARD_RADIUS,
     dropChance: DROP_CHANCE,
-    weaponScarcity: SCARCITY,
+    weaponScarcity: WEAPON_SCARCITY,
     armourScarcity: SCARCITY,
     potionScarcity: SCARCITY,
   };
@@ -377,7 +398,7 @@ export const DEFAULT_MODEL = {
   // M15. Flat, same shape as `chests` above.
   chestGuardRadius: CHEST_GUARD_RADIUS,
   dropChance: DROP_CHANCE,
-  weaponScarcity: SCARCITY,
+  weaponScarcity: WEAPON_SCARCITY,
   armourScarcity: SCARCITY,
   potionScarcity: SCARCITY,
   levels: 10,

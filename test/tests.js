@@ -4,14 +4,14 @@
 import {
   CHEST_GUARD_RADIUS, EARLY_CHEST_QUALITY_BOOST, HP_GRANT_AMOUNT, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_TAIL,
-  PLAYER_HP, SHRINE_DISTANCE_SHARE,
+  PLAYER_HP, SHRINE_DISTANCE_SHARE, WEAPON_AXE_MIN_TIER,
 } from '../src/sim/balance.js';
 import { newGame, playGame, replayGame } from '../src/sim/game.js';
 import { step, ACTIONS } from '../src/sim/step.js';
 import { observe, emptyBelief, foldBelief } from '../src/sim/observe.js';
 import { weaponDamage, armourValue } from '../src/sim/combat.js';
 import { findPath, playerPassable, posKey } from '../src/sim/mapgen.js';
-import { drawLogUniform, makeRng } from '../src/sim/rng.js';
+import { drawLogUniform, drawWeighted, makeRng } from '../src/sim/rng.js';
 import { classifyRooms, spineShare } from '../src/sim/spine.js';
 import { itemWeights, monsterWeightsAround } from '../src/sim/spawn.js';
 import { floorPlan } from '../src/sim/dungeon.js';
@@ -773,57 +773,53 @@ test('quality 0 reproduces the shipped 1/value pool exactly', () => {
   }
 });
 
-test('depth makes the strong item the common one', () => {
+test('quality makes the strong item the common one', () => {
+  // Was 'depth makes the strong item the common one', read off the CHEST
+  // source. M26 (docs/backlog.md) moved `weapon` — the only kind with more
+  // than one member — off chests and onto monsters, so the tilt this test
+  // exists to check has nothing left to bite on in 'chest'. Retargeted to
+  // 'monster', where dagger/axe now live; the mechanism under test
+  // (itemWeights' quality argument) is unchanged, only its source.
   const weightOf = (entries, name) => {
     const found = entries.find(([item]) => item && item.name === name);
     return found ? found[1] : 0;
   };
-  const shallow = itemWeights({}, 'chest', 0);
-  const deep = itemWeights({}, 'chest', 1);
+  const low = itemWeights({}, 'monster', 0);
+  const high = itemWeights({}, 'monster', 1);
 
-  // At the entrance the axe (value 4) is rarer than the dagger (value 3).
-  assert(weightOf(shallow, 'axe') < weightOf(shallow, 'dagger'),
-    'the strong weapon was not the rare one at depth 0');
-  // At the shrine that inverts.
-  assert(weightOf(deep, 'axe') > weightOf(deep, 'dagger'),
-    'depth did not make the strong weapon the common one');
+  // At quality 0 the axe (value 4) is rarer than the dagger (value 3).
+  assert(weightOf(low, 'axe') < weightOf(low, 'dagger'),
+    'the strong weapon was not the rare one at quality 0');
+  // At quality 1 that inverts.
+  assert(weightOf(high, 'axe') > weightOf(high, 'dagger'),
+    'quality did not make the strong weapon the common one');
 });
 
 // ***** M19 — pay for the harder opening with loot ***** //
 
-test('the early-chest quality boost makes floor 1 richer, and fades by floor 10', () => {
-  // Weapon kind only has two members (dagger dmg 1, axe dmg 2), so "share
-  // of weapon drops that are the axe" is a direct, game-relevant read of
-  // whether floor 1 got richer — not a synthetic weight.
-  const axeShare = (level, boost, seeds = 60) => {
-    let axes = 0;
-    let weapons = 0;
-    for (let seed = 0; seed < seeds; seed++) {
-      const state = newGame(940000 + level * 1000 + seed,
-        { ...floorPlan(level), earlyChestQualityBoost: boost });
-      for (const chest of state.chests) {
-        if (chest.drop && chest.drop.dmg) {
-          weapons++;
-          if (chest.drop.name === 'axe') axes++;
-        }
-      }
-    }
-    return weapons ? axes / weapons : 0;
+test('the early-chest quality boost is inert now that chests never hold a weapon', () => {
+  // Was 'the early-chest quality boost makes floor 1 richer, and fades by
+  // floor 10', read via axe share among CHEST drops. M26 (docs/backlog.md)
+  // moved `weapon` off the chest source entirely — a chest's only
+  // remaining kind (`armour`) has a single member (`shield`), so there is
+  // nothing left for ANY quality tilt, boosted or not, to act on. This is
+  // a real, disclosed side effect of M26, not an oversight: documents the
+  // new invariant that the ORDINARY chest draw never hands out a weapon.
+  //
+  // An ARMED hero, deliberately, so M19's own guaranteed-dagger override
+  // (4b — a real, intentional exception, not a bug) does not fire and
+  // confound the read; that mechanism is checked on its own terms in
+  // 'M19's guarantee only ever hands over a dagger' below.
+  const carry = {
+    hp: 8, hpMax: 10, armour: 0, xp: 1,
+    inventory: [{ id: 'w1', name: 'axe', dmg: 2 }], kills: [], xpEarned: 0,
   };
-
-  const fl1Off = axeShare(1, 0);
-  const fl1On = axeShare(1, EARLY_CHEST_QUALITY_BOOST);
-  assert(fl1On > fl1Off,
-    `floor 1 axe share did not rise: off ${fl1Off.toFixed(2)}, on ${fl1On.toFixed(2)}`);
-
-  // The boost is EARLY_CHEST_QUALITY_BOOST / level — by floor 10 it is a
-  // tenth of floor 1's, so the on/off gap should have mostly closed.
-  const fl10Off = axeShare(10, 0);
-  const fl10On = axeShare(10, EARLY_CHEST_QUALITY_BOOST);
-  const fl1Gap = fl1On - fl1Off;
-  const fl10Gap = fl10On - fl10Off;
-  assert(fl10Gap < fl1Gap,
-    `floor 10's boost did not fade below floor 1's: fl1 gap ${fl1Gap.toFixed(2)}, fl10 gap ${fl10Gap.toFixed(2)}`);
+  for (let seed = 0; seed < 20; seed++) {
+    const state = newGame(940000 + seed,
+      { ...floorPlan(1), earlyChestQualityBoost: EARLY_CHEST_QUALITY_BOOST, carry });
+    assert(!state.chests.some((c) => c.drop && c.drop.dmg),
+      `seed ${seed}: a chest held a weapon after M26 moved weapons to the monster source`);
+  }
 });
 
 test('an unarmed hero always finds a weapon in the nearest chest', () => {
@@ -869,6 +865,100 @@ test('quality never changes how often a chest is empty', () => {
   };
   assert(Math.abs(emptyAt(0) - emptyAt(1)) < 1e-12,
     'chest quality changed the empty share');
+});
+
+// ***** M26 — weapons come off creatures ***** //
+
+test('itemWeights exclude is a filter, not a tilt', () => {
+  // The property the whole item leans on: an excluded item is gone from
+  // the pool, and its kind's mass falls entirely to whatever is left in
+  // it — not merely underweighted, which quality alone could already do.
+  const withAxe = itemWeights({}, 'monster', 1);
+  const noAxe = itemWeights({}, 'monster', 1, ['axe']);
+
+  const weightOf = (entries, name) => {
+    const found = entries.find(([item]) => item && item.name === name);
+    return found ? found[1] : 0;
+  };
+  assert(weightOf(noAxe, 'axe') === 0, 'axe survived its own exclusion');
+  assertEq(noAxe.find(([i]) => i && i.name === 'dagger')[1],
+    weightOf(withAxe, 'axe') + weightOf(withAxe, 'dagger'),
+    'dagger did not absorb the excluded axe\'s entire share of the weapon kind');
+
+  // Excluding a kind's only remaining item should not touch other kinds —
+  // potion's mass is untouched by what happens inside weapon.
+  const potionWeight = (entries) => entries.find(([i]) => i && i.name === 'health')[1];
+  assertEq(potionWeight(withAxe), potionWeight(noAxe),
+    'excluding a weapon changed potion\'s own weight');
+});
+
+test('a creature below WEAPON_AXE_MIN_TIER can never drop an axe', () => {
+  const indexOf = (m) => MONSTER_TABLE.findIndex((t) => t.name === m.name);
+  for (const level of [1, 3]) {
+    const plan = floorPlan(level);
+    const ceiling = Math.floor(plan.difficultyScale * (MONSTER_TABLE.length - 1));
+    // A mechanism check, not a rate — only meaningful while the floor's own
+    // ceiling genuinely cannot reach the threshold, which floors 1 and 3
+    // satisfy under the shipped M25 curve. If that ever stops holding this
+    // assert would be vacuous, so pin it down rather than assume it.
+    assert(ceiling < WEAPON_AXE_MIN_TIER,
+      `floor ${level}'s ceiling (${ceiling}) already reaches WEAPON_AXE_MIN_TIER — this test no longer isolates the filter`);
+    for (let seed = 0; seed < 60; seed++) {
+      const state = newGame(960000 + level * 1000 + seed, plan);
+      for (const m of state.monsters) {
+        if (m.drop && m.drop.name === 'axe') {
+          assert(indexOf(m) >= WEAPON_AXE_MIN_TIER,
+            `floor ${level} seed ${seed}: a tier-${indexOf(m)} ${m.name} dropped an axe, below WEAPON_AXE_MIN_TIER (${WEAPON_AXE_MIN_TIER})`);
+        }
+      }
+    }
+  }
+});
+
+test('a creature at or above WEAPON_AXE_MIN_TIER can drop an axe', () => {
+  // The other half — "never below" is satisfiable by "never at all". Forced
+  // to certainty (quality 1, no scarcity) rather than waiting on the
+  // shipped rates, so this stays a fast, deterministic mechanism check.
+  const template = MONSTER_TABLE[WEAPON_AXE_MIN_TIER];
+  let sawAxe = false;
+  for (let seed = 0; seed < 30; seed++) {
+    const weights = itemWeights({}, 'monster', 1, []);
+    const state = { rng: { spawn: seed + 1 } };
+    const drop = drawWeighted(state, 'spawn', weights);
+    if (drop && drop.name === 'axe') { sawAxe = true; break; }
+  }
+  assert(sawAxe,
+    `axe never appeared for a tier-${WEAPON_AXE_MIN_TIER} (${template.name}) draw across 30 tries at quality 1`);
+});
+
+test('weapons no longer come from the ordinary chest draw', () => {
+  // The other half of the move: chest kind is armour only. An armed hero
+  // so M19's guaranteed-dagger override (a deliberate exception) cannot
+  // confound the read.
+  const carry = {
+    hp: 8, hpMax: 10, armour: 0, xp: 1,
+    inventory: [{ id: 'w1', name: 'axe', dmg: 2 }], kills: [], xpEarned: 0,
+  };
+  for (let level of [1, 5, 10]) {
+    for (let seed = 0; seed < 20; seed++) {
+      const state = newGame(961000 + level * 1000 + seed, { ...floorPlan(level), carry });
+      assert(!state.chests.some((c) => c.drop && c.drop.dmg),
+        `floor ${level} seed ${seed}: a chest held a weapon`);
+    }
+  }
+});
+
+test('M19\'s guarantee only ever hands over a dagger', () => {
+  for (let seed = 0; seed < 40; seed++) {
+    const state = newGame(962000 + seed, floorPlan(1));
+    if (!state.chests.length) continue;
+    const nearest = state.chests.reduce((closest, c) => {
+      const d = Math.abs(c.pos[0] - state.player.pos[0]) + Math.abs(c.pos[1] - state.player.pos[1]);
+      return !closest || d < closest.d ? { c, d } : closest;
+    }, null).c;
+    assert(nearest.drop && nearest.drop.name === 'dagger',
+      `seed ${seed}: the guaranteed weapon was ${nearest.drop && nearest.drop.name}, not dagger`);
+  }
 });
 
 // ***** the bot's campaign horizon ***** //

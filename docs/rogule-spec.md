@@ -1121,3 +1121,97 @@ já cobre quase todo o alcance natural. `spread within a floor` (métrica de
 `run-shape.html`) não foi remedido nesta sessão — acompanhar por lá.
 
 **Estado atual: construído e ligado, sem flag.** Ver `docs/backlog.md` M24.
+
+### 13.16 Armas vêm de criaturas, não de baús (M26)
+
+**Por que isso é maior que um reembaralhar de loot.** `weaponDamage` SOMA
+o inventário inteiro, e `WEAPONS_WIDEN_ROLL` é verdadeiro — toda arma
+alarga o dado de dano pelo resto da corrida. `XP_FROM_KILLS` e
+`HP_FROM_KILLS` são ambos falsos. **Armas são a única coisa no jogo que
+torna o herói permanentemente mais forte.** Isso faz da fonte de armas a
+curva de suprimento que faltava: o andar 10 custa ~95 hp contra um teto de
+10, e essa distância nunca fechou porque matar não comprava nada durável.
+
+**Regra nova, estrutural, sem flag.** `kind` decide a fonte, e a troca é
+completa, não uma adição: baú (`itemWeights('chest', ...)`) agora só sorteia
+`armour` (`shield`, item único); criatura morta (`itemWeights('monster',
+...)`) sorteia `weapon` E `potion` juntos (`dagger`, `axe`, `health`) —
+`potion` já estava lá, `weapon` é o que se moveu. Antes do M26 era o
+oposto para arma: baú tinha, criatura não.
+
+**A qualidade agora vem do TIER da criatura morta, não da posição no
+mapa** — mesma expressão `value^(2q-1)` de `itemWeights` que já existia
+para baú por profundidade, só que `q = índice-do-tier / 10` em vez de
+`q = depthAt(pos)`. Uma criatura fraca (rato, morcego) tende a dar adaga;
+uma forte (gênio, dragão) tende a dar machado.
+
+**O teto é um FILTRO, não uma inclinação — `WEAPON_AXE_MIN_TIER` (4,
+lobo).** Abaixo desse índice, `axe` é removido do pool inteiramente antes
+dos pesos serem calculados; a massa do kind `weapon` cai inteira para
+`dagger`. Isso torna "machado não sai de criatura fraca" uma checagem de
+mecanismo — o machado está PROVADAMENTE ausente, não apenas raro — em vez
+de um evento raro que por acaso nunca apareceu. Inclinação sozinha só
+podia tornar o machado improvável, nunca impossível; o pedido do dono foi
+"não dropa", que é uma afirmação diferente.
+
+**A armadilha evitada: não tornar "estar armado" a coisa rara.** Um herói
+desarmado causa ~0,83 hp/turno e uma criatura do andar 1 já consome a
+maior parte de sua vida — é exatamente por isso que o M19 existe. Prender
+a primeira arma atrás de uma morte seria circular: o herói precisaria
+vencer a luta que a arma existe para tornar vencível. **A garantia do M19
+foi mantida e restrita à adaga** — a raridade que o dono pediu mora na
+UPGRADE (o herói ganhar um machado), não em estar armado. Com `dagger` e
+`axe` como os dois únicos itens do kind `weapon`, o machado é a única
+coisa sobre a qual "raridade" pode agir de verdade.
+
+**A aritmética de suprimento, medida antes de qualquer dial ser fixado.**
+Simplesmente mover a arma para a criatura, na escassez compartilhada de
+então (3), quase dobrava o suprimento (a própria conta do item: ~0,55
+armas/andar de baú, ~5,5 na descida, viraria ~10,7 só de criaturas). A
+escassez da arma foi separada da escassez compartilhada (`WEAPON_SCARCITY`,
+novo dial, só usado por criatura agora que baú não tem mais `weapon`) e
+varrida — 3 / 2,5 / 2 / 1,7 / 1,5 — contra dano total de arma na descida
+inteira, medido contra um snapshot do mecanismo pré-M26:
+
+    escassez   dano total de arma na descida
+    3,0            6,76   (compartilhada, sem separar — 35% abaixo, fora da banda)
+    2,5            7,83   (24% abaixo, ainda fora)
+    2,0            9,69   (6,6% abaixo — escolhida)
+    1,7           11,49   (dentro da banda, mas perto demais de "não mudou nada")
+    1,5           12,79   (acima do total pré-M26)
+
+**Consequência, medida — mesmos seeds, mecanismo antigo (baú) vs novo
+(criatura), n=150/andar:**
+
+    total de eventos de arma (10 andares)    6,58 -> 8,09
+    dano total de arma (10 andares)         10,37 -> 9,59   (-7,5%, dentro dos ~20%)
+    dano de arma por andar (novo)      andar1 0,72  andar4 0,67  andar7 1,18  andar10 1,30
+    maior dano de arma visto por andar andar1-3: 1 (só adaga)   andar4+: 2 (machado possível)
+
+Mais eventos de arma, menos dano total — exatamente "redistribuído para
+mais tarde, não só cortado": andares iniciais só recebem adaga (dano 1),
+andares 4+ passam a poder receber machado (dano 2), então o dano
+acumulado sobe com a profundidade em vez de ficar achatado como no
+mecanismo antigo (baseado em posição, não em andar).
+
+**Bot real, mesmos seeds, 40 corridas cada:** andar médio de morte 3,65 →
+3,88, e a primeira corrida a limpar os dez andares nessa família de seeds
+apareceu no braço novo (nenhuma limpou no antigo). Fração morrendo até o
+andar 2 não mudou (30% → 30%). Efeito pequeno e na direção esperada; não
+testado por significância — ver `docs/backlog.md` M26 para a ressalva
+completa.
+
+**Não mexe no orçamento do M7.** Este item muda O QUE uma criatura larga
+ao morrer, nunca seu hp/xp/tier — a checagem de orçamento (`M25` deixou
+em 9,4% de 15%) continua exatamente onde estava; o teste que a guarda
+segue passando sem edição.
+
+**Efeito colateral, medido e registrado, não corrigido.**
+`CHEST_QUALITY_BY_DEPTH`/`EARLY_CHEST_QUALITY_BOOST` agora não fazem mais
+nada observável: o único kind restante em baú (`armour`) tem um item só
+(`shield`), e a inclinação de qualidade só tem efeito quando um kind tem
+mais de um membro. O mecanismo continua ligado (fica pronto para o M27,
+que deve trazer `potion` — também um item só — para o baú) em vez de ser
+desviado por um caso especial.
+
+**Estado atual: construído e ligado, sem flag.** Ver `docs/backlog.md` M26.

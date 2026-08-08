@@ -23,9 +23,15 @@ import { campaignCost } from './duel.js';
 
 // Borrowed from the generator rather than recomputed, so the bot's guess at
 // what a chest holds cannot drift away from what chests actually hold.
-// The CHEST pool specifically — weapons and armour, no potions, since
-// potions now only fall off monsters. Includes the empty slot, so a chest
-// full of nothing drags the expected value down instead of being invisible.
+// The CHEST pool specifically — armour only, since M26 moved weapons onto
+// the monster source (docs/backlog.md M26) and potions already only fell
+// off monsters. Includes the empty slot, so a chest full of nothing drags
+// the expected value down instead of being invisible.
+//
+// Computed live from `itemWeights`, not hand-copied — this comment used to
+// say "weapons and armour" and stayed wrong for a whole item's worth of
+// commits after weapons moved. The VALUE was never wrong (it reads the
+// function, not the comment); only the description of it was.
 const ITEM_MIX = (() => {
   const weights = itemWeights({}, 'chest');
   const total = weights.reduce((sum, [, w]) => sum + w, 0);

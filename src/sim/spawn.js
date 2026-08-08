@@ -9,7 +9,7 @@ import {
   CHEST_QUALITY_BY_DEPTH, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST, ITEM_TABLE, MONSTER_COUNT,
   MONSTER_DIFFICULTY_SCALE, MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE,
   MONSTER_WEIGHTS, PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE, SIDE_ACTIVATION_CAP,
-  SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE,
+  SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE, WEAPON_AXE_MIN_TIER,
 } from './balance.js';
 import {
   draw, drawChance, drawInt, drawLogUniform, drawPick, drawWeighted,
@@ -31,15 +31,26 @@ import { classifyRooms } from './spine.js';
 //
 // The two sources hold different things, by owner decision:
 //
-//   chests   weapons and armour — gear comes from exploring
-//   monsters health potions only — healing comes from killing
+//   chests   armour — gear comes from exploring
+//   monsters weapons and health potions — the only permanent power in the
+//            game (weaponDamage sums the inventory) now comes from killing
+//
+// M26 — docs/backlog.md. Weapons MOVED here from chests, they were not
+// added on top: chests dropped `weapon` before this item and do not any
+// more. `weapon` stayed paired with `potion` on the monster side (rather
+// than replacing it) specifically so the per-creature weapon odds land
+// near the old chest-sourced total instead of nearly doubling it — see
+// the item's own supply arithmetic for the numbers that decision rests
+// on. `armour` alone on the chest side is a placeholder for M27, which
+// is expected to add `potion` there; it is not this item's call.
 //
 // Scarcity keeps the same meaning either way: 1 draw in S gives something,
 // the rest come up empty.
 //
 // `quality` 0..1 tilts WHICH item comes out, and is how a deep chest pays
-// better than one at the hero's feet. Within a kind the weight is
-// `value^(2q - 1)`:
+// better than one at the hero's feet — or, since M26, how a STRONGER
+// CREATURE pays better than a weak one when killed. Within a kind the
+// weight is `value^(2q - 1)`:
 //
 //   q = 0    value^-1  — 1/value, the shipped rule: strong items are rare
 //   q = 0.5  value^0   — flat, every item in the kind equally likely
@@ -49,26 +60,32 @@ import { classifyRooms } from './spine.js';
 // exactly — which matters, because it means quality can be switched off and
 // the pool is provably unchanged.
 //
+// `exclude` — M26. A FILTER, not a tilt: named items are removed from the
+// pool before weights are computed at all, so their own kind's mass falls
+// entirely to whatever remains in it rather than merely underweighting
+// them. This is how "axe nao dropa de criaturas fraca" becomes a
+// mechanism check instead of a rare-but-possible outcome — quality alone
+// can only make the axe UNLIKELY below some tier, never absent.
+//
 // Returns [[item | null, weight], ...]; null means this draw holds nothing.
-export function itemWeights(scarcity = {}, source = 'chest', quality = 0) {
-  const kinds = source === 'monster' ? ['potion'] : ['weapon', 'armour'];
+export function itemWeights(scarcity = {}, source = 'chest', quality = 0, exclude = []) {
+  const kinds = source === 'monster' ? ['weapon', 'potion'] : ['armour'];
   const shareEach = 1 / kinds.length;
   const exponent = 2 * quality - 1;
   const tilt = (item) => Math.pow(item.value, exponent);
 
+  const pool = ITEM_TABLE.filter((item) => kinds.includes(item.kind) && !exclude.includes(item.name));
+
   const kindTotals = new Map();
-  for (const item of ITEM_TABLE) {
-    if (!kinds.includes(item.kind)) continue;
+  for (const item of pool) {
     kindTotals.set(item.kind, (kindTotals.get(item.kind) || 0) + tilt(item));
   }
 
-  const entries = ITEM_TABLE
-    .filter((item) => kinds.includes(item.kind))
-    .map((item) => {
-      const shareOfKind = tilt(item) / kindTotals.get(item.kind);
-      const mass = shareEach / (scarcity[item.kind] ?? 1);
-      return [item, mass * shareOfKind];
-    });
+  const entries = pool.map((item) => {
+    const shareOfKind = tilt(item) / kindTotals.get(item.kind);
+    const mass = shareEach / (scarcity[item.kind] ?? 1);
+    return [item, mass * shareOfKind];
+  });
 
   const claimed = entries.reduce((sum, [, w]) => sum + w, 0);
   entries.push([null, Math.max(0, 1 - claimed)]);
@@ -177,7 +194,19 @@ export function populate(state, map, counts = {}) {
     armour: counts.armourScarcity,
     potion: counts.potionScarcity,
   };
-  const monsterWeights = itemWeights(scarcity, 'monster');
+  // M26 — docs/backlog.md. No longer computed once: quality is driven by
+  // the KILLED CREATURE's own tier, not by position, so it has to be
+  // recomputed per drop from `template` inside `placeOne` below, using
+  // `weaponWeightsFor`.
+  const weaponAxeMinTier = counts.weaponAxeMinTier ?? WEAPON_AXE_MIN_TIER;
+  // `template` is a live reference into MONSTER_TABLE (see the `slot`
+  // computation below), so its own index IS its tier — no name lookup.
+  const weaponWeightsFor = (template) => {
+    const tier = MONSTER_TABLE.indexOf(template);
+    const quality = tier / (MONSTER_TABLE.length - 1);
+    const exclude = tier < weaponAxeMinTier ? ['axe'] : [];
+    return itemWeights(scarcity, 'monster', quality, exclude);
+  };
 
   // Map design (docs/map-design.md). All three default to the shipped
   // values in balance.js and can be swept from the lab page.
@@ -371,6 +400,15 @@ export function populate(state, map, counts = {}) {
     // the same pool as the one by the front door — so risk bought quantity
     // and never quality. M19 adds `earlyChestBoost` on top — WHICH item a
     // chest holds, same as depth; whether it holds one at all is untouched.
+    //
+    // M26 NOTE: `quality` only has anything to bite on when a kind holds
+    // more than one item, and since M26 moved `weapon` (dagger, axe) off
+    // the chest source, `armour` (`shield` alone) is the only kind left
+    // here — this tilt is currently a no-op for chests by construction,
+    // not a bug. It stays live rather than special-cased away: M27 is
+    // expected to add `potion` (`health` alone) to this source, and either
+    // way the computation should not silently diverge from what a chest
+    // with more than one candidate in a kind would actually do.
     const quality = Math.min(1, depth + earlyChestBoost);
     const template = drawWeighted(state, 'spawn',
       itemWeights(scarcity, 'chest', CHEST_QUALITY_BY_DEPTH ? quality : 0));
@@ -389,31 +427,33 @@ export function populate(state, map, counts = {}) {
     });
   }
 
-  // 4b. M19 — docs/backlog.md. A guaranteed weapon near the spawn,
-  // structural, no flag. "Richer chests further in do not help a hero that
-  // dies on the way to them" — M17 put ~5 creatures on floor 1 and M18 made
-  // the bottom tier bite; an unarmed hero deals 0.83 hp/turn against 2.5
-  // with a weapon, and that gap is what kills, not the identity of which
-  // weapon. Fires only when the hero is carrying none at all — floor 1, or
-  // any later floor after a run unlucky enough to still have found none —
-  // so an already-armed descent is untouched. Converts the chest nearest
-  // the spawn (never adds one — the budget is the chest count's, not this
-  // item's, same pattern as M14's guardian and M15's chest guard) to hold
-  // a weapon, weighted by this item's own quality dial like any other
-  // chest, but restricted to the weapon kind and never empty.
+  // 4b. M19 — docs/backlog.md, restricted by M26. A guaranteed weapon near
+  // the spawn, structural, no flag. "Richer chests further in do not help a
+  // hero that dies on the way to them" — M17 put ~5 creatures on floor 1
+  // and M18 made the bottom tier bite; an unarmed hero deals 0.83 hp/turn
+  // against 2.5 with a weapon, and that gap is what kills, not the identity
+  // of which weapon. Fires only when the hero is carrying none at all —
+  // floor 1, or any later floor after a run unlucky enough to still have
+  // found none — so an already-armed descent is untouched. Converts the
+  // chest nearest the spawn (never adds one — the budget is the chest
+  // count's, not this item's, same pattern as M14's guardian and M15's
+  // chest guard) to hold a weapon, never empty.
+  //
+  // M26 — docs/backlog.md. Restricted to `dagger`: the rarity the owner
+  // asked for lives in the UPGRADE (whether a kill hands over an axe), not
+  // in being armed at all. Gating the very first weapon behind a kill is
+  // circular — the hero has to win the fight the weapon exists to make
+  // winnable, which is M19's own reason for existing. No quality roll
+  // needed any more: with one candidate the outcome was already forced,
+  // this just stops computing a weight for it.
   const hasWeapon = (counts.carry?.inventory ?? []).some((item) => item.dmg > 0);
   if (!hasWeapon && state.chests.length) {
     const nearestChest = state.chests.reduce((closest, c) => {
       const d = Math.abs(c.pos[0] - playerPos[0]) + Math.abs(c.pos[1] - playerPos[1]);
       return !closest || d < closest.d ? { c, d } : closest;
     }, null).c;
-    const weaponQuality = CHEST_QUALITY_BY_DEPTH
-      ? Math.min(1, depthAt(nearestChest.pos, 'reward') + earlyChestBoost) : 0;
-    const weaponWeights = ITEM_TABLE
-      .filter((item) => item.kind === 'weapon')
-      .map((item) => [item, Math.pow(item.value, 2 * weaponQuality - 1)]);
-    const weapon = drawWeighted(state, 'spawn', weaponWeights);
-    nearestChest.drop = makeItem(state, weapon, nearestChest.pos);
+    const dagger = ITEM_TABLE.find((item) => item.kind === 'weapon' && item.name === 'dagger');
+    nearestChest.drop = makeItem(state, dagger, nearestChest.pos);
   }
 
   // 5. Monsters, split between the mandatory route and the side rooms, and
@@ -485,7 +525,10 @@ export function populate(state, map, counts = {}) {
     takeFree(pos);
 
     const carries = drawChance(state, 'spawn', dropChance);
-    const dropTemplate = drawWeighted(state, 'spawn', monsterWeights);
+    // M26 — the weapon half of this pool (and whether `axe` is even in it)
+    // depends on THIS creature's own tier, so the weights are rebuilt per
+    // monster rather than shared across the whole floor.
+    const dropTemplate = drawWeighted(state, 'spawn', weaponWeightsFor(template));
 
     const side = zones.isSide(pos);
     const mass = template.hp * Math.max(0, template.xp - 1);

@@ -39,7 +39,7 @@ session, skip it.
 | # | id | what gets done | status |
 |---|---|---|---|
 | 1 | B8 | Set REVERSAL_PENALTY to 6 — one line, measured by B3 | **REPORTED** |
-| 2 | M26 | Weapons come off creatures, gated by strength — the only permanent power | READY |
+| 2 | M26 | Weapons come off creatures, gated by strength — the only permanent power | **REPORTED** |
 | 3 | M27 | Chests hold armour and potions — after M26, not with it | READY |
 | 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **IN FLIGHT** |
 | 5 | B9 | Teach the bot that a creature carries something | BLOCKED on M26 |
@@ -640,7 +640,7 @@ band or the test.
 
 ## M26 · weapons come off creatures, gated by how strong the creature is
 
-`work agent` · READY · **owner request, reframed — read the second section
+`work agent` · **REPORTED** · **owner request, reframed — read the second section
 before building**
 
 **Ask, in the owner's words:** weapons drop from creatures, rarely, scaling
@@ -725,6 +725,94 @@ left the M7 check at 9.4% of 15%, so report where this lands it.
 **Do not measure this with a ratio.** Three items this session were misread
 by a share whose denominator the treatment had moved — see the head of
 `docs/project/decisions.md`. Totals and peaks.
+
+### Result
+
+**Built as specified: a swap, not an addition.** `itemWeights('chest', ...)`
+now draws `armour` only; `itemWeights('monster', ...)` draws `weapon` AND
+`potion` together (potion was already there — weapon is what moved).
+Quality is driven by the killed creature's own tier
+(`MONSTER_TABLE.indexOf(template) / 10`) instead of position, reusing the
+existing `value^(2q-1)` expression untouched. `WEAPON_AXE_MIN_TIER` (4,
+wolf) is a genuine FILTER, added as a fourth `itemWeights` argument
+(`exclude`) that removes an item from the pool before weights are
+computed — below tier 4, `axe` is not merely unlikely, it is provably
+absent. M19's guarantee kept, restricted to `dagger` — the rarity lives in
+the upgrade, not in being armed, per the item's own trap warning.
+
+**The supply arithmetic caught a real problem before it shipped.** Moving
+weapon onto the SHARED `SCARCITY` (3) — same value chests used to use —
+landed at 6.76 cumulative weapon damage over a descent, 35% under the
+pre-M26 baseline (10.37) and well outside the item's own ~20% band. Split
+weapon scarcity out into its own dial (`WEAPON_SCARCITY`, `difficulty.js`
+— free to do once chests stopped touching it) and swept it:
+
+    scarcity   cum. weapon dmg (10 floors)
+    3.0            6.76   (shared default — 35% short)
+    2.5            7.83   (24% short)
+    2.0            9.69   (6.6% short — shipped)
+    1.7           11.49   (inside the band, but close to "unchanged")
+    1.5           12.79   (over the pre-M26 baseline)
+
+Shipped at 2.0.
+
+**Before/after, n=150/floor, old mechanism measured from a snapshot of the
+pre-M26 commit (not from memory or the arithmetic estimate) via the same
+seeds:**
+
+    weapon events (10 floors)     6.58  ->  8.09
+    weapon damage (10 floors)    10.37  ->  9.59    (-7.5%, inside ~20%)
+
+More events, less total damage — the redistribution the item asked for,
+not just a cut. Damage per floor, new mechanism: floor 1 0.72, floor 4
+0.67, floor 7 1.18, floor 10 1.30 — rises with depth. Under the old,
+position-driven mechanism it was flat (~1.0-1.15 every floor, since a
+chest's quality depends on where it sits, not what floor it's on).
+
+**Highest weapon damage seen, by floor — the mechanism check the item
+asked for, not a rate:** floors 1-3 never exceed 1 (dagger only, across
+150 seeds each) — `WEAPON_AXE_MIN_TIER` (4) sits above both floors'
+ceiling index (2 and 3) under the shipped M25 curve, so this is
+structural, not lucky. Floors 4+ reach 2 (axe possible).
+
+**Real bot, 40 seeds each, same seeds both arms:** mean death floor 3.65
+-> 3.88, one clear appeared in the new arm (none in the old, same seed
+range), share dying by floor 2 unchanged (30% -> 30%). Small, in the
+expected direction, **not tested for 2-sigma significance** — flagged
+rather than claimed, per the measuring note.
+
+**Budget band untouched, as it should be.** This item changes what a
+creature DROPS, never its hp/xp/tier, so the M7 challenge-budget check
+(left at 9.4% of 15% by M25) is unaffected by construction — verified by
+the fact its own test still passes unedited.
+
+**Found and disclosed, not fixed: `CHEST_QUALITY_BY_DEPTH` and
+`EARLY_CHEST_QUALITY_BOOST` are now inert.** Chests' only remaining kind
+(`armour`) has a single member (`shield`), and a quality tilt has nothing
+to act on with one item in a kind. Left live rather than special-cased
+away — M27 is expected to add `potion` (also single-member) to chests,
+and the computation should not quietly diverge from what a chest with a
+real multi-item kind would do. Two tests updated to reflect this rather
+than fail against a premise M26 removed (`test/tests.js`'s "depth
+makes the strong item the common one" retargeted to the `monster` source,
+where the tilt now lives; the early-chest-boost richness test rewritten
+to assert the new invariant — no chest, boosted or not, ever holds a
+weapon).
+
+**Also fixed while here:** a stale comment in `src/bot/loot.js` claiming
+chests hold "weapons and armour, no potions" — the VALUE it computes was
+never wrong (it reads `itemWeights` live), only the description of it.
+Touches `src/bot/`, outside this session's `src/sim/` role; flagged here
+rather than left silently edited, per CLAUDE.md's role boundary. One-line
+comment, no behaviour change.
+
+**Files touched:** `src/sim/balance.js` (`WEAPON_AXE_MIN_TIER`),
+`src/sim/difficulty.js` (`WEAPON_SCARCITY`, wired into `floorParams`/
+`DEFAULT_MODEL` in place of the shared `SCARCITY` for the weapon field),
+`src/sim/spawn.js` (`itemWeights`'s kind swap and `exclude` argument,
+per-monster quality in `placeOne`, M19's guarantee restricted to
+`dagger`), `src/bot/loot.js` (comment only, flagged above), `test/tests.js`,
+`docs/balance.md`, `docs/rogule-spec.md` (new §13.16).
 
 ## M27 · chests hold armour and potions
 

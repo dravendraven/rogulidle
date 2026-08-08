@@ -91,6 +91,8 @@ statement about today. Only this table is current.
 | `UNKNOWN_MONSTER_ESTIMATE` | `{ xp: 4, hp: 7 }` | balance.js |
 | `VISIBLE_DIST` | `9` | balance.js |
 | `WEAPONS_WIDEN_ROLL` | `true` | balance.js |
+| `WEAPON_AXE_MIN_TIER` | `4` | balance.js |
+| `WEAPON_SCARCITY` | `2` | difficulty.js |
 | `XP_FROM_KILLS` | `false` | balance.js |
 
 Values marked FAITHFUL in the prose below are copied from the original
@@ -1319,22 +1321,27 @@ documented here for the first time.
 
 Pick weight is `1 / value` at quality 0, so a high `value` means a **rare**
 item — see `spawn.js`'s `itemWeights` for the full formula, which also
-tilts by chest depth (`CHEST_QUALITY_BY_DEPTH`) and by scarcity
-(`SCARCITY` dials, `src/sim/difficulty.js`). No fixed probability column
-below for that reason — the split isn't a static pool any more.
+tilts by depth or by the killed creature's tier (`CHEST_QUALITY_BY_DEPTH`)
+and by scarcity (`SCARCITY`/`WEAPON_SCARCITY` dials,
+`src/sim/difficulty.js`). No fixed probability column below for that
+reason — the split isn't a static pool any more.
 
 | Item | Emoji | `value` | `kind` | Effect |
 |---|---|---|---|---|
 | health | 🥃 | 2 | potion | +3 HP (`POTION_HEAL`), capped at max — monster drops only |
 | shield | 🛡️ | 3 | armour | **+3 armour** — a second bar, and it is spent — chests only |
-| dagger | 🗡️ | 3 | weapon | +1 damage — chests only |
-| axe | 🪓 | 4 | weapon | +2 damage — chests only |
+| dagger | 🗡️ | 3 | weapon | +1 damage — monster drops (any tier), or chests via M19's guarantee only |
+| axe | 🪓 | 4 | weapon | +2 damage — monster drops, tier >= `WEAPON_AXE_MIN_TIER` only |
 
-**`kind` decides the source, not just a label.** `itemWeights('chest', ...)`
-only draws from `weapon`/`armour` (shield, dagger, axe); `itemWeights(
-'monster', ...)` only draws from `potion` (health). A chest can never hold
-a potion and a corpse can never hold a weapon — healing comes from
-killing, gear comes from exploring, by owner decision.
+**`kind` decides the source, not just a label — and M26 (docs/backlog.md)
+moved which source holds which.** `itemWeights('chest', ...)` now draws
+from `armour` only (`shield`); `itemWeights('monster', ...)` draws from
+`weapon` and `potion` (dagger, axe, health). Before M26 it was the
+opposite split for weapons — chests held them, corpses did not. A chest
+can still hold a weapon exactly once per descent: M19's own guarantee
+(`spawn.js` step 4b) converts the nearest chest to a forced `dagger`,
+never an `axe`, when the hero is unarmed — a deliberate exception to the
+kind rule above, not a second source.
 
 | Name | Value | Status |
 |---|---|---|
