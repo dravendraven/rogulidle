@@ -36,10 +36,15 @@ Usually one session at a time. When more than one runs, the boundaries are:
 
 - **project & design** — decides what to work on, writes the prompts,
   reviews results. Edits `docs/`, never `src/`.
-- **work** — game and bot code.
+- **work** — the engine and the map: `src/sim/`.
+- **bot** — `src/bot/` only. Split out from work once the two ran in
+  parallel; if only one session is running, it does both.
 - **ui** — `src/ui/`, `index.html`, `style.css`.
 - **metrics** — `src/analysis/` and the instruments. Occasional now, not a
   standing role.
+
+`test/tests.js` is the one file every role writes to. Small commits, and
+rebase rather than force if two sessions collide there.
 
 Work outside your role gets reported, not done. The one boundary worth
 keeping strictly: **whoever built a change does not decide whether it
