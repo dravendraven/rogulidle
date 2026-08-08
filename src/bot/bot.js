@@ -366,6 +366,14 @@ function chooseGoal(belief, field, danger, current, options) {
     belief, options.monsterCount, options.monstersAhead, options.crowdCost,
   );
 
+  // Experimental, default 1 (no-op): scales what the bot believes an axe is
+  // worth in hp, without touching the axe's real in-game dmg. For simulating
+  // "what if the bot valued an axe at 2x its real hp value" without editing
+  // ITEM_TABLE, which would also change combat itself.
+  if (options.axeValueMultiplier && options.axeValueMultiplier !== 1) {
+    values.set('axe', (values.get('axe') || 0) * options.axeValueMultiplier);
+  }
+
   // 1. Anything free worth having? Rule 1: stock up before fighting. Loot
   //    that does not pay for its own walk scores negative and is skipped,
   //    so this does not become a compulsion to hoover up every chestnut —
