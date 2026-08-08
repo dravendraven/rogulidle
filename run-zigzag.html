@@ -23,7 +23,10 @@ but shorter runs.</p>
 <p>
   runs <input id="runs" value="36">
   first seed <input id="seed" value="800000">
+  reversalPenalty <input id="pen" value="">
+  overrideMargin <input id="mar" value="">
   <button id="go">measure</button>
+  <br><small>blank = the shipped value from balance.js</small>
 </p>
 <pre id="out">idle</pre>
 
@@ -91,7 +94,7 @@ function median(xs) {
 
 function pct(x) { return x === null ? '—' : (100 * x).toFixed(1) + '%'; }
 
-async function measure(runs, firstSeed, maxTurns = 1500) {
+async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
   const perRun = [];
   const byLayer = { veto: 0, routing: 0, goal: 0, mixed: 0 };
   const turnsByLayer = { veto: 0, routing: 0, goal: 0, mixed: 0 };
@@ -122,7 +125,9 @@ async function measure(runs, firstSeed, maxTurns = 1500) {
       let state = newGame(hashSeeds(firstSeed + i, level), counts);
       let observation = observe(state);
       let belief = foldBelief(emptyBelief(), observation);
-      const bot = makeBot({ monsterCount: plan.monsters, level, levels: LEVELS, trace });
+      const bot = makeBot({
+        monsterCount: plan.monsters, level, levels: LEVELS, trace, ...botOptions,
+      });
       const records = [];
       let decisions = 0;
 
@@ -175,7 +180,7 @@ async function measure(runs, firstSeed, maxTurns = 1500) {
   const withEpisode = perRun.filter((r) => r.episodes > 0).length;
 
   return {
-    runs, firstSeed,
+    runs, firstSeed, botOptions,
     finishRate: cleared / runs,
     meanActions: totalActions / runs,
     medianDepth: median(perRun.map((r) => r.depth)),
@@ -197,7 +202,7 @@ function render(r) {
   const layerLine = (name) => `  ${name.padEnd(9)} ${String(r.byLayer[name]).padStart(4)} episodes` +
     `  ${String(r.turnsByLayer[name]).padStart(5)} turns`;
   return [
-    `runs ${r.runs}  first seed ${r.firstSeed}`,
+    `runs ${r.runs}  first seed ${r.firstSeed}  bot ${JSON.stringify(r.botOptions)}`,
     ``,
     `THE NUMBER (pooled, what run-check shows)`,
     `  reversal rate            ${pct(r.pooledReversalRate)}`,
@@ -224,13 +229,23 @@ function render(r) {
   ].join('\n');
 }
 
+// Exposed so a sweep can be driven from the console without clicking through
+// one cell of the grid at a time.
+window.measure = measure;
+window.render = render;
+
 document.getElementById('go').onclick = async () => {
   const runs = +document.getElementById('runs').value;
   const seed = +document.getElementById('seed').value;
+  const botOptions = {};
+  const pen = document.getElementById('pen').value.trim();
+  const mar = document.getElementById('mar').value.trim();
+  if (pen !== '') botOptions.reversalPenalty = +pen;
+  if (mar !== '') botOptions.overrideMargin = +mar;
   document.getElementById('go').disabled = true;
   document.getElementById('out').textContent = 'running…';
   const t0 = performance.now();
-  const r = await measure(runs, seed);
+  const r = await measure(runs, seed, botOptions);
   window.RESULT = r;
   document.getElementById('out').textContent = render(r)
     + `\n\n(${((performance.now() - t0) / 1000).toFixed(1)}s)`;
