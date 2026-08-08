@@ -1508,19 +1508,33 @@ the rule the moment the data crosses it, regardless of whether anything
 downstream chooses to read that particular field. The next person to add a
 bot feature has no reason to know `.drop` is radioactive.
 
-**Do.** Strip `drop` (and audit for any other field that encodes a rolled-
-but-unrevealed outcome — `copyEntity` is generic, so this may not be the
-only one) out of the monster entity `copyEntity` produces, or replace
-`copyEntity` with an explicit allow-list per entity kind instead of a deep
-clone. The allow-list shape is probably the more durable fix: a deep clone
-of a growing entity object is exactly the pattern that leaks the NEXT field
-someone adds to `MONSTER_TABLE` or the live monster object too.
+**Do.** Replace `copyEntity`'s deep clone with an explicit allow-list per
+entity kind — a clone of a growing object is exactly the pattern that leaks
+the NEXT field someone adds to `MONSTER_TABLE` or the live monster object
+too, so patching out `drop` alone is not durable.
 
-**Assert.** Tests green. A `Belief.monsters` entry has no `drop` key (or an
-explicit test that the bot cannot distinguish two monsters of the same tier
-by inventory-relevant fields). Confirm B9's own `expectedMonsterDropValue`
-still produces the same numbers it did before — this item closes a leak,
-it does not change what anything currently computes.
+**Build the strip as a parameter, not a hardcoded omission — `docs/project/
+candidates.md`'s U4 already needs this exact hook.** U4 (parked,
+unscheduled) proposes a persona, Ricardo, whose one differentiator is
+seeing `drop`/chest-loot for whatever he can already see, while every other
+persona — base included — gets it stripped. If this item hardcodes the
+omission, whoever eventually builds U4 has to come back into this same
+function and partially undo it. Cheap to avoid: give the monster/chest
+allow-list a `revealLoot` flag (default `false`), and `observe()` threads
+it through from whichever persona is active (today, always `false` — there
+is no persona system yet, so this is a parameter with one caller passing
+its default, not new machinery running). U4 stays unscheduled; this just
+means M28 does not have to be redone when it isn't.
+
+**Assert.** Tests green. A `Belief.monsters` entry has no `drop` key at the
+default (or an explicit test that the bot cannot distinguish two monsters
+of the same tier by inventory-relevant fields). A second test confirms the
+flag itself works — call the allow-list with `revealLoot: true` and assert
+`drop` survives — so U4 has something to build against later instead of
+discovering the parameter does nothing. Confirm B9's own
+`expectedMonsterDropValue` still produces the same numbers it did before —
+this item closes a leak and adds an unused switch, it does not change what
+anything currently computes.
 
 ## X1 · delete what nothing uses
 
