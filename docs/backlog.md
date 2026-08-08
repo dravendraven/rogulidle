@@ -62,9 +62,9 @@ session, skip it.
 | 16 | U5 | Show the coin formula live on a real run | **DONE** |
 | 17 | U6a | A coin balance that survives a page reload | **DONE** |
 | 18 | U6b | Pay coin into the balance at floor completion | **DONE** |
-| 19 | U6c | Bank or clear the run coin at run end, per the death rule | REPORTED |
-| 20 | U6d | The engine accepts a starting loadout | **REPORTED** |
-| 21 | U6e | The shop screen | READY |
+| 19 | U6c | Bank or clear the run coin at run end, per the death rule | **DONE** |
+| 20 | U6d | The engine accepts a starting loadout | **NEEDS FIX** · starting shield grants no armour |
+| 21 | U6e | The shop screen | BLOCKED on U6d's fix |
 | 22 | U6f | Watch a full loop, integration check | READY |
 | 23 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
@@ -2745,6 +2745,31 @@ coin needed discarding at this call site specifically.
 `combatCompetes`/tactics, confirmed unrelated — nothing here touches
 `src/bot/`). No console errors.
 
+### Review — ADOPTED
+
+Verified the load-bearing claim directly rather than taking it on trust:
+`session.unbankedCoins = 0` fires in the per-floor loop
+(`spectator.js:358`) on any non-`ascended` floor, and again at run start
+(`:279`), both before `tallyDescent` ever runs. So the death branch really
+does only carry the wallet-level rule, exactly as the comment says.
+
+Putting the rule at the one place that already knows `run.cleared`, rather
+than introducing a second notion of "did this run end well", is the right
+placement. Treating timeout as death follows U5's own precedent instead of
+inventing a third case.
+
+Two of three cases were verified against real gameplay including real
+deaths, and the flag-on case was properly reverted with `git diff` checked
+clean before committing — the kind of thing that goes wrong silently if
+nobody looks.
+
+**The clear case is verified arithmetically, not observed.** That is
+disclosed, defensible (a real clear is ~1 in 20-30 full bot descents), and
+consistent with U4/U5's own practice — but it is the single most important
+case in the whole arc, and it is the one nobody has watched happen.
+**U6f now owns observing it live**; noted there rather than left as an
+implicit gap.
+
 ## U6d · the engine accepts a starting loadout
 
 `work agent` · **REPORTED** · **fourth of six, the one item that touches
@@ -2816,6 +2841,50 @@ out, and not a numeric dial.
 `src/sim/game.js` (the new block), `src/sim/dungeon.js` (forwarded the
 option), `test/tests.js`.
 
+### Review — NOT DONE. The weapon path works; a starting shield does
+### nothing at all
+
+The mechanism, the placement and the reasoning are all right, and the
+`carry`-wins ordering is a genuinely good catch tested rather than assumed.
+**But the item is "the engine accepts a starting loadout", and one of the
+three purchasable kinds does not work.**
+
+**A shield given via `startingItems` grants zero armour.** Traced end to
+end in the shipped code, not inferred:
+
+    spawn.js:290   fresh player           armour: 0
+    game.js:73     startingItems sets     inventory ONLY
+    step.js:104    the PICKUP path does   player.armour += item.armour
+    combat.js:30   effectiveHp reads      entity.hp + entity.armour
+
+The armour bar is `player.armour`, and only the pickup path ever fills it.
+`startingItems` writes inventory and stops, so the hero owns a shield and
+has an empty armour bar. Nothing defends it.
+
+**The assert that was supposed to catch this checked a function nothing
+uses.** The report's reassurance — "`weaponDamage`/`armourValue` only ever
+read `.dmg`/`.armour` off inventory, confirmed" — is true of
+`armourValue` in isolation and irrelevant in practice: **`armourValue` has
+zero production callers.** It appears only in `combat.js`'s own definition,
+one comment, and two tests. The hero's real defence never goes through it.
+`weaponDamage` is genuinely live (`resolveAttack` calls it), which is why
+the dagger test passes and the shape looked verified. **One kind was
+tested; the conclusion was drawn about all three.** Same shape as U5's own
+finding this arc — a unit-level check that never touched the data path it
+would run against.
+
+**This blocks U6e, and would have shipped as a player-facing bug.** The
+shop's cheapest item is the shield at 1 coin — the first purchase almost
+every player will ever make, and it would have done nothing.
+
+**What is left.** Apply an item's `armour` to `player.armour` when it
+arrives via `startingItems`, the same way `step.js:104` does on pickup. Do
+not duplicate the rule — if the two can share one path, share it, since two
+copies of "what picking up an item means" is exactly how they drift apart.
+**Assert with a shield specifically**, against `player.armour` and
+`effectiveHp`, not `armourValue` — and consider whether `armourValue`
+should exist at all given nothing calls it.
+
 ## U6e · the shop screen
 
 `ui agent` · READY · **fifth of six**
@@ -2876,6 +2945,12 @@ arc**
 
 Not new logic — confirms U6a through U6e agree with each other end to end,
 which none of the individual items can prove alone.
+
+**U6c owes you one thing: nobody has watched a real clear bank its coin.**
+U6c verified the banking arithmetic synthetically because a real ten-floor
+clear is roughly 1 in 20-30 full descents. This item is where that finally
+gets observed rather than computed — budget for the wait, or say plainly it
+was not observed here either.
 
 **Assert, by playing it, not by reading code.** Earn coin across a run,
 survive to the shop, buy the dagger, watch the next run start already
