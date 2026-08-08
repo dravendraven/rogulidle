@@ -54,9 +54,13 @@ worked** — that is what a review is for.
 item in full and report against what it asks for. Only the project agent
 adds or reorders items — if one looks wrong, say so instead of editing it.
 
-**`docs/lab-backlog.md` currently outranks it** for the work, metrics and ui
-agents — the manual dungeon simulator. The bot agent is the exception and
-keeps to `docs/backlog.md`.
+**Priority order right now**, owner-set:
+1. **The shop** — `docs/backlog.md`'s U6 arc (U6d's fix, then U6e, U6f).
+2. **The lab** — `docs/lab-backlog.md`, the manual dungeon simulator.
+3. The rest of `docs/backlog.md`.
+
+The **bot agent** is outside this ordering entirely and works its own lane
+in `docs/backlog.md` (B11 onward) in parallel.
 
 Numbers come from `run-check.html`, run on demand. Nothing records them —
 a written-down measurement goes stale and gets compared against anyway.

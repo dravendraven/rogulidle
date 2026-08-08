@@ -1,8 +1,10 @@
 # Lab backlog — the manual dungeon simulator
 
-**This is the priority queue. Work these before `docs/backlog.md`**, with
-one exception: the **bot agent** keeps working its own lane (B11 and
-onward) — nothing here is blocked on it and it is blocked on nothing here.
+**Second priority, behind the shop.** Owner-set: finish `docs/backlog.md`'s
+U6 arc (U6d's fix, U6e, U6f) first, then come here, then the rest of
+`docs/backlog.md`. The **bot agent** is outside this ordering and works its
+own lane (B11 onward) in parallel — nothing here is blocked on it and it is
+blocked on nothing here.
 
 Same rules as `docs/backlog.md`: one item, one commit, one test asserting
 its own property. Only the project agent adds or reorders items. Report
