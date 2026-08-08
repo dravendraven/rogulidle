@@ -43,14 +43,15 @@ session, skip it.
 | 3 | M27 | Chests hold armour and potions — after M26, not with it | **DONE** |
 | 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **DONE** · shipped OFF |
 | 5 | B9 | Teach the bot that a creature carries something | **DONE** · shipped ON, one z-score owed |
-| 6 | M28 | Belief clones a monster's drop before it should be knowable | **REPORTED** |
-| 7 | B10 | Weight the route toward a frontier by what it would reveal | READY |
-| 8 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
-| 9 | D1 | The crowd-correction fit is overdue for its own redo | READY |
-| 10 | X1 | Delete what nothing references | READY · list refreshed |
-| 11 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 12 | U5 | Show the coin formula live on a real run | IN FLIGHT |
-| 13 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 6 | M29 | Turn off the guaranteed dagger, soften floor 1 via generation | READY |
+| 7 | M28 | Belief clones a monster's drop before it should be knowable | **REPORTED** |
+| 8 | B10 | Weight the route toward a frontier by what it would reveal | READY |
+| 9 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
+| 10 | D1 | The crowd-correction fit is overdue for its own redo | READY |
+| 11 | X1 | Delete what nothing references | READY · list refreshed |
+| 12 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
+| 13 | U5 | Show the coin formula live on a real run | IN FLIGHT |
+| 14 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -1489,6 +1490,58 @@ finding rather than a provisional call:** a proper z-score on the side-kill
 rate and on actions-per-run, at whatever n that takes. Whoever next touches
 `src/bot/loot.js` or re-runs `run-b9.html` should close this rather than
 open a new item for it.
+
+## M29 · turn off the guaranteed dagger, soften floor 1 through generation instead
+
+`work agent` · READY · **owner request**
+
+Two changes in one item, because they are meant to offset each other:
+`GUARANTEE_FIRST_WEAPON` true to false, and softer early-floor creature
+generation carrying the weight instead — dials, not a special-cased item
+injection.
+
+### The bar is already measured, not a guess
+
+The commit that built `GUARANTEE_FIRST_WEAPON` quantified removing it:
+mean death floor 3.525 to 2.95, share dying by floor 2 32.5% to 52.5%
+(n=40, real bot). **That is the cost curve-softening has to at least
+offset.** Target: mean death floor and floor-2 death share at least as
+good as the guarantee-ON baseline above, with room to go easier still if
+the sweep supports it — a floor, not a fixed point, same shape M25 used
+for its own target.
+
+**Turn off the flag in the same commit as whatever generation change
+ships**, so the two are measured together. A floor-1 softening measured
+with the guarantee still on would not tell you whether it actually
+compensates.
+
+### The constraint that could block this — check before sweeping
+
+M25 already spent two thirds of the M7 challenge-budget check's 15% band
+softening floor 1 while pinning floor 10 (3.2% to 9.4%). Softening floor 1
+further, same pin on floor 10, makes that slope steeper still. **Check
+remaining headroom before sweeping candidate dials, and report where this
+lands the band.** If there is not enough room left, that is the finding —
+floor 10's pin or the band itself is what needs revisiting, not a reason to
+skip the check.
+
+### Do
+
+Sweep, do not pick the first plausible-looking value — same discipline
+M25 used, where 0.26 and 0.24 both scored worse than the value they would
+have replaced despite cutting floor 1 just as hard. `MONSTER_STRENGTH` /
+`STRENGTH_GROWTH_REBALANCED` (M25's own levers) are the obvious start since
+they have a working precedent; `MONSTERS_BASE` / growth and the tier
+floor/ceiling shares (M13/M24) are fair game too if the sweep says so.
+
+### Assert
+
+Mean death floor, share dying by floor 2, `finishes` — against the
+guarantee-ON baseline above, not against feel. The M7 budget band,
+explicitly, every time. Highest tier seen on floor 1 (M24's own check,
+should still hold). **Not a ratio alone** — this session's denominator
+trap (I7, M3, M27) applies here too if anything gets read as a share of
+turns rather than a total or a peak.
 
 ## M28 · Belief clones a monster's drop before it should be knowable
 
