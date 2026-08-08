@@ -335,6 +335,108 @@ picked up, not folded into M26/M27.
    just becomes non-empty, since weapon/armour value already flows through
    `weaponDamage`/`armourValue`, but confirm nothing assumes an empty start.
 
+## U4 · a hero picker, persisting across deaths
+
+`owner idea` · **UNSCHEDULED — spectator control, the territory already
+flagged as deferred until bot/map base is done. Recorded, not blocking.**
+
+### What it is
+
+A pre-run menu, four heroes. The pick persists across deaths — die, and the
+next run starts with the next hero already chosen, no click required. Same
+non-blocking policy as the Extraction proposal: a pre-set rule, never a
+pause waiting on the spectator.
+
+**Real side benefit:** answers the between-run variety question that was
+raised earlier with no instrument to measure it. Swapping hero is novelty
+without touching balance.
+
+### Ricardo's premise is wrong on both halves, and one of them is already
+### a measured, written-down finding
+
+The proposal describes Ricardo as reusing `tactical: true`, "hoje off por
+padrão," with "lookahead melhor." Checked against the code and the docs:
+
+**`tactical` is already ON by default** (`bot.js`, `makeBot`'s settings) —
+not off. There is nothing to turn on.
+
+**"Melhor lookahead" means deeper `TACTICAL_DEPTH`, and depth 3 was built,
+measured, and is worse — on record, not a guess.** `bot-strategy.md` §4.4:
+depth 1 wins 37/60 against 31/60 with the search off; depth 3 does not
+improve win rate and its hits-per-kill triples (2.76 to 11.01) — **it does
+not dodge, it hesitates**, absorbing weak hits against a monster instead of
+resolving the fight, at 1.8x the per-run cost. The section's own "lesson
+learned" box is directly on point: an earlier attempt discarded the whole
+feature on win rate alone, which mixes bot quality with map difficulty, and
+missed that depth 1 alone (the cheap variant) was never measured on its own
+until it was.
+
+**So "Ricardo is the optimal bot" cannot be built as deeper lookahead.**
+Whatever makes Ricardo the calibrated-optimum persona, it is not
+`TACTICAL_DEPTH` past 1 — that direction is closed, not open, and the
+proposal's own sequencing note (calibrate `DUEL_SAFETY_MARGIN` first,
+Ricardo second) is right in spirit but pointed at the wrong dial. If
+`DUEL_SAFETY_MARGIN` sweep is the intended source of Ricardo's identity
+instead, that stands — it just is not "reuse tactical, currently off."
+
+**The `DUEL_SAFETY_MARGIN` calibration proposal referenced as "já enviada"
+does not exist in any file this agent can see** — not in `backlog.md`, not
+in `candidates.md`, not in `bot-strategy.md`. `DUEL_SAFETY_MARGIN = 0.7` is
+tagged **INITIAL GUESS** in `balance.md` today, so the premise (it wants
+calibrating) is correct — the item itself needs to actually be filed before
+Ricardo can depend on it. Send it again, or confirm which session has it, so
+this dependency points at something real.
+
+### The other three heroes, as proposed, check out against the code
+
+- **Pawa** — shield giving `armour 5` instead of the shipped `3` (`ITEM_TABLE`,
+  `balance.js`) — correct baseline cited.
+- **Vito** — axe giving `dmg +4` instead of the shipped `+2` — correct
+  baseline cited.
+- **Papazito** — full `GameState` read, no fog of war. This is a real,
+  deliberate exception to a hard rule (`CLAUDE.md`: "the bot may only read
+  Observation/Belief, never GameState"), and the proposal's framing —
+  document it the way `rogule-spec.md` §13 documents divergences, scope it
+  to this one persona, and make sure any "bot never touches GameState" test
+  gets a persona-specific exception rather than a general loosening — is the
+  right shape for that kind of change. **This is a rule change, not a
+  tuning dial, and needs the owner's sign-off on the `CLAUDE.md` wording
+  specifically, separate from approving the feature.**
+
+### The architecture note is correctly flagged as a decision, not a detail
+
+Making the buff a real item constant rather than a bot-side weight is the
+right call — `effectiveHp`, `duelCost`, `worthStarting` already read from
+the live inventory, so a correct item value propagates through every risk
+calculation for free, instead of a second copy of the logic living in the
+bot.
+
+**The `step()` purity cost is real and is exactly what `CLAUDE.md`'s hard
+rule protects.** `step()` stays pure today: same seed, same result, no
+external state. Adding persona as a second run-state parameter (alongside
+seed) keeps *that* determinism — same seed AND same persona still replays
+identically — but it is a second axis a reader now has to hold in mind
+everywhere `step()` is called, including every test, every bot search branch
+that calls `step()` internally (`tactics.js`'s `bestValue`), and the
+frozen-probe instruments that assume one run = one seed. Flagging this only
+means: state it as a decision when this is scoped, not discover it mid-build.
+
+### Validation gate, as proposed, is the right one and should not be
+### skipped
+
+Distinct behavioural signatures per persona (Pawa explores more tiles/turn,
+Vito fights more/floor) via batch comparison, before this counts as done.
+Same discipline as `bot-strategy.md` §4.4's own lesson: a single aggregate
+number (like win rate) can hide the real effect or invent a fake one.
+
+### Roles, as scoped in the proposal
+
+`src/sim/` (persona as state parameter, item constants) — work agent.
+`src/ui/` (picker) — ui agent. Ricardo blocked on a real, filed
+`DUEL_SAFETY_MARGIN` calibration item — see above, that item does not exist
+yet. Papazito blocked on owner sign-off for the `CLAUDE.md` exception
+specifically.
+
 ## Dropped from the queue
 
 ### M9 — tie a monster's drop to its own tier
