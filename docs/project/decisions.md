@@ -36,6 +36,14 @@ state, and value it by play rather than by a price list.
 **Win rate mixes bot quality with map difficulty. Damage and blows per kill
 do not.** Never use it to judge either one alone.
 
+**Any ratio is suspect when the treatment changes how many turns exist.
+Report the denominator next to it, every time.** Found three times in one
+session by three agents who had not seen each other's version: I7's
+share-of-turns; M3's, one level further in; and B3's, where raising
+`TACTICAL_OVERRIDE_MARGIN` cut the zigzag ratio to 6.9% by killing the bot
+sooner — finishes 6.7% to 1.7%, actions per run 509 to 297. It is a class,
+not three anecdotes.
+
 **A share-of-turns statistic is diluted by anything that changes how many
 turns exist.** Conditioning p95/p99 on combat-adjacent turns fixed one level
 of this and not the next: a stronger creature has more hp, so fights run
