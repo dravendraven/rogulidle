@@ -48,7 +48,7 @@ session, skip it.
 | 8 | B10 | Weight the route toward a frontier by what it would reveal | **DONE** · shipped OFF, inert |
 | 9 | M30 | Floor 1 must cost less hp than floor 2, checked exactly | **DONE** |
 | 10 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | READY |
-| 11 | B11 | Make combat compete with loot, not lose to it by construction | READY |
+| 11 | B11 | Make combat compete with loot, not lose to it by construction | **REPORTED** · shipped ON |
 | 12 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
 | 13 | D1 | The crowd-correction fit is overdue for its own redo | READY |
 | 14 | X1 | Delete what nothing references | READY · list refreshed |
@@ -56,7 +56,7 @@ session, skip it.
 | 16 | U5 | Show the coin formula live on a real run | **DONE** |
 | 17 | U6a | A coin balance that survives a page reload | **DONE** |
 | 18 | U6b | Pay coin into the balance at floor completion | **DONE** |
-| 19 | U6c | Bank or clear the run coin at run end, per the death rule | IN FLIGHT |
+| 19 | U6c | Bank or clear the run coin at run end, per the death rule | REPORTED |
 | 20 | U6d | The engine accepts a starting loadout | READY |
 | 21 | U6e | The shop screen | READY |
 | 22 | U6f | Watch a full loop, integration check | READY |
@@ -1215,8 +1215,7 @@ edge.
 
 ## B11 · make combat compete with loot, not lose to it by construction
 
-`bot agent` · READY · **filed from a bot-agent proposal, reviewed and
-placed by the project agent**
+`bot agent` · **REPORTED** · shipped ON
 
 ### Where this came from
 
@@ -1306,6 +1305,76 @@ owed on `priceDrops`' side-kill rate. This item reuses that mechanism's
 expected-drop computation rather than its ranking decision, so it does not
 need to wait — but if that check later moves `priceDrops` itself, this
 item's baseline moves too.
+
+### Result
+
+**Built as scoped, measured, shipped ON — the one flag in this whole
+series that came back net positive rather than harmful or inert.**
+
+**`combatCompetes`, default OFF pending this measurement.** A worth-starting
+fight (gated by `worthStarting`, the existing survivability check — no
+relaxation there) gets a `net = -cost` in branch 1's own currency and joins
+`worthwhile` alongside loot. `pricedEarly` avoids pricing every monster
+twice on turns the flag is on (once for the merged comparison, once again
+in branch 2, which still runs unchanged when branch 1 finds nothing).
+Hysteresis unified into one `stickiness` check keyed by `current.kind`,
+`monster` included, rather than the two separate checks branch 1 and
+branch 2 used to run. No xp term: `XP_FROM_KILLS` ships `false`
+(`balance.js`), so a kill's xp value is exactly zero under the shipped
+rules and computing it anyway would be dead machinery paid for every turn.
+
+**Measured, n=60, same seeds before/after in one session, two families:**
+
+    combatCompetes             seed 800000            seed 910000
+                            off        on          off        on
+    finishes                 0%         0%          0%         0%
+    median depth               2          3           3          3
+    actions per run           288        330         433        266
+    kills per run             8.25      12.08        10.00      9.95
+    loot per run              2.95       3.93         3.37       2.92
+
+**`finishes` never moved because it never had anywhere to move from** — 0%
+on all four arms at this sample and difficulty, so the item's own stop
+signal ("if finishes falls on either family") could not have fired either
+way; disclosed rather than counted as a clean pass. **Median depth is the
+metric that actually carries the safety question here, and it does not
+fall on either family** — up on the primary (2 → 3), flat on the
+confirmation (3 → 3).
+
+**The two families improved for different reasons, and that is reported
+rather than smoothed into one story.** Primary: the bot fights and loots
+MORE (kills +46%, loot +33%) and gets deeper for it — actions per run also
+rose (+15%), consistent with a busier, more engaged descent. Confirmation:
+kills and loot barely move, but actions per run falls hard (433 → 266,
+-39%) — the same outcome reached in far fewer turns, not a different one.
+Both shapes are improvements on what the item asked to watch, but they are
+not the same improvement, and no single mechanism story covers both
+without more seeds than this reading used.
+
+**Diagnosis, tentative.** `combatCompetes` off means the bot can walk past
+or linger near an eligible, winnable fight while it goes and loots instead
+— the monster does not go away, and standing in its danger field or
+crossing its activation radius while pursuing loot elsewhere is a cost the
+old branch order never weighed against just finishing the fight first. On,
+a safe fight that outranks the loot on offer gets taken immediately,
+which plausibly clears local danger sooner and cuts the wandering-while-
+threatened tax the confirmation family's actions-per-run drop is most
+consistent with. Not proven against a counterfactual with the mechanism
+isolated — flagged as the working theory, not a finding.
+
+**Not checked against a formal 2-sigma bar** (`docs/backlog.md`'s own
+measuring note) — flagged, not proven, same standard every flag in this
+series has shipped under. Both families agreeing on "no depth regression"
+while disagreeing on WHY is a different, weaker kind of agreement than
+B8's same-direction-different-magnitude pattern; said plainly rather than
+dressed up as more certain than it is.
+
+**Files touched:** `src/bot/bot.js` (`combatValue` folded into branch 1
+via `pricedEarly`/`combat`, `combatCompetes` flag, unified hysteresis),
+`test/tests.js` (one test locking the OFF mechanism, same pattern as
+B9/B10 — the ON threshold depends on live item-table values and was
+judged too fragile to hand-derive into a fixture), `run-b11.html` (new,
+temporary — add to X1). `src/sim/` untouched. 125 tests green.
 
 ## M21 · deep floors have something waiting where you land
 
@@ -2286,6 +2355,9 @@ The metrics agent already deleted `run-ruler.html`, `run-lab.html` and
     run-i3.html         served I3, closed
     run-zigzag.html     served B3, temporary by its own author
     run-b9.html         served B9, temporary by its own author
+    run-b11.html        served B11, temporary by its own author
+    run-axe2x.html      ad-hoc chat sim (axe/dagger value multiplier),
+                        never a backlog item, safe to drop with the rest
 
 **Modules — re-verify with a grep before deleting, the list is not proof.**
 

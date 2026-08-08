@@ -401,6 +401,15 @@ function chooseGoal(belief, field, danger, current, options) {
     values.set('dagger', (values.get('dagger') || 0) * options.daggerValueMultiplier);
   }
 
+  // B11: priced here, before branch 1, only when the flag that needs it
+  // early is on — branch 2 below reuses this instead of pricing twice, but
+  // when the flag is off the cost of pricing every visible monster is only
+  // ever paid once, in branch 2, exactly as before this item.
+  const pricedEarly = options.combatCompetes
+    ? priceMonsters(belief, field, options.safetyMargin, options.requireClear,
+      options.priceDrops ? values : null)
+    : null;
+
   // 1. Anything free worth having? Rule 1: stock up before fighting. Loot
   //    that does not pay for its own walk scores negative and is skipped,
   //    so this does not become a compulsion to hoover up every chestnut —
@@ -418,7 +427,33 @@ function chooseGoal(belief, field, danger, current, options) {
       ? frontierGoals(belief, field, options.chestValue, options.unseenChests)
       : [];
 
-    const worthwhile = [...loot, ...explore].filter((g) => g.net > 0);
+    // B11 (docs/backlog.md): a fight competes here too, instead of only
+    // ever being considered once every loot option is exhausted (the old
+    // branch 2, below). `net` mirrors `priceMonsters`' own `cost`
+    // (hpLost + approach - drop) negated, so higher-is-better matches
+    // loot's convention exactly — the same hp currency, the same sign.
+    //
+    // `worthStarting` is a HARD gate here, not a term in the comparison:
+    // this item ranks a SAFE fight against loot, it does not relax when a
+    // fight is safe to start (that stays `refuseLostFights`'s job, in
+    // branch 2, untouched). A fight that is not survivable never reaches
+    // this list no matter how good its expected drop looks.
+    //
+    // No separate "xp value gained" term, despite the item asking for one:
+    // `XP_FROM_KILLS` ships `false` (balance.js) — killing grants no xp at
+    // all under the shipped rules, so the term is exactly zero and adding
+    // the machinery to compute it (a marginal `campaignCost` delta per
+    // candidate, each itself O(n^2)) would be dead code paid for on every
+    // turn. If `XP_FROM_KILLS` is ever switched on, this is the term to add
+    // back, and `campaignCost`'s own xp-snowball accounting is what to
+    // reuse rather than a second copy of it.
+    const combat = options.combatCompetes
+      ? pricedEarly.filter((m) => m.worthStarting).map((m) => (
+        { kind: 'monster', id: m.id, pos: m.pos, net: -m.cost }
+      ))
+      : [];
+
+    const worthwhile = [...loot, ...explore, ...combat].filter((g) => g.net > 0);
     if (worthwhile.length) {
       const best = worthwhile.reduce((a, b) => (b.net > a.net ? b : a));
 
@@ -434,7 +469,9 @@ function chooseGoal(belief, field, danger, current, options) {
       //
       // Higher is better here, where the monster branch ranks by cost and
       // lower is better, so the comparison is the same test the other way up.
-      if (current && (current.kind === 'item' || current.kind === 'chest')) {
+      // B11: one shared check keyed by `current.kind`, `monster` included —
+      // a fight chosen here is exactly as sticky as a chest chosen here.
+      if (current && ['item', 'chest', 'monster'].includes(current.kind)) {
         const held = worthwhile.find((g) => g.kind === current.kind && g.id === current.id);
         if (held && held.net * options.stickiness >= best.net) return held;
       }
@@ -444,8 +481,8 @@ function chooseGoal(belief, field, danger, current, options) {
 
   // 2. Something alive and known? Take the cheapest fight, not the closest.
   //    Walking into it is the attack, so combat needs no special case.
-  const priced = priceMonsters(belief, field, options.safetyMargin, options.requireClear,
-    options.priceDrops ? values : null);
+  const priced = pricedEarly ?? priceMonsters(belief, field, options.safetyMargin,
+    options.requireClear, options.priceDrops ? values : null);
   if (priced.length) {
     // `pick` exists so P4 can ablate one rule at a time and measure what it
     // is actually worth, rather than trusting that it helped.
@@ -587,6 +624,19 @@ export function makeBot(options = {}) {
     // wall-bump count before this ships either way.
     frontierRouting: false,
     frontierRevealWeight: FRONTIER_REVEAL_WEIGHT,
+
+    // B11 (docs/backlog.md). ON. A worth-starting fight competes with loot
+    // in branch 1's comparison instead of only ever being reachable once
+    // every loot option is gone (branch 2). Measured n=60 on two seed
+    // families: median depth never fell (2->3 primary, 3->3 confirmation —
+    // `finishes` stayed 0% throughout at this sample/difficulty, so it
+    // could not serve as the stop signal either way). Primary family fought
+    // and looted substantially more and got deeper for it; confirmation
+    // family reached the same depth in 39% fewer actions per run instead.
+    // Different shapes, same direction — no sign of B9's "dies for loot"
+    // failure mode in either family. Not checked against a formal 2-sigma
+    // bar; see docs/backlog.md's Result before re-tuning anything here.
+    combatCompetes: true,
 
     // Every tunable the bot reads, defaulting to the shipped value. They
     // live here rather than being imported at the point of use so that P4

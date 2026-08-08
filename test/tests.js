@@ -2207,6 +2207,44 @@ test('frontierRouting does not change a route with no alternative to prefer', ()
     `frontierRouting changed a route that had no alternative: off=${off.actions.join(',')} on=${on.actions.join(',')}`);
 });
 
+// ***** B11: combat competes with loot, but not by default ***** //
+//
+// docs/backlog.md B11. `combatCompetes` is the sharpest-risk flag this
+// series has shipped, and its exact numeric threshold (how good a fight has
+// to look before it outranks a specific chest) depends on values computed
+// from the whole item table and the current roster — not something worth
+// hand-deriving into a fragile fixture. This locks the cheap, robust half
+// instead, the same way B9/B10 did: the merge must be a true no-op when the
+// flag is off, even with a fight available. `combatCompetes`'s own
+// ship/no-ship call rests on the paired-seed measurement the item's Assert
+// section asks for, not on this test.
+//
+// The monster sits 5 tiles off, past TACTICAL_RANGE (4) — closer and the
+// SEPARATE tactical veto layer (bot.js, unrelated to chooseGoal) starts
+// simulating nearby turns and can choose to attack an adjacent threat on
+// its own terms, which would confound this test with a different bot layer
+// entirely. Walking to the chest moves further away from it, not closer,
+// so the veto never gets a turn where it could fire either.
+test('combatCompetes off leaves a chest in hand beating a fight further off', () => {
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [10, 1],
+    chests: [
+      { id: 'c-right', name: 'chest', emoji: '📦', pos: [14, 1], side: false, edge: false, drop: null },
+    ],
+    monsters: [dummy('rat', [5, 1], { side: false })],
+  });
+
+  const { actions } = driveBot(state, 4, { monsterCount: 1, combatCompetes: false });
+  assert(actions.every((a) => a === 'right'),
+    `the bot fought or wavered instead of opening the chest: ${actions.join(',')}`);
+});
+
 // ***** run it ***** //
 
 export function runAll() {
