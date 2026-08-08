@@ -28,6 +28,7 @@ experiment, not a balance change. Bot otherwise shipped default
 <p>
   runs <input id="runs" value="60">
   first seed <input id="seed" value="800000">
+  multiplier <input id="mult" value="2">
   <button id="go">measure</button>
 </p>
 <pre id="out">idle</pre>
@@ -187,16 +188,17 @@ window.render = render;
 document.getElementById('go').onclick = async () => {
   const runs = +document.getElementById('runs').value;
   const seed = +document.getElementById('seed').value;
+  const mult = +document.getElementById('mult').value;
   document.getElementById('go').disabled = true;
   document.getElementById('out').textContent = 'running 1x…';
   const t0 = performance.now();
   const base = await measure(runs, seed, { axeValueMultiplier: 1, daggerValueMultiplier: 1 });
-  document.getElementById('out').textContent = 'running 2x…';
-  const boosted = await measure(runs, seed, { axeValueMultiplier: 2, daggerValueMultiplier: 2 });
+  document.getElementById('out').textContent = `running ${mult}x…`;
+  const boosted = await measure(runs, seed, { axeValueMultiplier: mult, daggerValueMultiplier: mult });
   window.RESULT = { base, boosted };
   document.getElementById('out').textContent =
     '=== 1x (baseline) ===\n' + render(base)
-    + '\n\n=== axe AND dagger at 2x ===\n' + render(boosted)
+    + `\n\n=== axe AND dagger at ${mult}x ===\n` + render(boosted)
     + `\n\n(${((performance.now() - t0) / 1000).toFixed(1)}s)`;
   document.getElementById('go').disabled = false;
 };
