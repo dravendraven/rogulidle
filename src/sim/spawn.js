@@ -188,7 +188,14 @@ export function populate(state, map, counts = {}) {
   // exactly floor 1's shipped value, so an unset caller behaves like the
   // hardest-clamped floor rather than like "no clamp at all".
   const tierCeilingShare = counts.tierCeilingShare ?? 0;
-  const maxIndex = Math.min(MONSTER_TABLE.length - 1,
+  // M30 — docs/backlog.md. Share of the spread's own max reach pulled BELOW
+  // the ceiling, at the shallow end only (fades to 0 by floor 2). Zero by
+  // default for the same reason tierCeilingShare is: an unset caller gets
+  // no extra cut, not "floor 1's shipped cut". Applied AFTER M24's own
+  // slack rather than combined into one expression, since floor 1 has 0 of
+  // one and up to 1 of the other — order matters when they do not cancel.
+  const earlyTierCapShare = counts.earlyTierCapShare ?? 0;
+  const rawMaxIndex = Math.min(MONSTER_TABLE.length - 1,
     ceilingIndex + Math.floor(tierCeilingShare * 2));
   // Needed as its own dial: piling on monsters also piles on their drops, so
   // crowding the floor arms the player as well as threatening them. Without
@@ -626,6 +633,13 @@ export function populate(state, map, counts = {}) {
     // the spread above still reaches past it exactly the same way M13 found
     // it reaches past a raised centre going down. Clamped on the DRAWN slot,
     // same lesson, same fix, other direction.
+    //
+    // M30 — docs/backlog.md. `rawMaxIndex` is M24's own ceiling (centre plus
+    // whatever slack that floor gets); `earlyTierCapShare` then pulls it
+    // BELOW the centre at the shallow end. `Math.max(minIndex, ...)` is the
+    // same guard `expectedFloorMass`'s closed form uses — floor 1 has 0 of
+    // one and up to 1 of the other, and the two must never cross.
+    const maxIndex = Math.max(minIndex, rawMaxIndex - Math.floor(earlyTierCapShare * 2));
     const slot = Math.min(maxIndex, Math.max(minIndex, rawSlot));
     const template = MONSTER_TABLE[slot];
 

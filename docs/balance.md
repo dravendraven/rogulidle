@@ -33,6 +33,9 @@ statement about today. Only this table is current.
 | `DROP_CHANCE` | `0.5` | difficulty.js |
 | `DUEL_SAFETY_MARGIN` | `0.7` | balance.js |
 | `EARLY_CHEST_QUALITY_BOOST` | `0.5` | balance.js |
+| `EARLY_TIER_CAP_SHARE_BASE` | `0.5` | balance.js |
+| `EARLY_TIER_CAP_SHARE_CAP` | `0.5` | balance.js |
+| `EARLY_TIER_CAP_SHARE_PER_LEVEL` | `-0.5` | balance.js |
 | `EXPOSURE_WEIGHT` | `0.5` | balance.js |
 | `FLOOR_SPREAD_BASE` | `0` | balance.js |
 | `FLOOR_SPREAD_CAP` | `0.9` | balance.js |
@@ -1149,6 +1152,85 @@ just the average) drops nearly 20%. Floor 10 is almost untouched: its one
 index of allowed slack already covers nearly all of the natural ±2 reach
 at that depth. `spread within a floor` (the `run-shape.html` diagnostic)
 was not independently re-measured this session.
+
+### M30 — floor 1 must cost less than floor 2, exactly
+
+| Name | Value | Status |
+|---|---|---|
+| `EARLY_TIER_CAP_SHARE_BASE` | 0.5 | **SWEPT** — see below, only 3 values exist to choose from |
+| `EARLY_TIER_CAP_SHARE_PER_LEVEL` | -0.5 | fades to exactly 0 by floor 2, by construction |
+| `EARLY_TIER_CAP_SHARE_CAP` | 0.5 | matches `BASE`, so it never binds |
+
+M29 pushed the GLOBAL count/strength dials and plateaued: three different
+variants all landed on the identical floor-1/floor-2 creature count (4, 4),
+so no amount of extra budget spent there could separate the two floors —
+a shared dial cannot distinguish floors it treats the same. This is a
+LOCAL lever instead: `TIER_CEILING_SHARE` (M24, above) only ever ADDS
+slack above a floor's natural ceiling index, and floor 1's slack is
+already 0 — no more room in that direction. `earlyTierCapShare` pulls the
+ceiling BELOW the natural centre instead, at the shallow end only, fading
+to exactly 0 by floor 2 (`PER_LEVEL` = `-BASE`) — narrower than M13/M24's
+own fade, which reaches floor 10, because the problem is floor 1 standing
+too close to floor 2 specifically, not the early game in general.
+
+**Not a continuous dial, discovered by sweeping rather than assumed.**
+The applied cut is `floor(share × 2)` — an INTEGER number of table
+indices — so every `BASE` in `(0, 1.0)` produces the identical cut (one
+index) and `0.5` is a readable point inside that whole plateau, not a
+precision tuning. Only three outcomes exist:
+
+| cut | floor 1 mass | floor 1 ÷ floor 2 | overall growth (floor 1→10) |
+|---|---|---|---|
+| 0 (no-op) | 14.0 | 0.94 | 1.3499 |
+| **1 (shipped)** | **10.385** | **0.70** | **1.3955** |
+| 2 (rat-tier only) | 8.0 | 0.54 | 1.4366 |
+
+Cut 2 was rejected: forcing floor 1 to rat-tier only is a bigger move
+than the item asked for, and its growth-rate cost is worse again. Cut 1
+is the only real option between "no-op" and "absurd".
+
+**Exact check, no sampling** (`expectedFloorMass`, docs/backlog.md M30 has
+the full table): floor 1 mass 14.0 → **10.385**, now ~70% of floor 2's
+14.845 (was 94%). Floors 2–10 are byte-identical to what M29 shipped —
+`earlyTierCapShare` is exactly 0 there.
+
+**The M7 budget check was asked about explicitly, and the two readings
+disagree — disclosed, not resolved by picking the friendlier one.** The
+RATIO check (`MONSTER_GROWTH_REBALANCED × STRENGTH_GROWTH_REBALANCED^2.356
+/ MONSTER_GROWTH`) is untouched: this constant does not appear in that
+formula, so it stays at M29's 14.35%/15%. But the SAME closed form read as
+an overall growth rate (`expectedFloorMass(9) / expectedFloorMass(0)`,
+9th root) moves from 1.3499 to **1.3955**, outside the 1.34 ±0.03 band the
+ratio check exists to protect. The item's own instruction was to trust the
+direct reading over the indirect one here — both numbers are reported
+rather than only the one that looks fine.
+
+**Confirmed with real play, n=80, same seeds as M29's own baseline**
+(`playDungeon`, zero overrides — literally shipped):
+
+    guarantee ON (target)     mean depth 3.025   share≤floor2 43.8%
+    M29 (no floor-1 cap)      mean depth 2.763   share≤floor2 55.0%
+    M30 (this item)           mean depth 2.850   share≤floor2 50.0%
+
+Both numbers move toward the target relative to M29's own baseline
+(z = 0.38 mean, z = −0.63 share against M29; neither clears 2σ, so this is
+a real but unproven improvement, not a confirmed one) and land closer to
+the guarantee-ON target than M29 did on its own (z = −0.74 / 0.79 against
+target, versus M29's own −1.08 / 1.43).
+
+**Found while building the exact-mass check that the model itself does
+not fully match real generation.** `expectedFloorMass` does not model
+M14's shrine guardian, which is deliberately boosted to at least the
+floor's own (uncapped) ceiling index regardless of this item's clamp —
+so on floor 1 exactly one creature (the guardian) still reaches index 2
+even though every other creature is now held to index 1. This is not new
+to M30 — `expectedFloorMass` never modelled the guardian, even under M24
+— but M30 is the first item where the gap is large enough to matter
+enough to name: the model's floor-1 number is a slight undercount of
+what floor 1 actually costs, and the same undercount applies to every
+other floor's own guardian too, so the floor-1-vs-floor-2 RATIO this item
+was built around should still be roughly fair even though neither
+absolute number is exact.
 
 ## A guardian at the shrine (M14) — structural, on unconditionally
 

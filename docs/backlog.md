@@ -46,7 +46,7 @@ session, skip it.
 | 6 | M29 | Turn off the guaranteed dagger, soften floor 1 via generation | **DONE** · ties baseline, does not beat it |
 | 7 | M28 | Belief clones a monster's drop before it should be knowable | **DONE** |
 | 8 | B10 | Weight the route toward a frontier by what it would reveal | **DONE** · shipped OFF, inert |
-| 9 | M30 | Floor 1 must cost less hp than floor 2, checked exactly | READY |
+| 9 | M30 | Floor 1 must cost less hp than floor 2, checked exactly | **REPORTED** |
 | 10 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
 | 11 | D1 | The crowd-correction fit is overdue for its own redo | READY |
 | 12 | X1 | Delete what nothing references | READY · list refreshed |
@@ -993,7 +993,7 @@ up again during a parallel bot/map session it is not new — it is this.
 
 ## M30 · floor 1 must cost less hp than floor 2, exactly, not on average by feel
 
-`work agent` · READY · **owner request, after M29 — different lever, not a
+`work agent` · **REPORTED** · **owner request, after M29 — different lever, not a
 retry**
 
 M29 pushed the global count/strength base dials and plateaued: three
@@ -1052,6 +1052,88 @@ this item should move those numbers in the easier direction, and now there
 is a mechanism reason to expect it will, not just a hope. The M7 budget
 band, explicitly, every time. Not a ratio alone for anything read from real
 play.
+
+### Result
+
+**A new, local lever on M13/M24's own tier clamp — `earlyTierCapShare` —
+not the global dials M29 already exhausted.** `TIER_CEILING_SHARE` (M24)
+only ever adds slack above a floor's natural ceiling index, and floor 1's
+own slack is already 0; this pulls the ceiling BELOW the natural centre
+instead, at the shallow end only, fading to exactly 0 by floor 2.
+
+**Not continuous — found by sweeping, not assumed.** The applied cut is
+`floor(share × 2)`, an integer number of table indices, so every value in
+`(0, 1.0)` gives the identical result. Only three real outcomes exist:
+
+    cut   floor 1 mass   floor1÷floor2   overall growth (1→10)
+    0     14.0           0.94            1.3499
+    1     10.385         0.70            1.3955   <- shipped
+    2      8.0           0.54            1.4366
+
+Cut 2 (rat-tier only on floor 1) was rejected — bigger than asked for, and
+its growth-rate cost is worse again. Cut 1 is the only real option between
+a no-op and an absurd one.
+
+**Exact check, no sampling — the item's own first requirement.**
+`expectedFloorMass(0)`: 14.0 → **10.385**. Floor 1 is now ~70% of floor
+2's mass (14.845, byte-identical to what M29 shipped — untouched, the cap
+is exactly 0 there). Target margin met with room: at most 75% was asked
+for, ~70% delivered.
+
+**The M7 budget check was asked about explicitly, and it does NOT
+sidestep it, exactly as warned it might not.** The ratio check
+(`MONSTER_GROWTH_REBALANCED × STRENGTH_GROWTH_REBALANCED^2.356 /
+MONSTER_GROWTH`) is untouched — `earlyTierCapShare` does not appear in
+that formula, so it stays at M29's 14.35%/15%, 0.65 points of headroom,
+unchanged. But the SAME closed form read as an overall growth rate
+(`expectedFloorMass(9)/expectedFloorMass(0)`, 9th root) — the reading the
+item said to trust more — moves from 1.3499 to **1.3955**, outside the
+1.34 ±0.03 band the ratio check exists to protect. Both numbers reported;
+neither hidden behind the other looking fine.
+
+**Confirmed with real play, n=80, same seeds as M29's own baseline,
+literally shipped (zero overrides):**
+
+    guarantee ON (target)     mean depth 3.025   share≤floor2 43.8%
+    M29 (no floor-1 cap)      mean depth 2.763   share≤floor2 55.0%
+    M30 (this item)           mean depth 2.850   share≤floor2 50.0%
+
+Both move toward the target relative to M29's own baseline (z = 0.38
+mean, z = −0.63 share; neither clears 2σ against M29 alone) and land
+closer to the guarantee-ON target than M29 did (z = −0.74/0.79 against
+target here, versus M29's own −1.08/1.43). Reported as a real, measured
+step in the right direction — not a proven win, the same honesty M29's
+own Result used.
+
+**A gap in `expectedFloorMass` itself, found while building this item's
+own exact check, not new to it.** The closed form does not model M14's
+shrine guardian, which is boosted to at least the floor's own uncapped
+ceiling index regardless of this item's clamp. On floor 1, exactly one
+creature (the guardian) still reaches index 2 even though every other
+creature is now held to index 1 — confirmed directly (n=60 seeds): highest
+NON-guardian tier seen is 1, guardian's own index is always 2. This
+undercounts every floor's true mass a little, floor 1 included, but
+applies EQUALLY to floor 1 and floor 2 (each gets exactly one guardian),
+so the floor-1-vs-floor-2 ratio this item was built around should stay
+roughly fair even though neither absolute number is exact. Not fixed here
+— `expectedFloorMass` never modelled the guardian even under M24, and
+extending it to do so is a separate, more invasive change than this
+item's own scope.
+
+**124 tests green** (121 before, 3 added): the exact-mass margin, the fade
+reaching exactly 0 by floor 2, and the ordinary-vs-guardian split above —
+the last one written specifically because the OBVIOUS test ("highest tier
+seen on floor 1") would have silently passed for the wrong reason (the
+guardian, not the cap) had it not excluded the guardian explicitly.
+
+**Files touched:** `src/sim/balance.js` (`EARLY_TIER_CAP_SHARE_BASE/
+PER_LEVEL/CAP`), `src/sim/difficulty.js` (`earlyTierCapShare`, threaded
+through `floorParams`/`DEFAULT_MODEL`/`makeFloorPlan`/`expectedFloorMass`),
+`src/sim/spawn.js` (the real clamp), `src/sim/dungeon.js` (forwarded into
+`playDungeon`'s per-floor counts), `test/tests.js`, `docs/balance.md` (top
+table, new M30 subsection under M24's). No `docs/rogule-spec.md` entry —
+a number-and-mechanism retune of an already-documented clamp family
+(M13/M24), not a new rule.
 
 ## M21 · deep floors have something waiting where you land
 

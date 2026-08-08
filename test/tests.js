@@ -1594,8 +1594,9 @@ test('the closed form agrees with a Monte Carlo cross-check', () => {
       const entries = monsterWeightsAround(index);
       const total = entries.reduce((s, [, w]) => s + w, 0);
       // Clamp each slot in the blend, not the centre index — matches
-      // spawn.js: the centre alone cannot exclude a rat (M13) or admit a
-      // wolf/ogre (M24), since the ±2 spread reaches past it either way.
+      // spawn.js: the centre alone cannot exclude a rat (M13), admit a
+      // wolf/ogre (M24), or leave floor 1 too close to floor 2 (M30),
+      // since the ±2 spread reaches past the centre either way.
       sum += entries.reduce(
         (s, [slot, w]) => s + w * mass(MONSTER_TABLE[Math.min(maxIndex, Math.max(slot, minIndex))]), 0,
       ) / total;
@@ -1607,8 +1608,9 @@ test('the closed form agrees with a Monte Carlo cross-check', () => {
     const p = floorParams(level);
     const ceilingIndex = Math.floor(p.difficultyScale * (MONSTER_TABLE.length - 1));
     const minIndex = Math.floor(p.tierFloorShare * ceilingIndex);
-    const maxIndex = Math.min(MONSTER_TABLE.length - 1,
+    const rawMaxIndex = Math.min(MONSTER_TABLE.length - 1,
       ceilingIndex + Math.floor(p.tierCeilingShare * 2));
+    const maxIndex = Math.max(minIndex, rawMaxIndex - Math.floor(p.earlyTierCapShare * 2));
     const sampled = p.monsters * sampledMonsterMass(p.difficultyScale, minIndex, maxIndex);
     const closedForm = expectedFloorMass(level);
     const gap = Math.abs(sampled - closedForm) / closedForm;
@@ -1718,6 +1720,66 @@ test('the tier ceiling never falls below the floor\'s own centre', () => {
     assert(maxIndex >= ceilingIndex,
       `floor ${level + 1}: tier ceiling ${maxIndex} fell below its own centre ${ceilingIndex}`);
   }
+});
+
+// ***** M30 — floor 1 must cost less than floor 2, exactly ***** //
+
+test('expectedFloorMass says floor 1 costs meaningfully less than floor 2', () => {
+  // The exact check the item asked for, first — no seeds, no z-score.
+  // Target margin: floor 1 at most 3/4 of floor 2's mass. Measured lands
+  // near 70% (see docs/backlog.md M30) — asserting inside the target
+  // rather than the exact figure, so a future retune of unrelated dials
+  // (count, strength) does not break this on drift alone.
+  const m1 = expectedFloorMass(0);
+  const m2 = expectedFloorMass(1);
+  assert(m1 < m2, `floor 1 mass (${m1.toFixed(2)}) is not below floor 2's (${m2.toFixed(2)})`);
+  assert(m1 <= 0.75 * m2,
+    `floor 1 mass (${m1.toFixed(2)}) is more than 75% of floor 2's (${m2.toFixed(2)}) — too close`);
+});
+
+test('the early cap fades to exactly zero by floor 2', () => {
+  // Structural guarantee, not a measurement: PER_LEVEL is set to exactly
+  // -BASE, so this is checked directly against the formula rather than by
+  // simulation. The item's own ask was narrower than M13/M24's fade
+  // (floor 1 only, not a general early-game softening) — this is what
+  // enforces that boundary.
+  assertEq(floorParams(0).earlyTierCapShare > 0, true, 'floor 1 has no cap at all — the mechanism is inert');
+  for (let level = 1; level < 10; level++) {
+    assertEq(floorParams(level).earlyTierCapShare, 0,
+      `floor ${level + 1} still carries a nonzero early cap — the fade did not reach zero by floor 2`);
+  }
+});
+
+test('floor 1\'s ordinary creatures respect the new cap — the shrine guardian is the one named exception', () => {
+  // M14's guardian is deliberately boosted to at or above the floor's own
+  // ceilingIndex (spawn.js step 7), independent of the ordinary per-
+  // cluster clamp this item tightens — found while writing this item's own
+  // "highest tier seen" check, which stayed at the OLD ceiling (2) even
+  // after the cap shipped, because the guardian was what it was seeing.
+  // Excluding the guardian (identified the same way spawn.js does — the
+  // one adjacent to the shrine) is what actually exercises the new cap.
+  const indexOf = (m) => MONSTER_TABLE.findIndex((t) => t.name === m.name);
+  const p1 = floorParams(0);
+  const ceilingIndex1 = Math.floor(p1.difficultyScale * (MONSTER_TABLE.length - 1));
+  const cappedMax = ceilingIndex1 - 1; // the cut this item ships: exactly one index
+  let highestOrdinary = -1;
+  let sawAGuardianAboveTheCap = false;
+  for (let seed = 0; seed < 60; seed++) {
+    const state = newGame(93000 + 1000 + seed, floorPlan(1));
+    const shrine = state.shrine.pos;
+    for (const m of state.monsters) {
+      const isGuardian = Math.abs(m.pos[0] - shrine[0]) + Math.abs(m.pos[1] - shrine[1]) === 1;
+      if (isGuardian) {
+        if (indexOf(m) > cappedMax) sawAGuardianAboveTheCap = true;
+      } else {
+        highestOrdinary = Math.max(highestOrdinary, indexOf(m));
+      }
+    }
+  }
+  assertEq(highestOrdinary, cappedMax,
+    `floor 1's highest ordinary (non-guardian) tier seen is ${highestOrdinary}, expected exactly the capped ${cappedMax}`);
+  assert(sawAGuardianAboveTheCap,
+    'no shrine guardian on floor 1 ever exceeded the ordinary cap — the documented exception did not reproduce');
 });
 
 // ***** M25 — a gentler floor 1, pivoted around an unchanged floor 10 ***** //

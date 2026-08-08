@@ -1,5 +1,6 @@
 import {
   CHEST_GUARD_RADIUS,
+  EARLY_TIER_CAP_SHARE_BASE, EARLY_TIER_CAP_SHARE_CAP, EARLY_TIER_CAP_SHARE_PER_LEVEL,
   FLOOR_SPREAD_BASE, FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL, MONSTER_TABLE,
   OUT_OF_DEPTH_CHANCE_BASE, OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_CHANCE_PER_LEVEL,
   OUT_OF_DEPTH_TAIL,
@@ -410,6 +411,22 @@ export function tierCeilingShare(level, model = {}) {
   return Math.max(0, Math.min(cap, base + perLevel * Math.max(0, level)));
 }
 
+// ***** M30 — floor 1 must cost less than floor 2, exactly, docs/backlog.md
+// M30 ***** //
+// What SHARE of the spread's own reach (±2) is pulled BELOW the floor's
+// ceiling index, at the shallow end only. Same shape as tierCeilingShare,
+// signed the other way — this SUBTRACTS from the ceiling rather than
+// extending it, and fades out by floor 2 rather than by floor 10: the
+// problem this exists for is floor 1 standing too close to floor 2
+// specifically, not a general early-game softening (M29 already spent
+// that budget on the global dials).
+export function earlyTierCapShare(level, model = {}) {
+  const base = model.earlyTierCapShareBase ?? EARLY_TIER_CAP_SHARE_BASE;
+  const perLevel = model.earlyTierCapSharePerLevel ?? EARLY_TIER_CAP_SHARE_PER_LEVEL;
+  const cap = model.earlyTierCapShareCap ?? EARLY_TIER_CAP_SHARE_CAP;
+  return Math.max(0, Math.min(cap, base + perLevel * Math.max(0, level)));
+}
+
 // Everything the generator needs for floor N, zero-based.
 //
 // With DIFFICULTY_REBALANCED off, this is byte-identical to before M7: the
@@ -431,6 +448,7 @@ export function floorParams(level) {
     clusterSize,
     tierFloorShare: tierFloorShare(level),
     tierCeilingShare: tierCeilingShare(level),
+    earlyTierCapShare: earlyTierCapShare(level),
     // Zero when the flag is off, so spawn.js skips the roll entirely rather
     // than drawing a `drawChance(..., 0)` that always fails — a draw of any
     // kind, even one that never fires, would still perturb the RNG stream.
@@ -481,6 +499,10 @@ export const DEFAULT_MODEL = {
   tierCeilingShareBase: TIER_CEILING_SHARE_BASE,
   tierCeilingSharePerLevel: TIER_CEILING_SHARE_PER_LEVEL,
   tierCeilingShareCap: TIER_CEILING_SHARE_CAP,
+  // M30. Same shape again, signed the other way and fading out by floor 2.
+  earlyTierCapShareBase: EARLY_TIER_CAP_SHARE_BASE,
+  earlyTierCapSharePerLevel: EARLY_TIER_CAP_SHARE_PER_LEVEL,
+  earlyTierCapShareCap: EARLY_TIER_CAP_SHARE_CAP,
   // M15. Flat, same shape as `chests` above.
   chestGuardRadius: CHEST_GUARD_RADIUS,
   dropChance: DROP_CHANCE,
@@ -517,6 +539,7 @@ export function makeFloorPlan(model = {}) {
       clusterSize: m.clusterSize,
       tierFloorShare: tierFloorShare(level - 1, m),
       tierCeilingShare: tierCeilingShare(level - 1, m),
+      earlyTierCapShare: earlyTierCapShare(level - 1, m),
       outOfDepthChance: outOfDepthChanceAt(level - 1, m),
       chestGuardRadius: m.chestGuardRadius,
       dropChance: m.dropChance,
@@ -600,7 +623,11 @@ export function expectedFloorMass(level) {
   const minIndex = Math.floor(p.tierFloorShare * ceilingIndex);
   // M24 — see spawn.js for why 2 is the right number: MONSTER_WEIGHTS's own
   // spread never reaches further than ±2 from the centre index.
-  const maxIndex = Math.min(MONSTER_TABLE.length - 1,
+  const rawMaxIndex = Math.min(MONSTER_TABLE.length - 1,
     ceilingIndex + Math.floor(p.tierCeilingShare * 2));
+  // M30 — pulls the ceiling BELOW the centre at the shallow end, so this
+  // has to apply AFTER M24's own slack, not before: floor 1 has 0 slack to
+  // add and up to 1 index to remove, and the two must not cancel out.
+  const maxIndex = Math.max(minIndex, rawMaxIndex - Math.floor(p.earlyTierCapShare * 2));
   return p.monsters * expectedMonsterMass(p.difficultyScale, minIndex, maxIndex);
 }

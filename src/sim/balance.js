@@ -319,6 +319,48 @@ export const TIER_CEILING_SHARE_BASE = 0;
 export const TIER_CEILING_SHARE_PER_LEVEL = 0.08;
 export const TIER_CEILING_SHARE_CAP = 0.5;
 
+// ***** M30 — floor 1 must cost less than floor 2, exactly, docs/backlog.md
+// M30 ***** //
+// M29 pushed the GLOBAL count/strength dials until three different variants
+// all landed on the SAME floor-1/floor-2 creature count (4, 4) — a shared
+// dial cannot separate two floors it treats identically. This is a LOCAL
+// lever instead, on floor 1's own tier clamp specifically: `TIER_CEILING_
+// SHARE` above only ever ADDS slack above a floor's natural centre index,
+// and floor 1's own slack is already 0 — there is no more room in that
+// direction. This pulls the ceiling BELOW the natural centre instead, and
+// only at the shallow end.
+//
+// Same share-of-the-±2-spread unit as `TIER_CEILING_SHARE`, mirrored the
+// other way: a share of `MONSTER_WEIGHTS`'s own reach subtracted from the
+// floor's ceiling index rather than added to it. Fades to exactly 0 by
+// floor 2 (`PER_LEVEL` equals `-BASE`) — this is deliberately narrower than
+// M13/M24's fade, which reaches floor 10. The problem named by the item is
+// floor 1 specifically standing too close to floor 2, not a general softening
+// of the early game M29 already spent its budget on.
+//
+// NOT a continuous dial, found by sweeping rather than assumed: the applied
+// cut is `floor(share × 2)`, an INTEGER number of table indices, so every
+// `BASE` in `(0, 1.0)` produces the identical cut (1 index) and the "0.5"
+// here is just a readable point inside that whole plateau, not a precision
+// tuning. Only three cuts exist to choose between — 0 (no-op), 1, or 2 (>=1.0,
+// forces floor 1 to rat-tier only) — and 1 is the only one that is a real cut
+// without being absurd.
+//
+// MEASURED against `expectedFloorMass`, exact, no sampling (docs/backlog.md
+// M30 has the full table): floor 1 mass 14.0 -> 10.385, floor 1 now ~70% of
+// floor 2's 14.845 (was 94%). The M7 RATIO check
+// (`MONSTER_GROWTH_REBALANCED × STRENGTH_GROWTH_REBALANCED^2.356 /
+// MONSTER_GROWTH`) is untouched by this dial and stays at M29's 14.35% —
+// this constant does not appear in that formula. But the same closed form
+// read as an OVERALL growth rate (floor 1 to floor 10, geometric mean) DOES
+// move: 1.3499 -> 1.3955, outside the 1.34 ±0.03 band the ratio check exists
+// to protect. Disclosed, not hidden: the ratio check and the direct growth
+// reading disagree here because they measure different things, and the
+// direct one is the one this item asked to trust more.
+export const EARLY_TIER_CAP_SHARE_BASE = 0.5;
+export const EARLY_TIER_CAP_SHARE_PER_LEVEL = -0.5;
+export const EARLY_TIER_CAP_SHARE_CAP = 0.5;
+
 // ***** M15 — loot rooms have a guard, docs/backlog.md M15 ***** //
 // GUESS — "a short radius", per the item's own wording, swept 4/6/8/10/12
 // against measured guard coverage. 4 left floor 1 at 39% and floor 3 at
