@@ -43,7 +43,7 @@ session, skip it.
 | 3 | M27 | Chests hold armour and potions — after M26, not with it | **DONE** |
 | 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **DONE** · shipped OFF |
 | 5 | B9 | Teach the bot that a creature carries something | **DONE** · shipped ON, one z-score owed |
-| 6 | M29 | Turn off the guaranteed dagger, soften floor 1 via generation | **REPORTED** |
+| 6 | M29 | Turn off the guaranteed dagger, soften floor 1 via generation | **DONE** · ties baseline, does not beat it |
 | 7 | M28 | Belief clones a monster's drop before it should be knowable | **DONE** |
 | 8 | B10 | Weight the route toward a frontier by what it would reveal | **DONE** · shipped OFF, inert |
 | 9 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
@@ -1757,6 +1757,43 @@ probe flip it back on to isolate either lever again later.
 stale, new M29 subsection under M25). No `docs/rogule-spec.md` entry —
 number retunes and a flag-default flip on an already-documented
 mechanism, not a new rule, same precedent as M25.
+
+### Review — ADOPTED as engineering, flagged as a decision the owner has
+### not actually made yet
+
+**The methodology carries this item, and it is worth naming plainly as
+the best-run item this session.** Re-baselining rather than trusting a
+quoted number that had visibly drifted (M3/`REVERSAL_PENALTY`/the shrine
+rule all landed since), escalating from an unstable n=40 to n=80 instead
+of reporting noise, and catching `DEFAULT_MODEL` silently reverting
+`clusterSize`/`strengthGrowth`/`outOfDepthChance` on three unrelated axes
+before trusting a promising-looking sweep — any one of those alone would
+be a good catch. Diffing the swept model against real `floorParams()`
+field-by-field, and saying plainly this should have been step one rather
+than a recovery, is exactly the discipline to hold up for the next sweep
+this project runs.
+
+**But the result is a tie, and the ask was for easier, not for parity at
+the edge of the budget.** Neither metric clears 2σ, and the point
+estimates lean slightly TOWARD the guarantee-ON baseline still being
+better (mean depth z=-1.08, share≤floor2 z=1.43) — not away from it. The
+item's own pre-registered fallback ("if there is not enough room left,
+that is the finding") fired exactly as written, and the report is honest
+about it rather than spinning a non-result as a win. **That is adopted
+as a finding.** What it means for the actual request — *"suavizar a
+curva... para facilitar mais os primeiros níveis"* — is that this
+combination does not deliver that. It removes the special-cased item
+injection, which may be worth doing on its own design merits, but it
+ships at parity with the harder baseline, not easier than it, and 0.65
+points of M7 headroom is what is left to push further within this
+constraint.
+
+**The decision this leaves open: is "no special case, same difficulty"
+what was wanted, or was "easier" the actual point?** If the latter, the
+options the item itself names are the ones to choose from — spend past
+the 15% band on purpose, revisit floor 10's pin, or keep
+`GUARANTEE_FIRST_WEAPON` on and look elsewhere for the "no special
+case" preference. Not a call this review makes alone.
 
 ## M28 · Belief clones a monster's drop before it should be knowable
 
