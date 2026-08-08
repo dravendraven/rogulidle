@@ -67,7 +67,7 @@ statement about today. Only this table is current.
 | `PLAYER_HP` | `10` | balance.js |
 | `PLAYER_XP` | `3` | balance.js |
 | `POTION_HEAL` | `3` | balance.js |
-| `REVERSAL_PENALTY` | `0` | balance.js |
+| `REVERSAL_PENALTY` | `6` | balance.js |
 | `ROOM_HEIGHT` | `[4, 7]` | balance.js |
 | `ROOM_WIDTH` | `[5, 9]` | balance.js |
 | `SCARCITY` | `3` | difficulty.js |
@@ -1381,7 +1381,7 @@ Not used until P3. Listed here so there is one place to look.
 | `LOOT_CAMPAIGN_HORIZON` | 0.5 | **INITIAL GUESS** |
 | `HOLD_RANGE` | 5 | **INITIAL GUESS** |
 | `EXPOSURE_WEIGHT` | 0.5 | **INITIAL GUESS** |
-| `REVERSAL_PENALTY` | 0 | **MEASURED, does not fix what it targets** — see below |
+| `REVERSAL_PENALTY` | 6 | **RAISED by B3** — the old verdict was measured on the wrong statistic, see below |
 
 `UNKNOWN_MONSTER_ESTIMATE` stands in for a monster the bot has not met yet.
 It knows how many are unaccounted for but not what they are, and gear has
@@ -1414,12 +1414,45 @@ corridors when hunted rather than merely tolerate them (bot-strategy §2).
 
 `REVERSAL_PENALTY` charges hp for undoing the step just taken, meant to
 stop the two-turn ping-pong where the plan says "attack", the veto refuses
-and steps aside, then the plan says "go back" and the veto agrees. Shipped
-at 0 because it does NOT fix it — sweeping 0/1.5/6 moved the reversal rate
-only 0.238 → 0.205 and cost a few points of win rate. Traced further
+and steps aside, then the plan says "go back" and the veto agrees. Traced
 (bot-strategy §4.5): 61–64% of reversal episodes come from the TACTICAL
-VETO overriding a stable goal, not from goal selection flipping, so a
-penalty on the goal layer was never going to reach the dominant cause.
+VETO overriding a stable goal, not from goal selection flipping.
+
+**Shipped at 0 for a long time on a verdict that was wrong, and the error
+is the useful part.** The old sweep read the POOLED reversal RATE
+(0.238 → 0.205, "does not fix what it targets") — and B3 showed that
+statistic is mostly a measurement of RUN LENGTH, not of dithering. A run
+that dies early dithers less in absolute terms and scores well for the
+wrong reason.
+
+**Raised to 6 by B3** (`docs/backlog.md`), judged on the DISTRIBUTION —
+turns spent inside reversal episodes — on top of B3's goal-layer fix,
+n=60, two independent seed families:
+
+| | seeds 800000: 0 → 6 | seeds 910000: 0 → 6 |
+|---|---|---|
+| turns inside episodes | 21.4% → **9.2%** | 25.5% → **7.5%** |
+| pooled rate | 23.6% → 16.0% | 27.2% → 14.8% |
+| median run's share | 9.0% → 5.6% | 5.5% → 2.8% |
+| runs with an episode | 81.7% → 68.3% | 66.7% → 58.3% |
+| veto-layer episodes | 135 → **0** | 150 → **0** |
+| actions per run | 509 → 589 | 428 → 376 |
+| finishes | 6.7% → 6.7% | 0% → 0% |
+| median depth | 4 → 4 | 4 → **3** |
+
+**The two families move run length in opposite directions and agree
+anyway** — one gets 16% longer, the other 12% shorter, while turns inside
+episodes falls by more than half in both. That opposition is what makes
+this a dithering result rather than a length artefact. Veto-layer episodes
+reaching exactly zero on both is a mechanism check, not a rate.
+
+**The cost the old sweep reported did not reproduce** — finishes are
+identical on the primary family and zero either side on the confirmation
+family.
+
+**Watch: median depth 4 → 3 on the confirmation family**, against 4 → 4 on
+the primary. That is the one wobble to hold against this if depth slips
+later.
 
 ### How to tune these
 

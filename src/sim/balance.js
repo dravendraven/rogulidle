@@ -639,9 +639,6 @@ export const TACTICAL_OVERRIDE_MARGIN = 0.5;
 // "go back", the veto agrees, and the bot ping-pongs between two tiles
 // until the turn limit. Seen in about one run in nine.
 //
-// DEFAULT 0 — it does NOT fix it. Sweeping 0 / 1.5 / 6 moved the reversal
-// rate only 0.238 -> 0.205 and cost a few points of win rate.
-//
 // LOCATED, bot-strategy §4.5: an extended trace (goal identity + which
 // layer actually chose the returned action) over two independent seed
 // families puts 61-64% of reversal episodes and turns on the TACTICAL
@@ -649,10 +646,36 @@ export const TACTICAL_OVERRIDE_MARGIN = 0.5;
 // A third, unnamed locus — the ROUTE to a stable goal alternating on its
 // own, veto never even consulted — accounts for another 14-21%, likely
 // fog-of-war revealing map on each step and flipping a tied-cost route.
-// This penalty sits in the right layer for the dominant case but was swept
-// as a flat hp cost against ANY reversal; it never distinguished "the veto
-// undid a real back-step" from "the veto turned a sideways plan into one".
-export const REVERSAL_PENALTY = 0;
+//
+// WAS 0, "measured, does not fix what it targets". That verdict was wrong,
+// and the reason is worth keeping: the old sweep read 0.238 -> 0.205 on the
+// POOLED reversal RATE, which B3 showed is mostly a measurement of how long
+// a run is, not how much it dithers. A run that ends early scores well by
+// dithering less in absolute terms. Judged on the DISTRIBUTION instead —
+// turns spent inside reversal episodes — it is the single biggest win
+// available, and it was never failing.
+//
+// RAISED to 6 on B3's reading (docs/backlog.md B3), n=60, on top of B3's
+// goal-layer fix, two independent seed families:
+//
+//                        seeds 800000      seeds 910000
+//                        0        6        0        6
+//   turns in episodes    21.4%    9.2%     25.5%    7.5%
+//   pooled rate          23.6%   16.0%     27.2%   14.8%
+//   median run's share    9.0%    5.6%      5.5%    2.8%
+//   veto-layer episodes    135       0       150       0
+//   actions per run        509     589       428     376
+//
+// The two families move run LENGTH in opposite directions (one 16% longer,
+// one 12% shorter) and agree on the distribution anyway, which is what
+// makes it a dithering result rather than a length artefact. Veto-layer
+// episodes go to exactly zero on both — a mechanism check, not a rate.
+//
+// WATCH: median depth went 4 -> 3 on the confirmation family, against
+// 4 -> 4 on the primary. Finishes were unchanged on both (6.7%/6.7% and
+// 0%/0%), so the cost the old sweep reported did not reproduce — but that
+// one wobble is the thing to hold against this if depth slips later.
+export const REVERSAL_PENALTY = 6;
 
 // GUESS — a fight is worth starting only while its EXPECTED cost stays
 // under this share of current hp. Expected is an average: a duel costing
