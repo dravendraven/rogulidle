@@ -49,7 +49,7 @@ session, skip it.
 | 9 | D1 | The crowd-correction fit is overdue for its own redo | READY |
 | 10 | X1 | Delete what nothing references | READY · list refreshed |
 | 11 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 12 | U5 | Show the coin formula live on a real run | READY |
+| 12 | U5 | Show the coin formula live on a real run | IN FLIGHT |
 | 13 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
@@ -1660,7 +1660,7 @@ spread widened. Measured on the probes.
 
 ## U5 · show the coin formula live, on the real run — not a batch instrument
 
-`ui agent` · READY · **metrics idea, closes U3's open question cheaply**
+`ui agent` · **IN FLIGHT** · metrics idea, closes U3's open question cheaply
 
 `docs/project/candidates.md`'s U3 (parked coin/shop meta-progression idea)
 left one thing unresolved before pricing means anything: does today's real
