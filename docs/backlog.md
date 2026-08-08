@@ -1795,6 +1795,14 @@ the 15% band on purpose, revisit floor 10's pin, or keep
 `GUARANTEE_FIRST_WEAPON` on and look elsewhere for the "no special
 case" preference. Not a call this review makes alone.
 
+**Decided by the owner: no special case, parity accepted.** *"Prefiro sem
+a espada."* The shipped state — guarantee off, generation carrying the
+weight, tied rather than easier than the old baseline — is what ships.
+Nothing further to build here; the 0.65 points of remaining M7 headroom is
+not being spent chasing "easier" on this item. If floor 1 needs to get
+genuinely easier later, that is a fresh item against the budget/floor-10
+questions above, not a reopening of this one.
+
 ## M28 · Belief clones a monster's drop before it should be knowable
 
 `work agent` · **REPORTED** · **small, found by B9's review**
