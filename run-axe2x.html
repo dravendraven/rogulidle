@@ -58,6 +58,7 @@ async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
   let cleared = 0;
   let floorsPlayed = 0;
   let axePickups = 0;
+  let daggerPickups = 0;
   let weaponPickups = 0;
   let cumulativeWeaponDmg = 0;
 
@@ -102,6 +103,7 @@ async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
           if (e.type === 'pickup') {
             weaponPickups++;
             if (e.item === 'axe') axePickups++;
+            if (e.item === 'dagger') daggerPickups++;
           }
         }
       }
@@ -130,6 +132,7 @@ async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
     medianDepth: median(perRun.map((r) => r.depth)),
     floorsPlayed,
     axePickupsPerFloor: floorsPlayed ? axePickups / floorsPlayed : null,
+    daggerPickupsPerFloor: floorsPlayed ? daggerPickups / floorsPlayed : null,
     weaponPickupsPerFloor: floorsPlayed ? weaponPickups / floorsPlayed : null,
     perRunDepth: perRun.map((r) => r.depth),
   };
@@ -143,6 +146,7 @@ function render(r) {
     `median depth             ${r.medianDepth}`,
     `actions per run          ${r.meanActions.toFixed(0)}`,
     `axe pickups per floor    ${r.axePickupsPerFloor === null ? '—' : r.axePickupsPerFloor.toFixed(3)}`,
+    `dagger pickups per floor ${r.daggerPickupsPerFloor === null ? '—' : r.daggerPickupsPerFloor.toFixed(3)}`,
     `weapon pickups per floor ${r.weaponPickupsPerFloor === null ? '—' : r.weaponPickupsPerFloor.toFixed(3)}`,
     ``,
     `per-run depth            ${JSON.stringify(r.perRunDepth)}`,
@@ -158,13 +162,13 @@ document.getElementById('go').onclick = async () => {
   document.getElementById('go').disabled = true;
   document.getElementById('out').textContent = 'running 1x…';
   const t0 = performance.now();
-  const base = await measure(runs, seed, { axeValueMultiplier: 1 });
+  const base = await measure(runs, seed, { axeValueMultiplier: 1, daggerValueMultiplier: 1 });
   document.getElementById('out').textContent = 'running 2x…';
-  const boosted = await measure(runs, seed, { axeValueMultiplier: 2 });
+  const boosted = await measure(runs, seed, { axeValueMultiplier: 2, daggerValueMultiplier: 2 });
   window.RESULT = { base, boosted };
   document.getElementById('out').textContent =
-    '=== axeValueMultiplier: 1 (baseline) ===\n' + render(base)
-    + '\n\n=== axeValueMultiplier: 2 ===\n' + render(boosted)
+    '=== 1x (baseline) ===\n' + render(base)
+    + '\n\n=== axe AND dagger at 2x ===\n' + render(boosted)
     + `\n\n(${((performance.now() - t0) / 1000).toFixed(1)}s)`;
   document.getElementById('go').disabled = false;
 };
