@@ -232,7 +232,29 @@ async function runDescentForever(sessionSeed) {
     const run = playDungeon(seed, (floor) => {
       const trace = [];
       traces.push(trace);
-      return makeBot({ trace, monsterCount: floor.monsterCount });
+      // `level`/`levels` are not optional here, despite defaulting to null.
+      // Without them `monstersAhead` returns 0 (src/bot/loot.js), so once a
+      // floor is cleared there is nothing left to price gear against: a
+      // weapon's value is `campaignCost(without) - campaignCost(with)` over
+      // an EMPTY roster, which is 0 - 0, and `chooseGoal`'s `net > 0` filter
+      // then drops it for costing a walk. The bot stepped over swords into
+      // the shrine on every floor. Armour and potions were unaffected —
+      // they are valued at face value and at the hp gap — which is why it
+      // looked like a weapon-specific bug rather than a missing argument.
+      //
+      // It also made the line above this function false: run-check drives
+      // the bot WITH them (src/analysis/clustering.js), so what was being
+      // watched was not what was being measured.
+      //
+      // Measured, 12 runs, same seeds both ways: floors left by the shrine
+      // with a seen weapon still on the ground 15.6% -> 0%, mean depth
+      // 3.67 -> 4.25, decisions 5450 -> 4929. Deeper, on fewer turns.
+      //
+      // `runForever`'s single-floor bot above deliberately does NOT get
+      // these: one floor played on its own genuinely has no future.
+      return makeBot({
+        trace, monsterCount: floor.monsterCount, level: floor.level, levels: LEVELS,
+      });
     }, { maxTurns: MAX_TURNS });
 
     let finalState = null;
