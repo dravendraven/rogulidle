@@ -51,7 +51,7 @@ session, skip it.
 | 11 | X1 | Delete what nothing references | READY · list refreshed |
 | 12 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
 | 13 | U5 | Show the coin formula live on a real run | REPORTED |
-| 14 | U3a | A coin balance that survives a page reload | IN FLIGHT |
+| 14 | U3a | A coin balance that survives a page reload | REPORTED |
 | 15 | U3b | Pay coin into the balance at floor completion | READY |
 | 16 | U3c | Bank or clear the run coin at run end, per the death rule | READY |
 | 17 | U3d | The engine accepts a starting loadout | READY |
@@ -1982,7 +1982,7 @@ mid-task, after the first pass shipped with top-anchored placement and
 
 ## U3a · a coin balance that survives a page reload
 
-`ui agent` · **IN FLIGHT** · first of six, U3's arc — see the death rule
+`ui agent` · **REPORTED** · first of six, U3's arc — see the death rule
 below, final
 
 Promoted off `candidates.md`'s U3 now that the owner has settled the one
@@ -2013,6 +2013,32 @@ payout or the shop yet — this item is the drawer existing, empty.
 **Assert.** Reload the page, balance persists. Simulate a death with the
 flag off, balance and item both read back as zero. Flip the flag, simulate
 a death, both survive.
+
+### Result
+
+`src/ui/wallet.js` — `getBalance`/`setBalance`, `getHeldItem`/`setHeldItem`,
+`PERSIST_BALANCE_ACROSS_DEATH` (default `false`), and `resetOnDeath(persist
+= PERSIST_BALANCE_ACROSS_DEATH)`, the flag-gated rule itself. One
+`localStorage` key, same shape as `score.js` (U4): `load()`/`save()` guard
+against private-browsing/quota/corrupt-JSON by degrading to `{balance: 0,
+heldItem: null}` rather than throwing. `resetOnDeath` takes the flag as an
+explicit argument rather than reading the constant internally, so U3f can
+compare both settings later without a page reload.
+
+No `index.html`/`style.css` touched — the item says so explicitly ("the
+drawer existing, empty") and there's nothing to show yet: U3b hasn't built
+the unbanked total, so there's no number to bank or display beyond what a
+console call can already read.
+
+**Verified against all three asserts, via the live dev server:**
+set balance 37 + a held item, reloaded the page, both read back unchanged
+— persistence confirmed, not assumed. `resetOnDeath()` with the default
+flag zeroed both — death, flag off. Set balance 52 + a different item,
+`resetOnDeath(true)` left both exactly as set — death, flag on. `run-tests.html`:
+121/121, untouched by this (no `src/sim/` file was read or written).
+
+**Nothing to disclose.** No design call was left open by the spec, and the
+module is small enough that the three asserts cover its whole surface.
 
 ## U3b · pay coin into the balance at floor completion
 
