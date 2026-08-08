@@ -42,12 +42,14 @@ session, skip it.
 | 2 | M26 | Weapons come off creatures, gated by strength — the only permanent power | **DONE** |
 | 3 | M27 | Chests hold armour and potions — after M26, not with it | **DONE** |
 | 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **DONE** · shipped OFF |
-| 5 | B9 | Teach the bot that a creature carries something | **REPORTED** · shipped OFF |
-| 7 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
-| 8 | D1 | The crowd-correction fit is overdue for its own redo | READY |
-| 9 | X1 | Delete what nothing references | READY · list refreshed |
-| 10 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 11 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 5 | B9 | Teach the bot that a creature carries something | **DONE** · shipped OFF |
+| 6 | M28 | Belief clones a monster's drop before it should be knowable | READY |
+| 7 | B10 | Weight the route toward a frontier by what it would reveal | READY |
+| 8 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
+| 9 | D1 | The crowd-correction fit is overdue for its own redo | READY |
+| 10 | X1 | Delete what nothing references | READY · list refreshed |
+| 11 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
+| 12 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -1391,7 +1393,67 @@ four of its own).
 lifted to `chooseGoal` and threaded through), `test/tests.js` (one test),
 `run-b9.html` (new, temporary — add to X1). `src/sim/` untouched.
 
-### Review — pending
+### Review — ADOPTED, shipped off is the right call
+
+The mechanism genuinely fires this time (side kills/floor +28%, unlike
+B4's inert `exploreValue`), and the report does not let that success
+distract from the outcome: depth and actions per run both fall, meaning the
+bot spends hp on optional loot-bearing fights before the mandatory ones and
+dies sooner for it. Correctly diagnosed as most likely the ranking
+reorder (ordinary spine fights, not just the 28% of new side fights)
+rather than the new eligibility branch, and correctly left unproven rather
+than built out a second flag to isolate it on an idea already net negative.
+
+**Reading tier instead of the already-rolled `drop` field was the right
+discipline, and it surfaced a real problem this review is not going to
+leave as a footnote.** `observe.js`'s `copyEntity` deep-clones a monster's
+`drop` whole into Belief the moment it is seen — the pre-rolled item is
+sitting in data the bot is structurally allowed to touch, even though B9
+declined to read it. That is a violation waiting for a less careful future
+change, not a hypothetical: `CLAUDE.md`'s hard rule is about the CHANNEL
+(Observation/Belief only), and a channel that already contains the answer
+has failed the rule regardless of who reads it first. Filed as **M28** to
+close it at the source.
+
+**The measurement collision, disclosed in both directions (B9 and M27's
+own Result), is the second time this session two sessions' files moved
+underfoot inside a single before/after reading** — B4 hit its own version
+first. Worth writing into `CLAUDE.md` or the top of `backlog.md` as a
+standing caution once a third instance shows up; two is a pattern, not yet
+a rule.
+
+## M28 · Belief clones a monster's drop before it should be knowable
+
+`work agent` · READY · **small, found by B9's review**
+
+`observe.js`'s `copyEntity` (`JSON.parse(JSON.stringify(entity))`) clones a
+monster whole into Belief the instant it is seen, including `drop` — the
+item M26 already rolled for it, undiscovered by the hero and unrevealed by
+any game rule. B9 built `expectedMonsterDropValue` specifically to avoid
+reading this field, computing an actual expectation from tier instead
+because reading `.drop` would score a certainty as if it were uncertain.
+That discipline was necessary only because the leak exists.
+
+**Why this is `CLAUDE.md`'s rule, not a style preference.** "The bot may
+only read Observation/Belief, never GameState" is a statement about the
+channel. A channel that already contains an unrevealed answer has failed
+the rule the moment the data crosses it, regardless of whether anything
+downstream chooses to read that particular field. The next person to add a
+bot feature has no reason to know `.drop` is radioactive.
+
+**Do.** Strip `drop` (and audit for any other field that encodes a rolled-
+but-unrevealed outcome — `copyEntity` is generic, so this may not be the
+only one) out of the monster entity `copyEntity` produces, or replace
+`copyEntity` with an explicit allow-list per entity kind instead of a deep
+clone. The allow-list shape is probably the more durable fix: a deep clone
+of a growing entity object is exactly the pattern that leaks the NEXT field
+someone adds to `MONSTER_TABLE` or the live monster object too.
+
+**Assert.** Tests green. A `Belief.monsters` entry has no `drop` key (or an
+explicit test that the bot cannot distinguish two monsters of the same tier
+by inventory-relevant fields). Confirm B9's own `expectedMonsterDropValue`
+still produces the same numbers it did before — this item closes a leak,
+it does not change what anything currently computes.
 
 ## X1 · delete what nothing uses
 
