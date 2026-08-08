@@ -2373,6 +2373,37 @@ choice) if nothing is picked in time, never a pause waiting on input.
 **Assert.** Balance decreases by the right amount on purchase. Skipping
 leaves balance untouched and the next run starts unarmed, same as today.
 
+### Independent price validation, and a number for later — not this item's
+### to spend
+
+Metrics agent, from a side conversation, reported without touching code.
+Priced armour/dagger/axe against `loot.js`'s real `campaignCost` and got
+3.00 / 3.15 / 2.95 hp per coin — independent confirmation the shipped table
+(shield 1, dagger 5, axe 8) is not a coincidence, all three land within 5%
+of the same exchange rate.
+
+**A real number now exists for xp's hp-value: 0.117 hp per xp point**,
+from Sonda A's measured 0.39 hp/turn baseline (no-pickup probe, n=20/floor,
+1-10) run through the same coin formula U5/U6b already use (`3 ×
+0.39 ÷ 10`).
+
+**Do not use 0.117 to make the bot value killing for xp/gold mid-run when
+that question eventually comes up.** That is the same mistake B9 already
+made once with drop value — pricing an estimate into `chooseGoal` reordered
+even mandatory fights and cost depth, before B9's own re-measurement
+reversed the verdict. The recommendation, and it is a sound one: **price
+any future gold-seeking bot behaviour the same way weapon/armour already
+are — a real `campaignCost` delta with the gear equipped for the NEXT run
+vs. without — not the coin formula**, which exists for `run-check.html`
+diagnostics, not as a decision price. `0.117` measures something true
+about the game; it was never built to be read by `chooseGoal`.
+
+**Not this item's to act on.** No item yet asks the bot to risk hp for
+xp/gold within a run — filed here as the note to find when one does, per
+the sequencing metrics itself proposed: persistence and shop first (this
+arc), measure real purchased-gear effect second, decide whether the bot
+should spend hp chasing gold third.
+
 ## U6f · watch a full loop, coins to gear to next run to death to reset
 
 `ui agent` · READY · **sixth of six, the integration check — closes the
