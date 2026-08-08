@@ -947,6 +947,37 @@ rather than silently retried away.
 kind swap, header comment), `test/tests.js`, `docs/balance.md`,
 `docs/rogule-spec.md` (new §13.17).
 
+### Review — ADOPTED
+
+Caught its own side effect before shipping it: pulling `potion` off the
+monster source left `weapon` as its only kind, and `itemWeights` splits mass
+evenly across a source's own kinds — so weapon supply silently doubled
+(9.59 to 19.31) for a reason that has nothing to do with what this item
+touches. Re-tuning `WEAPON_SCARCITY` 2 to 4 to land back at 9.58 against
+M26's already-shipped 9.59 is the right fix, and the balance.md top table
+reflects the 4, not just the prose.
+
+The kills-per-floor normalization is the right instinct and the report
+earns it explicitly — raw kills/run fell 23% but depth fell too, and this
+session has hit that same denominator trap three times already (I7, M3, and
+the M19-adjacent read). Normalized, the real fall is ~5.3%, and the
+depth-drop itself is correctly held at z = -1.55 rather than claimed.
+
+Not pressing `POTION_SCARCITY` past the unchanged shared value is the
+right call — the swap alone already delivered "a little more often"
+(+11.8%), and the sweep table exists so a later item can go further with
+evidence rather than a guess, not because this one needed to move it.
+
+Quality-inertness continues exactly as M26 predicted it would, which is a
+mechanism confirming itself twice rather than two unrelated non-findings.
+
+**The concurrent-session crash is worth carrying forward, not just
+noting.** `expectedChestValue` threw on `values` undefined while B9 was
+actively editing the same `src/bot/loot.js`. Reproduced once, not on
+reload. Nothing to act on now since it did not reproduce, but if it shows
+up again during a parallel bot/map session it is not new — it is this.
+
+
 ## M21 · deep floors have something waiting where you land
 
 `work agent` · **BLOCKED on M19**
