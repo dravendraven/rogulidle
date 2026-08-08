@@ -69,10 +69,13 @@ exists and what the alternative cost.
   `src/sim/rng.js`. Determinism is sacred: same seed = same run, always.
 - `step()` stays a pure function: no DOM, no `Date.now()`, no storage
   access inside `src/sim/`.
-- No balance value may be hardcoded in logic files. Numbers live in
-  `docs/balance.md` and are mirrored in `src/sim/balance.js`. If a needed
-  number is missing, add it to balance.md first with an `INITIAL GUESS`
-  comment, then use it.
+- No balance value may be hardcoded in logic files. Every tunable lives in
+  `src/sim/balance.js` or `src/sim/difficulty.js`, and **the table at the
+  top of `docs/balance.md` is the one place their current values are
+  written**. Change a dial, change that row in the same commit.
+  **Never restate a value in prose** — the prose records why a dial exists
+  and what was measured, and those numbers age into history the moment the
+  dial moves. That is what let this file drift for months.
 - **The bot may only read `Observation` / `Belief`, never `GameState`.**
   Fog of war is a design decision, not decoration — see spec §12.
 - The engine stays faithful to Rogule. Bot rules (like "kill everything

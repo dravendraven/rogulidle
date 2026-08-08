@@ -1,4 +1,103 @@
-# Balance — single source of truth for every tunable number
+# Balance
+
+**Every tunable number, and the only place their current values are
+written.** Generated against the code — if a value here disagrees with
+`src/sim/`, the code is right and this table is stale; fix the table.
+
+**Prose below this table does not restate values.** It explains why a dial
+exists, what was measured, and what was tried and rejected. Numbers inside
+that prose are the numbers *as they were when the argument was made*, and
+several are already historical — they are the record of a decision, not a
+statement about today. Only this table is current.
+
+| dial | value | file |
+|---|---|---|
+| `BOT_KNOWS_MONSTER_COUNT` | `true` | balance.js |
+| `CHESTS_PER_FLOOR` | `6` | difficulty.js |
+| `CHEST_COUNT` | `15` | balance.js |
+| `CHEST_DIFFICULTY_SCALE` | `0.9` | balance.js |
+| `CHEST_GUARD_RADIUS` | `8` | balance.js |
+| `CHEST_LOOT_CHANCE` | `0.60` | balance.js |
+| `CHEST_LOOT_RICHER_FAR` | `true` | balance.js |
+| `CHEST_QUALITY_BY_DEPTH` | `true` | balance.js |
+| `CHEST_TABLE` | `(table — see the file)` | balance.js |
+| `CLEAR_DIST` | `7` | balance.js |
+| `CLUSTER_SIZE` | `10` | difficulty.js |
+| `CORRIDOR_LENGTH` | `[1, 3]` | balance.js |
+| `CROWD_COST_OVERHEAD` | `0.75` | balance.js |
+| `CROWD_PENALTY` | `6` | balance.js |
+| `DANGER_FALLOFF` | `0.5` | balance.js |
+| `DEFAULT_MODEL` | `(table — see the file)` | difficulty.js |
+| `DIAL_MAX_LEVEL` | `9` | difficulty.js |
+| `DIFFICULTY_REBALANCED` | `true` | difficulty.js |
+| `DROP_CHANCE` | `0.5` | difficulty.js |
+| `DUEL_SAFETY_MARGIN` | `0.7` | balance.js |
+| `EARLY_CHEST_QUALITY_BOOST` | `0.5` | balance.js |
+| `EXPOSURE_WEIGHT` | `0.5` | balance.js |
+| `FLOOR_SPREAD_BASE` | `0` | balance.js |
+| `FLOOR_SPREAD_CAP` | `0.9` | balance.js |
+| `FLOOR_SPREAD_PER_LEVEL` | `0.09` | balance.js |
+| `GOAL_STICKINESS` | `1.4` | balance.js |
+| `HIT_CHANCE` | `5 / 6` | balance.js |
+| `HOLD_RANGE` | `5` | balance.js |
+| `HP_FROM_KILLS` | `false` | balance.js |
+| `HP_GRANT_AMOUNT` | `1` | balance.js |
+| `HP_GRANT_PER_KILLS` | `2` | balance.js |
+| `ITEM_TABLE` | `(table — see the file)` | balance.js |
+| `KILLS_PER_XP` | `2` | balance.js |
+| `LOOT_CAMPAIGN_HORIZON` | `0.5` | balance.js |
+| `MAP_DUG_PERCENTAGE` | `0.15` | balance.js |
+| `MAP_SIZE` | `32` | balance.js |
+| `MIN_ROSTER_FOR_SIDE` | `4` | balance.js |
+| `MONSTERS_ATTACK_WHEN_ADJACENT` | `false` | balance.js |
+| `MONSTERS_BASE` | `5` | difficulty.js |
+| `MONSTER_COUNT` | `5` | balance.js |
+| `MONSTER_DIFFICULTY_SCALE` | `0.75` | balance.js |
+| `MONSTER_DROP_CHANCE` | `0.50` | balance.js |
+| `MONSTER_GROWTH` | `1.3` | difficulty.js |
+| `MONSTER_GROWTH_REBALANCED` | `1.0536` | difficulty.js |
+| `MONSTER_SKIP_CHANCE` | `0.10` | balance.js |
+| `MONSTER_STRENGTH` | `0.28` | difficulty.js |
+| `MONSTER_TABLE` | `(table — see the file)` | balance.js |
+| `MONSTER_WEIGHTS` | `(table — see the file)` | balance.js |
+| `OUT_OF_DEPTH_CHANCE_BASE` | `0` | balance.js |
+| `OUT_OF_DEPTH_CHANCE_CAP` | `0.15` | balance.js |
+| `OUT_OF_DEPTH_CHANCE_PER_LEVEL` | `0.02` | balance.js |
+| `OUT_OF_DEPTH_TAIL` | `false` | balance.js |
+| `PLAYER_HP` | `10` | balance.js |
+| `PLAYER_XP` | `3` | balance.js |
+| `POTION_HEAL` | `3` | balance.js |
+| `REVERSAL_PENALTY` | `0` | balance.js |
+| `ROOM_HEIGHT` | `[4, 7]` | balance.js |
+| `ROOM_WIDTH` | `[5, 9]` | balance.js |
+| `SCARCITY` | `3` | difficulty.js |
+| `SHRINE_DISTANCE_SHARE` | `0.65` | balance.js |
+| `SIDE_ACTIVATION_CAP` | `99` | balance.js |
+| `SIDE_CHEST_BIAS` | `3` | balance.js |
+| `SIDE_ROOM_DEPTH_BONUS` | `0.35` | balance.js |
+| `SPINE_THREAT_SHARE` | `0.7` | balance.js |
+| `STEP_COST_IN_HP` | `0.01` | balance.js |
+| `STRENGTH_GROWTH` | `1.0` | difficulty.js |
+| `STRENGTH_GROWTH_REBALANCED` | `1.1358` | difficulty.js |
+| `TACTICAL_DEPTH` | `1` | balance.js |
+| `TACTICAL_OVERRIDE_MARGIN` | `0.5` | balance.js |
+| `TACTICAL_RANGE` | `4` | balance.js |
+| `TIER_CEILING_SHARE_BASE` | `0` | balance.js |
+| `TIER_CEILING_SHARE_CAP` | `0.5` | balance.js |
+| `TIER_CEILING_SHARE_PER_LEVEL` | `0.08` | balance.js |
+| `TIER_FLOOR_SHARE_BASE` | `0` | balance.js |
+| `TIER_FLOOR_SHARE_CAP` | `0.5` | balance.js |
+| `TIER_FLOOR_SHARE_PER_LEVEL` | `0.08` | balance.js |
+| `UNKNOWN_MONSTER_ESTIMATE` | `{ xp: 4, hp: 7 }` | balance.js |
+| `VISIBLE_DIST` | `9` | balance.js |
+| `WEAPONS_WIDEN_ROLL` | `true` | balance.js |
+| `XP_FROM_KILLS` | `false` | balance.js |
+
+Values marked FAITHFUL in the prose below are copied from the original
+Rogule source and should not change without a reason; deliberate divergences
+are recorded in `docs/rogule-spec.md` §13.
+
+---
 
 ## The whole difficulty model, in three constants
 
