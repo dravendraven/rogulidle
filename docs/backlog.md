@@ -2887,12 +2887,66 @@ should exist at all given nothing calls it.
 
 ## U6e · the shop screen
 
-`ui agent` · READY · **fifth of six**
+`ui agent` · **BLOCKED on U6d's fix** (a starting shield currently grants no
+armour — see U6d's review) · fifth of six
 
 Three purchase options at run end, priced per the table already fixed
 (shield 1, dagger 5, axe 8 — `docs/project/candidates.md`'s old U6 has the
 derivation, now folded into this arc). Buying sets U6a's held-item slot for
 the run about to start; U6d's option carries it in.
+
+### Multiple copies are allowed — owner decision, with one thing to watch
+
+Buy the same item more than once: 5 coins is 5 shields **or** one dagger.
+Mechanically free, both already stack — `weaponDamage` sums the inventory,
+and `player.armour +=` accumulates. **U6a's held-item slot has to become a
+held-item LIST** for this, which is the one structural change it implies.
+
+**The stacking curves are not the same shape, and the asymmetry is real:**
+
+- **Armour stacks linearly, uncapped.** `effectiveHp = hp + armour` and
+  nothing caps `player.armour`, so N shields is exactly 3N extra effective
+  hp. No diminishing return, by construction.
+- **Weapons stack with a sharply diminishing hp value.** Damage per turn is
+  perfectly linear in weapon points (`5/6 × (xp + weapons − 1) / 2`), but
+  hp *saved* goes as 1/dps, because turns-to-kill is `monster hp ÷ damage
+  per turn`. The measured numbers show it: dagger (1 dmg point) 15.75 hp,
+  axe (2 points) 23.6 hp — **the second point is worth 7.85, half the
+  first.** That is arithmetic, not a tuning artifact; no flat-damage weapon
+  can avoid it.
+
+**At the owner's own example the exchange rate holds** — 5 shields is 15 hp
+against one dagger's 15.75. **It breaks at larger balances:** 25 coins buys
+25 shields, 75 armour on a 10 hp hero, against 5 daggers worth far less than
+5 × 15.75. Shield-spam becoming the dominant purchase would make three
+options one option with decoration.
+
+**Recorded as a falsifiable prediction before building, not discovered
+after.** If shield-spam dominates once this ships, the natural fix is a cap
+on the armour bar (which is also defensible thematically). Do not
+pre-emptively add the cap — measure first.
+
+**One thing weapons are NOT being credited for yet.** The coin formula is
+`xpEarned ÷ turns × 10`, so a weapon that kills faster earns *more coins per
+floor*. The 15.75/23.6 prices came from `campaignCost`, which is hp only —
+so a weapon's real worth, once this arc ships, is hp saved **plus** coin
+yield, and the current prices understate it. Worth measuring before
+concluding weapons are underpowered relative to shields.
+
+### The bot already handles all of this correctly — checked, not assumed
+
+Flagged because it looks like it should be a problem and is not.
+`valueByItemName` (`loot.js`) prices a weapon as a **marginal delta against
+the hero's live inventory**: `campaignCost(player) − campaignCost(player +
+item)`. Hold five weapons and `withItem` builds a six-weapon hero, so the
+smaller marginal value falls out automatically. B9's
+`expectedMonsterDropValue` consumes that same map, recomputed every turn.
+
+And armour is deliberately priced at fixed face value in the same function
+— correct precisely *because* armour is linear. **The asymmetry above is
+already encoded in the bot.** Nothing here needs a bot change, and any
+future redesign of the weapon curve must not break that marginal
+computation.
 
 **Do.** Offer screen: three items, current balance, afford/cannot-afford
 state. Purchase deducts from the persisted balance immediately (not
