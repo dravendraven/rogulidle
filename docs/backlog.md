@@ -43,15 +43,15 @@ session, skip it.
 | 3 | M27 | Chests hold armour and potions — after M26, not with it | **DONE** |
 | 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **DONE** · shipped OFF |
 | 5 | B9 | Teach the bot that a creature carries something | **DONE** · shipped ON, one z-score owed |
-| 6 | M29 | Turn off the guaranteed dagger, soften floor 1 via generation | READY |
+| 6 | M29 | Turn off the guaranteed dagger, soften floor 1 via generation | **REPORTED** |
 | 7 | M28 | Belief clones a monster's drop before it should be knowable | **DONE** |
 | 8 | B10 | Weight the route toward a frontier by what it would reveal | **DONE** · shipped OFF, inert |
 | 9 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
 | 10 | D1 | The crowd-correction fit is overdue for its own redo | READY |
 | 11 | X1 | Delete what nothing references | READY · list refreshed |
 | 12 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 13 | U5 | Show the coin formula live on a real run | REPORTED |
-| 14 | U6a | A coin balance that survives a page reload | REPORTED |
+| 13 | U5 | Show the coin formula live on a real run | **DONE** |
+| 14 | U6a | A coin balance that survives a page reload | **DONE** |
 | 15 | U6b | Pay coin into the balance at floor completion | READY |
 | 16 | U6c | Bank or clear the run coin at run end, per the death rule | READY |
 | 17 | U6d | The engine accepts a starting loadout | READY |
@@ -1609,7 +1609,7 @@ open a new item for it.
 
 ## M29 · turn off the guaranteed dagger, soften floor 1 through generation instead
 
-`work agent` · READY · **owner request**
+`work agent` · **REPORTED** · **owner request**
 
 Two changes in one item, because they are meant to offset each other:
 `GUARANTEE_FIRST_WEAPON` true to false, and softer early-floor creature
@@ -1980,6 +1980,35 @@ only wording (`+N 🪙`, counter as `🪙 N`) came from an owner follow-up
 mid-task, after the first pass shipped with top-anchored placement and
 "+N this floor" / "N coins" text.
 
+### Review — ADOPTED, and the bug catch is worth more than the item itself
+
+Verified directly against `spectator.js`: `tallyDescent(run, finalState)`
+now reads `finalState.player.xpEarned`, matching the fix exactly.
+
+**Finding a silent-corruption bug in already-shipped U4 while wiring up an
+unrelated display item is the best possible outcome of a "small" task.**
+`run.levels[i]` never had `xpEarned` — only the carried-hero snapshot did
+— so every lifetime-score award since U4 shipped computed `NaN`, stored as
+`null`, compounding on itself forever. **The root-cause diagnosis
+generalises past this one bug:** U4's own verification only ever called
+`award()` with synthetic numbers, never traced one real `playDungeon()`
+result through `tallyDescent()` end to end — a unit-level check that never
+touched the actual data shape it would run against in production. Worth
+restating as a standing habit: verify against real engine output at least
+once, not only against numbers the test chose itself.
+
+**The fix stayed correctly scoped** — read off the already-replayed
+`finalState` instead of `run.levels`, no `src/sim/` touch needed, the data
+was already in reach. Hardening `renderScore` with `Number.isFinite`
+guards on top of the root-cause fix (degrade to `—` instead of crashing on
+an already-corrupted stored record) is the right belt-and-braces move
+given real players may already be carrying a `null` total from before this
+landed.
+
+**Verification against real `playDungeon()` output, not just synthetic
+numbers, is exactly the discipline the bug itself was missing** — the
+report applying the lesson it just found, in the same commit.
+
 ## U6a · a coin balance that survives a page reload
 
 `ui agent` · **REPORTED** · first of six, U6's arc — see the death rule
@@ -2039,6 +2068,26 @@ flag zeroed both — death, flag off. Set balance 52 + a different item,
 
 **Nothing to disclose.** No design call was left open by the spec, and the
 module is small enough that the three asserts cover its whole surface.
+
+### Review — ADOPTED
+
+Small, exactly the scope asked for, and correctly stopped there — no
+`index.html`/`style.css` touch when the item said there was nothing yet to
+show.
+
+**`resetOnDeath` taking the flag as an explicit argument rather than
+reading the constant internally is the right call and pays for itself
+immediately** — U6f (the integration check) needs to exercise both settings
+without a page reload, and this is exactly what makes that possible without
+a rewrite later.
+
+Following `score.js`'s defensive load/save shape (degrade to a default on
+corrupt/missing data rather than throw) was the right precedent to copy —
+doubly so given U5's own review just found what an un-guarded read of a
+corrupted stored value costs when nothing catches it.
+
+Three asserts, three real checks against the live dev server, not
+described from reading the code.
 
 ## U6b · pay coin into the balance at floor completion
 
