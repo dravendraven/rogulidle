@@ -1240,7 +1240,7 @@ test('the closed form agrees with a Monte Carlo cross-check', () => {
   // closed form. A bug in the bucket-width maths would show up here even if
   // it happened to leave monotonicity intact.
   const mass = (t) => t.hp * Math.max(0, t.xp - 1);
-  const sampledMonsterMass = (scale, minIndex, samples = 5000) => {
+  const sampledMonsterMass = (scale, minIndex, maxIndex, samples = 5000) => {
     let sum = 0;
     for (let i = 0; i < samples; i++) {
       const depth = (i + 0.5) / samples;
@@ -1248,10 +1248,10 @@ test('the closed form agrees with a Monte Carlo cross-check', () => {
       const entries = monsterWeightsAround(index);
       const total = entries.reduce((s, [, w]) => s + w, 0);
       // Clamp each slot in the blend, not the centre index — matches
-      // spawn.js: the centre alone cannot exclude a rat, since the -2
-      // spread reaches slot 0 from a centre as high as 2.
+      // spawn.js: the centre alone cannot exclude a rat (M13) or admit a
+      // wolf/ogre (M24), since the ±2 spread reaches past it either way.
       sum += entries.reduce(
-        (s, [slot, w]) => s + w * mass(MONSTER_TABLE[Math.max(slot, minIndex)]), 0,
+        (s, [slot, w]) => s + w * mass(MONSTER_TABLE[Math.min(maxIndex, Math.max(slot, minIndex))]), 0,
       ) / total;
     }
     return sum / samples;
@@ -1261,7 +1261,9 @@ test('the closed form agrees with a Monte Carlo cross-check', () => {
     const p = floorParams(level);
     const ceilingIndex = Math.floor(p.difficultyScale * (MONSTER_TABLE.length - 1));
     const minIndex = Math.floor(p.tierFloorShare * ceilingIndex);
-    const sampled = p.monsters * sampledMonsterMass(p.difficultyScale, minIndex);
+    const maxIndex = Math.min(MONSTER_TABLE.length - 1,
+      ceilingIndex + Math.floor(p.tierCeilingShare * 2));
+    const sampled = p.monsters * sampledMonsterMass(p.difficultyScale, minIndex, maxIndex);
     const closedForm = expectedFloorMass(level);
     const gap = Math.abs(sampled - closedForm) / closedForm;
     assert(gap < 0.01,
@@ -1329,6 +1331,46 @@ test('the tier floor never exceeds the tier ceiling', () => {
     const minIndex = Math.floor(p.tierFloorShare * ceilingIndex);
     assert(minIndex <= ceilingIndex,
       `floor ${level + 1}: tier floor ${minIndex} exceeds its own ceiling ${ceilingIndex}`);
+  }
+});
+
+// ***** M24 — the ceiling is a centre, not a cap ***** //
+
+test('the highest tier seen at floor 1 drops by two indices', () => {
+  // Simulated, not the closed form — the same "what a player would actually
+  // encounter" check as M13's mirror-image test above. Before this item,
+  // MONSTER_WEIGHTS's own ±2 spread let floor 1 (centre index 3) reach
+  // index 5 (ogre) — wolf and ogre are the two indices this item exists to
+  // exclude, and excluding both is exactly a drop of two.
+  const indexOf = (m) => MONSTER_TABLE.findIndex((t) => t.name === m.name);
+  const highestSeen = (level, seeds = 60) => {
+    let highest = -1;
+    for (let seed = 0; seed < seeds; seed++) {
+      const state = newGame(93000 + level * 1000 + seed, floorPlan(level));
+      for (const m of state.monsters) highest = Math.max(highest, indexOf(m));
+    }
+    return highest;
+  };
+
+  const p1 = floorParams(0);
+  const ceilingIndex1 = Math.floor(p1.difficultyScale * (MONSTER_TABLE.length - 1));
+  const fl1 = highestSeen(1);
+  assertEq(fl1, ceilingIndex1,
+    `floor 1's highest tier seen (index ${fl1}) should sit exactly at its ceiling (index ${ceilingIndex1}), zero slack`);
+  assert(ceilingIndex1 + 2 - fl1 === 2,
+    `floor 1 did not drop by two indices from the old unclamped reach (ceiling + 2)`);
+});
+
+test('the tier ceiling never falls below the floor\'s own centre', () => {
+  // By construction: maxIndex adds a non-negative slack on top of
+  // ceilingIndex, so it can never land below it, at any floor.
+  for (let level = 0; level < 10; level++) {
+    const p = floorParams(level);
+    const ceilingIndex = Math.floor(p.difficultyScale * (MONSTER_TABLE.length - 1));
+    const maxIndex = Math.min(MONSTER_TABLE.length - 1,
+      ceilingIndex + Math.floor(p.tierCeilingShare * 2));
+    assert(maxIndex >= ceilingIndex,
+      `floor ${level + 1}: tier ceiling ${maxIndex} fell below its own centre ${ceilingIndex}`);
   }
 });
 

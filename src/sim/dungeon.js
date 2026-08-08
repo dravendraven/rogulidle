@@ -119,6 +119,7 @@ export function playDungeon(seed, makePolicy, options = {}) {
       difficultyScale: plan.difficultyScale,
       clusterSize: plan.clusterSize,
       tierFloorShare: plan.tierFloorShare,
+      tierCeilingShare: plan.tierCeilingShare,
       outOfDepthChance: plan.outOfDepthChance,
       chestGuardRadius: plan.chestGuardRadius,
       dropChance: plan.dropChance,

@@ -4,6 +4,7 @@ import {
   OUT_OF_DEPTH_CHANCE_BASE, OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_CHANCE_PER_LEVEL,
   OUT_OF_DEPTH_TAIL,
   SIDE_ACTIVATION_CAP, SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE,
+  TIER_CEILING_SHARE_BASE, TIER_CEILING_SHARE_CAP, TIER_CEILING_SHARE_PER_LEVEL,
   TIER_FLOOR_SHARE_BASE, TIER_FLOOR_SHARE_CAP, TIER_FLOOR_SHARE_PER_LEVEL,
 } from './balance.js';
 import { monsterWeightsAround } from './spawn.js';
@@ -247,6 +248,17 @@ export function tierFloorShare(level, model = {}) {
   return Math.max(0, Math.min(cap, base + perLevel * Math.max(0, level)));
 }
 
+// ***** M24 — the ceiling is a centre, not a cap, docs/backlog.md M24 ***** //
+// What SHARE of the spread's own maximum reach (±2, from MONSTER_WEIGHTS)
+// is allowed to push the drawn slot above the floor's own ceiling index.
+// Mirrors tierFloorShare exactly, just clamping the other direction.
+export function tierCeilingShare(level, model = {}) {
+  const base = model.tierCeilingShareBase ?? TIER_CEILING_SHARE_BASE;
+  const perLevel = model.tierCeilingSharePerLevel ?? TIER_CEILING_SHARE_PER_LEVEL;
+  const cap = model.tierCeilingShareCap ?? TIER_CEILING_SHARE_CAP;
+  return Math.max(0, Math.min(cap, base + perLevel * Math.max(0, level)));
+}
+
 // Everything the generator needs for floor N, zero-based.
 //
 // With DIFFICULTY_REBALANCED off, this is byte-identical to before M7: the
@@ -267,6 +279,7 @@ export function floorParams(level) {
     difficultyScale: floorStrength(level, { strengthGrowth }),
     clusterSize,
     tierFloorShare: tierFloorShare(level),
+    tierCeilingShare: tierCeilingShare(level),
     // Zero when the flag is off, so spawn.js skips the roll entirely rather
     // than drawing a `drawChance(..., 0)` that always fails — a draw of any
     // kind, even one that never fires, would still perturb the RNG stream.
@@ -313,6 +326,10 @@ export const DEFAULT_MODEL = {
   tierFloorShareBase: TIER_FLOOR_SHARE_BASE,
   tierFloorSharePerLevel: TIER_FLOOR_SHARE_PER_LEVEL,
   tierFloorShareCap: TIER_FLOOR_SHARE_CAP,
+  // M24. Same shape, mirrored to the other direction.
+  tierCeilingShareBase: TIER_CEILING_SHARE_BASE,
+  tierCeilingSharePerLevel: TIER_CEILING_SHARE_PER_LEVEL,
+  tierCeilingShareCap: TIER_CEILING_SHARE_CAP,
   // M15. Flat, same shape as `chests` above.
   chestGuardRadius: CHEST_GUARD_RADIUS,
   dropChance: DROP_CHANCE,
@@ -348,6 +365,7 @@ export function makeFloorPlan(model = {}) {
       difficultyScale: floorStrength(level - 1, m),
       clusterSize: m.clusterSize,
       tierFloorShare: tierFloorShare(level - 1, m),
+      tierCeilingShare: tierCeilingShare(level - 1, m),
       outOfDepthChance: outOfDepthChanceAt(level - 1, m),
       chestGuardRadius: m.chestGuardRadius,
       dropChance: m.dropChance,
@@ -393,14 +411,16 @@ export function threatMass(state) {
 // (clamping the centre alone is not enough: `monsterWeightsAround`'s own
 // -2 offset still reaches slot 0 from a centre as high as 2). `massAt`
 // mirrors that exactly — clamp each slot in the blend, not the centre —
-// so at minIndex 0 it reduces to exactly the pre-M13 integral.
-function expectedMonsterMass(scale, minIndex = 0) {
+// so at minIndex 0 it reduces to exactly the pre-M13 integral. `maxIndex`
+// mirrors M24's ceiling the same way, the other direction: at
+// `maxIndex = MONSTER_TABLE.length - 1` (no ceiling clamp) it is a no-op.
+function expectedMonsterMass(scale, minIndex = 0, maxIndex = MONSTER_TABLE.length - 1) {
   const mass = (t) => t.hp * Math.max(0, t.xp - 1);
   const massAt = (index) => {
     const entries = monsterWeightsAround(index);
     const total = entries.reduce((sum, [, w]) => sum + w, 0);
     return entries.reduce(
-      (sum, [slot, w]) => sum + w * mass(MONSTER_TABLE[Math.max(slot, minIndex)]), 0,
+      (sum, [slot, w]) => sum + w * mass(MONSTER_TABLE[Math.min(maxIndex, Math.max(slot, minIndex))]), 0,
     ) / total;
   };
 
@@ -427,5 +447,9 @@ export function expectedFloorMass(level) {
   const p = floorParams(level);
   const ceilingIndex = Math.floor(p.difficultyScale * (MONSTER_TABLE.length - 1));
   const minIndex = Math.floor(p.tierFloorShare * ceilingIndex);
-  return p.monsters * expectedMonsterMass(p.difficultyScale, minIndex);
+  // M24 — see spawn.js for why 2 is the right number: MONSTER_WEIGHTS's own
+  // spread never reaches further than ±2 from the centre index.
+  const maxIndex = Math.min(MONSTER_TABLE.length - 1,
+    ceilingIndex + Math.floor(p.tierCeilingShare * 2));
+  return p.monsters * expectedMonsterMass(p.difficultyScale, minIndex, maxIndex);
 }

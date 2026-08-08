@@ -1037,4 +1037,52 @@ risco que o próprio item já registrava: equipamento cedo demais carrega
 para toda a descida, e um ajuste dimensionado para o andar 1 pode deixar
 os andares 5–10 fáceis demais.
 
-**Estado atual: construído e ligado, sem flag.** Ver `docs/backlog.md` M19.
+**Estado atual: construído e ligado, sem flag — mas os números acima foram
+medidos contra um andar 1 que ainda rolava lobo e ogro.** M24 (§13.15,
+abaixo) consertou isso depois, na ordem errada — dimensionar M19 primeiro
+e consertar o andar-alvo depois deixou o dimensionamento contra um andar
+que não é mais o que existe. Remedido após M24; ver `docs/backlog.md` M19
+e M24 para os números corrigidos.
+
+### 13.15 O teto é um centro, não uma parede (M24)
+
+**O problema.** `difficultyScale` fixa um índice CENTRO, não um teto de
+verdade — o spread ±2 de `MONSTER_WEIGHTS` (quirk §9.2) sobe livre a
+partir dele. No andar 1 o centro é o índice 3, e o spread ainda alcançava
+o índice 4 (lobo, hp 5, xp 4, 17% dos sorteios a partir do centro 3) e o
+índice 5 (ogre, hp 7, xp 4, 8%). Contra um herói desarmado de 10 hp
+causando 0,83 hp/turno, um único lobo é seis turnos de combate e 7,5 hp de
+dano — três quartos da vida do herói — e o andar 1 tem cinco criaturas.
+
+**M13 já tinha consertado isso por baixo; ninguém tinha consertado por
+cima.** Mesma lição que o M13 aprendeu no meio da construção, espelhada:
+clampar o índice CENTRO não limita o resultado, porque o spread alcança
+além dele. O clamp tem que ser no SLOT SORTEADO.
+
+**Regra nova, estrutural, sem flag, espelha o M13 ponto a ponto.**
+`TIER_CEILING_SHARE_BASE/PER_LEVEL/CAP` — mesmos valores do M13
+(0 / 0,08 / 0,5) — definem `tierCeilingShare(andar)`, uma FRAÇÃO do
+alcance máximo do spread (±2) permitida acima do índice-centro. No andar
+1 a fração é 0 (nenhuma folga: o teto vira parede rígida exatamente no
+centro). Cresce com a profundidade até no máximo metade do alcance (folga
+de 1 índice), nunca a folga inteira — sobra sempre alguma coisa para a
+posição no mapa continuar importando, mesmo no andar 10.
+
+**Consequência, medida — mesmos seeds antes (`tierCeilingShare` forçado
+a 1, reproduzindo o alcance antigo) e depois:**
+
+    andar 1     maior índice visto   3 -> 3   (era 5 sem o clamp — queda de 2, como pedido)
+    andar 1     xp médio             2,73 -> 2,58
+    andar 1     massa média (custo)  33,35 -> 26,92
+    andar 5     xp médio             3,27 -> 3,17
+    andar 5     massa média (custo)  75,57 -> 67,83
+    andar 10    xp médio             5,11 -> 5,05
+    andar 10    massa média (custo)  277,4 -> 276,7
+
+O andar 1 é onde a mudança pesa — xp médio "mal se move" como o item
+pedia, mas o custo (que soma a cauda pesada de lobo/ogre, não só a média)
+cai quase 20%. O andar 10 quase não muda, porque a folga de 1 índice ali
+já cobre quase todo o alcance natural. `spread within a floor` (métrica de
+`run-shape.html`) não foi remedido nesta sessão — acompanhar por lá.
+
+**Estado atual: construído e ligado, sem flag.** Ver `docs/backlog.md` M24.

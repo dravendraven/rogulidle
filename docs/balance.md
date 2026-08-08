@@ -730,6 +730,49 @@ Measured (self-tested): the tier floor first excludes rats (`minIndex`
 reaches 1) at floor 5, and lowest tier seen rises 1 → 1 → 2 → 3 → 3 across
 floors 1, 3, 5, 7, 10.
 
+## Tier ceiling (M24) — structural, on unconditionally
+
+| Name | Value | Status |
+|---|---|---|
+| `TIER_CEILING_SHARE_BASE` | 0 | **INITIAL GUESS** — zero on floor 1, no slack at all |
+| `TIER_CEILING_SHARE_PER_LEVEL` | 0.08 | **INITIAL GUESS** — same rate as `TIER_FLOOR_SHARE_PER_LEVEL` |
+| `TIER_CEILING_SHARE_CAP` | 0.5 | **INITIAL GUESS** — never more than half the spread's own ±2 reach |
+
+Mirrors M13 exactly, the other direction. `difficultyScale`'s ceiling
+index is a CENTRE, not a cap — `MONSTER_WEIGHTS`'s own ±2 spread (spec
+quirk 9.2) reaches past it freely, so floor 1 (centre index 3) could roll
+wolf (index 4, 17% of draws) or ogre (index 5, 8%) — against an unarmed
+10 hp hero, one wolf is three quarters of their health in a single
+creature, on a floor holding five. `docs/backlog.md` M24 found this while
+sizing M19's compensation and named it "the ceiling is a centre, not a
+cap": nobody had done for the top what M13 did for the bottom.
+
+Same lesson M13 learned mid-build, mirrored: the DRAWN SLOT is clamped,
+not the centre — clamping the centre alone does nothing, since the spread
+still reaches past it. `tierCeilingShare` is a SHARE of the spread's own
+maximum reach (±2), so `maxIndex = ceilingIndex + floor(tierCeilingShare
+× 2)` can never itself introduce a slot the spread could not already
+reach, and by construction never falls below `ceilingIndex`.
+
+Measured (n=60/floor, `tierCeilingShare` forced to 1 for "before" — the
+old, effectively unclamped behaviour, since the spread never reaches past
+±2 anyway):
+
+    floor 1    highest tier seen    5 -> 3   (a drop of two indices, as asked for)
+    floor 1    mean xp              2.73 -> 2.58
+    floor 1    mean threat mass     33.35 -> 26.92
+    floor 5    mean xp              3.27 -> 3.17
+    floor 5    mean threat mass     75.57 -> 67.83
+    floor 10   mean xp              5.11 -> 5.05
+    floor 10   mean threat mass     277.4 -> 276.7
+
+Floor 1 absorbs almost all of the change — mean xp barely moves, as
+predicted, but mean threat mass (which weighs the wolf/ogre tail, not
+just the average) drops nearly 20%. Floor 10 is almost untouched: its one
+index of allowed slack already covers nearly all of the natural ±2 reach
+at that depth. `spread within a floor` (the `run-shape.html` diagnostic)
+was not independently re-measured this session.
+
 ## A guardian at the shrine (M14) — structural, on unconditionally
 
 No new constant — nothing to tune, so nothing lives in `balance.js` for

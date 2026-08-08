@@ -264,6 +264,26 @@ export const TIER_FLOOR_SHARE_BASE = 0;
 export const TIER_FLOOR_SHARE_PER_LEVEL = 0.08;
 export const TIER_FLOOR_SHARE_CAP = 0.5;
 
+// ***** M24 — the ceiling is a centre, not a cap, docs/backlog.md M24 ***** //
+// `difficultyScale` sets a CENTRE index — `MONSTER_WEIGHTS`'s own ±2 spread
+// (spec quirk 9.2) then walks freely above it, so floor 1's centre index 3
+// still rolls wolf (index 4, 17% of draws) and ogre (index 5, 8%) — three
+// quarters of an unarmed 10 hp hero in one creature. M13 already fixed this
+// from below; nobody fixed it from above. Structural, no flag, mirrors M13
+// exactly, including its mid-build lesson: clamp the DRAWN SLOT, not the
+// centre — clamping the centre alone does nothing, because the spread still
+// reaches past it.
+//
+// GUESS — a SHARE of the spread's own maximum reach (±2, from
+// MONSTER_WEIGHTS) allowed above the ceiling index. Zero on floor 1 (no
+// slack at all — the ceiling is a hard cap there), rising toward at most
+// HALF that reach, so even at floor 10 the top tier is trimmed back by one
+// index rather than fully released. Same growth rate as M13's floor, for
+// the same reason: symmetric treatment of a symmetric problem.
+export const TIER_CEILING_SHARE_BASE = 0;
+export const TIER_CEILING_SHARE_PER_LEVEL = 0.08;
+export const TIER_CEILING_SHARE_CAP = 0.5;
+
 // ***** M15 — loot rooms have a guard, docs/backlog.md M15 ***** //
 // GUESS — "a short radius", per the item's own wording, swept 4/6/8/10/12
 // against measured guard coverage. 4 left floor 1 at 39% and floor 3 at

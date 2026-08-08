@@ -38,7 +38,7 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| 1 | M24 | Cap the tier from above too — floor 1 can roll wolves and ogres | READY · skipped once |
+| 1 | M24 | Cap the tier from above too — floor 1 can roll wolves and ogres | **REPORTED** |
 | 2 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M24 |
 | 3 | X1 | Delete what nothing references | READY · list refreshed |
 | 4 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
@@ -57,7 +57,7 @@ Closed work is in `docs/project/decisions.md`. Parked and unscheduled is in
 
 ## M24 · the ceiling is a centre, not a cap
 
-`work agent` · **READY** — before M19
+`work agent` · **REPORTED** — before M19
 
 Floor 1's mean creature reads `xp 2.7`, which looks fine. **The mean is not
 the problem — the tail is.**
@@ -107,6 +107,52 @@ against a wolf that should not have been there.
 by two indices. Mean xp per floor, which should barely move, since this cuts
 a tail and not a centre. Cost of floor 1. And `spread within a floor`, to
 see whether the side effect above is real.
+
+### Result
+
+**Mirrors M13 exactly, other direction — same constants, same fix, same
+mid-build lesson reused rather than relearned.** `TIER_CEILING_SHARE_BASE
+/ PER_LEVEL / CAP` (0 / 0.08 / 0.5, identical to M13's floor values) drive
+`tierCeilingShare(level)` in `difficulty.js`; `spawn.js` clamps the DRAWN
+SLOT (`slot = min(maxIndex, max(minIndex, rawSlot))`), not the centre
+index — clamping the centre alone would have done nothing, since
+`MONSTER_WEIGHTS`'s own ±2 spread still reaches past it either way. Also
+folded into `expectedFloorMass`'s closed form (`difficulty.js`) and its
+Monte Carlo cross-check test, the same way M13's own landing touched
+M11's closed form — both needed the ceiling clamp applied to stay in
+agreement, and the cross-check test caught the mismatch immediately when
+it wasn't.
+
+**Assert, measured — n=60/floor, `tierCeilingShare` forced to 1 for
+"before" (reproduces the old unclamped reach, since the spread never
+exceeds ±2 anyway):**
+
+    floor 1    highest tier seen    5 -> 3   (drop of two indices, as asked)
+    floor 1    mean xp              2.73 -> 2.58
+    floor 1    mean threat mass     33.35 -> 26.92
+    floor 5    mean xp              3.27 -> 3.17
+    floor 5    mean threat mass     75.57 -> 67.83
+    floor 10   mean xp              5.11 -> 5.05
+    floor 10   mean threat mass     277.4 -> 276.7
+
+Floor 1 takes almost the entire hit, as designed: mean xp barely moves,
+but mean threat mass — which weighs the wolf/ogre tail, not just the
+average — drops nearly 20%. Floor 10 is close to untouched, since its one
+index of allowed slack already covers nearly all of the natural ±2 reach
+that deep. **`spread within a floor` was not re-measured this session** —
+`run-shape.html` is where to check it; disclosed rather than assumed.
+
+**Skipped once, and the order mattered — the reason this landed second,
+not first.** M19 was built and reported against a floor 1 that could
+still roll wolf and ogre. This item does not touch M19's code; the next
+step is re-measuring M19's own numbers against the floor this item
+actually shipped, and updating M19's Result with what changed.
+
+**Files touched:** `src/sim/balance.js`, `src/sim/difficulty.js`,
+`src/sim/spawn.js`, `src/sim/dungeon.js` (forwarded `plan.tierCeilingShare`
+into `playDungeon`'s per-floor `counts`, same pattern M19 already fixed
+for `tierFloorShare`'s neighbours), `test/tests.js`, `docs/balance.md`,
+`docs/rogule-spec.md` (new §13.15).
 
 ## M21 · deep floors have something waiting where you land
 

@@ -152,6 +152,14 @@ export function populate(state, map, counts = {}) {
   // never allowed to fall below. Zero by default (unset callers, direct
   // populate() calls in older tooling) so this is a pure opt-in dial.
   const tierFloorShare = counts.tierFloorShare ?? 0;
+  // M24 — docs/backlog.md. Share of the spread's own max reach (±2, from
+  // MONSTER_WEIGHTS) the tier is allowed to climb above the ceiling. Zero
+  // by default, same reasoning as tierFloorShare above — and zero is also
+  // exactly floor 1's shipped value, so an unset caller behaves like the
+  // hardest-clamped floor rather than like "no clamp at all".
+  const tierCeilingShare = counts.tierCeilingShare ?? 0;
+  const maxIndex = Math.min(MONSTER_TABLE.length - 1,
+    ceilingIndex + Math.floor(tierCeilingShare * 2));
   // Needed as its own dial: piling on monsters also piles on their drops, so
   // crowding the floor arms the player as well as threatening them. Without
   // this the win rate bottoms out around 13% however many you add.
@@ -554,7 +562,11 @@ export function populate(state, map, counts = {}) {
     // enough, since `monsterWeightsAround`'s own -2 spread still reaches
     // down to slot 0 from a centre as high as 2.
     const minIndex = Math.floor(tierFloorShare * ceilingIndex);
-    const slot = Math.max(minIndex, rawSlot);
+    // M24 — docs/backlog.md. `difficultyScale` sets a CENTRE, not a cap —
+    // the spread above still reaches past it exactly the same way M13 found
+    // it reaches past a raised centre going down. Clamped on the DRAWN slot,
+    // same lesson, same fix, other direction.
+    const slot = Math.min(maxIndex, Math.max(minIndex, rawSlot));
     const template = MONSTER_TABLE[slot];
 
     // M10 — docs/backlog.md. A cluster big enough to hold the whole roster
