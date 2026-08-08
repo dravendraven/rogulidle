@@ -39,7 +39,7 @@ session, skip it.
 | # | id | what gets done | status |
 |---|---|---|---|
 | 1 | M24 | Cap the tier from above too — floor 1 can roll wolves and ogres | **REPORTED** |
-| — | B3 | Stop the zigzag — bot agent, parallel |
+| — | B3 | Stop the zigzag — bot agent, parallel | **IN FLIGHT** |
 | 2 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M24 |
 | 3 | X1 | Delete what nothing references | READY · list refreshed |
 | 4 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
@@ -157,7 +157,7 @@ for `tierFloorShare`'s neighbours), `test/tests.js`, `docs/balance.md`,
 
 ## B3 · stop the zigzag
 
-`bot agent` · **READY** — runs in parallel with the map work
+`bot agent` · **IN FLIGHT** — runs in parallel with the map work
 
 The bot walks back and forth between two tiles instead of committing. It is
 the ugliest thing on screen.
