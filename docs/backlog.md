@@ -1619,9 +1619,28 @@ crossing, see the M19-opt-out and floor-number commits). Fog of war does
 not apply — that rule binds what the bot may act on, not what the UI may
 render — so reading `state` directly here is not a boundary problem.
 
-**Do.** Per floor completed, compute and display the coin figure using the
-already-validated formula. Owner's call whether it accumulates a running
-total across the run or resets each floor; either is cheap.
+**Do — three concrete pieces, owner spec.**
+1. On floor completion, a brief eye-catching overlay showing the coin figure
+   earned that floor — a moment, not a modal.
+2. A fixed running counter on screen at all times, accumulating across the
+   whole run.
+3. On death, the counter resets to zero.
+
+**Must not block.** This project's whole spectator model is non-blocking —
+no daily gate, next run starts the moment the last one ends, and the
+hero-picker/Extraction proposals both hold "never pause waiting on the
+spectator" as a hard rule. The floor-completion overlay has to animate and
+clear on its own; it cannot wait for input or pause the sim.
+
+**Why resetting to zero on death is fine here and is not U3's rule.** U3's
+actual (parked) design has spent coin survive death — only the unbanked
+balance resets — specifically because a real shop needs runs to be worth
+attempting even at today's ~6-7% finish rate. **This counter has no
+shop and nothing persists between page loads**, so "reset to zero" here
+just means there is nowhere else for the number to live yet, not a design
+choice about currency rules. If U3 ever ships for real, this display's
+reset behaviour needs reconciling with whatever U3 settles on — flag that
+dependency then, not now.
 
 **Naming caution, not a blocker.** Label it as an efficiency read, not as
 game currency — U3 (if it ever ships) may spend coins differently than this
