@@ -40,7 +40,7 @@ session, skip it.
 |---|---|---|---|
 | 1 | M24 | Cap the tier from above too — floor 1 can roll wolves and ogres | **REPORTED** |
 | 1 | M25 | Gentler floor 1, smoother climb, floor 10 unmoved — owner request | **REPORTED** |
-| — | B3 | Stop the zigzag — bot agent, parallel | **IN FLIGHT** |
+| — | B3 | Stop the zigzag — bot agent, parallel | **REPORTED** · one line owed in balance.js |
 | 2 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M24 |
 | 3 | X1 | Delete what nothing references | READY · list refreshed |
 | 4 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
@@ -238,7 +238,8 @@ precedent.
 
 ## B3 · stop the zigzag
 
-`bot agent` · **IN FLIGHT** — runs in parallel with the map work
+`bot agent` · **REPORTED** — one layer fixed, one measured and blocked on
+`src/sim/balance.js`, one still open
 
 The bot walks back and forth between two tiles instead of committing. It is
 the ugliest thing on screen.
@@ -280,6 +281,105 @@ recent readings, and that drop was **not** the bot improving — runs got
 shorter, so there were fewer chances to pace. Take your before-reading
 yourself, in the same session as your after-reading, and do not compare
 against a number from the backlog.
+
+### Result
+
+**One of the three layers is fixed and shipped. The dominant one is
+measured, has a one-line answer, and is left undone because the line is in
+`src/sim/balance.js`** — the file this item forbids touching while the map
+session is in it. That recommendation is the main output of this item and
+is spelled out below.
+
+**The warning about run length was the important part, and it cuts both
+ways.** The pooled reversal rate is dominated by a handful of very long
+runs, and those runs are long *because* they pace — the worst run in the
+before-reading spent 67.5% of its actions reversing over 2532 actions,
+while the median run sat at 18.5%. A pooled mean over that mixture is
+mostly a length measurement. So `run-zigzag.html` (new, root, temporary —
+add it to X1) reports the per-run distribution instead: share of runs with
+at least one episode, share of turns spent inside episodes, the median
+run's own share, and actions per run alongside every one of them. An
+"episode" is B1's own definition, a maximal window of ≥4 strictly
+alternating actions, so the layer split stays comparable with §4.5.
+
+**Landed — goal switching, the smallest share, and it is gone.**
+`chooseGoal`'s loot branch now gets the same hysteresis the monster branch
+has always had, reusing `GOAL_STICKINESS` rather than inventing a number;
+`balance.js`'s own comment on that constant already flagged that loot was
+uncovered. Two chests of near-equal net value swapped places every turn
+because a step towards one changes the distance to both.
+
+    n=60, seeds 800000, before and after in the same session
+    pooled reversal rate      31.8%  ->  23.6%
+    turns inside episodes     30.3%  ->  21.4%
+    goal-layer episodes         151  ->  11
+    actions per run             528  ->  509     (not a length artefact)
+    finishes                    5.0% ->  6.7%
+
+**Tried and failed — route commitment, for the routing share.** The idea
+was to generalise `standoff` the way the item suggests: cache the route to
+a stationary goal and follow it, instead of rebuilding one every turn,
+while nothing is close enough for the veto to want a say. It made things
+worse — pooled 23.6% → 30.2%, turns inside episodes 21.4% → 28.8%,
+actions per run 509 → 589. The typical run did improve (median run's rate
+12.0% → 9.7%, runs affected 81.7% → 75.0%); the pathological ones got
+worse and longer, which is the same distribution trap this item warns
+about, seen from the other side. **Probable cause:** `believedWalkable`
+counts unseen tiles as walkable, so a committed route happily aims through
+what turns out to be rock; the bot then bumps a wall, which passes no turn,
+and re-plans — every bump is another action with another chance to
+reverse. A second variant that only committed over tiles already seen was
+no better (30.9%). Reverted, not kept behind a flag.
+
+**Measured, not landed — and this is the recommendation: set
+`REVERSAL_PENALTY` from 0 to 6.** It is the remedy the item lists as
+already tried and failed. It was not failing; it was being judged on the
+pooled mean, which is the number the item itself warns is a length
+measurement. Under the distribution it is the single biggest win available,
+and it costs nothing:
+
+    n=60, on top of the goal fix, same session
+                          seeds 800000        seeds 910000 (confirmation)
+                          0        6          0        6
+    pooled rate           23.6%    16.0%      27.2%    14.8%
+    turns in episodes     21.4%     9.2%      25.5%     7.5%
+    median run's share     9.0%     5.6%       5.5%     2.8%
+    runs with an episode  81.7%    68.3%      66.7%    58.3%
+    veto-layer episodes     135        0        150        0
+    mixed-layer episodes    164        0        213        1
+    actions per run         509      589        428      376
+    finishes               6.7%     6.7%       0.0%     0.0%
+    median depth              4        4          4        3
+
+**The two seed families move run length in opposite directions and agree
+anyway** — one gets 16% longer, the other 12% shorter, and turns-inside-
+episodes falls by more than half in both. Veto-layer episodes go to zero
+on both, which is a mechanism check rather than a rate. The cost the
+earlier sweep reported does not reproduce: finishes are identical on the
+primary family and zero on both sides of the confirmation family. The one
+wobble to hold against it is median depth 4 → 3 on the confirmation family,
+against 4 → 4 on the primary.
+
+**Raising `TACTICAL_OVERRIDE_MARGIN` is the trap, and it looks like a fix
+if you only read the ratios.** At 1.5 the median run's zigzag share falls
+to 7.0% and at 3 to 6.9% — while finishes collapse from 6.7% to 1.7% and
+median depth from 4 to 2, because actions per run drop 509 → 435 → 297.
+The bot stops pacing by dying sooner. Exactly the artefact behind the
+46%-then-19% reading. Leave it at 0.5.
+
+**What is left after all of that: routing, and it is now the whole
+residue.** With the penalty at 6 the layer split is veto 0, goal 13,
+mixed 0, routing 259. Route commitment was the obvious attack on it and it
+failed for a specific, understood reason. The next attempt should probably
+go at the wall-bump — a route aimed into the dark that turns out to be
+rock costs an action without costing a turn — rather than at the routing
+choice itself.
+
+**Files touched:** `src/bot/bot.js` (loot hysteresis only),
+`test/tests.js` (one test: two equidistant chests, six turns, no
+reversal and no change of mind), `run-zigzag.html` (new instrument),
+this item. **`src/sim/` untouched**, which is why the penalty
+recommendation is a recommendation.
 
 ## M21 · deep floors have something waiting where you land
 
