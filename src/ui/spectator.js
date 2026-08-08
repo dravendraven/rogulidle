@@ -12,7 +12,7 @@ import { hashSeeds, seedFromString } from '../sim/rng.js';
 import { difficultyToParams } from '../sim/difficulty.js';
 import { makeBot } from '../bot/bot.js';
 import { dangerField } from '../bot/threat.js';
-import { buildGrid, renderFrame, renderHud, renderLog, renderHistory, renderScore } from './render.js';
+import { buildGrid, renderFrame, renderHud, renderHistory, renderScore } from './render.js';
 import { tileSvg } from './tiles.js';
 import { award, readScore, resetScore } from './score.js';
 
@@ -43,9 +43,9 @@ const el = {};
 
 function grab() {
   for (const id of [
-    'grid', 'hp', 'dmg', 'xpEarned', 'xpRate', 'steps', 'kills', 'inventory',
-    'run', 'tally', 'log', 'summary', 'summaryTitle', 'summaryBody',
-    'playPause', 'speed', 'debug', 'goal', 'floor', 'history',
+    'grid', 'hp', 'xpEarned', 'xpRate', 'steps', 'kills', 'inventory',
+    'run', 'tally', 'summary', 'summaryTitle', 'summaryBody',
+    'playPause', 'speed', 'debug', 'floor', 'history',
     'score', 'resetScore',
   ]) {
     el[id] = document.getElementById(id);
@@ -86,13 +86,7 @@ async function playFrames(frames, trace, tallyText) {
     renderFrame(frame.state, frame.belief, debug);
     renderHud(el, frame.state, session);
     if (el.tally) el.tally.textContent = tallyText();
-    renderLog(el.log, frame.state);
 
-    if (el.goal) {
-      el.goal.textContent = session.debug && trace[i]
-        ? `${trace[i].goal.kind} → ${trace[i].planned}`
-        : '';
-    }
     await sleep(BASE_DELAY / session.speed);
   }
 }

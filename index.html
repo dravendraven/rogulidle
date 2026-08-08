@@ -11,6 +11,7 @@
 
   <header>
     <h1>Rogulidle</h1>
+    <div id="floor" class="floor-badge"></div>
     <div class="controls">
       <button id="playPause" type="button">⏸ pause</button>
       <button id="speed" type="button">1×</button>
@@ -31,8 +32,6 @@
       <div id="hp" class="hp"></div>
 
       <div class="chips">
-        <span id="floor"></span>
-        <span id="dmg"></span>
         <span id="xpEarned"></span>
         <span id="xpRate"></span>
         <span id="steps"></span>
@@ -44,35 +43,25 @@
         <div id="inventory" class="inventory"></div>
       </div>
 
-      <div class="field">
-        <label>aiming at</label>
-        <div id="goal" class="goal">—</div>
-      </div>
-
-      <div class="field grow">
-        <label>chronicle</label>
-        <div id="log" class="log"></div>
-      </div>
-
-      <div class="field">
-        <label>recent runs — how far the descent got</label>
-        <div id="history" class="history"></div>
-      </div>
-
-      <div class="field">
-        <label>lifetime score — xpEarned / (turns × 0.01), full clears only</label>
-        <div class="score-row">
-          <span id="score"></span>
-          <button id="resetScore" type="button">reset</button>
-        </div>
-      </div>
-
       <footer>
         <span id="run"></span>
         <span id="tally"></span>
       </footer>
     </aside>
   </main>
+
+  <div class="box">
+    <label>recent runs — how far the descent got</label>
+    <div id="history" class="history"></div>
+  </div>
+
+  <div class="box">
+    <label>lifetime score — xpEarned / (turns × 0.01), full clears only</label>
+    <div class="score-row">
+      <span id="score"></span>
+      <button id="resetScore" type="button">reset</button>
+    </div>
+  </div>
 
   <p class="note">
     Dimmed tiles are what the bot <em>remembers</em>, not what it can see —

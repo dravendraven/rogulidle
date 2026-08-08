@@ -170,12 +170,6 @@ export function renderHud(elements, state, session) {
 
   elements.hp.innerHTML = hearts(player.hp, player.hpMax, player.armour);
 
-  // Rogule calls the hero's damage roll "xp" — the same word it puts over a
-  // monster's head. That number still matters, but it is not what a run has
-  // achieved, so it gets its own label here rather than sharing "xp" with
-  // the total below and making both wrong to read.
-  elements.dmg.textContent = player.xp + ' dmg';
-
   // xpEarned carries across floors; state.turn resets to 0 at each one. The
   // rate is only meaningful over the whole run, so session.turnOffset (the
   // turn count banked from floors already finished) makes up the gap — 0
@@ -221,44 +215,4 @@ export function renderHistory(element, history) {
     chip.title = `run ${entry.run}`;
     element.append(chip);
   }
-}
-
-// Turns the engine's log into something readable, newest last.
-function describe(entry) {
-  switch (entry.type) {
-    case 'attack':
-      if (entry.killed) {
-        return entry.by === 'player'
-          ? `killed the ${entry.target}`
-          : `the ${entry.by} killed you`;
-      }
-      if (entry.damage === 0) {
-        return entry.by === 'player'
-          ? `missed the ${entry.target}`
-          : `the ${entry.by} missed`;
-      }
-      return entry.by === 'player'
-        ? `hit the ${entry.target} for ${entry.damage}`
-        : `the ${entry.by} hit you for ${entry.damage}`;
-    case 'open':
-      return entry.found
-        ? `opened the ${entry.chest} — found a ${entry.found}`
-        : `opened the ${entry.chest} — empty`;
-    case 'pickup': return `picked up the ${entry.item}`;
-    case 'heal': return `drank a potion, +${entry.amount} hp`;
-    case 'ascend': return 'reached the shrine';
-    default: return entry.type;
-  }
-}
-
-export function renderLog(element, state, limit = 9) {
-  const recent = state.log.slice(-limit);
-  element.innerHTML = '';
-  for (const entry of recent) {
-    const line = document.createElement('div');
-    line.className = 'line';
-    line.textContent = describe(entry);
-    element.append(line);
-  }
-  element.scrollTop = element.scrollHeight;
 }

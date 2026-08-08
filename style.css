@@ -45,6 +45,12 @@ h1 {
   color: var(--text);
 }
 
+.floor-badge {
+  font-weight: bold;
+  font-size: 1rem;
+  color: var(--dim);
+}
+
 .controls { display: flex; align-items: center; gap: .5rem; }
 
 button {
@@ -109,8 +115,6 @@ main {
 
 /* Debug overlay: where the bot is heading. */
 .cell.goal { box-shadow: inset 0 0 0 2px var(--accent); border-radius: 3px; }
-
-.goal { font-size: 12px; font-weight: normal; color: var(--dim); }
 
 .badge {
   position: absolute;
@@ -198,26 +202,12 @@ main {
   color: #8a7f6c;
   margin-bottom: .25rem;
 }
-.field.grow { flex: 1; display: flex; flex-direction: column; }
-
 .score-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 .score-row button { font-size: .65rem; padding: .15rem .4rem; border-bottom-width: 3px; }
 .score-row button:active { border-bottom-width: 1px; }
 
 .inventory { display: flex; flex-wrap: wrap; gap: 2px; }
 .inventory svg { width: 20px; height: 20px; }
-
-.log {
-  flex: 1;
-  min-height: 150px;
-  max-height: 240px;
-  overflow-y: auto;
-  font-size: 12px;
-  font-weight: normal;
-  color: var(--dim);
-}
-.log .line { padding: .1rem 0; border-bottom: 1px solid #E4DCC5; }
-.log .line:last-child { color: var(--text); font-weight: bold; }
 
 .history { display: flex; flex-wrap: wrap; gap: .3rem; }
 .history-chip {
@@ -243,6 +233,23 @@ footer {
   color: #8a7f6c;
   border-top: 1px solid var(--line);
   padding-top: .6rem;
+}
+
+.box {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: .9rem;
+  margin-top: 1rem;
+}
+.box label {
+  display: block;
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: #8a7f6c;
+  margin-bottom: .4rem;
 }
 
 .note {
