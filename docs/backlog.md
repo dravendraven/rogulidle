@@ -53,7 +53,7 @@ session, skip it.
 | 13 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
 | 14 | U5 | Show the coin formula live on a real run | **DONE** |
 | 15 | U6a | A coin balance that survives a page reload | **DONE** |
-| 16 | U6b | Pay coin into the balance at floor completion | IN FLIGHT |
+| 16 | U6b | Pay coin into the balance at floor completion | REPORTED |
 | 17 | U6c | Bank or clear the run coin at run end, per the death rule | READY |
 | 18 | U6d | The engine accepts a starting loadout | READY |
 | 19 | U6e | The shop screen | READY |
@@ -2298,7 +2298,7 @@ described from reading the code.
 
 ## U6b · pay coin into the balance at floor completion
 
-`ui agent` · **IN FLIGHT** · second of six
+`ui agent` · **REPORTED** · second of six
 
 Wires U5's already-validated formula (`coins = round(xpEarned-this-floor /
 turns-this-floor * 10)`) into U6a's balance instead of only displaying it.
@@ -2312,6 +2312,29 @@ happens per U6a's death/survive rule, at run end).
 
 **Assert.** Play a run, unbanked total matches U5's own displayed number
 floor by floor.
+
+### Result
+
+Not a second tracked value — `session.coins` (U5's display variable) is
+renamed to `session.unbankedCoins` in `src/ui/spectator.js`, and
+`coinsText()` reads the renamed field. U5 was already computing exactly
+what this item specifies (accumulate on floor completion, zero on
+anything short of one), so there was nothing functionally new to add;
+the item's real content was giving that value the name the rest of the
+arc uses to talk about it, so U6c reads a field called `unbankedCoins`
+rather than reaching into a field named for a display. No
+`src/ui/wallet.js` write — persisting it is explicitly U6c's job, at run
+end, per the death rule.
+
+**Verified past what a rename alone would prove.** Reconstructed a live
+run's exact seed independently (`hashSeeds(seedFromString('u6bcheck'), 5)`
+— the session seed plus the run number the live page's own tally
+showed), replayed it via `playDungeon`/`replayGame`, computed the same
+per-floor formula by hand, and compared against the live chip at a
+paused frame: floor 3/10, chip read "🪙 2"; independent recomputation
+gave `runningUnbanked = 2` after floor 2 — exact match, not the same
+code path agreeing with itself. `run-tests.html`: 121/121, untouched (no
+`src/sim/` file read or written).
 
 ## U6c · bank or clear the run's coin at run end, per the death rule
 
