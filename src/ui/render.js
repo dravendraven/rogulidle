@@ -199,8 +199,9 @@ export function renderScore(element, score) {
     return;
   }
   const plural = score.clears === 1 ? '' : 's';
-  element.textContent =
-    `${score.total.toFixed(2)} lifetime · ${score.clears} clear${plural} · last +${score.last.toFixed(2)}`;
+  const total = Number.isFinite(score.total) ? score.total.toFixed(2) : '—';
+  const last = Number.isFinite(score.last) ? score.last.toFixed(2) : '—';
+  element.textContent = `${total} lifetime · ${score.clears} clear${plural} · last +${last}`;
 }
 
 // Recent runs, newest first: how far each one got and how it ended.

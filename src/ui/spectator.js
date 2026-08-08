@@ -19,6 +19,7 @@ import { award, readScore, resetScore } from './score.js';
 const MAX_TURNS = 900;       // per floor
 const BASE_DELAY = 110;      // ms per turn at 1x
 const SUMMARY_MS = 2400;
+const COIN_POPUP_MS = 900;
 const HISTORY_LEN = 12;
 
 const session = {
@@ -34,6 +35,10 @@ const session = {
   // Turns banked from floors already finished this run — see renderHud's
   // xp-rate comment in render.js. 0 in legacy single-floor mode.
   turnOffset: 0,
+  // U5 — docs/backlog.md. An efficiency read, not a currency: no shop,
+  // nothing persists across page loads, wiped on anything short of a
+  // floor actually being cleared. Descent mode only.
+  coins: 0,
   paused: false,
   speed: 1,
   debug: false,
@@ -46,7 +51,7 @@ function grab() {
     'grid', 'hp', 'xpEarned', 'xpRate', 'steps', 'kills', 'inventory',
     'run', 'tally', 'summary', 'summaryTitle', 'summaryBody',
     'playPause', 'speed', 'debug', 'floor', 'history',
-    'score', 'resetScore',
+    'score', 'resetScore', 'coins', 'coinPopup',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -95,6 +100,28 @@ const legacyTallyText = () =>
   `${session.ascended}W · ${session.died}L · ${session.unfinished} timeout`;
 const descentTallyText = () =>
   `${session.cleared}/${session.runsPlayed} cleared`;
+
+function coinsText() {
+  return `🪙 ${session.coins}`;
+}
+
+// Non-blocking on purpose — this project's spectator model never pauses
+// for anything. A timed fade like showSummaryCard's, just shorter and
+// polled the same way, so pausing mid-popup doesn't quietly burn its
+// on-screen time while everything else is frozen too.
+async function showCoinPopup(coins) {
+  if (!el.coinPopup) return;
+  el.coinPopup.textContent = `+${coins} 🪙`;
+  el.coinPopup.classList.add('shown');
+  const until = COIN_POPUP_MS / session.speed;
+  let waited = 0;
+  while (waited < until) {
+    await waitWhilePaused();
+    await sleep(80);
+    waited += 80;
+  }
+  el.coinPopup.classList.remove('shown');
+}
 
 function tally(run) {
   if (run.outcome === 'ascended') session.ascended++;
@@ -171,7 +198,7 @@ async function runForever(sessionSeed) {
   }
 }
 
-function tallyDescent(run) {
+function tallyDescent(run, finalState) {
   session.runsPlayed++;
 
   const lastFloor = run.levels[run.levels.length - 1];
@@ -179,10 +206,11 @@ function tallyDescent(run) {
     session.cleared++;
     // Only a full clear pays — that gate is what keeps the rate formula
     // from being maximised by dying early after a fast start. Total turns
-    // and final xpEarned both come straight from playDungeon's own
-    // per-floor records, not from anything the renderer tracked.
+    // come from playDungeon's own per-floor records; final xpEarned comes
+    // from the replayed end-of-run state, not from run.levels — see the
+    // note on xpEarnedThisFloor below for why.
     const totalTurns = run.levels.reduce((sum, level) => sum + level.turns, 0);
-    const score = award(lastFloor.xpEarned, totalTurns);
+    const score = award(finalState.player.xpEarned, totalTurns);
     if (el.score) renderScore(el.score, score);
   }
 
@@ -223,6 +251,8 @@ async function runDescentForever(sessionSeed) {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     session.runNumber++;
+    session.coins = 0;
+    if (el.coins) el.coins.textContent = coinsText();
     const seed = hashSeeds(sessionSeed, session.runNumber);
 
     // playDungeon calls this once per floor; a bot carries plan state that
@@ -259,6 +289,7 @@ async function runDescentForever(sessionSeed) {
 
     let finalState = null;
     session.turnOffset = 0;
+    let xpEarnedBeforeFloor = 0;
     for (let i = 0; i < run.levels.length; i++) {
       const levelResult = run.levels[i];
       if (el.floor) el.floor.textContent = `floor ${levelResult.level} / ${LEVELS}`;
@@ -273,9 +304,38 @@ async function runDescentForever(sessionSeed) {
       await playFrames(frames, alignedTrace, descentTallyText);
       finalState = frames[frames.length - 1].state;
       session.turnOffset += levelResult.turns;
+
+      // U5 — docs/backlog.md. coins = round(xpEarned-this-floor /
+      // turns-this-floor * 10), on floor COMPLETION only: dying or timing
+      // out mid-floor is not a completion, and wipes the run's running
+      // total rather than banking a partial one.
+      //
+      // run.levels[i] (src/sim/dungeon.js) does not carry xpEarned — only
+      // carryFrom() does, and only for the NEXT floor's starting state.
+      // Found this the hard way: U4 shipped reading it off run.levels too,
+      // which was silently NaN-ing the lifetime score on every real clear
+      // (never caught because U4's own verification only ever called
+      // award() directly with synthetic numbers, never traced a real
+      // playDungeon() result through tallyDescent — see U4's backlog
+      // addendum). finalState IS the live engine state from this floor's
+      // own replay, already computed above, and it does have xpEarned.
+      const xpEarnedThisFloor = finalState.player.xpEarned - xpEarnedBeforeFloor;
+      xpEarnedBeforeFloor = finalState.player.xpEarned;
+      const coinsThisFloor = levelResult.turns > 0
+        ? Math.round((xpEarnedThisFloor / levelResult.turns) * 10)
+        : 0;
+
+      if (levelResult.outcome === 'ascended') {
+        session.coins += coinsThisFloor;
+        if (el.coins) el.coins.textContent = coinsText();
+        await showCoinPopup(coinsThisFloor);
+      } else {
+        session.coins = 0;
+        if (el.coins) el.coins.textContent = coinsText();
+      }
     }
 
-    tallyDescent(run);
+    tallyDescent(run, finalState);
     await showDescentSummary(run, finalState);
   }
 }
