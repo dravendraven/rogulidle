@@ -99,6 +99,8 @@ async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
   const byLayer = { veto: 0, routing: 0, goal: 0, mixed: 0 };
   const turnsByLayer = { veto: 0, routing: 0, goal: 0, mixed: 0 };
   let cleared = 0;
+  let chestsOpened = 0;
+  let floorsPlayed = 0;
 
   for (let i = 0; i < runs; i++) {
     let carry = null;
@@ -143,11 +145,15 @@ async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
         lastAcrossFloors = action;
         actions++;
 
+        const beforeLog = state.log.length;
         const result = step(state, action);
         state = result.state;
         observation = result.observation;
         belief = foldBelief(belief, observation);
         decisions++;
+        // B4 measures whether a valued frontier turns the bot into a
+        // wanderer, so what it actually collects has to be counted too.
+        for (const e of state.log.slice(beforeLog)) if (e.type === 'open') chestsOpened++;
       }
 
       for (const ep of episodesIn(records)) {
@@ -159,6 +165,7 @@ async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
       }
 
       depth = level;
+      floorsPlayed++;
       if (state.outcome !== 'ascended') break;
       carry = carryFromPlayer(state.player);
       if (level === LEVELS) cleared++;
@@ -190,6 +197,8 @@ async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
     runsWithEpisode: withEpisode / runs,
     episodeTurnShare: totalActions ? totalEpisodeTurns / totalActions : null,
     medianRunZigShare: median(perRun.map((r) => r.zigShare)),
+    chestsPerFloor: floorsPlayed ? chestsOpened / floorsPlayed : null,
+    floorsPlayed,
     totalEpisodes, totalActions,
     byLayer, turnsByLayer,
     perRunRates: perRun.map((r) => +r.rate.toFixed(3)),
@@ -219,6 +228,7 @@ function render(r) {
     `  actions per run          ${r.meanActions.toFixed(0)}`,
     `  median depth             ${r.medianDepth}`,
     `  finishes                 ${pct(r.finishRate)}`,
+    `  chests opened per floor  ${r.chestsPerFloor === null ? '—' : r.chestsPerFloor.toFixed(2)}`,
     ``,
     `WHICH LAYER`,
     layerLine('veto'), layerLine('routing'), layerLine('goal'), layerLine('mixed'),

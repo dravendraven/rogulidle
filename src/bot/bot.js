@@ -8,9 +8,10 @@
 //   increment 4  refuse to be cornered by two monsters at once
 
 import {
-  CROWD_PENALTY, DANGER_FALLOFF, DUEL_SAFETY_MARGIN, GOAL_STICKINESS,
-  HOLD_RANGE, LOOT_CAMPAIGN_HORIZON, MONSTER_COUNT, REVERSAL_PENALTY,
-  STEP_COST_IN_HP, TACTICAL_OVERRIDE_MARGIN, TACTICAL_RANGE,
+  CHEST_COUNT, CROWD_PENALTY, DANGER_FALLOFF, DUEL_SAFETY_MARGIN,
+  GOAL_STICKINESS, HOLD_RANGE, LOOT_CAMPAIGN_HORIZON, MAP_SIZE, MONSTER_COUNT,
+  REVERSAL_PENALTY, STEP_COST_IN_HP, TACTICAL_OVERRIDE_MARGIN, TACTICAL_RANGE,
+  VISIBLE_DIST,
 } from '../sim/balance.js';
 import { MONSTERS_BASE, MONSTER_GROWTH } from '../sim/difficulty.js';
 import { scoreActions } from './tactics.js';
@@ -118,8 +119,73 @@ function cheapestOf(field, candidates) {
   return best;
 }
 
-function frontierGoals(belief) {
-  return frontiers(belief).map((pos) => ({ kind: 'frontier', pos }));
+// How much dark standing on a tile would light up: unseen tiles inside the
+// sight radius. Visibility is by plain distance with no raycasting (spec
+// §12.1), so this is exactly what the hero would reveal by going there —
+// not an approximation of it.
+function wouldReveal(belief, pos) {
+  let dark = 0;
+  for (let dy = -VISIBLE_DIST; dy <= VISIBLE_DIST; dy++) {
+    for (let dx = -VISIBLE_DIST; dx <= VISIBLE_DIST; dx++) {
+      if (dx * dx + dy * dy > VISIBLE_DIST * VISIBLE_DIST) continue;
+      const x = pos[0] + dx;
+      const y = pos[1] + dy;
+      if (x < 0 || y < 0 || x >= MAP_SIZE || y >= MAP_SIZE) continue;
+      if (!belief.tiles.has(x + ',' + y)) dark++;
+    }
+  }
+  return dark;
+}
+
+// What the dark is worth, in hp, and therefore what a frontier is worth.
+//
+// B4 (docs/backlog.md). Unexplored map used to be worth exactly zero: a
+// frontier was `{kind, pos}` with no value, exploration was a FALLBACK
+// branch of chooseGoal rather than a competitor, and when the bot did
+// explore it took the CHEAPEST frontier rather than the most promising.
+// That fights the map design head on — `CHEST_LOOT_RICHER_FAR` and
+// `CHEST_QUALITY_BY_DEPTH` deliberately put the good loot far from the
+// spawn, and the bot was searching by proximity at zero value.
+//
+// The model, and it needs no new constant:
+//
+//   unseen chests   = the count the bot is told, minus the ones it has met
+//   value of one    = expectedChestValue, the same figure chest goals use
+//   spread evenly   = over every unseen TILE, since the bot has no reason
+//                     to believe one dark tile is likelier than another
+//   a frontier      = that rate times the dark it would personally reveal
+//
+// So a frontier facing a wide unlit region outscores one facing a one-tile
+// gap, and every frontier's value decays to zero as the map comes up or as
+// the chests are found — at which point `net` is just minus the walk and
+// this degrades exactly into the old cheapest-first behaviour.
+function frontierGoals(belief, field, chestValue, unseenChests) {
+  const unseenTiles = MAP_SIZE * MAP_SIZE - belief.tiles.size;
+  const perTile = unseenTiles > 0 ? (unseenChests * chestValue) / unseenTiles : 0;
+
+  const out = [];
+  for (const pos of frontiers(belief)) {
+    const approach = priceOfReaching(field, pos);
+    if (!Number.isFinite(approach)) continue;
+    const gross = perTile > 0 ? wouldReveal(belief, pos) * perTile : 0;
+    out.push({
+      kind: 'frontier', pos, gross, distance: approach, net: gross - approach,
+    });
+  }
+  return out;
+}
+
+// The frontier worth most after paying for the walk. Falls back to the
+// nearest one when there is nothing left to find, because then every gross
+// is zero and `net` is just minus the approach.
+function bestFrontier(belief, field, options) {
+  const goals = frontierGoals(
+    belief, field,
+    options.exploreValue ? options.chestValue : 0,
+    options.unseenChests,
+  );
+  if (!goals.length) return null;
+  return goals.reduce((a, b) => (b.net > a.net ? b : a));
 }
 
 // Where to receive the attack.
@@ -254,17 +320,21 @@ function lootGoals(belief, field, danger, total, stepCost, future = 0, guards = 
 // (there is no clock, spec §8) and a monster that follows the bot never
 // closes the gap — it moves after the player does, so retreating holds
 // the distance. Delay is genuinely cheap; only dead ends are not.
-function preparationGoals(belief, field, danger, total, stepCost, future = 0, guards = true,
-  crowd = true) {
-  const useful = lootGoals(belief, field, danger, total, stepCost, future, guards, crowd)
-    .filter((g) => g.gross > 0);
+function preparationGoals(belief, field, danger, options) {
+  const useful = lootGoals(
+    belief, field, danger, options.monsterCount, options.stepCost,
+    options.monstersAhead, options.guardPricing, options.crowdCost,
+  ).filter((g) => g.gross > 0);
   if (useful.length) {
     return useful.reduce((a, b) => {
       if (b.gross !== a.gross) return b.gross > a.gross ? b : a;
       return b.distance < a.distance ? b : a;
     });
   }
-  return cheapestOf(field, frontierGoals(belief));
+  // B4: the most promising dark, not the nearest. Facing a lost fight is
+  // exactly when "what might be over there" is worth the most, and picking
+  // by proximity here was the bot searching where it had already been.
+  return bestFrontier(belief, field, options);
 }
 
 function chooseGoal(belief, field, danger, current, options) {
@@ -274,10 +344,21 @@ function chooseGoal(belief, field, danger, current, options) {
   //    and now the walk is priced in danger too, so a shield guarded by a
   //    wolf is correctly no longer free.
   if (options.loot) {
-    const worthwhile = lootGoals(
+    const loot = lootGoals(
       belief, field, danger, options.monsterCount, options.stepCost,
       options.monstersAhead, options.guardPricing, options.crowdCost,
-    ).filter((g) => g.net > 0);
+    );
+
+    // B4: the dark competes here, in the same net-value comparison, instead
+    // of being the fallback it used to be at branch 3. `expectedChestValue`
+    // is already the figure chest goals are scored with, so "go and look"
+    // and "go and open that" are quoted in one currency and the bot can
+    // finally prefer a promising dark room to a chestnut it can see.
+    const explore = options.exploreCompetes
+      ? frontierGoals(belief, field, options.chestValue, options.unseenChests)
+      : [];
+
+    const worthwhile = [...loot, ...explore].filter((g) => g.net > 0);
     if (worthwhile.length) {
       const best = worthwhile.reduce((a, b) => (b.net > a.net ? b : a));
 
@@ -318,10 +399,7 @@ function chooseGoal(belief, field, danger, current, options) {
     // were started knowing the sum did not add up, and 63% of deaths came
     // from exactly that.
     if (options.refuseLostFights && !best.worthStarting) {
-      const prepare = preparationGoals(
-        belief, field, danger, options.monsterCount, options.stepCost,
-        options.monstersAhead, options.guardPricing, options.crowdCost,
-      );
+      const prepare = preparationGoals(belief, field, danger, options);
       if (prepare) return prepare;
       // Nothing left to prepare with. Take it — the bot is not allowed to
       // give up, and dying trying is an accepted outcome (§0).
@@ -337,16 +415,18 @@ function chooseGoal(belief, field, danger, current, options) {
   }
 
   // 3. Nothing known to fight and the floor is not clear — the rest are out
-  //    there in the dark. Go and look.
+  //    there in the dark. Go and look. Still a fallback, but it now looks
+  //    in the most promising direction rather than the nearest one, and
+  //    branch 1 above may have taken this decision already.
   if (!clearedTheFloor(belief, options.monsterCount, options.requireClear)) {
-    return cheapestOf(field, frontierGoals(belief));
+    return bestFrontier(belief, field, options);
   }
 
   // 4. Floor clear: leave, if the way out has been found.
   if (belief.shrine) return { kind: 'shrine', pos: belief.shrine.pos };
 
   // 5. Cleared but the shrine was never seen — keep looking for it.
-  return cheapestOf(field, frontierGoals(belief));
+  return bestFrontier(belief, field, options);
 }
 
 // A goal survives between turns so the bot commits instead of dithering,
@@ -386,6 +466,36 @@ export function makeBot(options = {}) {
     // generation setting rather than be read from balance.js, or sweeping
     // the map density would silently break the stop condition.
     monsterCount: MONSTER_COUNT,
+
+    // How many chests the floor holds, told to the bot on the same terms
+    // and for the same reason as monsterCount above: B4 prices the dark by
+    // how many chests are still unaccounted for, so sweeping chest density
+    // without this would silently value the dark against the wrong total.
+    chestCount: CHEST_COUNT,
+
+    // B4, split in two so the two halves of the idea could be measured
+    // apart. **Both OFF: measurement refused both**, the same way it
+    // refused `chokepoint` and `exposurePricing` below. Kept rather than
+    // deleted, on the house rule that a rejected idea is worth more with
+    // its numbers attached — see B4's Result in docs/backlog.md before
+    // switching either on.
+    //
+    // `exploreValue`  rank frontiers by what they would REVEAL rather than
+    //                 by how near they are. Changed nothing measurable:
+    //                 chests per floor and floors played were identical to
+    //                 three figures, because the top-level frontier
+    //                 stickiness means the bot rarely re-picks a frontier
+    //                 at all, so WHICH one it would prefer almost never
+    //                 gets asked.
+    // `exploreCompetes`  let a frontier bid against chests and items in
+    //                 chooseGoal's branch 1 instead of staying the fallback
+    //                 at branch 3. Actively harmful — median depth 3 -> 2,
+    //                 chests per floor 4.48 -> 3.85, zigzag turns
+    //                 13.8% -> 21.1%. A non-expiring reward should not be
+    //                 biddable: the dark does not go anywhere, so anything
+    //                 the bot can have NOW is worth having first.
+    exploreValue: false,
+    exploreCompetes: false,
 
     // Every tunable the bot reads, defaulting to the shipped value. They
     // live here rather than being imported at the point of use so that P4
@@ -447,6 +557,13 @@ export function makeBot(options = {}) {
   let standoff = null;
   let lastAction = null;
 
+  // Chests the bot has laid eyes on this floor. `belief.chests` cannot
+  // answer this on its own: an opened chest is REMOVED from the belief, so
+  // counting it would make every chest the bot opens look unfound again and
+  // the dark would never lose value. One bot is built per floor, so this
+  // set has exactly the lifetime it should.
+  const chestsEverSeen = new Set();
+
   return function decide(belief) {
     // Forget the chosen ground as soon as nothing is hunting: it is only
     // meaningful while someone is coming.
@@ -472,6 +589,21 @@ export function makeBot(options = {}) {
 
     const field = dijkstra(belief.player.pos, passable,
       (x, y) => settings.stepCost + danger.priceAt(x, y));
+
+    // B4: what the dark is worth this turn. Both figures move as the floor
+    // is played — a chest found is a chest the dark no longer holds, and
+    // gear picked up changes what the next chest is worth — so they are
+    // recomputed rather than fixed at construction like `monstersAhead`.
+    // Skipped entirely when both flags are off, so the rejected idea costs
+    // nothing to keep: `valueByItemName` prices every item type against the
+    // whole remaining roster and is not free to call once per turn.
+    if (settings.exploreValue || settings.exploreCompetes) {
+      for (const id of belief.chests.keys()) chestsEverSeen.add(id);
+      settings.unseenChests = Math.max(0, settings.chestCount - chestsEverSeen.size);
+      settings.chestValue = expectedChestValue(valueByItemName(
+        belief, settings.monsterCount, settings.monstersAhead, settings.crowdCost,
+      ));
+    }
 
     // Everything except exploration is re-priced every turn, because a kill
     // or a new shield reorders the whole board. Frontier goals stay sticky:

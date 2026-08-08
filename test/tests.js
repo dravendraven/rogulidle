@@ -1852,6 +1852,37 @@ test('two equidistant chests do not make the bot pace between them', () => {
     `the bot changed its mind on the way: ${actions.join(',')}`);
 });
 
+// ***** B4: the dark is a fallback, not a bidder ***** //
+//
+// docs/backlog.md B4 measured `exploreCompetes` as actively harmful —
+// median depth 3 -> 2, chests per floor 4.48 -> 3.85 — and shipped both of
+// its flags OFF. This asserts the SHIPPED behaviour rather than the
+// rejected one: a chest the bot can already see beats unexplored map, so a
+// reward that is available now is taken before one that is merely possible.
+// If someone switches the flags on, this is the test that should stop them
+// doing it silently.
+test('a chest in hand beats the dark', () => {
+  // Hero in a corridor, a chest four tiles right, and the entire left half
+  // of the map never seen — so the frontier behind it is as wide and as
+  // tempting as this fixture can make it.
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [10, 1],
+    chests: [
+      { id: 'c-right', name: 'chest', emoji: '📦', pos: [14, 1], side: false, edge: false, drop: null },
+    ],
+  });
+
+  const { actions } = driveBot(state, 4);
+  assert(actions.every((a) => a === 'right'),
+    `the bot went exploring instead of opening the chest: ${actions.join(',')}`);
+});
+
 // ***** run it ***** //
 
 export function runAll() {
