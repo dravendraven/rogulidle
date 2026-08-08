@@ -4,7 +4,7 @@ import { generateMap } from './mapgen.js';
 import { MAP_SIZE } from './balance.js';
 import { hashSeeds, seedFromString } from './rng.js';
 import { nextId, populate } from './spawn.js';
-import { step } from './step.js';
+import { grantArmour, step } from './step.js';
 import { emptyBelief, foldBelief, observe } from './observe.js';
 
 // Three independent streams, so that (say) adding one map roll never shifts
@@ -66,11 +66,23 @@ export function newGame(seed, counts = {}) {
   // Own id, from the same namespace `populate()` just drew from — an item
   // that walked in with the hero is not less real than one found on the
   // floor, and needs an id something in dungeon.js/render.js could key on
-  // later. `weaponDamage`/`armourValue` (combat.js) only ever read
-  // `.dmg`/`.armour` off inventory entries, so no other field is required
-  // for combat math to already work with this — confirmed, not assumed.
+  // later.
+  //
+  // REVIEW FOUND (docs/backlog.md U6d): owning an armour item is not the
+  // same as it doing anything — `player.armour` is the bar `effectiveHp`
+  // actually reads, and only `grantArmour` (step.js, the same rule the
+  // real pickup path runs) ever credits it. The first version of this
+  // block set inventory and stopped, so a starting shield granted zero
+  // defence — caught by review, not by the item's own test, which checked
+  // `armourValue`, a function with no production callers. Fixed by
+  // running every starting item through the one shared rule instead of a
+  // second copy of it.
   if (counts.startingItems) {
-    state.player.inventory = counts.startingItems.map((item) => ({ ...item, id: nextId(state) }));
+    state.player.inventory = counts.startingItems.map((item) => {
+      const owned = { ...item, id: nextId(state) };
+      grantArmour(state.player, owned);
+      return owned;
+    });
   }
 
   // Carrying a player in from the floor above. The position always comes

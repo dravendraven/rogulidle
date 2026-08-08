@@ -7,9 +7,9 @@ import {
   PLAYER_HP, SHRINE_DISTANCE_SHARE, WEAPON_AXE_MIN_TIER,
 } from '../src/sim/balance.js';
 import { newGame, playGame, replayGame } from '../src/sim/game.js';
-import { step, ACTIONS } from '../src/sim/step.js';
+import { step, ACTIONS, grantArmour } from '../src/sim/step.js';
 import { observe, emptyBelief, foldBelief } from '../src/sim/observe.js';
-import { weaponDamage, armourValue } from '../src/sim/combat.js';
+import { weaponDamage, armourValue, effectiveHp } from '../src/sim/combat.js';
 import { findPath, playerPassable, posKey } from '../src/sim/mapgen.js';
 import { drawLogUniform, drawWeighted, makeRng } from '../src/sim/rng.js';
 import { classifyRooms, spineShare } from '../src/sim/spine.js';
@@ -197,10 +197,38 @@ test('a hero started with startingItems carries it from turn 1', () => {
   assertEq(state.player.inventory[0].name, 'dagger', 'the wrong item arrived');
   assert(state.player.inventory[0].id, 'the starting item has no id');
 
-  // weaponDamage/armourValue only ever read .dmg/.armour off inventory
-  // entries (combat.js) — this confirms that already works, rather than
-  // building new logic for it, per the item's own wording.
+  // weaponDamage (combat.js) is genuinely live — resolveAttack calls it —
+  // so this confirms real behaviour, not just that a pure function runs.
   assertEq(weaponDamage(state.player), dagger.dmg, 'weaponDamage did not read the starting item');
+});
+
+test('a starting shield actually grants armour, not just inventory', () => {
+  // Review found this: the first version of the block above set
+  // `player.inventory` and stopped, so a starting shield was OWNED but
+  // did nothing — `player.armour` is the bar `effectiveHp` reads, and
+  // only `grantArmour` (step.js, the same rule the real pickup path
+  // runs) ever credits it. Asserted against `player.armour` and
+  // `effectiveHp` specifically, per the review — NOT `armourValue`,
+  // which is what the original (passing, and wrong) version of this
+  // item's coverage leaned on, and which has zero production callers.
+  const shield = ITEM_TABLE.find((i) => i.name === 'shield');
+  const state = newGame(4242, { startingItems: [shield] });
+  assertEq(state.player.armour, shield.armour, 'the starting shield did not credit the armour bar');
+  assertEq(effectiveHp(state.player), state.player.hp + shield.armour,
+    'effectiveHp does not reflect the starting shield');
+});
+
+test('the starting-item armour grant is the same rule the real pickup path uses', () => {
+  // Not just "both give the right number" — the SAME function, so a
+  // future change to what an armour item means cannot update one path
+  // and silently leave the other stale, which is exactly how this bug
+  // happened the first time.
+  const shield = ITEM_TABLE.find((i) => i.name === 'shield');
+  const state = newGame(4242, { startingItems: [shield] });
+  const player = { armour: 0 };
+  grantArmour(player, shield);
+  assertEq(state.player.armour, player.armour,
+    'startingItems and grantArmour disagree on what a shield is worth');
 });
 
 test('startingItems does not multiply if the hero already carries something', () => {

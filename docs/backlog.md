@@ -64,8 +64,8 @@ session, skip it.
 | 17 | U6a | A coin balance that survives a page reload | **DONE** |
 | 18 | U6b | Pay coin into the balance at floor completion | **DONE** |
 | 19 | U6c | Bank or clear the run coin at run end, per the death rule | **DONE** |
-| 20 | U6d | The engine accepts a starting loadout | **NEEDS FIX** · starting shield grants no armour |
-| 21 | U6e | The shop screen | BLOCKED on U6d's fix |
+| 20 | U6d | The engine accepts a starting loadout | **REPORTED** · shield gap fixed, unblocks U6e |
+| 21 | U6e | The shop screen | READY — U6d's fix landed |
 | 22 | U6f | Watch a full loop, integration check | READY |
 | 23 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
@@ -2886,10 +2886,46 @@ copies of "what picking up an item means" is exactly how they drift apart.
 `effectiveHp`, not `armourValue` — and consider whether `armourValue`
 should exist at all given nothing calls it.
 
+### Fix
+
+**One rule, shared, not two.** `grantArmour(player, item)` (`step.js`,
+exported) is the single line the bug was missing —
+`if (item.armour) player.armour += item.armour`, spec §13.2 — pulled out
+of the real pickup path (which now calls it instead of inlining it) and
+called from `game.js`'s `startingItems` block too. Same function, both
+call sites, checked against each other directly (see the test below), not
+just checked to give the same number by coincidence.
+
+**Asserted the way the review asked, not the way the item originally
+did.** Two new tests: a starting shield's `player.armour` and
+`effectiveHp` land where a shield should put them, and a second test
+that `startingItems`'s own armour value and a direct `grantArmour` call
+on the same item agree — so a future change to what an item is worth
+cannot update one call site and leave the other stale without a test
+catching it. The misleading line in the original test comment
+(implying `armourValue` had confirmed anything) is removed rather than
+left to mislead the next reader too.
+
+**`armourValue` — left in place, not deleted.** Zero production callers,
+confirmed by the review, but deleting it is a separate decision from
+fixing the bug it distracted from, and `X1` (delete-what-nothing-uses)
+already exists as the item that owns dead-code removal. Flagged here so
+X1 picks it up rather than rediscovering it: `combat.js`'s `armourValue`,
+plus whatever of its own two tests turn out to test nothing else once it
+is gone.
+
+**130 tests green** (128 before, 2 added). Live-verified before writing
+either test: `newGame(seed, { startingItems: [shield] })` now reads
+`armour: 3`, `effectiveHp: 13` (was 0 / 10) — the exact gap the review
+traced end to end, closed.
+
+**Files touched:** `src/sim/step.js` (`grantArmour`, exported; the real
+pickup path now calls it instead of inlining the rule), `src/sim/game.js`
+(`startingItems` now calls it too), `test/tests.js`.
+
 ## U6e · the shop screen
 
-`ui agent` · **BLOCKED on U6d's fix** (a starting shield currently grants no
-armour — see U6d's review) · fifth of six
+`ui agent` · **READY** — U6d's shield gap is fixed, see its Fix section · fifth of six
 
 Three purchase options at run end, priced per the table already fixed
 (shield 1, dagger 5, axe 8 — `docs/project/candidates.md`'s old U6 has the

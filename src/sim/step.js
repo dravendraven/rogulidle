@@ -19,6 +19,18 @@ const DIRECTIONS = {
   right: [1, 0],
 };
 
+// U6d's review — docs/backlog.md. A shield refills the armour bar (spec
+// §13.2); max hp never moves. Owning the item is not enough — `player.
+// armour` is what `effectiveHp` (combat.js) actually adds up, and only
+// this rule ever credits it. Exported so `game.js`'s `startingItems`
+// (U6d) shares the same rule the real pickup path below uses, rather than
+// keeping a second copy of "what an armour item means" that can drift
+// from this one — the gap the review found was exactly that: a starting
+// shield wrote inventory and stopped, never reaching this line at all.
+export function grantArmour(player, item) {
+  if (item.armour) player.armour += item.armour;
+}
+
 function cloneState(state) {
   const copyItem = (item) => (item ? { ...item, pos: item.pos.slice() } : null);
   return {
@@ -99,10 +111,7 @@ function resolveEncounters(state, pos) {
     } else {
       state.player.inventory.push(item);
       state.items.splice(state.items.indexOf(item), 1);
-
-      // A shield refills the armour bar (spec §13.2). Max hp never moves.
-      if (item.armour) state.player.armour += item.armour;
-
+      grantArmour(state.player, item);
       state.log.push({ type: 'pickup', item: item.name, turn: state.turn });
     }
   }
