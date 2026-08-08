@@ -38,13 +38,13 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| — | B3 | Stop the zigzag — bot agent, parallel | **REPORTED** · one line owed in balance.js |
-| 1 | M26 | Weapons drop from creatures, scaled to strength; chests hold sustain | READY |
-| 2 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
-| 3 | D1 | The crowd-correction fit is overdue for its own redo | READY |
-| 4 | X1 | Delete what nothing references | READY · list refreshed |
-| 5 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 6 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 1 | B8 | Set REVERSAL_PENALTY to 6 — one line, measured by B3 | READY |
+| 2 | M26 | Weapons drop from creatures, scaled to strength; chests hold sustain | READY |
+| 3 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
+| 4 | D1 | The crowd-correction fit is overdue for its own redo | READY |
+| 5 | X1 | Delete what nothing references | READY · list refreshed |
+| 6 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
+| 7 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -437,6 +437,95 @@ reversal and no change of mind), `run-zigzag.html` (new instrument),
 this item. **`src/sim/` untouched**, which is why the penalty
 recommendation is a recommendation.
 
+
+### Review — ADOPTED, and the recommendation is accepted
+
+**The distribution warning was the item's whole point and B3 took it
+further than it was written.** The pooled rate is mostly a length
+measurement — the worst run reversed 67.5% of 2532 actions while the median
+run sat at 18.5%. `run-zigzag.html` reporting the per-run distribution
+*alongside actions per run* is the right instrument and the reason the rest
+of this item is trustworthy.
+
+**Landed:** loot hysteresis, reusing `GOAL_STICKINESS` rather than inventing
+a number — and `balance.js`'s own comment had already flagged loot as
+uncovered, so the constant was waiting for it. Goal-layer episodes 151 → 11,
+with actions per run *falling* slightly, so it is not a length artefact.
+
+**The failed attempt is worth as much as the fix.** Route commitment made
+the typical run better and the pathological runs worse — the same
+distribution trap, from the other side. And the cause is specific rather
+than a shrug: `believedWalkable` treats unseen tiles as walkable, so a
+committed route aims into rock, the bump passes no turn, and every re-plan
+is another chance to reverse. Reverted rather than left behind a flag, which
+is right.
+
+**`REVERSAL_PENALTY` 0 → 6 is accepted.** It was never failing; it was being
+judged on the pooled mean, which the item itself warns is a length
+measurement. Two seed families that **move run length in opposite
+directions** — one 16% longer, one 12% shorter — agree anyway, turns inside
+episodes falls by more than half on both, and veto-layer episodes go to zero
+on both, which is a mechanism check and not a rate. Median depth 4 → 3 on
+the confirmation family is the one thing held against it; watched, not
+blocking, since finishes are unchanged on both.
+
+**Not touching `src/sim/` while the map session was in it was correct**, and
+handing over a measured one-line recommendation is exactly what the boundary
+is for. Filed as B8 so it does not live only in a report.
+
+### The third instance of the same error, found by a third agent
+
+**Raising `TACTICAL_OVERRIDE_MARGIN` looks like a fix and is the bot dying
+sooner.** Zigzag share falls to 6.9% while finishes collapse 6.7% → 1.7%
+and actions per run 509 → 297. The ratio improves because the denominator
+is destroyed.
+
+That is the same error as I7's share-of-turns, and as the one M3 found one
+level further in this same session. **Three instances, three different
+agents, none of whom had seen the others' version.** It is now written in
+`docs/project/decisions.md` as a class rather than three anecdotes.
+
+
+## D1 · the crowd-correction fit is overdue for the redo it asked for
+
+`work agent` · READY
+
+The crowd-correction fit carries its own escape clause in `docs/balance.md`:
+*"if [the ramp] is ever switched on, this fit has to be redone."* **M17
+switched it on.** Found by M25 while writing up something else; nobody owns
+it, which is why it is now an item.
+
+**Do.** Refit against the ramp as it actually ships today, or — if the
+refit lands close enough to the current numbers to not matter — say so and
+delete the escape clause, so the next person does not re-find it.
+
+**Assert.** Whatever the fit predicts against what real play does, at the
+shipped dials. If nothing moves, that is a result and gets written down.
+
+**Also owed, smaller:** `balance.md`'s headline block still states the count
+law as `2 × 1.3^(N-1)`, stale since M17. M25 flagged it rather than
+rewriting someone else's record. Fix it here.
+
+## B8 · set REVERSAL_PENALTY to 6
+
+`work agent` · READY · **one line**
+
+B3 measured this and could not ship it — the line is in `src/sim/balance.js`
+and B3 was forbidden that directory while the map session was in it. The
+measurement is done and reviewed; this is the commit.
+
+**Do.** `REVERSAL_PENALTY` 0 → 6 in `src/sim/balance.js`, and the row in
+`docs/balance.md`. Nothing else. B3's Result has the full table.
+
+**Assert.** Nothing new. Re-run `run-zigzag.html` before and after **in one
+session** and confirm turns-inside-episodes roughly halves; report actions
+per run beside it. If median depth drops on both seed families rather than
+one, say so — that was the single reservation in the review.
+
+## M3 · un-archive the out-of-depth tail
+
+`work agent` · **DONE** — adopted
+
 ### Review of M3 — ADOPTED. And my fix to the measurement was also wrong
 
 **The finding is the method, not the tail.** I archived M3 on CV, which was
@@ -498,26 +587,6 @@ blamed for all of it.
 **Leaving it red rather than fixing it was right**, and for the reason
 given: M23's precedent is that spine share is never repaired by editing the
 band or the test.
-
-## D1 · the crowd-correction fit is overdue for the redo it asked for
-
-`work agent` · READY
-
-The crowd-correction fit carries its own escape clause in `docs/balance.md`:
-*"if [the ramp] is ever switched on, this fit has to be redone."* **M17
-switched it on.** Found by M25 while writing up something else; nobody owns
-it, which is why it is now an item.
-
-**Do.** Refit against the ramp as it actually ships today, or — if the
-refit lands close enough to the current numbers to not matter — say so and
-delete the escape clause, so the next person does not re-find it.
-
-**Assert.** Whatever the fit predicts against what real play does, at the
-shipped dials. If nothing moves, that is a result and gets written down.
-
-**Also owed, smaller:** `balance.md`'s headline block still states the count
-law as `2 × 1.3^(N-1)`, stale since M17. M25 flagged it rather than
-rewriting someone else's record. Fix it here.
 
 ## M26 · weapons come off creatures, chests hold sustain
 
@@ -606,6 +675,9 @@ one more thing making the descent harder at a moment when it is already at
 zero.
 
 ## X1 · delete what nothing uses
+
+**Add `run-zigzag.html` to the list** — B3 built it as an explicitly
+temporary instrument. Keep it only if B8 has not shipped yet.
 
 `work agent` · **READY** — list refreshed after the metrics agent's own pass
 
