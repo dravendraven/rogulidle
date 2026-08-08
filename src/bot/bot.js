@@ -279,7 +279,25 @@ function chooseGoal(belief, field, danger, current, options) {
       options.monstersAhead, options.guardPricing, options.crowdCost,
     ).filter((g) => g.net > 0);
     if (worthwhile.length) {
-      return worthwhile.reduce((a, b) => (b.net > a.net ? b : a));
+      const best = worthwhile.reduce((a, b) => (b.net > a.net ? b : a));
+
+      // Same hysteresis the monster branch below has had all along, and for
+      // the same reason — loot never got it, which balance.js's own
+      // GOAL_STICKINESS comment already flagged as a caveat. Two chests of
+      // near-equal net value swap places in the ranking every single turn,
+      // because stepping towards one changes the distance to BOTH, so the
+      // bot walks at whichever it is currently furthest from and arrives at
+      // neither. Measured as ~7-11% of ping-pong episodes (bot-strategy
+      // §4.5): goalId alternating between exactly two chests, veto never
+      // consulted.
+      //
+      // Higher is better here, where the monster branch ranks by cost and
+      // lower is better, so the comparison is the same test the other way up.
+      if (current && (current.kind === 'item' || current.kind === 'chest')) {
+        const held = worthwhile.find((g) => g.kind === current.kind && g.id === current.id);
+        if (held && held.net * options.stickiness >= best.net) return held;
+      }
+      return best;
     }
   }
 

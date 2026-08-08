@@ -21,6 +21,7 @@ import {
   MONSTER_STRENGTH, STRENGTH_GROWTH, STRENGTH_GROWTH_REBALANCED,
 } from '../src/sim/difficulty.js';
 import { monstersAhead, valueByItemName } from '../src/bot/loot.js';
+import { makeBot } from '../src/bot/bot.js';
 import { growthOf, summarise, ITEM_VALUE } from '../src/analysis/shape.js';
 import { campaignCost, crowdOverhead, duelCost } from '../src/bot/duel.js';
 
@@ -1374,6 +1375,60 @@ test('the tier ceiling never falls below the floor\'s own centre', () => {
   }
 });
 
+// ***** M25 — a gentler floor 1, pivoted around an unchanged floor 10 ***** //
+
+test('the strength pivot leaves floor 10 exactly where it was', () => {
+  // THE promise this item makes, and the only one that is load-bearing:
+  // floor 1 gets weaker creatures, floor 10 gets the same ones it always
+  // had. Checked against the LITERAL pre-M25 pair (0.35, 1.108) rather
+  // than against the shipped constants, so that changing either one
+  // without re-solving the other fails here instead of silently sliding
+  // floor 10.
+  const PRE_M25_BASE = 0.35;
+  const PRE_M25_GROWTH = 1.108;
+  const wasAtFloor10 = PRE_M25_BASE * Math.pow(PRE_M25_GROWTH, 9);
+  const nowAtFloor10 = floorStrength(9, {
+    strength: MONSTER_STRENGTH, strengthGrowth: STRENGTH_GROWTH_REBALANCED,
+  });
+  assert(Math.abs(nowAtFloor10 - wasAtFloor10) < 1e-3,
+    `floor 10 strength moved: was ${wasAtFloor10.toFixed(4)}, now ${nowAtFloor10.toFixed(4)}`);
+
+  // And the same in the currency that actually reaches the player — the
+  // table INDEX the deepest corner reaches. A sub-1e-3 drift in scale
+  // could still cross an integer boundary; this catches that.
+  const top = MONSTER_TABLE.length - 1;
+  assertEq(Math.floor(nowAtFloor10 * top), Math.floor(wasAtFloor10 * top),
+    'floor 10\'s ceiling table index moved');
+});
+
+test('the pivot actually made floor 1 gentler', () => {
+  // The other half — without this, "floor 10 unchanged" is satisfiable by
+  // changing nothing at all.
+  const pre = 0.35;
+  const now = floorStrength(0, {
+    strength: MONSTER_STRENGTH, strengthGrowth: STRENGTH_GROWTH_REBALANCED,
+  });
+  assert(now < pre,
+    `floor 1 strength did not fall: was ${pre}, now ${now.toFixed(4)}`);
+  const top = MONSTER_TABLE.length - 1;
+  assert(Math.floor(now * top) < Math.floor(pre * top),
+    'floor 1\'s ceiling table index did not drop at all');
+});
+
+test('no floor in the descent is weaker than the one above it', () => {
+  // The shape complaint this item exists to fix: the old ramp had floor 4
+  // land BELOW floor 3. Read off the modelled ceiling index rather than a
+  // sampled roster, so this is exact and cannot fail on noise.
+  let previous = -1;
+  for (let level = 0; level < 10; level++) {
+    const scale = floorParams(level).difficultyScale;
+    const ceilingIndex = Math.floor(scale * (MONSTER_TABLE.length - 1));
+    assert(ceilingIndex >= previous,
+      `floor ${level + 1} reaches index ${ceilingIndex}, below floor ${level}'s ${previous}`);
+    previous = ceilingIndex;
+  }
+});
+
 // ***** M17 — a near-flat roster, with strength carrying the difficulty ***** //
 //
 // M12's own "always at least as full as the pre-M12 baseline" test lived
@@ -1587,6 +1642,71 @@ test('no item is valued as reward without a mechanical effect', () => {
     if (does === 0) assertEq(worth, 0, `${item.name} has no effect but is valued`);
     else assert(worth > 0, `${item.name} has an effect but is valued at zero`);
   }
+});
+
+// ***** B3: the bot commits instead of pacing ***** //
+//
+// docs/backlog.md B3. The bot walked back and forth between two tiles. Each
+// of these puts it in a situation the real runs produce, and asserts the one
+// thing the item was for: the action sequence does not alternate.
+
+// Reversals in a sequence of actions — the same definition REVERSAL_PENALTY
+// and run-check's `reversalRate` both use.
+function reversalsIn(actions) {
+  const opposite = { up: 'down', down: 'up', left: 'right', right: 'left' };
+  let n = 0;
+  for (let i = 1; i < actions.length; i++) {
+    if (actions[i] === opposite[actions[i - 1]]) n++;
+  }
+  return n;
+}
+
+// Drives the real bot against a hand-built state and returns what it did.
+function driveBot(state, turns, botOptions = {}) {
+  let observation = observe(state);
+  let belief = foldBelief(emptyBelief(), observation);
+  const bot = makeBot({ monsterCount: 0, ...botOptions });
+  const actions = [];
+
+  for (let i = 0; i < turns && !state.outcome; i++) {
+    const action = bot(belief, observation);
+    actions.push(action);
+    const result = step(state, action);
+    state = result.state;
+    observation = result.observation;
+    belief = foldBelief(belief, observation);
+  }
+  return { actions, state };
+}
+
+test('two equidistant chests do not make the bot pace between them', () => {
+  // A straight corridor with a chest six tiles out on either side. Both are
+  // inside VISIBLE_DIST, both are worth the same, and the walk to each costs
+  // the same — so the ranking is a coin flip that flips back the moment the
+  // bot takes a step, which is exactly how the ~7-11% goal-switching share
+  // of the ping-pong episodes arises (bot-strategy §4.5).
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [10, 1],
+    chests: [
+      { id: 'c-left', name: 'chest', emoji: '📦', pos: [4, 1], side: false, edge: false, drop: null },
+      { id: 'c-right', name: 'chest', emoji: '📦', pos: [16, 1], side: false, edge: false, drop: null },
+    ],
+  });
+
+  // Six turns is exactly the walk to whichever chest it picks. Running
+  // longer would count the honest turnaround towards the SECOND chest, once
+  // the first is dealt with, as a reversal.
+  const { actions } = driveBot(state, 6);
+  assertEq(reversalsIn(actions), 0,
+    `the bot paced instead of committing: ${actions.join(',')}`);
+  assertEq(new Set(actions).size, 1,
+    `the bot changed its mind on the way: ${actions.join(',')}`);
 });
 
 // ***** run it ***** //
