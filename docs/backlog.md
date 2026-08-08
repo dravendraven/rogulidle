@@ -42,10 +42,11 @@ session, skip it.
 | 1 | M25 | Gentler floor 1, smoother climb, floor 10 unmoved — owner request | **REPORTED** |
 | 1 | M3 | Un-archive the out-of-depth tail — it was judged by the wrong test | **REPORTED** · 1 test left RED, see item |
 | — | B3 | Stop the zigzag — bot agent, parallel | **REPORTED** · one line owed in balance.js |
-| 2 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M24 |
-| 3 | X1 | Delete what nothing references | READY · list refreshed |
-| 4 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 5 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 2 | M26 | Weapons drop from creatures, scaled to strength; chests hold sustain | READY |
+| 3 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M24 |
+| 4 | X1 | Delete what nothing references | READY · list refreshed |
+| 5 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
+| 6 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -498,6 +499,50 @@ choice itself.
 reversal and no change of mind), `run-zigzag.html` (new instrument),
 this item. **`src/sim/` untouched**, which is why the penalty
 recommendation is a recommendation.
+
+## M26 · weapons come off creatures, chests hold sustain
+
+`work agent` · **READY**
+
+Split the two loot channels by what they are for.
+
+    chests      shields, potions, collectibles — staying alive
+    creatures   weapons — hitting harder
+
+And **weapon quality scales with the creature that carried it.** A rat drops
+a knife rarely; a wolf drops one often and an axe sometimes. Rarity falls as
+strength rises.
+
+**Why this is worth more than it looks.** Nothing currently converts a kill
+into anything: `XP_FROM_KILLS` is off, `HP_FROM_KILLS` is off, and a kill
+gives the hero one fewer threat and a drop that never looks at what died.
+Weapons **stack** — the damage formula is `(roll + weapons) × hit` and
+weapons sum across everything ever picked up — so weapons-from-creatures
+restores kill-to-power compounding through loot rather than by turning xp
+back on, which was frozen deliberately.
+
+It also makes "is this fight worth it" answerable by looking at the
+creature, which is the thing DCSS gets for free and this game does not have.
+
+**The conflict, and it has to be solved not ignored.** M19 guarantees a
+weapon near the spawn by converting the nearest chest into one. If chests
+hold no weapons, that mechanism has no home. Either the guarantee moves to
+the first kill, or M19 stays an explicit exception — decide and write down
+which, rather than letting M19 silently keep putting a weapon in a chest
+that is supposed to have none.
+
+**Watch: the hero starts with nothing and now must kill to arm itself.**
+Floor 1 is already the wall this whole queue is about. A hero that needs a
+kill before it can fight well is a hero that has to win its first fight
+unarmed — check that the first drop lands early enough to matter.
+
+**No instrument work.** I6's reward measurement reads `chests[].drop` and
+`monsters[].drop` off an unplayed state, so it picks this up by
+construction.
+
+**Assert.** Weapon drops per floor and their tier at 1, 5, 10 — the tier
+should track creature strength. Mean weapon bonus the hero carries by floor.
+And `run-check`'s death floor, since arming now depends on killing.
 
 ## M21 · deep floors have something waiting where you land
 
