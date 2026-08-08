@@ -157,7 +157,15 @@ reasoning stands and the specs are below.
 
 ## B4 · give exploration a value
 
-`bot` · `work agent` · **READY**
+`bot` · `bot agent` · **READY** — and B3 raised its priority
+
+**B3 makes this the top bot item.** With `REVERSAL_PENALTY` at 6 the layer
+split is veto 0, goal 13, mixed 0, **routing 259** — routing is the entire
+residue. B3 attacked it mechanically with route commitment and that failed,
+because `believedWalkable` sends a committed route into rock. B4 is the
+other attack on the same residue: a route is unstable partly because its
+destination is worth nothing, and point 3 below predicted exactly the
+dynamic B3 went on to measure.
 
 Unexplored map is worth exactly zero to the bot. `frontierGoals` returns
 `{kind, pos}` with no value (bot.js:121), and exploration is branch 3 of
@@ -256,15 +264,6 @@ on this until it is known to be real.
 open. Measure against a stated bot version and say which — a result against
 a moving bot is not reusable.
 
-## B2 · characterise the veto loop
-
-`bot` · `work agent` · **BLOCKED on B1 review**
-
-B1 answered "tactical veto", which is the branch whose spec was thin. Being
-rewritten against that answer.
-
-Spec deliberately not written yet.
-
 ## B3 · fix the ping-pong
 
 `bot` · `work agent` · **BLOCKED on B2**
@@ -284,7 +283,7 @@ hide the pathological case surviving intact.
 
 ## B5 · crowd blindness in the bot
 
-`bot` · `work agent` · **BLOCKED on M2**
+`bot` · `bot agent` · **READY** — unblocked, clustering shipped with M7
 
 `threat.js` records that tiles reachable by two awake monsters at once are
 "rare enough that this term is not what steers the bot", and scaling
@@ -292,8 +291,11 @@ hide the pathological case surviving intact.
 as it exists today.
 
 Clustering makes those tiles common, at which point the term goes from inert
-to dominant. Do not touch this before M2 exists — today there is nothing to
-tune against.
+to dominant. **That is no longer hypothetical** — M7 shipped clustering at
+`CLUSTER_SIZE` 10, so there is now something to tune against. Re-measure
+before tuning: M12 found effective cluster size is 1.77-2.10, not the 4-plus
+that was quoted at the time, so "two at once" may still be rarer than this
+item assumed.
 
 ## B6 · fix side-room discrimination
 
