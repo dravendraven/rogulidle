@@ -2,6 +2,12 @@
 
 The task list. Everything needed to pick up a task and finish it.
 
+> **`docs/lab-backlog.md` outranks this file right now.** The manual dungeon
+> simulator is the current priority for the **work**, **metrics** and **ui**
+> agents — take items from there first. The **bot agent** is the exception:
+> it keeps working this file's own lane (B11 and onward), and nothing in the
+> lab queue is blocked on it.
+
 - **What we are doing and why** — `docs/project/objectives.md`
 - **What was last measured** — `run-check.html` (a record, not a set of goals)
 - **Closed items with their results** — `docs/project/decisions.md`

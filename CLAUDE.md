@@ -54,6 +54,10 @@ worked** — that is what a review is for.
 item in full and report against what it asks for. Only the project agent
 adds or reorders items — if one looks wrong, say so instead of editing it.
 
+**`docs/lab-backlog.md` currently outranks it** for the work, metrics and ui
+agents — the manual dungeon simulator. The bot agent is the exception and
+keeps to `docs/backlog.md`.
+
 Numbers come from `run-check.html`, run on demand. Nothing records them —
 a written-down measurement goes stale and gets compared against anyway.
 
