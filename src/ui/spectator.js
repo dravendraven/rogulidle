@@ -35,10 +35,17 @@ const session = {
   // Turns banked from floors already finished this run — see renderHud's
   // xp-rate comment in render.js. 0 in legacy single-floor mode.
   turnOffset: 0,
-  // U5 — docs/backlog.md. An efficiency read, not a currency: no shop,
-  // nothing persists across page loads, wiped on anything short of a
-  // floor actually being cleared. Descent mode only.
-  coins: 0,
+  // U5/U6b — docs/backlog.md. THE run's bankable total — U5 displays it
+  // live as an efficiency read, U6b is this comment: naming it
+  // "unbanked" rather than reusing U5's own "coins" wording, since U6c
+  // reads this exact field to decide bank (clear) vs discard (death) into
+  // src/ui/wallet.js's persisted balance. Nothing here writes to that
+  // balance yet — U6c's job, not this one's. Wiped on anything short of a
+  // floor actually being cleared; never survives a death regardless of
+  // wallet.js's PERSIST_BALANCE_ACROSS_DEATH flag, which only decides
+  // whether PRE-EXISTING persisted state survives, not this run's own
+  // earnings. Descent mode only.
+  unbankedCoins: 0,
   paused: false,
   speed: 1,
   debug: false,
@@ -102,7 +109,7 @@ const descentTallyText = () =>
   `${session.cleared}/${session.runsPlayed} cleared`;
 
 function coinsText() {
-  return `🪙 ${session.coins}`;
+  return `🪙 ${session.unbankedCoins}`;
 }
 
 // Non-blocking on purpose — this project's spectator model never pauses
@@ -251,7 +258,7 @@ async function runDescentForever(sessionSeed) {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     session.runNumber++;
-    session.coins = 0;
+    session.unbankedCoins = 0;
     if (el.coins) el.coins.textContent = coinsText();
     const seed = hashSeeds(sessionSeed, session.runNumber);
 
@@ -326,11 +333,11 @@ async function runDescentForever(sessionSeed) {
         : 0;
 
       if (levelResult.outcome === 'ascended') {
-        session.coins += coinsThisFloor;
+        session.unbankedCoins += coinsThisFloor;
         if (el.coins) el.coins.textContent = coinsText();
         await showCoinPopup(coinsThisFloor);
       } else {
-        session.coins = 0;
+        session.unbankedCoins = 0;
         if (el.coins) el.coins.textContent = coinsText();
       }
     }
