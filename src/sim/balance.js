@@ -579,6 +579,16 @@ export const BOT_KNOWS_MONSTER_COUNT = true;  // bot-strategy 4.1
 // patient one.
 export const STEP_COST_IN_HP = 0.01;
 
+// GUESS — B10, docs/backlog.md. How much one unseen tile a candidate
+// step would reveal is worth, in hp, when routing toward a FRONTIER goal
+// only. Deliberately tiny: at the theoretical maximum reveal a single tile
+// can offer (a full sight-radius circle of dark, ~254 tiles at
+// VISIBLE_DIST 9), the discount tops out at 254 * 0.00002 = 0.00508 — half
+// of one STEP_COST_IN_HP. This has to stay a tie-breaker between routes of
+// EQUAL length, never a reason to prefer a longer one; if it ever needs
+// raising, re-check that bound first.
+export const FRONTIER_REVEAL_WEIGHT = 0.00002;
+
 // GUESS — a new target must beat the current one by this factor before the
 // bot switches. Without it, two near-equal targets make it dither on the
 // spot instead of committing to either. Raised from 1.15 (only needed 15%

@@ -9,9 +9,9 @@
 
 import {
   CHEST_COUNT, CROWD_PENALTY, DANGER_FALLOFF, DUEL_SAFETY_MARGIN,
-  GOAL_STICKINESS, HOLD_RANGE, LOOT_CAMPAIGN_HORIZON, MAP_SIZE, MONSTER_COUNT,
-  REVERSAL_PENALTY, STEP_COST_IN_HP, TACTICAL_OVERRIDE_MARGIN, TACTICAL_RANGE,
-  VISIBLE_DIST,
+  FRONTIER_REVEAL_WEIGHT, GOAL_STICKINESS, HOLD_RANGE, LOOT_CAMPAIGN_HORIZON,
+  MAP_SIZE, MONSTER_COUNT, REVERSAL_PENALTY, STEP_COST_IN_HP,
+  TACTICAL_OVERRIDE_MARGIN, TACTICAL_RANGE, VISIBLE_DIST,
 } from '../sim/balance.js';
 import { MONSTERS_BASE, MONSTER_GROWTH } from '../sim/difficulty.js';
 import { scoreActions } from './tactics.js';
@@ -158,6 +158,30 @@ function wouldReveal(belief, pos) {
     }
   }
   return dark;
+}
+
+// B10 (docs/backlog.md). A SECOND field, used only for routing toward an
+// already-chosen FRONTIER goal — every other goal kind keeps using the
+// plain field above untouched. Among routes of similar length, this makes
+// the router prefer the one that grazes more already-seen fog on the way,
+// instead of being indifferent between them.
+//
+// The discount only ever applies to a candidate tile already in
+// `belief.tiles`. Scoring an UNSEEN candidate tile by `wouldReveal` would
+// earn it credit for standing somewhere never confirmed walkable —
+// `believedWalkable` already treats unseen ground as passable ("never seen
+// — worth trying", nav.js), and rewarding that further is exactly the
+// optimism B3 found breaks route commitment: a route aimed at unseen
+// ground turns out to be rock, the bump costs an action without costing a
+// turn, and the re-plan is another chance to reverse. Walk toward the
+// fog's edge; do not get credit for guessing what is past it.
+function frontierField(belief, danger, settings) {
+  const passable = believedWalkable(belief);
+  return dijkstra(belief.player.pos, passable, (x, y) => {
+    const base = settings.stepCost + danger.priceAt(x, y);
+    if (!belief.tiles.has(x + ',' + y)) return base;
+    return Math.max(0, base - settings.frontierRevealWeight * wouldReveal(belief, [x, y]));
+  });
 }
 
 // What the dark is worth, in hp, and therefore what a frontier is worth.
@@ -554,6 +578,16 @@ export function makeBot(options = {}) {
     // as M26's real-bot read.
     priceDrops: true,
 
+    // B10 (docs/backlog.md). OFF: unmeasured. Routes toward an already-
+    // chosen frontier goal along the tile that grazes more already-seen
+    // fog, instead of being indifferent between equally-priced paths. See
+    // `frontierField` above for the risk this was scoped against (must not
+    // reward stepping onto UNSEEN ground, or it repeats B3's route-
+    // commitment failure) and docs/backlog.md's Result for the measured
+    // wall-bump count before this ships either way.
+    frontierRouting: false,
+    frontierRevealWeight: FRONTIER_REVEAL_WEIGHT,
+
     // Every tunable the bot reads, defaulting to the shipped value. They
     // live here rather than being imported at the point of use so that P4
     // can sweep them without editing balance.js — and so a sweep cannot
@@ -673,7 +707,16 @@ export function makeBot(options = {}) {
       : chooseGoal(belief, field, danger, held, settings);
     if (!goal) return 'rest';
 
-    const route = routeTo(field, goal.pos);
+    // B10: a frontier goal routes on its own field, weighted toward
+    // already-seen fog — every other goal kind routes on the plain field
+    // above, untouched. `field` still drives goal SELECTION either way
+    // (chooseGoal, bestFrontier): this only changes HOW the chosen
+    // frontier is walked to, never WHICH one is chosen.
+    const routingField = (settings.frontierRouting && goal.kind === 'frontier')
+      ? frontierField(belief, danger, settings)
+      : field;
+
+    const route = routeTo(routingField, goal.pos);
     if (route.length < 2) {
       goal = null;
       return 'rest';

@@ -1761,13 +1761,17 @@ test('no floor in the descent is weaker than the one above it', () => {
 // check it duplicated already re-validates automatically against whatever
 // is live — see "the rebalanced constants hold the challenge budget".
 
-test('creature count lands near the M17 target: ~5, ~6, ~8', () => {
+test('creature count lands near the M29 target: ~4, ~5, ~8', () => {
+  // Was "~5, ~6, ~8" (M17). M29 lowered MONSTERS_BASE 5 -> 4 to soften
+  // floor 1 with GUARANTEE_FIRST_WEAPON off, re-solving the growth rate to
+  // keep floor 10 pinned at the same 8 M17 already targeted — only the
+  // floors near the top move.
   const fl1 = monstersAt(MONSTERS_BASE, MONSTER_GROWTH_REBALANCED, 0);
   const fl5 = monstersAt(MONSTERS_BASE, MONSTER_GROWTH_REBALANCED, 4);
   const fl10 = monstersAt(MONSTERS_BASE, MONSTER_GROWTH_REBALANCED, 9);
-  assertEq(fl1, 5, `floor 1 holds ${fl1}, not the targeted 5`);
-  assert(fl5 >= 5 && fl5 <= 7, `floor 5 holds ${fl5}, not near the targeted 6`);
-  assertEq(fl10, 8, `floor 10 holds ${fl10}, not the targeted 8`);
+  assertEq(fl1, 4, `floor 1 holds ${fl1}, not the targeted 4`);
+  assert(fl5 >= 4 && fl5 <= 6, `floor 5 holds ${fl5}, not near the targeted 5`);
+  assertEq(fl10, 8, `floor 10 holds ${fl10}, not the pinned 8`);
 });
 
 test('cluster size grew alongside creature count', () => {
@@ -2090,6 +2094,32 @@ test('a creature out of reach is not hunted for its drop when priceDrops is off'
   assert(!trace.some((t) => t.goal.kind === 'monster'),
     `the bot targeted the creature with priceDrops off: ${JSON.stringify(trace.map((t) => t.goal))}`);
   assert(!state.monsters[0].dead, 'the creature was engaged despite being out of reach');
+});
+
+// ***** B10: route toward a frontier by what it would reveal ***** //
+//
+// docs/backlog.md B10. `frontierRouting`'s discount is a tie-breaker
+// between routes of otherwise-similar cost, not a re-ranking — the Do
+// section is explicit that it must sit well under a single step's price.
+// A bare corridor with nothing else on it has no alternate route to any
+// frontier at all (one way in, one way out), so there is nothing for the
+// discount to break a tie between: turning the flag on must not change a
+// single action here. This is the regression guard the item's own
+// real-play measurement leans on — n=60 on two seed families found bumps
+// per run flat to slightly down (never up) and every other number moved
+// well under 1%, consistent with ties being rare on a real map too.
+test('frontierRouting does not change a route with no alternative to prefer', () => {
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const state = () => makeState({ map, playerPos: [10, 1] });
+
+  const off = driveBot(state(), 6, { frontierRouting: false });
+  const on = driveBot(state(), 6, { frontierRouting: true });
+  assertEq(on.actions.join(','), off.actions.join(','),
+    `frontierRouting changed a route that had no alternative: off=${off.actions.join(',')} on=${on.actions.join(',')}`);
 });
 
 // ***** run it ***** //

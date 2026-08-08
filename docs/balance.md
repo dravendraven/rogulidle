@@ -37,6 +37,7 @@ statement about today. Only this table is current.
 | `FLOOR_SPREAD_BASE` | `0` | balance.js |
 | `FLOOR_SPREAD_CAP` | `0.9` | balance.js |
 | `FLOOR_SPREAD_PER_LEVEL` | `0.09` | balance.js |
+| `FRONTIER_REVEAL_WEIGHT` | `0.00002` | balance.js |
 | `GOAL_STICKINESS` | `1.4` | balance.js |
 | `GUARANTEE_FIRST_WEAPON` | `true` | balance.js |
 | `HIT_CHANCE` | `5 / 6` | balance.js |
@@ -1415,6 +1416,7 @@ Not used until P3. Listed here so there is one place to look.
 | `HOLD_RANGE` | 5 | **INITIAL GUESS** |
 | `EXPOSURE_WEIGHT` | 0.5 | **INITIAL GUESS** |
 | `REVERSAL_PENALTY` | 6 | **RAISED by B3** — the old verdict was measured on the wrong statistic, see below |
+| `FRONTIER_REVEAL_WEIGHT` | 0.00002 | **B10 — built, measured inert, kept OFF (`frontierRouting`)**, see below |
 
 `UNKNOWN_MONSTER_ESTIMATE` stands in for a monster the bot has not met yet.
 It knows how many are unaccounted for but not what they are, and gear has
@@ -1450,6 +1452,22 @@ stop the two-turn ping-pong where the plan says "attack", the veto refuses
 and steps aside, then the plan says "go back" and the veto agrees. Traced
 (bot-strategy §4.5): 61–64% of reversal episodes come from the TACTICAL
 VETO overriding a stable goal, not from goal selection flipping.
+
+`FRONTIER_REVEAL_WEIGHT` discounts a candidate tile's step cost, toward an
+already-CHOSEN frontier goal only, by how much already-seen fog it would
+graze — `wouldReveal`, scored only over tiles already in `belief.tiles` so
+the discount cannot be earned by stepping onto ground never confirmed
+walkable (that optimism is exactly what B3 found breaks route commitment).
+Sized so the discount never exceeds half of `STEP_COST_IN_HP` even at the
+theoretical maximum reveal — a pure tie-breaker, never a re-rank. Behind
+`frontierRouting`, default OFF: measured n=60 on two seed families and
+found essentially inert (every number identical to three figures on the
+primary family) — a weighted-dijkstra shortest path on a real map almost
+never has a second route of exactly equal cost to break a tie between, so
+the discount rarely has anything to decide. Wall bumps did not rise on
+either family, so the mechanism is not harmful, just rarely consulted —
+same shape as B4's `exploreValue`. Kept rather than deleted, same house
+rule as `chokepoint`/`exposurePricing`/B4's own flags.
 
 **Shipped at 0 for a long time on a verdict that was wrong, and the error
 is the useful part.** The old sweep read the POOLED reversal RATE

@@ -45,7 +45,7 @@ session, skip it.
 | 5 | B9 | Teach the bot that a creature carries something | **DONE** · shipped ON, one z-score owed |
 | 6 | M29 | Turn off the guaranteed dagger, soften floor 1 via generation | READY |
 | 7 | M28 | Belief clones a monster's drop before it should be knowable | **DONE** |
-| 8 | B10 | Weight the route toward a frontier by what it would reveal | READY |
+| 8 | B10 | Weight the route toward a frontier by what it would reveal | **REPORTED** · shipped OFF, inert |
 | 9 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
 | 10 | D1 | The crowd-correction fit is overdue for its own redo | READY |
 | 11 | X1 | Delete what nothing references | READY · list refreshed |
@@ -1265,6 +1265,83 @@ run, turns-inside-episodes, and chests opened per floor (B4's own instrument
 addition) side by side — a route that reveals more but bumps more or misses
 more chests is not a win. If bumps rise on either seed family, that is the
 signal to stop, not to re-tune the weight down and try again once.
+
+### Result
+
+**Built exactly as scoped, measured, shipped OFF — not because it is
+harmful, but because it is inert, the same verdict B4 reached on
+`exploreValue`.**
+
+**The wall-bump instrument, built first as required.** `run-zigzag.html`
+now compares `state.turn` before and after every non-`rest` action; a move
+that leaves `turn` unmoved bumped a wall (`resolvePlayerAction` returns
+`false` and nothing at the target tile blocked it first — an attack, chest,
+or shrine still costs the turn, so those are correctly not counted). Reports
+bumps per run and the per-run distribution alongside every other B3/B4
+number, same file.
+
+**`frontierField`, a second dijkstra run only for a chosen frontier
+goal's `routeTo` — every other goal kind, and goal SELECTION itself
+(`chooseGoal`, `bestFrontier`), still reads the original unweighted
+`field`.** The discount only ever applies to a candidate tile already in
+`belief.tiles`; an unseen candidate keeps its plain price, exactly the
+constraint the risk section asked for. `FRONTIER_REVEAL_WEIGHT` (0.00002,
+`balance.js`) is sized so the discount tops out at 0.00508 hp even at the
+theoretical maximum reveal (a full sight-radius circle of dark, ~254
+tiles) — under half of one `STEP_COST_IN_HP` (0.01), so it can only settle
+a tie between routes of equal length, never justify a longer one. New flag
+`frontierRouting`, default OFF pending this measurement.
+
+**Measured, n=60, same seeds before/after in one session, two families:**
+
+    frontierRouting          seed 800000            seed 910000
+                            off        on          off        on
+    bumps per run          1.800      1.800        2.183      2.167
+    actions per run        261.3      261.3        322.1      320.4
+    median depth              2.5        2.5          3          3
+    chests opened/floor     4.446      4.446        4.440      4.453
+    turns in episodes      12.79%     12.79%        9.83%      9.72%
+    pooled reversal rate   16.49%     16.49%        15.22%     15.13%
+
+**Bumps did not rise on either family** — flat on the primary seeds, down
+fractionally (2.183 → 2.167) on the confirmation family. Per the item's own
+decision rule this is not the stop signal. But **every other number is
+flat too, to three figures, on the primary family** — the action sequence
+is not merely similar, `s800000_off` and `s800000_on` read identically on
+every metric this instrument tracks. The confirmation family shows the
+same shape at a hair's difference (well under 1% on every figure), not a
+different one.
+
+**Diagnosis, and it is a mechanism finding, not a shrug: ties are rare on
+a real map.** The discount is deliberately a tie-breaker (its own Do
+section asked for that), and a weighted-dijkstra shortest path on a
+procedurally generated map essentially never has a second route of
+EXACTLY equal cost to break a tie between — routes differ by at least one
+`STEP_COST_IN_HP` almost everywhere, which is ten times the discount's own
+ceiling. The risk section's fallback clause said as much in advance: *"If
+this constraint turns out to gut the effect... that is a finding, not a
+failure to route around."* It did, and the constraint that gutted it is
+the same one the risk section asked for — the discount was kept small and
+seen-tiles-only specifically to avoid B3's route-commitment trap, and that
+same smallness is why it almost never has anything to decide between.
+
+**New test, following B4/B9's pattern of locking what ships rather than
+the rejected mechanism:** `'frontierRouting does not change a route with
+no alternative to prefer'` drives a bare corridor (one way in, one way
+out — no alternate path to any frontier at all) and asserts the flag
+changes zero actions. A hand-built maze exercising the actual
+tie-breaking path was not attempted — the real-play measurement already
+answered the question the maze would have asked, and building one
+reliably against `VISIBLE_DIST` 9 lighting most small hand-built maps
+immediately was judged not worth its own risk of a subtly-wrong fixture.
+120 tests green.
+
+**Files touched:** `src/sim/balance.js` (`FRONTIER_REVEAL_WEIGHT`),
+`src/bot/bot.js` (`frontierField`, `frontierRouting` flag, wired into
+`decide()`'s route computation only), `run-zigzag.html` (wall-bump
+counter, `frontierRouting` field), `test/tests.js` (one test). `src/sim/`
+touch is the one new balance constant, same footprint B9's `priceDrops`
+left — no engine behaviour changes, only a number the bot reads.
 
 ## B9 · the bot does not know a creature is carrying anything
 

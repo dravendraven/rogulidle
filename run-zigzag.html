@@ -25,6 +25,7 @@ but shorter runs.</p>
   first seed <input id="seed" value="800000">
   reversalPenalty <input id="pen" value="">
   overrideMargin <input id="mar" value="">
+  frontierRouting <input id="fr" value="">
   <button id="go">measure</button>
   <br><small>blank = the shipped value from balance.js</small>
 </p>
@@ -101,6 +102,7 @@ async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
   let cleared = 0;
   let chestsOpened = 0;
   let floorsPlayed = 0;
+  let wallBumps = 0;
 
   for (let i = 0; i < runs; i++) {
     let carry = null;
@@ -110,6 +112,7 @@ async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
     let episodes = 0;
     let episodeTurns = 0;
     let lastAcrossFloors = null;
+    let bumps = 0;
 
     for (let level = 1; level <= LEVELS; level++) {
       const plan = floorPlan(level);
@@ -146,11 +149,21 @@ async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
         actions++;
 
         const beforeLog = state.log.length;
+        const turnBefore = state.turn;
         const result = step(state, action);
         state = result.state;
         observation = result.observation;
         belief = foldBelief(belief, observation);
         decisions++;
+        // B10: step() computes whether a move passed a turn internally
+        // (resolvePlayerAction's `blocked`) but never returns it — nothing
+        // today counts a wall bump. A non-rest action that leaves `turn`
+        // unmoved walked into rock: isWalkable was false and nothing at the
+        // target tile blocked it first (an attack/chest/shrine still costs
+        // the turn). B10's own risk is specifically that bumps rise; this
+        // is the instrument that would catch it, built before trusting any
+        // other number, per the item's own Assert.
+        if (action !== 'rest' && state.turn === turnBefore) { bumps++; wallBumps++; }
         // B4 measures whether a valued frontier turns the bot into a
         // wanderer, so what it actually collects has to be counted too.
         for (const e of state.log.slice(beforeLog)) if (e.type === 'open') chestsOpened++;
@@ -171,7 +184,7 @@ async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
       if (level === LEVELS) cleared++;
     }
 
-    perRun.push({ depth, actions, reversals, episodes, episodeTurns,
+    perRun.push({ depth, actions, reversals, episodes, episodeTurns, bumps,
       rate: actions ? reversals / actions : 0,
       zigShare: actions ? episodeTurns / actions : 0 });
     document.getElementById('out').textContent = `run ${i + 1}/${runs}…`;
@@ -199,6 +212,9 @@ async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
     medianRunZigShare: median(perRun.map((r) => r.zigShare)),
     chestsPerFloor: floorsPlayed ? chestsOpened / floorsPlayed : null,
     floorsPlayed,
+    bumpsPerRun: wallBumps / runs,
+    medianRunBumps: median(perRun.map((r) => r.bumps)),
+    perRunBumps: perRun.map((r) => r.bumps),
     totalEpisodes, totalActions,
     byLayer, turnsByLayer,
     perRunRates: perRun.map((r) => +r.rate.toFixed(3)),
@@ -230,12 +246,17 @@ function render(r) {
     `  finishes                 ${pct(r.finishRate)}`,
     `  chests opened per floor  ${r.chestsPerFloor === null ? '—' : r.chestsPerFloor.toFixed(2)}`,
     ``,
+    `WALL BUMPS (B10's own risk — a step that costs an action, not a turn)`,
+    `  bumps per run            ${r.bumpsPerRun.toFixed(2)}`,
+    `  median run's bumps       ${r.medianRunBumps}`,
+    ``,
     `WHICH LAYER`,
     layerLine('veto'), layerLine('routing'), layerLine('goal'), layerLine('mixed'),
     ``,
     `per-run reversal rate   ${JSON.stringify(r.perRunRates)}`,
     `per-run zigzag share    ${JSON.stringify(r.perRunZigShare)}`,
     `per-run actions         ${JSON.stringify(r.perRunActions)}`,
+    `per-run bumps           ${JSON.stringify(r.perRunBumps)}`,
   ].join('\n');
 }
 
@@ -250,8 +271,10 @@ document.getElementById('go').onclick = async () => {
   const botOptions = {};
   const pen = document.getElementById('pen').value.trim();
   const mar = document.getElementById('mar').value.trim();
+  const fr = document.getElementById('fr').value.trim();
   if (pen !== '') botOptions.reversalPenalty = +pen;
   if (mar !== '') botOptions.overrideMargin = +mar;
+  if (fr !== '') botOptions.frontierRouting = fr === 'true';
   document.getElementById('go').disabled = true;
   document.getElementById('out').textContent = 'running…';
   const t0 = performance.now();
