@@ -36,6 +36,14 @@ state, and value it by play rather than by a price list.
 **Win rate mixes bot quality with map difficulty. Damage and blows per kill
 do not.** Never use it to judge either one alone.
 
+**A share-of-turns statistic is diluted by anything that changes how many
+turns exist.** Conditioning p95/p99 on combat-adjacent turns fixed one level
+of this and not the next: a stronger creature has more hp, so fights run
+longer and add low-damage turns to the denominator faster than high-damage
+ones to the numerator. **The statistic that survives has no denominator** —
+worst single turn per run. Two separate archivings were caused by getting
+this wrong.
+
 **Do not explain a difference until it clears 2σ.** A 1.3σ gap was reported
 here as a finding and given a causal explanation within the hour; it later
 measured 0.6σ and was nothing. The floor-2-cheaper-than-floor-1 "defect" was

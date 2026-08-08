@@ -40,7 +40,6 @@ session, skip it.
 |---|---|---|---|
 | 1 | M24 | Cap the tier from above too — floor 1 can roll wolves and ogres | **REPORTED** |
 | 1 | M25 | Gentler floor 1, smoother climb, floor 10 unmoved — owner request | **REPORTED** |
-| 1 | M3 | Un-archive the out-of-depth tail — it was judged by the wrong test | **REPORTED** · 1 test left RED, see item |
 | — | B3 | Stop the zigzag — bot agent, parallel | **REPORTED** · one line owed in balance.js |
 | 2 | M26 | Weapons drop from creatures, scaled to strength; chests hold sustain | READY |
 | 3 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M24 |
@@ -58,123 +57,6 @@ the batch and it is still owed, before M17 changes the same dials again.
 Closed work is in `docs/project/decisions.md`. Parked and unscheduled is in
 `docs/project/candidates.md`.
 
-
-## M3 · un-archive the out-of-depth tail
-
-`work agent` · **REPORTED** — owner request, after M24
-
-**Written by the work agent, not the project agent** — same flag as M25.
-The owner asked for this in session, including the diagnosis and the
-measurement rule.
-
-**Ask, in the owner's words:** it was archived on a wrong judgement of
-theirs — the test was CV, and the item exists to shrink the reaction
-window, which is peak. The peak reading that failed it was p95/p99 pooled
-over walking turns, and I7 later showed that was dilution. Judge by PEAK
-CONDITIONED on turns with a monster adjacent, not CV and not mean — p95
-and p99. Report above-tier frequency before and after. The three
-constants are INITIAL GUESS; if the peak does not move, sweep
-`PER_LEVEL`, which has never been swept.
-
-### Result
-
-**Turned on.** `OUT_OF_DEPTH_TAIL = false → true`. No constant changed —
-see "the sweep that was not needed" below.
-
-**M24 is what made it measurable, exactly as predicted.** Above-tier
-creatures (table index above the floor's own ceiling), n=300 floors/cell:
-
-| floor | ceiling | tail off | tail on |
-|---|---|---|---|
-| 1 | 2 | 0% | 0% (chance is 0 there by design) |
-| 3 | 3 | 0% | 1.7% of floors |
-| 5 | 4 | 0% | 7.7% of floors |
-| 7 | 6 | 0% | 12.7% of floors |
-| 10 | 8 | 40% | 46.3% |
-
-Floors 1-7 read a clean **0% with the tail off** — M24 closed the routine
-route completely, so this is now the only source on floors 2-9. Floor
-10's 40% baseline is M24's own one index of slack at that depth, not this
-item.
-
-**The measurement rule had to be taken one step further than asked, and
-this is the part worth keeping.** Conditioning on combat-adjacent turns —
-I7's fix, and what the owner specified — still reads this item as doing
-nothing:
-
-    adjacent-turn damage      off        on
-    p95                       1          1
-    p99                       2          2
-    share >= 3                0.99%      0.67%
-    adjacent turns (80 runs)  12,586     17,257
-
-The tail makes fights LONGER, because an out-of-depth creature carries far
-more hp. It adds low-damage adjacent turns to the denominator faster than
-it adds high-damage ones to the numerator. **Any share-of-turns statistic
-is diluted by a treatment that changes how many turns exist** — the same
-shape of error as the one I7 found, one level further in. The fix is a
-peak with no denominator: worst single turn per run, and per floor.
-
-**Measured that way, 240 paired descents per arm, same seeds both arms:**
-
-| worst single turn in a run | off | on | z |
-|---|---|---|---|
-| p95 | 5 | 7 | — |
-| p99 | 5 | 9 | — |
-| max seen | 7 | 10 | — |
-| share of runs >= 5 | 6.3% | 14.6% | 3.02 |
-| share of runs >= 6 | 0.8% | 9.6% | 4.40 |
-| share of runs >= 7 | 0.4% | 7.5% | 4.05 |
-| share of runs >= 8 | 0% (0/240) | 4.2% | 3.23 |
-
-Per-floor peak agrees: `>=6` 0.2% → 2.2% (z=4.30), `>=7` 0.1% → 1.7%
-(z=3.97). **The `>=4` threshold does not move (z=1.21)** — routine fights
-are untouched and only the far tail changes, which is the acceptance
-criterion rather than a caveat. Against a 10 hp hero a 7-8 damage turn is
-70-80% of the bar, and that went from 1 run in 240 to about 1 in 13.
-
-An earlier n=80 pass had every threshold pointing the same way at z =
-1.1-1.7 and was NOT reported as a finding, per the 2-sigma rule; n was
-tripled instead.
-
-**The sweep that was not needed.** The owner's instruction was to sweep
-`PER_LEVEL` if the peak did not move. It moved decisively at the shipped
-guesses, so nothing was swept and all three constants ship unchanged.
-Recorded for whoever does sweep them later: `CAP` binds from floor 8 at
-the shipped `PER_LEVEL` of 0.02, so raising `PER_LEVEL` alone only moves
-shallow floors — the two have to move together to reach the deep end.
-
-### One test is left FAILING, deliberately, and it is the owner's call
-
-`'rooms are bigger than the old default, and spine share holds in band'`
-now fails: floor 7 reads 0.96 against the `[0.6, 0.95]` band.
-
-**It is not primarily this item.** At that test's exact seeds and n=25,
-floor 7 reads 0.940 with the tail OFF — already 0.010 from the ceiling
-before M3 touches it. The tail adds ~+0.006 on average (n=60 per floor,
-every floor), which is enough to tip a sample already sitting that close.
-
-**And at a larger sample the true value is inside the band:** n=60 gives
-floor 7 = 0.925 off, 0.931 on. The test's n=25 is an underpowered read of
-a proportion against a hard threshold.
-
-**What actually moved spine share is M24 and M25, not M3.** Against the
-numbers M23 recorded when it restored the band (floors 3/5/7 at
-0.852/0.874/0.899), the tail-OFF values today are 0.892/0.937/0.925.
-
-**Left red rather than fixed, on purpose.** M23's whole precedent was
-that spine share is not repaired by editing the band or the test, and
-widening either here — or raising n until it passes — is the same move
-under a different name. Whoever reviews this decides: accept the tail and
-re-open the spine-share question as its own item, raise the test's n on
-its own merits, or drop the tail. `docs/balance.md` has the full numbers.
-Per CLAUDE.md, whoever built the change does not get to decide whether it
-worked.
-
-**Files touched:** `src/sim/balance.js` (flag plus the comment, which
-still described it as an unadopted instrument), `test/tests.js`,
-`docs/balance.md`, `docs/rogule-spec.md` (§13.6 rewritten — it described
-the flag as off).
 
 ## M24 · the ceiling is a centre, not a cap
 
@@ -499,6 +381,68 @@ choice itself.
 reversal and no change of mind), `run-zigzag.html` (new instrument),
 this item. **`src/sim/` untouched**, which is why the penalty
 recommendation is a recommendation.
+
+### Review of M3 — ADOPTED. And my fix to the measurement was also wrong
+
+**The finding is the method, not the tail.** I archived M3 on CV, which was
+the wrong test. Then I said the right one was p95/p99 **conditioned on
+combat-adjacent turns**, which I7 had shown fixed the dilution. That was
+also wrong, and M3 found out why:
+
+> An out-of-depth creature carries far more hp, so fights last longer. It
+> adds low-damage adjacent turns to the denominator faster than high-damage
+> ones to the numerator.
+
+**Any share-of-turns statistic is diluted by a treatment that changes how
+many turns exist.** Conditioning moved the error one level in; it did not
+remove it. The statistic that works has **no denominator at all** — worst
+single turn per run.
+
+**Measured that way, 240 paired descents:**
+
+    worst turn in a run      off      on       z
+    share >= 5              6.3%    14.6%    3.02
+    share >= 7              0.4%     7.5%    4.05
+    share >= 8              0%       4.2%    3.23
+    share >= 4              unmoved           1.21
+
+**That is the shape the item was written for**: the routine fight is
+untouched and only the far tail moves. Against a 10 hp hero a 7–8 damage
+turn is 70–80% of everything it has, and it went from 1 run in 240 to about
+1 in 13.
+
+An earlier n=80 pass had every threshold pointing the same way at z=1.1–1.7
+and was **not reported**, per the 2σ rule; n was tripled instead. That is
+the rule doing its job rather than being cited.
+
+**No sweep, because none was needed** — the peak moved decisively at the
+shipped guesses. The note left for whoever sweeps later is the useful part:
+`CAP` binds from floor 8, so raising `PER_LEVEL` alone only moves shallow
+floors.
+
+### The red test: raise its n, and the drift is a separate finding
+
+Floor 7 reads 0.96 against a `[0.6, 0.95]` band, at **n=25**. With the tail
+off at those same seeds it already reads 0.940 — one hundredth from the
+ceiling before M3 touches anything — and the tail adds about +0.006.
+
+**At n=60 the true value is inside the band**: 0.925 off, 0.931 on. The test
+is an underpowered read of a proportion against a hard threshold.
+
+Raising n is the right fix and not the suspicious version of it. The
+suspicious version is raising n *until it passes*; here the larger sample
+was taken first and lands 0.025 clear of the ceiling, which is a
+measurement, not a search.
+
+**And the drift underneath is real.** M23 restored floors 3/5/7 to
+0.852/0.874/0.899. Tail-off today they read 0.892/0.937/0.925 — **M24 and
+M25 walked spine share back up and nobody was watching.** Still inside the
+band, so not urgent; recorded so that the next thing to nudge it is not
+blamed for all of it.
+
+**Leaving it red rather than fixing it was right**, and for the reason
+given: M23's precedent is that spine share is never repaired by editing the
+band or the test.
 
 ## M26 · weapons come off creatures, chests hold sustain
 
