@@ -383,6 +383,15 @@ export const ITEM_TABLE = [
 // not land where M26's supply arithmetic predicts.
 export const WEAPON_AXE_MIN_TIER = 4;
 
+// M19 — docs/backlog.md. Converts the chest nearest the spawn to a
+// guaranteed `dagger` whenever the hero is carrying no weapon at all
+// (spawn.js populate(), step 4b). Built "structural, no flag" — owner
+// request afterwards to be able to turn it off and see what an unweighted
+// opening actually costs. `true` reproduces the shipped M19 floor exactly;
+// `false` removes the guarantee and leaves that chest's contents to the
+// ordinary roll, same as every other chest.
+export const GUARANTEE_FIRST_WEAPON = true;
+
 // DIVERGENCE: Rogule dresses these as scenery — potted plant, rock, wood
 // block — because there they are cover you kick over. Ours are the reward
 // container of the map design, so they look like what they are. One row,

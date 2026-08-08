@@ -855,6 +855,30 @@ test('an armed hero does not get the nearest chest forced into a weapon', () => 
     'the nearest chest held a weapon on every seed even with an armed hero — the guard is not gated on carry');
 });
 
+test('GUARANTEE_FIRST_WEAPON off leaves the nearest chest to the ordinary roll', () => {
+  // Owner request: M19 shipped "structural, no flag" — GUARANTEE_FIRST_WEAPON
+  // (balance.js) is the opt-out, gating step 4b in spawn.js. This does not
+  // assert the ordinary roll never HAPPENS to hand out a weapon (chests no
+  // longer draw weapons at all since M26 — see 'the early-chest quality
+  // boost is inert' above); it asserts the guarantee no longer FORCES one,
+  // by checking across seeds that at least one unarmed opening now goes
+  // without — the same shape 'an armed hero does not get the nearest chest
+  // forced into a weapon' already uses.
+  let sawNonWeapon = false;
+  for (let seed = 0; seed < 40; seed++) {
+    const state = newGame(952000 + seed,
+      { ...floorPlan(1), guaranteeFirstWeapon: false });
+    if (!state.chests.length) continue;
+    const nearest = state.chests.reduce((closest, c) => {
+      const d = Math.abs(c.pos[0] - state.player.pos[0]) + Math.abs(c.pos[1] - state.player.pos[1]);
+      return !closest || d < closest.d ? { c, d } : closest;
+    }, null).c;
+    if (!nearest.drop || !nearest.drop.dmg) { sawNonWeapon = true; break; }
+  }
+  assert(sawNonWeapon,
+    'the nearest chest held a weapon on every seed even with the guarantee switched off');
+});
+
 test('quality never changes how often a chest is empty', () => {
   // Quality tilts WHICH item comes out; scarcity alone decides whether one
   // comes out at all. If these ever couple, the scarcity dials stop meaning

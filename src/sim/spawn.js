@@ -6,7 +6,8 @@
 
 import {
   CHEST_COUNT, CHEST_DIFFICULTY_SCALE, CHEST_GUARD_RADIUS, CHEST_LOOT_RICHER_FAR,
-  CHEST_QUALITY_BY_DEPTH, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST, ITEM_TABLE, MONSTER_COUNT,
+  CHEST_QUALITY_BY_DEPTH, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST, GUARANTEE_FIRST_WEAPON,
+  ITEM_TABLE, MONSTER_COUNT,
   MONSTER_DIFFICULTY_SCALE, MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE,
   MONSTER_WEIGHTS, PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE, SIDE_ACTIVATION_CAP,
   SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE, WEAPON_AXE_MIN_TIER,
@@ -440,11 +441,14 @@ export function populate(state, map, counts = {}) {
   }
 
   // 4b. M19 — docs/backlog.md, restricted by M26. A guaranteed weapon near
-  // the spawn, structural, no flag. "Richer chests further in do not help a
-  // hero that dies on the way to them" — M17 put ~5 creatures on floor 1
-  // and M18 made the bottom tier bite; an unarmed hero deals 0.83 hp/turn
-  // against 2.5 with a weapon, and that gap is what kills, not the identity
-  // of which weapon. Fires only when the hero is carrying none at all —
+  // the spawn. Gated by `GUARANTEE_FIRST_WEAPON` (balance.js) — owner
+  // request, after shipping this "structural, no flag" — so the cost of an
+  // unweighted opening can actually be measured rather than argued about.
+  // "Richer chests further in do not help a hero that dies on the way to
+  // them" — M17 put ~5 creatures on floor 1 and M18 made the bottom tier
+  // bite; an unarmed hero deals 0.83 hp/turn against 2.5 with a weapon, and
+  // that gap is what kills, not the identity of which weapon. Fires only
+  // when the flag is on and the hero is carrying none at all —
   // floor 1, or any later floor after a run unlucky enough to still have
   // found none — so an already-armed descent is untouched. Converts the
   // chest nearest the spawn (never adds one — the budget is the chest
@@ -458,8 +462,9 @@ export function populate(state, map, counts = {}) {
   // winnable, which is M19's own reason for existing. No quality roll
   // needed any more: with one candidate the outcome was already forced,
   // this just stops computing a weight for it.
+  const guaranteeFirstWeapon = counts.guaranteeFirstWeapon ?? GUARANTEE_FIRST_WEAPON;
   const hasWeapon = (counts.carry?.inventory ?? []).some((item) => item.dmg > 0);
-  if (!hasWeapon && state.chests.length) {
+  if (guaranteeFirstWeapon && !hasWeapon && state.chests.length) {
     const nearestChest = state.chests.reduce((closest, c) => {
       const d = Math.abs(c.pos[0] - playerPos[0]) + Math.abs(c.pos[1] - playerPos[1]);
       return !closest || d < closest.d ? { c, d } : closest;

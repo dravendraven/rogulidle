@@ -38,6 +38,7 @@ statement about today. Only this table is current.
 | `FLOOR_SPREAD_CAP` | `0.9` | balance.js |
 | `FLOOR_SPREAD_PER_LEVEL` | `0.09` | balance.js |
 | `GOAL_STICKINESS` | `1.4` | balance.js |
+| `GUARANTEE_FIRST_WEAPON` | `true` | balance.js |
 | `HIT_CHANCE` | `5 / 6` | balance.js |
 | `HOLD_RANGE` | `5` | balance.js |
 | `HP_FROM_KILLS` | `false` | balance.js |
@@ -1119,11 +1120,12 @@ that were unrelated to M16's own map-generation change. Fixed: the
 guardian's own current index now counts too, so it is never rebuilt lower
 than it already was.
 
-## Pay for the harder opening with loot (M19) — structural, on unconditionally
+## Pay for the harder opening with loot (M19) — gated by a flag since
 
 | Name | Value | Status |
 |---|---|---|
 | `EARLY_CHEST_QUALITY_BOOST` | 0.5 | **INITIAL GUESS**, kept as a minor addition — see below |
+| `GUARANTEE_FIRST_WEAPON` | `true` | **on by default** — owner asked for the opt-out, see below |
 
 M17 raised floor 1 to ~5 creatures and M18 made the bottom tier bite; the
 hero meets that with 10 hp and no weapon, dealing 0.83 hp/turn instead of
@@ -1145,13 +1147,23 @@ free (reuses the existing quality mechanism, no new constant needed
 beyond the one dial).
 
 **The lever that actually matters: a guaranteed weapon near the spawn.**
-No flag, structural — fires whenever the hero is carrying no weapon at
-all (checked against `counts.carry`, so an already-armed descent past
-floor 1 is untouched) and converts the chest nearest the hero into a
-guaranteed, never-empty weapon — reuses the existing chest budget rather
-than adding one, same pattern as M14's guardian and M15's chest guard.
-Which weapon (dagger vs axe) still goes through the same quality dial as
-every other chest, including the boost above.
+Fires whenever the hero is carrying no weapon at all (checked against
+`counts.carry`, so an already-armed descent past floor 1 is untouched) and
+converts the chest nearest the hero into a guaranteed, never-empty weapon —
+reuses the existing chest budget rather than adding one, same pattern as
+M14's guardian and M15's chest guard. Which weapon (dagger vs axe) still
+goes through the same quality dial as every other chest, including the
+boost above; restricted to `dagger` only since M26 (see that section).
+
+**Gated by `GUARANTEE_FIRST_WEAPON` (default `true`).** Shipped
+"structural, no flag" in M19 itself — the owner asked afterwards to be
+able to switch it off and measure what an unweighted opening actually
+costs, rather than only being able to argue about it. `false` leaves the
+nearest chest to the ordinary roll, same as every other chest; since M26
+that roll never holds a weapon at all (chests draw `armour`/`potion` only —
+see the M26/M27 sections), so with the flag off an unarmed hero's opening
+chest is exactly as likely to arm them as any other chest is: not at all,
+until a kill hands one over.
 
 **Measured, n=40, same seeds before/after, real bot via `playDungeon`:**
 

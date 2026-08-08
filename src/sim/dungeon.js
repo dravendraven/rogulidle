@@ -147,6 +147,7 @@ export function playDungeon(seed, makePolicy, options = {}) {
       hpFromKills: options.hpFromKills,
       attackWhenAdjacent: options.attackWhenAdjacent,
       weaponsWidenRoll: options.weaponsWidenRoll,
+      guaranteeFirstWeapon: options.guaranteeFirstWeapon,
     };
 
     const run = playGame(
