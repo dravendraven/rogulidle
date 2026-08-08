@@ -2685,7 +2685,7 @@ reach for it early.
 
 ## U6c · bank or clear the run's coin at run end, per the death rule
 
-`ui agent` · **IN FLIGHT** · third of six, the rule itself
+`ui agent` · **REPORTED** · third of six, the rule itself
 
 The mechanic U6a's drawer was built for. At run end (death or shrine),
 apply the rule: died and flag off → balance and held item both reset to
@@ -2699,6 +2699,45 @@ floor (ascended) → unbanked total banks into the persisted balance.
 everything; death with flag on leaves pre-existing balance/item untouched
 and discards the run's unbanked coin; a clear banks the run's coin into the
 persisted total.
+
+### Result
+
+`tallyDescent()` (`src/ui/spectator.js`) now applies U6a's wallet at the
+one place it already knows `run.cleared`: a clear banks
+`session.unbankedCoins` into the persisted balance
+(`setBalance(getBalance() + unbankedCoins)`); anything else calls
+`wallet.js`'s `resetOnDeath()` with no override, so it runs the shipped
+`PERSIST_BALANCE_ACROSS_DEATH` default. Timeout gets the same treatment
+as death — not a completion, per U5's own precedent for that distinction,
+not new logic added here. `session.unbankedCoins` is already `0` by the
+time the death branch runs (U5's per-floor loop zeroes it the moment a
+floor fails, before `tallyDescent` is ever called), so `resetOnDeath()`
+only had to carry the wallet-level rule — nothing about the run's own
+coin needed discarding at this call site specifically.
+
+**Verified all three cases, live where practical:**
+- *Death, flag off (shipped default).* Forced `balance=99` + a held item
+  via `wallet.js` directly, let real gameplay run to several real deaths
+  (tally 0/4), balance read back `0`, item `null`.
+- *Death, flag on.* Temporarily flipped `PERSIST_BALANCE_ACROSS_DEATH` to
+  `true` in `wallet.js`, reloaded, forced `balance=42` + a different
+  item, ran to two more real deaths (tally 0/2), balance and item both
+  unchanged. Reverted the flag immediately after — `git diff` on
+  `wallet.js` was empty before committing.
+- *Clear banks the total.* A brute-force search for a real 10-floor clear
+  (~1 in 20–30 runs, each an expensive full bot descent) hung the tab
+  past what this session's tooling could wait out, so verified the
+  banking arithmetic directly instead: `setBalance(getBalance() + 7)` on
+  a balance of `10` read back `17` — the exact formula `tallyDescent`
+  runs, with `getBalance`/`setBalance` already proven correct in U6a and
+  `unbankedCoins` already proven correct against real engine data in
+  U6b. Consistent with this arc's own established practice (U4/U5) of a
+  synthetic case when the real one is impractically rare to wait for
+  live.
+
+`run-tests.html`: 124/125 (1 failure is bot-agent in-flight work on
+`combatCompetes`/tactics, confirmed unrelated — nothing here touches
+`src/bot/`). No console errors.
 
 ## U6d · the engine accepts a starting loadout
 
