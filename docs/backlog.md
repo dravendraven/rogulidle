@@ -41,12 +41,13 @@ session, skip it.
 | 1 | B8 | Set REVERSAL_PENALTY to 6 — one line, measured by B3 | READY |
 | 2 | M26 | Weapons come off creatures, gated by strength — the only permanent power | READY |
 | 3 | M27 | Chests hold armour and potions — after M26, not with it | READY |
-| 4 | B9 | Teach the bot that a creature carries something | BLOCKED on M26 |
-| 5 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
-| 6 | D1 | The crowd-correction fit is overdue for its own redo | READY |
-| 7 | X1 | Delete what nothing references | READY · list refreshed |
-| 8 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 9 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 4 | B4 | Give exploration a value — routing is the whole zigzag residue | READY |
+| 5 | B9 | Teach the bot that a creature carries something | BLOCKED on M26 |
+| 6 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
+| 7 | D1 | The crowd-correction fit is overdue for its own redo | READY |
+| 8 | X1 | Delete what nothing references | READY · list refreshed |
+| 9 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
+| 10 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -734,6 +735,82 @@ relative to a spawn point that is about to move is work done twice.
 and 10 — near zero, middling, near certain. And `finishes`, because this is
 one more thing making the descent harder at a moment when it is already at
 zero.
+
+## B4 · give exploration a value
+
+`bot` · `bot agent` · **READY** — and B3 raised its priority
+
+**B3 makes this the top bot item.** With `REVERSAL_PENALTY` at 6 the layer
+split is veto 0, goal 13, mixed 0, **routing 259** — routing is the entire
+residue. B3 attacked it mechanically with route commitment and that failed,
+because `believedWalkable` sends a committed route into rock. B4 is the
+other attack on the same residue: a route is unstable partly because its
+destination is worth nothing, and point 3 below predicted exactly the
+dynamic B3 went on to measure.
+
+Unexplored map is worth exactly zero to the bot. `frontierGoals` returns
+`{kind, pos}` with no value (bot.js:121), and exploration is branch 3 of
+`chooseGoal` — a fallback, never a competitor (bot.js:321). When it does
+explore it picks the **cheapest** frontier to reach, not the most promising.
+
+**Why it matters.** Three reasons, and the third may be the largest.
+
+1. It cannot form "worth 2 hp of risk to see what is over there", which is a
+   decision the game is built around.
+2. It fights the map design directly. `CHEST_LOOT_RICHER_FAR = true`
+   deliberately puts the good loot far from the spawn, sweeping 10% to 100%,
+   and `CHEST_QUALITY_BY_DEPTH` makes depth buy quality. The map hides the
+   reward far away; the bot explores by proximity at zero value.
+3. It may be what feeds the ping-pong. B1 found the loop lives in the
+   tactical veto, and the veto wins whenever the plan has no strong pull —
+   which is exactly the state when every positive-valued goal is exhausted
+   and only "do not stand here" is left. A positively-valued destination
+   makes the plan harder to override.
+
+**Acceptance.**
+- Frontier carries an hp-denominated expected value and competes in the same
+  comparison as chests and monsters, rather than being a fallback branch.
+- Frontier goals stay sticky. Trading tile ping-pong for frontier ping-pong
+  is not progress.
+- The bot does not become a wanderer: turns per run must not blow up.
+  `bot-strategy.md` §4.4 records a search that circled forever; the same
+  failure is available here.
+
+**How to measure.** Win rate, depth, turns per run, chests found per floor,
+and the reversal rate from B1's instrumentation. Paired seeds, confirmed on
+seeds not used for tuning.
+
+**Machinery that already exists.** `expectedChestValue` prices an unseen
+chest; `monstersAhead` and `LOOT_CAMPAIGN_HORIZON` already discount future
+value. What is missing is an estimate of how many chests a dark region holds
+— and the bot already knows `CHEST_COUNT` and how many it has seen.
+
+**Interaction with B3.** B4 may resolve the ping-pong on its own. Measure
+B4's effect on the reversal rate before concluding B3 still has work to do.
+
+### Scope, added on promotion
+
+**`src/bot/` only.** The map session is in `src/sim/` on M26 and B8. If this
+needs an engine change, report it instead of making it.
+
+**Take your own before-reading in the same session as your after-reading.**
+B3's warning applies here unchanged and cost it real work: the pooled
+reversal rate is dominated by long runs, and a treatment that changes run
+length moves it for reasons that have nothing to do with the bot getting
+better. `run-zigzag.html` reports the per-run distribution alongside actions
+per run — use it, and report actions per run beside every rate.
+
+**B3 already spent the obvious attempt.** Route commitment failed because
+`believedWalkable` counts unseen tiles as walkable, so a committed route
+aims into rock, the bump passes no turn, and every re-plan is another chance
+to reverse. Do not re-run that experiment; B3's Result has the numbers. The
+wall-bump itself is the open lead B3 left, and a valued frontier may address
+it from the other side — a destination worth something is worth re-planning
+towards rather than away from.
+
+**Watch `finishes` and actions per run.** A bot that values exploring is a
+bot that explores instead of descending. The third acceptance bullet is the
+one most likely to fail.
 
 ## B9 · the bot does not know a creature is carrying anything
 

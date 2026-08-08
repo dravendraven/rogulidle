@@ -155,58 +155,6 @@ independent seed families.
 Set aside while the focus is the map. Nothing here was abandoned; the
 reasoning stands and the specs are below.
 
-## B4 · give exploration a value
-
-`bot` · `bot agent` · **READY** — and B3 raised its priority
-
-**B3 makes this the top bot item.** With `REVERSAL_PENALTY` at 6 the layer
-split is veto 0, goal 13, mixed 0, **routing 259** — routing is the entire
-residue. B3 attacked it mechanically with route commitment and that failed,
-because `believedWalkable` sends a committed route into rock. B4 is the
-other attack on the same residue: a route is unstable partly because its
-destination is worth nothing, and point 3 below predicted exactly the
-dynamic B3 went on to measure.
-
-Unexplored map is worth exactly zero to the bot. `frontierGoals` returns
-`{kind, pos}` with no value (bot.js:121), and exploration is branch 3 of
-`chooseGoal` — a fallback, never a competitor (bot.js:321). When it does
-explore it picks the **cheapest** frontier to reach, not the most promising.
-
-**Why it matters.** Three reasons, and the third may be the largest.
-
-1. It cannot form "worth 2 hp of risk to see what is over there", which is a
-   decision the game is built around.
-2. It fights the map design directly. `CHEST_LOOT_RICHER_FAR = true`
-   deliberately puts the good loot far from the spawn, sweeping 10% to 100%,
-   and `CHEST_QUALITY_BY_DEPTH` makes depth buy quality. The map hides the
-   reward far away; the bot explores by proximity at zero value.
-3. It may be what feeds the ping-pong. B1 found the loop lives in the
-   tactical veto, and the veto wins whenever the plan has no strong pull —
-   which is exactly the state when every positive-valued goal is exhausted
-   and only "do not stand here" is left. A positively-valued destination
-   makes the plan harder to override.
-
-**Acceptance.**
-- Frontier carries an hp-denominated expected value and competes in the same
-  comparison as chests and monsters, rather than being a fallback branch.
-- Frontier goals stay sticky. Trading tile ping-pong for frontier ping-pong
-  is not progress.
-- The bot does not become a wanderer: turns per run must not blow up.
-  `bot-strategy.md` §4.4 records a search that circled forever; the same
-  failure is available here.
-
-**How to measure.** Win rate, depth, turns per run, chests found per floor,
-and the reversal rate from B1's instrumentation. Paired seeds, confirmed on
-seeds not used for tuning.
-
-**Machinery that already exists.** `expectedChestValue` prices an unseen
-chest; `monstersAhead` and `LOOT_CAMPAIGN_HORIZON` already discount future
-value. What is missing is an estimate of how many chests a dark region holds
-— and the bot already knows `CHEST_COUNT` and how many it has seen.
-
-**Interaction with B3.** B4 may resolve the ping-pong on its own. Measure
-B4's effect on the reversal rate before concluding B3 still has work to do.
-
 ## M5 · a reward tail
 
 `map` · `work agent` · **ON HOLD** — no instrument, therefore no acceptance number
