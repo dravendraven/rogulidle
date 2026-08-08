@@ -316,6 +316,45 @@ this dependency points at something real.
 - **Vito** — axe giving `dmg +4` instead of the shipped `+2` — correct
   baseline cited.
 
+### Vito's behaviour, pinned down — "fearless" made concrete and checked
+### against what shipped since the original proposal
+
+The original pitch said `DUEL_SAFETY_MARGIN`/`DANGER_FALLOFF` loosened,
+`STEP_COST_IN_HP` high — fearless, prioritises combat and time. Still the
+right shape, but one premise underneath it changed: **B9 shipped
+`priceDrops` ON by default**, so "fights more because of loot value" is now
+BASE BOT behaviour, not a Vito differentiator. He needs more of it than the
+base bot gets, not the same amount.
+
+**Do — reuse existing dials, no new mechanism.** `DUEL_SAFETY_MARGIN` and
+`TACTICAL_OVERRIDE_MARGIN`, both already real settings threaded through
+`makeBot`, set looser for Vito specifically. Tied causally to his own trait
+rather than bolted on: the axe's `dmg +4` kills faster, so a fight costs him
+less hp than the same fight costs the base bot, which is what makes
+accepting a marginal fight safer FOR HIM specifically — and taking more
+fights means more chances at a weapon drop, which stacks (`weaponDamage`
+sums the inventory) and compounds: more weapons kill even faster, which
+makes the next marginal fight safer still.
+
+**Must not collide with Ricardo.** Ricardo's margin (once the
+`DUEL_SAFETY_MARGIN` calibration item is actually filed and run) will be
+the CALIBRATED OPTIMUM. Vito's is deliberately looser than optimal — accepts
+worse odds on purpose for more action, a real "fearless" rather than "plays
+well." If both personas end up at the same number, they have collapsed into
+each other; the two need to land at visibly different values or the
+distinction is cosmetic.
+
+**Open empirical question, not assumed either way.** B9's clean
+re-measurement found `priceDrops` safe at the base bot's calibration — side
+kills +18-31%, depth/finishes unchanged. Whether that holds once the
+safety margin is ALSO loosened on top is a different, untested question;
+the earlier contaminated B9 reading that suggested reordering hurts
+mandatory fights is the shape of failure to watch for specifically.
+
+**Simpler dependency than Pawa's.** Blocked on U7's base persona-as-state
+work only — no `U6` dependency, since this is pure bot-search/combat
+tuning, not the coin economy.
+
 ### Pawa's behaviour, replaced — "eager to explore" is dead, three times over
 
 The original proposal's behavioural hook for Pawa (discount
