@@ -46,18 +46,19 @@ session, skip it.
 | 6 | M29 | Turn off the guaranteed dagger, soften floor 1 via generation | **DONE** · ties baseline, does not beat it |
 | 7 | M28 | Belief clones a monster's drop before it should be knowable | **DONE** |
 | 8 | B10 | Weight the route toward a frontier by what it would reveal | **DONE** · shipped OFF, inert |
-| 9 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
-| 10 | D1 | The crowd-correction fit is overdue for its own redo | READY |
-| 11 | X1 | Delete what nothing references | READY · list refreshed |
-| 12 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 13 | U5 | Show the coin formula live on a real run | **DONE** |
-| 14 | U6a | A coin balance that survives a page reload | **DONE** |
-| 15 | U6b | Pay coin into the balance at floor completion | IN FLIGHT |
-| 16 | U6c | Bank or clear the run coin at run end, per the death rule | READY |
-| 17 | U6d | The engine accepts a starting loadout | READY |
-| 18 | U6e | The shop screen | READY |
-| 19 | U6f | Watch a full loop, integration check | READY |
-| 20 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 9 | M30 | Floor 1 must cost less hp than floor 2, checked exactly | READY |
+| 10 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
+| 11 | D1 | The crowd-correction fit is overdue for its own redo | READY |
+| 12 | X1 | Delete what nothing references | READY · list refreshed |
+| 13 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
+| 14 | U5 | Show the coin formula live on a real run | **DONE** |
+| 15 | U6a | A coin balance that survives a page reload | **DONE** |
+| 16 | U6b | Pay coin into the balance at floor completion | IN FLIGHT |
+| 17 | U6c | Bank or clear the run coin at run end, per the death rule | READY |
+| 18 | U6d | The engine accepts a starting loadout | READY |
+| 19 | U6e | The shop screen | READY |
+| 20 | U6f | Watch a full loop, integration check | READY |
+| 21 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -501,9 +502,9 @@ agents, none of whom had seen the others' version.** It is now written in
 
 ## D1 · the crowd-correction fit is overdue for the redo it asked for
 
-`work agent` · READY · **sequence after M29** — M29 is about to move
-`MONSTER_STRENGTH`/`STRENGTH_GROWTH_REBALANCED`, the exact dials this fit
-is refit against. Refitting now and again after M29 lands is wasted work.
+`work agent` · READY · **sequence after M29 AND M30** — both move the
+same strength/tier dials this fit is refit against. Refitting before both
+land is wasted work, twice over now.
 
 The crowd-correction fit carries its own escape clause in `docs/balance.md`:
 *"if [the ramp] is ever switched on, this fit has to be redone."* **M17
@@ -989,6 +990,68 @@ actively editing the same `src/bot/loot.js`. Reproduced once, not on
 reload. Nothing to act on now since it did not reproduce, but if it shows
 up again during a parallel bot/map session it is not new — it is this.
 
+
+## M30 · floor 1 must cost less hp than floor 2, exactly, not on average by feel
+
+`work agent` · READY · **owner request, after M29 — different lever, not a
+retry**
+
+M29 pushed the global count/strength base dials and plateaued: three
+variants all landed at the identical floor 1/floor 2 creature count (4, 4),
+so extra budget only ever reached floor 3+. Real-play sampling then said
+"tie" at n=80, no better than the guarantee it replaced. The owner's
+decision on M29 stands — no special-cased item guarantee, parity accepted
+there. This item is a different, more precise ask: **floor 1's total hp
+cost must be lower than floor 2's, by construction, checked exactly.**
+
+### The tool already exists and is exact, not sampled
+
+`threatMass(state)` (`difficulty.js:547`) is `hpMax × max(0, xp - 1)`
+summed per live creature — hp cost, not raw xp. `expectedFloorMass(level)`
+(M11) is its closed form: the EXACT expected roster mass for a floor from
+the shipped generation parameters, no sampling noise. M24 already reported
+threat mass numbers; M25's whole sweep scored the log ratio of this exact
+quantity floor-to-floor. **Compare `expectedFloorMass(0)` against
+`expectedFloorMass(1)` directly — this answers "is floor 1 softer, by how
+much" with no z-score and no n to argue about.**
+
+### Do
+
+Pick a real target margin (e.g., floor 1 at most some fraction of floor
+2's mass — a number, not "somewhat less") and hit it using **M13/M24's
+tier floor/ceiling clamp dials specifically on floor 1**, not the global
+`MONSTERS_BASE`/`MONSTER_STRENGTH` dials M29 already exhausted. Those
+clamps are the tool built for exactly this — bounding which tier a floor
+can draw, by depth.
+
+**Check the M7 budget interaction before assuming there's room — do not
+assume this sidesteps it.** M26's loot changes left the M7 check untouched
+because they never changed a creature's hp/xp/tier. A tier clamp on floor 1
+DOES change hp/xp/tier, the same category M24's own ceiling clamp was, and
+M24 was never checked against the M7 budget directly (folded into
+`expectedFloorMass`'s closed form instead, which is arguably the more
+correct way to check it now that this item needs the same machinery
+anyway). Report where this lands the 0.65 points of headroom M29 left,
+explicitly.
+
+**May not need to touch floor 10 at all.** M25's own budget cost came from
+pinning floor 10 while lowering floor 1 with the GLOBAL base/growth dials —
+this lever is local to floor 1's own tier clamp, which is a structurally
+different kind of move. If the exact-mass check shows this holds without
+touching floor 10, that resolves the (a)/(b) fork from M29's review without
+picking either side of it. If it doesn't, that's the finding, and the fork
+is real.
+
+### Assert
+
+**Exact first:** `expectedFloorMass(0)` vs `expectedFloorMass(1)`, the
+target margin, no sampling. **Then confirm with real play** — mean death
+floor, share dying by floor 2, `finishes`, against M29's own n=80 baseline
+(guarantee OFF + M29's generation: mean depth 2.763, share≤floor2 55.0%) —
+this item should move those numbers in the easier direction, and now there
+is a mechanism reason to expect it will, not just a hope. The M7 budget
+band, explicitly, every time. Not a ratio alone for anything read from real
+play.
 
 ## M21 · deep floors have something waiting where you land
 
@@ -1992,10 +2055,10 @@ reported.
 
 ## M4 · scale the side-room bonus with depth
 
-`map` · `work agent` · **READY, but sequence after M29** — gated on M7
-leaving a gap in its budget band, and M29 is about to spend more of that
-same band (already at 9.4% of 15% per M25). Size this against whatever
-headroom M29 actually leaves, not against today's number.
+`map` · `work agent` · **READY, but sequence after M29 AND M30** — gated
+on M7 leaving a gap in its budget band. M29 left 0.65 points of 15%;
+M30 is about to spend more of it too. Size this against whatever
+headroom is left after both, not against today's number.
 
 `SIDE_ROOM_DEPTH_BONUS = 0.35` is fixed, so the only structural variance in
 the game is constant across the descent.
