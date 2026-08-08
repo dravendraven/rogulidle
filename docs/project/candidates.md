@@ -316,6 +316,47 @@ this dependency points at something real.
 - **Vito** — axe giving `dmg +4` instead of the shipped `+2` — correct
   baseline cited.
 
+### Pawa's behaviour, replaced — "eager to explore" is dead, three times over
+
+The original proposal's behavioural hook for Pawa (discount
+`UNKNOWN_MONSTER_ESTIMATE`, explore more eagerly because the extra armour
+covers the surprise) leaned on exploration as a tunable lever. It is not
+one, measured three independent ways in this session: `exploreValue`
+(rank frontiers by reveal) read as inert, `exploreCompetes` (frontier bids
+against known loot) was actively harmful, `frontierRouting` (weight the
+path by reveal) read as inert again, for a specific, understood reason —
+ties are too rare on a procedural map for a safe-sized tie-breaker to ever
+decide anything. Building a fourth exploration-shaped behaviour on the same
+premise is not worth trying again without a new mechanism, not just a new
+dial.
+
+**Replacement: Pawa can buy armour at every floor transition, not only
+between runs.** No new item type — buying a shield still grants his own
+`armour 5`, the same mechanic every other persona's shield pickup uses.
+The only new thing is a second purchase trigger (floor transition, mid-run)
+alongside U3e's between-run shop. This is causally tied to his actual trait
+(more armour per shield) rather than a bolted-on preference, which
+"explore more" never was.
+
+**Blocked on both U3 and U4 landing, not just U4.** Needs a coin balance
+that is readable and spendable MID-RUN — U3c today only settles the
+balance at run boundaries (bank on clear, reset-or-carry on death per the
+flag) — and needs the persona system itself, since only Pawa gets the
+option. Sequence: U3 (all six parts) and U4's base persona-as-state-
+parameter work land first; this is additive on top of both, not a seventh
+U3 item and not foldable into U4's first pass.
+
+**The purchase decision has to be autonomous, and its rule is not
+decided.** The project's whole spectator model is non-blocking — nothing
+pauses for input — so Pawa's bot code decides whether to spend at each
+floor transition, not a UI prompt. Whether to spend the moment it is
+affordable, or hoard for a later floor, is a real trade-off (same shape as
+M25's own dial sweep) and should be swept and measured when this is built,
+not picked by feel. **Watch `finishes` and mean death floor against the
+base bot** — the failure mode to rule out is Pawa spending down to zero
+early and getting no benefit from it later, the same shape of trap B9
+found on the loot-pricing side.
+
 ### Papazito and Ricardo, converged on after several rounds — two
 ### independent switches, not one big exception
 
