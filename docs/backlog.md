@@ -51,7 +51,13 @@ session, skip it.
 | 11 | X1 | Delete what nothing references | READY · list refreshed |
 | 12 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
 | 13 | U5 | Show the coin formula live on a real run | REPORTED |
-| 14 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 14 | U3a | A coin balance that survives a page reload | READY |
+| 15 | U3b | Pay coin into the balance at floor completion | READY |
+| 16 | U3c | Bank or clear the run coin at run end, per the death rule | READY |
+| 17 | U3d | The engine accepts a starting loadout | READY |
+| 18 | U3e | The shop screen | READY |
+| 19 | U3f | Watch a full loop, integration check | READY |
+| 20 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -1934,6 +1940,132 @@ unrelated — nothing here touches `src/sim/spawn.js`.
 only wording (`+N 🪙`, counter as `🪙 N`) came from an owner follow-up
 mid-task, after the first pass shipped with top-anchored placement and
 "+N this floor" / "N coins" text.
+
+## U3a · a coin balance that survives a page reload
+
+`ui agent` · READY · **first of six, U3's arc — see the death rule below,
+final**
+
+Promoted off `candidates.md`'s U3 now that the owner has settled the one
+question that was blocking it: **on death, balance and any held item reset
+to zero.** In the owner's words, the coin and the item are what THIS hero
+is holding by virtue of surviving — die, and a new hero starts from zero.
+Default behaviour, no flag needed to get this.
+
+**A second flag, off by default, exists for comparison.** Something (name
+it `PERSIST_BALANCE_ACROSS_DEATH` or similar) that, when true, carries
+balance and the held item through a death instead of zeroing them — the
+softer rule this arc almost shipped with. **Default false** — nothing
+survives death unless the flag is explicitly set. Built so the harsh rule
+and the soft rule can be compared later without an argument, same pattern
+`XP_FROM_KILLS`/`HP_FROM_KILLS` already use for a mechanic the owner wants
+on record both ways.
+
+**Why this cannot live in `src/sim/`.** `step()` is a hard-rule pure
+function — no DOM, no storage access, inside `src/sim/`. Balance and the
+flag live in a small persistence module read/written from `src/ui/`
+(`localStorage`, first thing in this project that needs to survive a
+reload), never inside the engine itself.
+
+**Do.** A tiny module: get/set coin balance, get/set held starting item,
+clear-on-death vs. carry-on-death gated by the flag above. Nothing about
+payout or the shop yet — this item is the drawer existing, empty.
+
+**Assert.** Reload the page, balance persists. Simulate a death with the
+flag off, balance and item both read back as zero. Flip the flag, simulate
+a death, both survive.
+
+## U3b · pay coin into the balance at floor completion
+
+`ui agent` · READY · **second of six**
+
+Wires U5's already-validated formula (`coins = round(xpEarned-this-floor /
+turns-this-floor * 10)`) into U3a's balance instead of only displaying it.
+Builds on U5 directly — if U5 has not landed yet, build the formula call
+here rather than block on it, since both need the same read of
+`state.player.xpEarned`/`state.turn`.
+
+**Do.** On floor completion, compute the coin figure and add it to the
+CURRENT RUN's unbanked total (not the persisted balance yet — that only
+happens per U3a's death/survive rule, at run end).
+
+**Assert.** Play a run, unbanked total matches U5's own displayed number
+floor by floor.
+
+## U3c · bank or clear the run's coin at run end, per the death rule
+
+`ui agent` · READY · **third of six, the rule itself**
+
+The mechanic U3a's drawer was built for. At run end (death or shrine),
+apply the rule: died and flag off → balance and held item both reset to
+zero (default). Died and flag on → unbanked total is discarded, but
+whatever was already in the persisted balance and whatever item was held
+survive unchanged (nothing to bank on a death either way, since the run's
+own earnings are lost — only pre-existing state survives). Cleared the
+floor (ascended) → unbanked total banks into the persisted balance.
+
+**Assert.** Three cases, each its own check: death with flag off zeroes
+everything; death with flag on leaves pre-existing balance/item untouched
+and discards the run's unbanked coin; a clear banks the run's coin into the
+persisted total.
+
+## U3d · the engine accepts a starting loadout
+
+`work agent` · READY · **fourth of six, the one item that touches
+`src/sim/`**
+
+`dungeon.js`/`game.js` always start a hero with empty inventory today.
+Needs an entry point to accept "hero already holds X" — a real gap, not a
+flag flip; grep both files for the hero's spawn/carry construction first,
+same as any item touching shared state (M19/M26's own precedent for
+threading a new field through `dungeon.js`'s per-descent options).
+
+**Do.** A `startingItems` (or similar) option threaded the same way
+`counts.xpFromKills` etc. already are, defaulting to empty so every
+existing call site is untouched.
+
+**Assert.** A descent started with `startingItems: [dagger]` has the hero
+carrying it from turn 1; `weaponDamage`/`armourValue` read it correctly
+(should need no change, since both already read the live inventory — this
+assert exists to CONFIRM that, not to build new logic for it). All existing
+tests green with the option omitted.
+
+## U3e · the shop screen
+
+`ui agent` · READY · **fifth of six**
+
+Three purchase options at run end, priced per the table already fixed
+(shield 1, dagger 5, axe 8 — `docs/project/candidates.md`'s old U3 has the
+derivation, now folded into this arc). Buying sets U3a's held-item slot for
+the run about to start; U3d's option carries it in.
+
+**Do.** Offer screen: three items, current balance, afford/cannot-afford
+state. Purchase deducts from the persisted balance immediately (not
+reversible by refusing to start the run — the coin is spent the moment the
+purchase is made, matching the owner's original "buying means the next run
+starts already holding it" framing).
+
+**Must not block.** Same non-blocking spectator rule as U5 and the
+hero-picker proposal: a default choice (skip / cheapest affordable / last
+choice) if nothing is picked in time, never a pause waiting on input.
+
+**Assert.** Balance decreases by the right amount on purchase. Skipping
+leaves balance untouched and the next run starts unarmed, same as today.
+
+## U3f · watch a full loop, coins to gear to next run to death to reset
+
+`ui agent` · READY · **sixth of six, the integration check — closes the
+arc**
+
+Not new logic — confirms U3a through U3e agree with each other end to end,
+which none of the individual items can prove alone.
+
+**Assert, by playing it, not by reading code.** Earn coin across a run,
+survive to the shop, buy the dagger, watch the next run start already
+armed, die, confirm balance/item both reset to zero (flag off, default).
+Repeat with the flag on and confirm the opposite. If any step disagrees
+with what its own item asserted, the bug is in the seam between two items,
+not in either one — say which seam.
 
 ## E1 · expose a resumable turn loop from src/sim
 
