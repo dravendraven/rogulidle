@@ -64,7 +64,7 @@ session, skip it.
 | 17 | U6a | A coin balance that survives a page reload | **DONE** |
 | 18 | U6b | Pay coin into the balance at floor completion | **DONE** |
 | 19 | U6c | Bank or clear the run coin at run end, per the death rule | **DONE** |
-| 20 | U6d | The engine accepts a starting loadout | **REPORTED** · shield gap fixed, unblocks U6e |
+| 20 | U6d | The engine accepts a starting loadout | **DONE** |
 | 21 | U6e | The shop screen | READY — U6d's fix landed |
 | 22 | U6f | Watch a full loop, integration check | READY |
 | 23 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
@@ -2922,6 +2922,33 @@ traced end to end, closed.
 **Files touched:** `src/sim/step.js` (`grantArmour`, exported; the real
 pickup path now calls it instead of inlining the rule), `src/sim/game.js`
 (`startingItems` now calls it too), `test/tests.js`.
+
+### Review of the fix — ADOPTED
+
+Fixed the way the review asked and for the stated reason: **one shared
+`grantArmour`, with the pickup path converted to call it** rather than a
+second copy of the rule added next to the first. Two copies of "what an
+armour item means" is exactly how this broke, so removing the possibility
+of divergence is worth more than the three lines it saves.
+
+**The second test is the better one and is the real lesson.** It does not
+assert "both paths give 3" — it asserts the two paths produce the *same*
+value from the *same* function, so a future change to what an armour item
+means cannot update one caller and silently strand the other. A test
+against the failure mode, not against the symptom.
+
+**Checked one interaction nobody raised: `carry` still wins, no
+double-count.** `startingItems` runs first and credits the bar, then the
+`carry` block overwrites `player.armour` outright with the carried value —
+so on floors 2+ of a descent, where `startingItems` rides along on every
+floor, the starting shield cannot be re-granted each time. Also confirmed
+`nextId` is a plain counter, not an RNG draw, so calling it per floor
+perturbs no stream and determinism is untouched.
+
+Leaving `armourValue` for X1 rather than deleting it in passing is the
+right scope call, and flagging it in X1's own item means the next person
+finds it instead of rediscovering it. Removing the misleading comment
+rather than leaving it to mislead again is the small thing that matters.
 
 ## U6e · the shop screen
 
