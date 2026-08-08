@@ -148,8 +148,29 @@ the two rolls were separated.
 third locus — routing, ~18% — precedes both and cannot be reached by a fix
 scoped to `tactics.js`.
 
-**`REVERSAL_PENALTY` does not fix it.** Swept 0 / 1.5 / 6, moved the
-reversal rate 0.238 → 0.205, cost win rate.
+**`REVERSAL_PENALTY` at 6 is the single biggest win available — the earlier
+sweep judged it on the wrong number.** It was dismissed for moving the
+pooled reversal rate only 0.238 → 0.205. Under the distribution it takes
+turns-spent-inside-episodes from 21.4% to 9.2%, confirmed on a second seed
+family at 25.5% → 7.5%, and drives veto-layer episodes to **zero** on both.
+The win-rate cost did not reproduce.
+
+**A pooled reversal rate is mostly a length measurement.** It is dominated
+by a few very long runs, and those runs are long *because* they pace — one
+run spent 67.5% of 2532 actions reversing while the median run sat at 18.5%.
+Report the distribution: share of runs with an episode, share of turns
+inside them, the median run's own share, and actions per run beside all of
+them.
+
+**Raising `TACTICAL_OVERRIDE_MARGIN` looks like a fix and is not.** At 3 the
+median run's zigzag share falls to 6.9% while finishes collapse 6.7% → 1.7%
+and actions per run 509 → 297. **The bot stops pacing by dying sooner.**
+
+**Bumping a wall costs an action but not a turn.** `believedWalkable` treats
+unseen tiles as walkable, so a committed route aims through what turns out
+to be rock; the bot bumps, re-plans, and every bump is another action with
+another chance to reverse. This is why route commitment made the zigzag
+worse rather than better.
 
 **Exposure pricing loses about eleven points of win rate.** Charging more
 for danger in the open makes the bot so shy it takes long ways round and

@@ -431,6 +431,7 @@ The metrics agent already deleted `run-ruler.html`, `run-lab.html` and
     run-shape.html      built on the retired campaignCost
     run-cluster.html    served I2, closed
     run-i3.html         served I3, closed
+    run-zigzag.html     served B3, temporary by its own author
 
 **Modules — re-verify with a grep before deleting, the list is not proof.**
 
