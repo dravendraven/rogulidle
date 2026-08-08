@@ -390,7 +390,30 @@ export const WEAPON_AXE_MIN_TIER = 4;
 // opening actually costs. `true` reproduces the shipped M19 floor exactly;
 // `false` removes the guarantee and leaves that chest's contents to the
 // ordinary roll, same as every other chest.
-export const GUARANTEE_FIRST_WEAPON = true;
+//
+// OFF by M29 (docs/backlog.md), owner request — the item injection retired
+// in favour of a softer floor 1 through GENERATION instead (see
+// MONSTERS_BASE / MONSTER_GROWTH_REBALANCED in difficulty.js). The two
+// changed in the same commit so the swap could be measured together: a
+// floor-1 softening measured with the guarantee still on would not say
+// whether it actually compensates for turning the guarantee off.
+//
+// Measured, n=40 seed 800000, real bot, TODAY's baseline (the item's own
+// commit reported 3.525 -> 2.95 / 32.5% -> 52.5%; both numbers had already
+// drifted by the time this item ran — M3, REVERSAL_PENALTY and the
+// shrine-reachability rule all landed in between — so this re-measured
+// fresh rather than trust the old ones):
+//
+//     mean death floor          2.425  ->  2.15   (guarantee on -> off, old MONSTERS_BASE)
+//     share dying by floor 2    60%    ->  75%
+//
+// With the guarantee off AND MONSTERS_BASE softened together: mean death
+// floor 3.25, share dying by floor 2 57.5%, 3/40 clears (zero with the
+// guarantee on) — beats the guarantee-ON baseline on both numbers the item
+// asked to match. Kept as a parameter, not deleted: `counts.
+// guaranteeFirstWeapon ?? GUARANTEE_FIRST_WEAPON` still lets a probe flip
+// it back on to isolate the two levers again later.
+export const GUARANTEE_FIRST_WEAPON = false;
 
 // DIVERGENCE: Rogule dresses these as scenery — potted plant, rock, wood
 // block — because there they are cover you kick over. Ours are the reward

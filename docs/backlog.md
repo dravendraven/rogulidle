@@ -1659,6 +1659,105 @@ should still hold). **Not a ratio alone** — this session's denominator
 trap (I7, M3, M27) applies here too if anything gets read as a share of
 turns rather than a total or a peak.
 
+### Result
+
+**`GUARANTEE_FIRST_WEAPON` true → false, shipped in the same commit as
+the generation change**, as asked — measured together rather than
+sequentially.
+
+**The bar moved twice before any sweeping started, and both moves are
+part of the result, not noise to explain away.** The item's own quoted
+baseline (3.525 / 2.95, 32.5% / 52.5%) had already drifted by the time
+this item ran — M3, `REVERSAL_PENALTY`, and a bot-side rule change (the
+shrine no longer requires a clear floor) all landed in between — so it
+was re-measured fresh: n=40 read guarantee-ON at 2.425 / 60%. **Then, at
+n=80, it moved again** to 3.025 / 43.8% (sd 1.597). n=40 was simply not a
+stable sample for this metric on this seed family; n=80 is what the
+generation change is actually measured against below.
+
+**Checked headroom before sweeping, as asked.** After M25 the M7 budget
+check sat at 9.4% of its 15% band. Confirmed the pivot formula makes
+further `MONSTER_STRENGTH` cuts cost MORE budget monotonically, even
+though M25's own smoothness score over the same range was not monotonic
+— the two are different functions of the same base and do not have to
+agree, and didn't.
+
+**A methodology bug caught before trusting any candidate — worth its own
+line because it cost most of this item's time and would silently
+mislead anyone who repeats the pattern.** `makeFloorPlan`'s
+`DEFAULT_MODEL` fills in PRE-M7 defaults for any field not explicitly
+overridden. A sweep that only overrode `monstersBase`/`monsterGrowth`
+measured `clusterSize: 1` (no clustering, against the shipped 10) and
+flat `strengthGrowth`/zero `outOfDepthChance` (M3 off) — a strictly
+easier game on three separate axes, invalidating an entire round of
+promising-looking candidate numbers. Caught by diffing the swept model's
+output against real `floorParams()` field-by-field, which should have
+been the FIRST step, not a recovery after results looked too good. Fixed
+with a `shippedModel()` helper verified byte-identical to `floorParams()`
+before any override was trusted.
+
+**Both individual levers, pinned at floor 10 and pushed to the edge of
+remaining budget, plateaued at the same place:**
+
+    lever                          drift    mean depth   share≤floor2
+    MONSTERS_BASE 4                12.15%   2.275        67.5%
+    MONSTERS_BASE 3.5              13.83%   2.45         67.5%
+    MONSTER_STRENGTH 0.24          13.91%   2.475        67.5%
+
+Floor 1 and floor 2 land on the identical creature count for base 4 and
+base 3.5 (4, 4 either way) — only floor 3+ differs between them — which
+is why spending more budget between those two points bought nothing on
+the floor-2 metric specifically. All three single-lever attempts sat at
+67.5% regardless of which dial or how hard it was pushed.
+
+**Shipped a combination: `MONSTERS_BASE` 4 (`MONSTER_GROWTH_REBALANCED`
+re-solved to 1.0801) together with `MONSTER_STRENGTH` 0.26
+(`STRENGTH_GROWTH_REBALANCED` re-solved to 1.1452), both re-pinned to
+floor 10.** M7 budget check: **14.35%** of the 15% band, 0.65 points of
+headroom left — spent close to the edge, disclosed rather than rounded
+down. Reopens `MONSTER_STRENGTH` 0.26, a value M25's own sweep already
+tried and scored worse on smoothness (0.226 vs 0.116) — not an
+oversight, a different optimisation target (floor-1 survival with the
+guarantee off, not step-evenness), recorded in both constants' own
+`difficulty.js` comments so it reads as a decision, not a regression.
+
+**Result, n=80, same seeds as the re-measured guarantee-ON baseline:**
+
+    guarantee ON  (n=80)   mean depth 3.025  sd 1.597   share≤floor2 43.8%
+    OFF + softened (n=80)  mean depth 2.763  sd 1.485   share≤floor2 55.0%
+    z (mean depth)   -1.08
+    z (share≤floor2)  1.43
+
+**Neither clears 2σ — reported as a tie, not a win.** Point estimates
+lean toward the guarantee-ON baseline still being somewhat better on
+both numbers, but this sample cannot say so with confidence, and this
+combination is the best found within the budget headroom M25 left.
+**This is the item's own named fallback**: *"if there is not enough room
+left, that is the finding."* Pure generation-softening, within what M25
+left of the M7 budget, cannot be PROVEN to fully replace what the
+item-injection guarantee bought. 0.65 points of headroom remain for
+anything that wants to push this further, or the 15% band / floor 10's
+pin is what would need revisiting next.
+
+**M24's highest-tier-on-floor-1 check still holds** — untouched by this
+item, `TIER_CEILING_SHARE` was not part of the sweep. **121 tests green**,
+two rewritten to check the mechanism on request (`guaranteeFirstWeapon:
+true`) rather than the now-off default, one added to lock the new
+default, one rewritten for the new count target (`~4, ~5, ~8`, was
+`~5, ~6, ~8`).
+
+**The mechanism is not deleted, only defaulted off** —
+`counts.guaranteeFirstWeapon ?? GUARANTEE_FIRST_WEAPON` still lets a
+probe flip it back on to isolate either lever again later.
+
+**Files touched:** `src/sim/balance.js` (`GUARANTEE_FIRST_WEAPON`),
+`src/sim/difficulty.js` (`MONSTERS_BASE`, `MONSTER_GROWTH_REBALANCED`,
+`MONSTER_STRENGTH`, `STRENGTH_GROWTH_REBALANCED`), `test/tests.js`,
+`docs/balance.md` (top table, M19 section corrected rather than left
+stale, new M29 subsection under M25). No `docs/rogule-spec.md` entry —
+number retunes and a flag-default flip on an already-documented
+mechanism, not a new rule, same precedent as M25.
+
 ## M28 · Belief clones a monster's drop before it should be knowable
 
 `work agent` · **REPORTED** · **small, found by B9's review**

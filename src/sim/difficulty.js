@@ -55,7 +55,15 @@ import { monsterWeightsAround } from './spawn.js';
 // callers use also starts from 5 now — nothing currently depends on that
 // path staying at the historical 2 (`monstersOnFloor` in dungeon.js, the
 // one place that might have, is unused).
-export const MONSTERS_BASE = 5;
+//
+// LOWERED 5 -> 4 by M29 (docs/backlog.md), owner request, in the same
+// commit as turning `GUARANTEE_FIRST_WEAPON` off — count softened through
+// generation instead of an item injected at spawn.
+// `MONSTER_GROWTH_REBALANCED` re-solved in the same breath to keep floor
+// 10 pinned at the 8 M17 already targeted: `(8/4)^(1/9)`. A PIVOT, same
+// shape as M25's on `MONSTER_STRENGTH` — only the floors nearer the top
+// move, floor 10 does not.
+export const MONSTERS_BASE = 4;
 
 // WHY 1.3. Net challenge is floor cost over hero capacity, so with cost
 // exponential and capacity roughly flat, net eventually multiplies by this
@@ -96,7 +104,19 @@ export const CHESTS_PER_FLOOR = 6;
 // the deepest floor's ceiling index, its mean xp and its threat mass are
 // unchanged to the digit. What moves is the SHAPE of the ten floors
 // between — see STRENGTH_GROWTH_REBALANCED for the sweep and the numbers.
-export const MONSTER_STRENGTH = 0.28;
+//
+// LOWERED again, 0.28 -> 0.26, by M29 (docs/backlog.md), alongside
+// MONSTERS_BASE — one lever alone (either one, pinned on its own) could
+// not clear the guarantee-ON target within the M7 budget headroom left
+// after M25; splitting the cut across both got closer than either could
+// alone. NOTE this reopens a value M25's OWN sweep had already tried and
+// rejected on smoothness (0.26 scored 0.226, worse than 0.28's 0.116) —
+// M25 was optimising curve evenness, M29 is optimising floor-1 survival
+// with the item-injection guarantee off, and the two targets pull
+// different ways here. Not an oversight; see docs/backlog.md M29 for the
+// honest result (statistically tied with the guarantee-ON baseline at
+// n=80, not a clear win) and why it shipped anyway.
+export const MONSTER_STRENGTH = 0.26;
 
 // GUESS — how fast that ceiling rises per floor. 1.0 means it does not, which
 // is the shipped behaviour and what every measurement to date assumed.
@@ -159,7 +179,20 @@ export const DIFFICULTY_REBALANCED = true;
 // drops from 0.905 at 1.22 to 0.974 at this rate — almost the whole reason
 // M7 needed clustering at all stops applying. Strength has to carry the
 // rest of the budget; see STRENGTH_GROWTH_REBALANCED below.
-export const MONSTER_GROWTH_REBALANCED = 1.0536;
+//
+// RAISED 1.0536 -> 1.0801 by M29, re-solved for MONSTERS_BASE 5 -> 4:
+// `(8/4)^(1/9)`. Floor 10 still lands at 8 — the same pivot M25 already
+// used on the strength ramp, applied here to count instead. Checked before
+// sweeping anything: the M7 budget check
+// (`MONSTER_GROWTH_REBALANCED x STRENGTH_GROWTH_REBALANCED^2.356 /
+// MONSTER_GROWTH`) was already at 9.4% of its 15% band after M25: this
+// raises it to 12.15%, leaving 2.85 points — real headroom spent, not the
+// last of it. See docs/backlog.md M29 for why count rather than a further
+// cut to `MONSTER_STRENGTH`: M25's own sweep already found values below
+// 0.28 score WORSE on curve smoothness despite cutting floor 1 just as
+// hard, so pushing that lever further was not the fresh option it looked
+// like — count was untouched by M25 and had real room left.
+export const MONSTER_GROWTH_REBALANCED = 1.0801;
 
 // Faster than STRENGTH_GROWTH (1.0, i.e. flat), replacing the difficulty
 // count no longer supplies. Sized against the CORRECTED exponent from the
@@ -211,7 +244,23 @@ export const MONSTER_GROWTH_REBALANCED = 1.0536;
 // this ramp alone scored 0.247 — worse than the old setting — because
 // integer counts that low make each step a big relative jump, and it
 // would undo M17 head-on.
-export const STRENGTH_GROWTH_REBALANCED = 1.1358;
+//
+// M29 later DID cut MONSTERS_BASE (5 -> 4, docs/backlog.md) — a milder cut
+// than the one rejected here, for a different reason (compensating for
+// GUARANTEE_FIRST_WEAPON going off, not smoothness) and combined WITH a
+// further strength cut rather than instead of one. The rejection above is
+// about 0.247 losing to 0.116 on smoothness at MONSTERS_BASE 3; it is not
+// a blanket "count is off the table", and M29 did not have to relitigate
+// it to spend that lever.
+//
+// RAISED again, 1.1358 -> 1.1452, by M29, paired with MONSTER_STRENGTH
+// dropping 0.28 -> 0.26 (see that constant's own comment for why strength
+// moved a second time despite this file's smoothness sweep already
+// rejecting 0.26 once, for a different target). Combined with M29's
+// MONSTERS_BASE/MONSTER_GROWTH_REBALANCED change, the M7 budget check
+// lands at 14.35% of its 15% band — 0.65 points of headroom left, checked
+// before shipping, not after.
+export const STRENGTH_GROWTH_REBALANCED = 1.1452;
 
 // How many creatures share one placement anchor. 1 means every monster
 // still draws its own independent position — byte-identical to no

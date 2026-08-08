@@ -917,18 +917,39 @@ test('the early-chest quality boost is inert now that chests never hold a weapon
   }
 });
 
-test('an unarmed hero always finds a weapon in the nearest chest', () => {
-  // No counts.carry — same as arriving at floor 1 with nothing.
+test('an unarmed hero always finds a weapon in the nearest chest, when the guarantee is on', () => {
+  // M29 turned GUARANTEE_FIRST_WEAPON off by default (softened floor 1
+  // through generation instead — see MONSTERS_BASE), so this now checks
+  // the MECHANISM on request rather than the shipped default. The default
+  // itself is checked by 'the guarantee is off by default since M29' below.
   for (let seed = 0; seed < 40; seed++) {
-    const state = newGame(950000 + seed, floorPlan(1));
+    const state = newGame(950000 + seed, { ...floorPlan(1), guaranteeFirstWeapon: true });
     if (!state.chests.length) continue;
     const nearest = state.chests.reduce((closest, c) => {
       const d = Math.abs(c.pos[0] - state.player.pos[0]) + Math.abs(c.pos[1] - state.player.pos[1]);
       return !closest || d < closest.d ? { c, d } : closest;
     }, null).c;
     assert(nearest.drop && nearest.drop.dmg > 0,
-      `seed ${seed}: the nearest chest did not hold a weapon for an unarmed hero`);
+      `seed ${seed}: the nearest chest did not hold a weapon for an unarmed hero with the guarantee on`);
   }
+});
+
+test('the guarantee is off by default since M29', () => {
+  // The other half — an unarmed hero's nearest chest is no longer forced,
+  // so across enough seeds at least one must come up without a weapon
+  // (M26 also means the ordinary chest roll never holds one either, so
+  // this is really checking "not always", the strongest true claim).
+  let sawNonWeapon = false;
+  for (let seed = 0; seed < 40; seed++) {
+    const state = newGame(950000 + seed, floorPlan(1)); // no override -> shipped default
+    if (!state.chests.length) continue;
+    const nearest = state.chests.reduce((closest, c) => {
+      const d = Math.abs(c.pos[0] - state.player.pos[0]) + Math.abs(c.pos[1] - state.player.pos[1]);
+      return !closest || d < closest.d ? { c, d } : closest;
+    }, null).c;
+    if (!nearest.drop || !nearest.drop.dmg) { sawNonWeapon = true; break; }
+  }
+  assert(sawNonWeapon, 'the nearest chest held a weapon every seed even with no override — the default is not off');
 });
 
 test('an armed hero does not get the nearest chest forced into a weapon', () => {
@@ -1073,8 +1094,10 @@ test('weapons no longer come from the ordinary chest draw', () => {
 });
 
 test('M19\'s guarantee only ever hands over a dagger', () => {
+  // M29 turned the guarantee off by default — forced on here to check the
+  // mechanism itself still behaves (never an axe) when it does fire.
   for (let seed = 0; seed < 40; seed++) {
-    const state = newGame(962000 + seed, floorPlan(1));
+    const state = newGame(962000 + seed, { ...floorPlan(1), guaranteeFirstWeapon: true });
     if (!state.chests.length) continue;
     const nearest = state.chests.reduce((closest, c) => {
       const d = Math.abs(c.pos[0] - state.player.pos[0]) + Math.abs(c.pos[1] - state.player.pos[1]);

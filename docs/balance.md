@@ -39,7 +39,7 @@ statement about today. Only this table is current.
 | `FLOOR_SPREAD_PER_LEVEL` | `0.09` | balance.js |
 | `FRONTIER_REVEAL_WEIGHT` | `0.00002` | balance.js |
 | `GOAL_STICKINESS` | `1.4` | balance.js |
-| `GUARANTEE_FIRST_WEAPON` | `true` | balance.js |
+| `GUARANTEE_FIRST_WEAPON` | `false` | balance.js |
 | `HIT_CHANCE` | `5 / 6` | balance.js |
 | `HOLD_RANGE` | `5` | balance.js |
 | `HP_FROM_KILLS` | `false` | balance.js |
@@ -52,14 +52,14 @@ statement about today. Only this table is current.
 | `MAP_SIZE` | `32` | balance.js |
 | `MIN_ROSTER_FOR_SIDE` | `4` | balance.js |
 | `MONSTERS_ATTACK_WHEN_ADJACENT` | `false` | balance.js |
-| `MONSTERS_BASE` | `5` | difficulty.js |
+| `MONSTERS_BASE` | `4` | difficulty.js |
 | `MONSTER_COUNT` | `5` | balance.js |
 | `MONSTER_DIFFICULTY_SCALE` | `0.75` | balance.js |
 | `MONSTER_DROP_CHANCE` | `0.50` | balance.js |
 | `MONSTER_GROWTH` | `1.3` | difficulty.js |
-| `MONSTER_GROWTH_REBALANCED` | `1.0536` | difficulty.js |
+| `MONSTER_GROWTH_REBALANCED` | `1.0801` | difficulty.js |
 | `MONSTER_SKIP_CHANCE` | `0.10` | balance.js |
-| `MONSTER_STRENGTH` | `0.28` | difficulty.js |
+| `MONSTER_STRENGTH` | `0.26` | difficulty.js |
 | `MONSTER_TABLE` | `(table — see the file)` | balance.js |
 | `MONSTER_WEIGHTS` | `(table — see the file)` | balance.js |
 | `OUT_OF_DEPTH_CHANCE_BASE` | `0` | balance.js |
@@ -81,7 +81,7 @@ statement about today. Only this table is current.
 | `SPINE_THREAT_SHARE` | `0.7` | balance.js |
 | `STEP_COST_IN_HP` | `0.01` | balance.js |
 | `STRENGTH_GROWTH` | `1.0` | difficulty.js |
-| `STRENGTH_GROWTH_REBALANCED` | `1.1358` | difficulty.js |
+| `STRENGTH_GROWTH_REBALANCED` | `1.1452` | difficulty.js |
 | `TACTICAL_DEPTH` | `1` | balance.js |
 | `TACTICAL_OVERRIDE_MARGIN` | `0.5` | balance.js |
 | `TACTICAL_RANGE` | `4` | balance.js |
@@ -112,16 +112,19 @@ creatures it holds, and everything else is a constant:
 ```
 monsters(N) = 2 × 1.3^(N-1)    2, 3, 3, 4, 6, 7, 10, 13, 16, 21
 chests      = 6                flat, every floor
-strength    = 0.28 × 1.1358^(N-1)   how far up the monster table floor N reaches
+strength    = MONSTER_STRENGTH × STRENGTH_GROWTH_REBALANCED^(N-1)   how far up the monster table floor N reaches
 ```
 
 **This block describes the flag-OFF baseline and is partly historical.**
 `DIFFICULTY_REBALANCED` ships `true`, so the count law that actually runs
-is `5 × 1.0536^(N-1)` (M17), not the `2 × 1.3^(N-1)` above — that line was
-already stale before M25 and is left as the original argument's record
-rather than silently rewritten. The strength line IS corrected, because
-M25 moved it: strength is no longer flat, and its base is 0.28, not 0.35.
-See "Difficulty rebalance (M7)" below for the constants that actually run.
+reads `MONSTERS_BASE`/`MONSTER_GROWTH_REBALANCED` (see the top table),
+not the `2 × 1.3^(N-1)` above — that line was already stale before M25
+and is left as the original argument's record rather than silently
+rewritten. The strength line's SHAPE is corrected (M25: no longer flat),
+but its base and growth are named as constants rather than restated as
+numbers here — both have moved twice since (M25, then M29) and the top
+table is the one place they are written. See "Difficulty rebalance (M7)"
+below for the constants that actually run.
 
 Growth **compounds** rather than adding. Both laws land near 20 creatures on
 floor ten; what differs is where the growth sits. `2 + 2N` front-loads — floor
@@ -325,8 +328,9 @@ floor keeps the flat base and nothing changes.
 
 **This constant is the flag-OFF path and is not what runs.** With
 `DIFFICULTY_REBALANCED` on, `floorParams` reads
-`STRENGTH_GROWTH_REBALANCED` (1.1358 after M25) instead, and the base is
-`MONSTER_STRENGTH` = 0.28. The ramp is ON in the shipped game.
+`STRENGTH_GROWTH_REBALANCED` and `MONSTER_STRENGTH` instead (see the top
+table for their current values — moved once by M25, again by M29). The
+ramp is ON in the shipped game.
 
 Difficulty grows one way today: creature count. That was argued deliberately —
 count scales cost linearly and strength scales it superlinearly, and linear is
@@ -673,9 +677,9 @@ descent, without capping what can be carried.
 | Name | Value | Status |
 |---|---|---|
 | `DIFFICULTY_REBALANCED` | `true` | **ADOPTED** — Review 2. See `docs/backlog.md` M7 |
-| `MONSTERS_BASE` | 5 | was 2; **raised by M17**, see below |
-| `MONSTER_GROWTH_REBALANCED` | 1.0536 | ADOPTED at 1.15, raised to 1.22 by M12, **REPLACED by M17** — see below, not additive with M12's setting |
-| `STRENGTH_GROWTH_REBALANCED` | 1.1358 | ADOPTED at 1.07, REPLACED by M17 at 1.108, **PIVOTED by M25** — see below |
+| `MONSTERS_BASE` | 4 | was 2; raised to 5 by M17, **LOWERED by M29**, see below |
+| `MONSTER_GROWTH_REBALANCED` | 1.0801 | ADOPTED at 1.15, raised to 1.22 by M12, REPLACED by M17, **RE-SOLVED by M29** — see below |
+| `STRENGTH_GROWTH_REBALANCED` | 1.1452 | ADOPTED at 1.07, REPLACED by M17 at 1.108, PIVOTED by M25, **RAISED again by M29** — see below |
 | `CLUSTER_SIZE` | 10 | SETTLED at 6; raised to 10 by M12 (measured to matter little past 6 once M10 landed); untouched by M17 |
 
 Live in `src/sim/difficulty.js` beside `MONSTER_GROWTH` and
@@ -860,6 +864,105 @@ a rate; `run-check.html`'s `finishes` at a real sample is.
 item's own explicit instruction not to adopt on paper alone.** See
 `docs/backlog.md` M17 for what this did to `run-check.html`'s numbers
 (median depth, finishes) and whether the descent is actually playable.
+
+### M29 — GUARANTEE_FIRST_WEAPON off, floor 1 softened through generation
+
+Owner request: retire M19's item-injection guarantee (the nearest chest
+forced into a dagger for an unarmed hero) and compensate through
+GENERATION instead — count and strength, not a special-cased spawn rule.
+`GUARANTEE_FIRST_WEAPON` `true` → `false`, in the same commit as the
+generation change, so the swap could be measured together rather than
+argued about.
+
+**The bar was already measured, and it moved once the sample grew.**
+n=40 (seed 800000) read guarantee-ON at mean death floor 2.425 / 60%
+dying by floor 2; the same n=40 for a naive guarantee-OFF-with-no-
+compensation read 2.15 / 75%. Both numbers had already drifted from an
+earlier commit's own reading of this same flag (3.525 / 32.5% on, 2.95 /
+52.5% off) — M3, `REVERSAL_PENALTY`, and a bot-side rule change (shrine no
+longer requires a clear floor) all landed in between, so re-measured
+fresh rather than trusted. **At n=80 the guarantee-ON baseline moved
+again**, to mean 3.025 / 43.8% (sd 1.597) — the n=40 read was simply not
+a stable sample for this metric. The n=80 read is what this item was
+actually measured against.
+
+**Checked the M7 budget headroom before sweeping anything, as asked.**
+After M25 the challenge-budget check sat at 9.4% of its 15% band. Every
+value tried below `MONSTER_STRENGTH` 0.28 costs MORE of that band, not
+less, by construction — the pivot formula makes the growth term rise
+monotonically as the base falls, even though M25's own smoothness score
+was not monotonic in the same range.
+
+**Two methodology bugs caught before trusting any candidate, both from
+the same root cause — `makeFloorPlan`'s `DEFAULT_MODEL` silently filling
+in the PRE-M7 defaults for anything not explicitly overridden.** An
+early sweep passed only `monstersBase`/`monsterGrowth` and measured
+promising results; direct field-by-field comparison against the real
+`floorParams()` output caught that the swept model was running
+`clusterSize: 1` (no clustering, against the shipped 10) and
+`strengthGrowth`/`outOfDepthChance` at their FLAT, M3-off defaults —
+a strictly easier game than the one actually shipping, on three axes at
+once, invalidating every number from that pass. Fixed by building a
+`shippedModel()` helper that starts from every live constant and
+verifying it reproduces `floorParams()` byte-for-byte before trusting any
+override built on top of it. Recorded here because it is a trap this
+project's own instruments make easy to fall into and worth a name:
+**a "sweep" that quietly defaults fields you did not think to override
+is not measuring the game that ships.**
+
+**Both single levers, pinned at floor 10 and pushed to the edge of the
+remaining budget, landed in the same place and neither cleared the
+target alone:**
+
+| lever | value | drift | mean depth | share ≤ floor 2 |
+|---|---|---|---|---|
+| count only | `MONSTERS_BASE` 4 | 12.15% | 2.275 | 67.5% |
+| count only | `MONSTERS_BASE` 3.5 | 13.83% | 2.45 | 67.5% |
+| strength only | `MONSTER_STRENGTH` 0.24 | 13.91% | 2.475 | 67.5% |
+
+Floors 1 and 2 land on the SAME creature count for base 4 and base 3.5
+(`4, 4` either way — only floor 3 and deeper move), which is why the
+extra budget spent between them bought nothing on the floor-2 metric.
+Share-dying-by-floor-2 sat at 67.5% across all three single-lever
+attempts regardless of which lever or how hard — a floor this budget
+could not push past with one dial.
+
+**Shipped a combination instead: `MONSTERS_BASE` 5 → 4 (`MONSTER_
+GROWTH_REBALANCED` re-solved to 1.0801, pinning floor 10's count at 8)
+together with `MONSTER_STRENGTH` 0.28 → 0.26 (`STRENGTH_GROWTH_
+REBALANCED` re-solved to 1.1452, pinning floor 10's strength).** Lands
+the M7 budget check at **14.35%** of its 15% band — 0.65 points of
+headroom left, checked and disclosed, not the last of it but very close.
+This re-opens `MONSTER_STRENGTH` 0.26, a value M25's OWN sweep had
+already tried and scored worse on curve smoothness (0.226 vs 0.28's
+0.116) — not an oversight: M25 was optimising step-evenness across all
+ten floors, M29 is optimising floor-1 survival with the guarantee off,
+and the two targets disagree here. Recorded in both constants' own
+comments.
+
+**Result, n=80, same seeds as the re-measured guarantee-ON baseline:**
+
+    guarantee ON  (n=80)   mean depth 3.025  sd 1.597   share≤floor2 43.8%
+    OFF + softened (n=80)  mean depth 2.763  sd 1.485   share≤floor2 55.0%
+
+    z (mean depth)   -1.08
+    z (share≤floor2)  1.43
+
+**Neither clears the 2σ bar — this is the honest result, not a clear
+win.** The point estimates lean toward the guarantee-ON baseline still
+being somewhat better on both numbers, but the sample cannot say so with
+confidence, and the combination is the best of everything tried within
+the budget headroom available. Per the item's own fallback: *"if there is
+not enough room left, that is the finding"* — pure generation-softening,
+within what M25 left of the M7 budget, cannot be PROVEN to fully replace
+what the item-injection guarantee bought, and there is very little budget
+left (0.65 points) for anything to push this further without either
+raising the 15% band or revisiting floor 10's pin.
+
+**What not to read into this:** the mechanism itself (`GUARANTEE_FIRST_
+WEAPON`) still exists and still works — `counts.guaranteeFirstWeapon ??
+GUARANTEE_FIRST_WEAPON` — so a future item can switch it back on, or a
+probe can isolate either lever again, without rebuilding anything.
 
 ## An out-of-depth tail (M3) — ON, adopted after M24
 
@@ -1126,7 +1229,7 @@ than it already was.
 | Name | Value | Status |
 |---|---|---|
 | `EARLY_CHEST_QUALITY_BOOST` | 0.5 | **INITIAL GUESS**, kept as a minor addition — see below |
-| `GUARANTEE_FIRST_WEAPON` | `true` | **on by default** — owner asked for the opt-out, see below |
+| `GUARANTEE_FIRST_WEAPON` | `false` | **OFF by M29** — floor 1 softened through generation instead, see the M25 section's M29 subsection |
 
 M17 raised floor 1 to ~5 creatures and M18 made the bottom tier bite; the
 hero meets that with 10 hp and no weapon, dealing 0.83 hp/turn instead of
@@ -1156,17 +1259,26 @@ M14's guardian and M15's chest guard. Which weapon (dagger vs axe) still
 goes through the same quality dial as every other chest, including the
 boost above; restricted to `dagger` only since M26 (see that section).
 
-**Gated by `GUARANTEE_FIRST_WEAPON` (default `true`).** Shipped
-"structural, no flag" in M19 itself — the owner asked afterwards to be
-able to switch it off and measure what an unweighted opening actually
-costs, rather than only being able to argue about it. `false` leaves the
-nearest chest to the ordinary roll, same as every other chest; since M26
-that roll never holds a weapon at all (chests draw `armour`/`potion` only —
-see the M26/M27 sections), so with the flag off an unarmed hero's opening
-chest is exactly as likely to arm them as any other chest is: not at all,
-until a kill hands one over.
+**Gated by `GUARANTEE_FIRST_WEAPON` — shipped `true`, now `false` since
+M29.** Shipped "structural, no flag" in M19 itself — the owner asked
+afterwards to be able to switch it off and measure what an unweighted
+opening actually costs, rather than only being able to argue about it.
+`false` leaves the nearest chest to the ordinary roll, same as every
+other chest; since M26 that roll never holds a weapon at all (chests
+draw `armour`/`potion` only — see the M26/M27 sections), so with the
+flag off an unarmed hero's opening chest is exactly as likely to arm
+them as any other chest is: not at all, until a kill hands one over. M29
+turned it off for good, compensating through generation instead — see
+the M25 section's own M29 subsection for the full result, including why
+it does not decisively beat what the guarantee bought.
 
-**Measured, n=40, same seeds before/after, real bot via `playDungeon`:**
+**Measured when this shipped, n=40, same seeds before/after, real bot via
+`playDungeon` — SUPERSEDED, kept for the record rather than deleted.**
+This was the reading at the time M19 shipped the guarantee. Both this
+gap and the guarantee-ON baseline it is measured against have since
+drifted (M3, `REVERSAL_PENALTY`, a bot-side shrine rule change, and
+finally M29 turning the flag off) — see M29's own subsection for the
+current numbers instead of extrapolating from this one:
 
     mean death floor         1.75  ->  2.70
     share dying by floor 2   80%   ->  65%
