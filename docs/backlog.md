@@ -39,6 +39,7 @@ session, skip it.
 | # | id | what gets done | status |
 |---|---|---|---|
 | 1 | M24 | Cap the tier from above too — floor 1 can roll wolves and ogres | **REPORTED** |
+| 1 | M25 | Gentler floor 1, smoother climb, floor 10 unmoved — owner request | **REPORTED** |
 | — | B3 | Stop the zigzag — bot agent, parallel | **IN FLIGHT** |
 | 2 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M24 |
 | 3 | X1 | Delete what nothing references | READY · list refreshed |
@@ -154,6 +155,86 @@ actually shipped, and updating M19's Result with what changed.
 into `playDungeon`'s per-floor `counts`, same pattern M19 already fixed
 for `tierFloorShare`'s neighbours), `test/tests.js`, `docs/balance.md`,
 `docs/rogule-spec.md` (new §13.15).
+
+## M25 · a gentler floor 1, pivoted around an unchanged floor 10
+
+`work agent` · **REPORTED** — owner request, mid-session
+
+**Written by the work agent, not the project agent.** The owner asked for
+this directly in session and authorised building it when shown the sweep.
+Flagged rather than filed silently, since items are normally the project
+agent's to write — the framing below is mine and is worth a review pass.
+
+**Ask, in the owner's words:** floor 1 gentler, a smoother curve up to
+floor 10, *"sem mexer em como o andar 10 estaria em relação a poder de
+criaturas"* — floor 10's creature power must not move.
+
+**Do.** `MONSTER_STRENGTH` 0.35 → 0.28 with
+`STRENGTH_GROWTH_REBALANCED` 1.108 → 1.1358. Creature COUNT untouched.
+
+**Assert.** Floor 10's strength and ceiling index identical to the
+pre-change pair. Floor 1 strictly lower. No floor weaker than the one
+above it.
+
+### Result
+
+**A pivot, not a difficulty cut.** The growth is solved rather than
+picked: for any base it is `(0.35 × 1.108^9 / base)^(1/9)`, the value
+that pins floor 10. So floor 10's ceiling index (8), mean xp and threat
+mass (264.5) are unchanged to the digit, by construction. Three new tests
+lock it — the anchor is checked against the LITERAL old pair, so moving
+one constant without re-solving the other fails loudly.
+
+**The base was swept, and sweeping was not optional.** Scoring the sd of
+the log floor-to-floor threat-mass ratio (n=50/floor), 0.28 scores 0.116
+against the old 0.204 — but 0.26 scores 0.226 and 0.24 scores 0.227,
+both *worse than the setting they would replace* despite cutting floor 1
+just as hard. The score is driven by where the integer ceiling-index
+steps land, so it is not monotonic in the base and could not have been
+reasoned to. Full table in `docs/balance.md`.
+
+**What it bought.** Floor 1 threat mass 26.6 → 20.9 (−21%), and the curve
+stops going backwards — the old ramp had floor 4 *easier* than floor 3
+(ratio 0.96) and floors 2 and 9 nearly flat (1.02, 1.04) around a 73%
+cliff at floor 3. Every floor-to-floor ratio is now 1.13–1.60.
+
+**What it cost, disclosed because it is arithmetic and not fixable.**
+Lowering the start while pinning the end makes the average slope
+*steeper*: measured per-floor mass growth 1.291 → 1.326, and the M7
+budget check drifts 3.2% → **9.4%** over, against the 15% band its test
+allows. Two thirds of that band is now spent. Mid floors also hold
+genuinely weaker creatures (ceiling index 4 → 3 at floor 3, 5 → 4 at
+floor 5, 7 → 6 at floor 8) — that is what "smoother up to floor 10"
+means, and the owner accepted it when shown.
+
+**The obvious alternative was measured and rejected**, not skipped:
+cutting floor 1's roster instead (`MONSTERS_BASE` 5 → 3, count growth
+repinned) scored 0.247 — worse than the status quo — because integer
+counts that low make each step a large relative jump, with floor 2
+falling *below* floor 1. It would also undo M17 head-on.
+
+**M17's flagged risk did not fire.** `saturatedAt` is still null at the
+new pair (floor 10 reaches 0.881, under 1.0); the existing
+no-saturation test covers it unchanged.
+
+**Real-bot effect**, same 40 seeds as the M19 and M24 measurements: mean
+death floor 3.40 → **4.03**, share dying by floor 2 35% → **30%**, and
+**one run cleared all ten floors** — the first clear across all three
+items' measurements on this seed range. One in forty is not a rate;
+`run-check.html` at a real sample is where `finishes` gets decided.
+
+**Two stale doc claims found while writing this up, corrected in place
+rather than left:** `balance.md`'s headline model block still described
+strength as flat 0.35 (and still describes the count law as
+`2 × 1.3^(N-1)`, stale since M17 — flagged, not rewritten, since that is
+M17's record to correct); and the crowd-correction fit's own escape
+clause — *"if [the ramp] is ever switched on, this fit has to be
+redone"* — has been due since M17 turned it on. Nobody owns that redo.
+
+**Files touched:** `src/sim/difficulty.js`, `test/tests.js`,
+`docs/balance.md`. No `rogule-spec.md` §13 entry: this is a number retune
+of an already-documented mechanism, not a new rule, matching the M12
+precedent.
 
 ## B3 · stop the zigzag
 

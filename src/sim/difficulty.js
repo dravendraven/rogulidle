@@ -84,11 +84,19 @@ export const MONSTER_GROWTH = 1.3;
 // requirement.
 export const CHESTS_PER_FLOOR = 6;
 
-// How far up the monster table the deepest corner of a floor reaches.
-// Rogule's constant, and now fixed rather than scaled per floor: strength
-// varies WITHIN a map by distance from the start, and floors differ by how
-// many creatures they hold, not by what kind.
-export const MONSTER_STRENGTH = 0.35;
+// How far up the monster table the deepest corner of a floor reaches, on
+// floor 1. Rogule's constant was 0.35 and fixed rather than scaled per
+// floor: strength varied WITHIN a map by distance from the start, and
+// floors differed by how many creatures they held, not by what kind.
+//
+// M25 — docs/backlog.md. LOWERED 0.35 -> 0.28, with
+// STRENGTH_GROWTH_REBALANCED raised in the same breath so the product
+// lands floor 10 exactly where it already was. This is a PIVOT anchored at
+// floor 10, not a difficulty cut: `0.28 * 1.1358^9 == 0.35 * 1.108^9`, so
+// the deepest floor's ceiling index, its mean xp and its threat mass are
+// unchanged to the digit. What moves is the SHAPE of the ten floors
+// between — see STRENGTH_GROWTH_REBALANCED for the sweep and the numbers.
+export const MONSTER_STRENGTH = 0.28;
 
 // GUESS — how fast that ceiling rises per floor. 1.0 means it does not, which
 // is the shipped behaviour and what every measurement to date assumed.
@@ -167,7 +175,43 @@ export const MONSTER_GROWTH_REBALANCED = 1.0536;
 // deeper floor draws from the same narrow top band, so variety WITHIN a
 // floor can fall even as variety BETWEEN floors improves. The CV number
 // only sees the second one.
-export const STRENGTH_GROWTH_REBALANCED = 1.108;
+//
+// M25 — docs/backlog.md. RAISED 1.108 -> 1.1358, paired with
+// MONSTER_STRENGTH dropping 0.35 -> 0.28. Solved, not guessed: the growth
+// is whatever pins floor 10 unchanged for a given base,
+// `(0.35 * 1.108^9 / base)^(1/9)`, so floor 10's creature power is fixed
+// by construction and only the base is a free choice.
+//
+// SWEPT on that free choice (base 0.22 to 0.35, n=50 floors/level),
+// scoring the standard deviation of the log floor-to-floor threat-mass
+// ratio — "how even are the steps", lower is smoother:
+//
+//     base    growth    floor 1 mass    floor 10 mass    smoothness
+//     0.35    1.108        26.6            264.5           0.204   (was)
+//     0.30    1.1271       25.4            264.5           0.140
+//     0.28    1.1358       20.9            264.5           0.116   <- shipped
+//     0.26    1.1452       20.8            264.5           0.226
+//     0.22    1.1667       20.2            264.5           0.198
+//
+// NOT monotonic, which is the whole reason this was swept rather than
+// reasoned: the score is driven by where the INTEGER ceiling-index steps
+// land, and 0.28 is where they space out evenly. Neighbouring values are
+// worse than the old setting despite cutting floor 1 just as hard.
+//
+// What it bought: floor 1's threat mass falls 21% (26.6 -> 20.9) and the
+// curve stops going BACKWARDS. The old ramp had floor 4 easier than floor
+// 3 (ratio 0.96) and floors 2 and 9 nearly flat (1.02, 1.04) around a 73%
+// cliff at floor 3; every floor-to-floor ratio is now between 1.13 and
+// 1.60. The cost, accepted by the owner: mid floors hold genuinely weaker
+// creatures — ceiling index drops from 4 to 3 at floor 3, 5 to 4 at floor
+// 5, 7 to 6 at floor 8. Only floor 10 was anchored.
+//
+// The alternative was measured and REJECTED: cutting floor 1's roster
+// (MONSTERS_BASE 5 -> 3, count growth repinned to 8 at floor 10) leaving
+// this ramp alone scored 0.247 — worse than the old setting — because
+// integer counts that low make each step a big relative jump, and it
+// would undo M17 head-on.
+export const STRENGTH_GROWTH_REBALANCED = 1.1358;
 
 // How many creatures share one placement anchor. 1 means every monster
 // still draws its own independent position — byte-identical to no

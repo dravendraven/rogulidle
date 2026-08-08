@@ -8,8 +8,16 @@ creatures it holds, and everything else is a constant:
 ```
 monsters(N) = 2 × 1.3^(N-1)    2, 3, 3, 4, 6, 7, 10, 13, 16, 21
 chests      = 6                flat, every floor
-strength    = 0.35             how far up the monster table a floor reaches
+strength    = 0.28 × 1.1358^(N-1)   how far up the monster table floor N reaches
 ```
+
+**This block describes the flag-OFF baseline and is partly historical.**
+`DIFFICULTY_REBALANCED` ships `true`, so the count law that actually runs
+is `5 × 1.0536^(N-1)` (M17), not the `2 × 1.3^(N-1)` above — that line was
+already stale before M25 and is left as the original argument's record
+rather than silently rewritten. The strength line IS corrected, because
+M25 moved it: strength is no longer flat, and its base is 0.28, not 0.35.
+See "Difficulty rebalance (M7)" below for the constants that actually run.
 
 Growth **compounds** rather than adding. Both laws land near 20 creatures on
 floor ten; what differs is where the growth sits. `2 + 2N` front-loads — floor
@@ -191,9 +199,13 @@ one-on-one, untouched). Gear-taking was already saturated before this change
 (87% of chests opened regardless of the room's odds, both `docs/map-design.md`
 findings), so there was no decision left for either model shape to move.
 
-**Fitted at strength 0.35**, which is what the game ships. `STRENGTH_GROWTH`
-is off; if it is ever switched on, this fit has to be redone, because the
-strength axis moves the overhead the other way.
+**Fitted at strength 0.35**, which is what the game shipped WHEN THIS WAS
+FITTED. It no longer is: M17 turned the ramp on via
+`STRENGTH_GROWTH_REBALANCED` and M25 moved the base to 0.28. By this
+section's own terms — *"if it is ever switched on, this fit has to be
+redone, because the strength axis moves the overhead the other way"* —
+the fit is now owed a redo. Disclosed here rather than quietly restated;
+no item has claimed it.
 
 ## Strength ramp — the second way difficulty could grow
 
@@ -205,7 +217,12 @@ Lives in `src/sim/difficulty.js` beside `MONSTER_STRENGTH`, following the
 convention already set there for the difficulty-model constants.
 
 `strength(N) = MONSTER_STRENGTH × STRENGTH_GROWTH^(N−1)`, so at 1.0 every
-floor keeps the flat 0.35 and nothing changes.
+floor keeps the flat base and nothing changes.
+
+**This constant is the flag-OFF path and is not what runs.** With
+`DIFFICULTY_REBALANCED` on, `floorParams` reads
+`STRENGTH_GROWTH_REBALANCED` (1.1358 after M25) instead, and the base is
+`MONSTER_STRENGTH` = 0.28. The ramp is ON in the shipped game.
 
 Difficulty grows one way today: creature count. That was argued deliberately —
 count scales cost linearly and strength scales it superlinearly, and linear is
@@ -554,7 +571,7 @@ descent, without capping what can be carried.
 | `DIFFICULTY_REBALANCED` | `true` | **ADOPTED** — Review 2. See `docs/backlog.md` M7 |
 | `MONSTERS_BASE` | 5 | was 2; **raised by M17**, see below |
 | `MONSTER_GROWTH_REBALANCED` | 1.0536 | ADOPTED at 1.15, raised to 1.22 by M12, **REPLACED by M17** — see below, not additive with M12's setting |
-| `STRENGTH_GROWTH_REBALANCED` | 1.108 | ADOPTED at 1.07, **REPLACED by M17** — see below |
+| `STRENGTH_GROWTH_REBALANCED` | 1.1358 | ADOPTED at 1.07, REPLACED by M17 at 1.108, **PIVOTED by M25** — see below |
 | `CLUSTER_SIZE` | 10 | SETTLED at 6; raised to 10 by M12 (measured to matter little past 6 once M10 landed); untouched by M17 |
 
 Live in `src/sim/difficulty.js` beside `MONSTER_GROWTH` and
@@ -629,6 +646,83 @@ the growth that lands floor 10 at 8 given a floor-1 base of 5).
 `STRENGTH_GROWTH_REBALANCED` 1.07 → 1.108, sized to carry what count no
 longer does: `1.34 / 1.0536 = 1.273`, and `1.273^(1/2.356) = 1.108`.
 Creature count: `5,5,6,6,6,6,7,7,8,8`.
+
+### M25 — a gentler floor 1, pivoted around an unchanged floor 10
+
+Owner request: soften floor 1 and even out the climb, **without moving
+where floor 10 sits in creature power**. `MONSTER_STRENGTH` 0.35 → 0.28,
+`STRENGTH_GROWTH_REBALANCED` 1.108 → 1.1358. Creature COUNT is untouched
+— `MONSTERS_BASE` and `MONSTER_GROWTH_REBALANCED` keep M17's settings and
+the roster is still `5,5,6,6,6,6,7,7,8,8`.
+
+**The growth is solved, not chosen.** For any base, it is whatever pins
+floor 10: `(0.35 × 1.108^9 / base)^(1/9)`. So `0.28 × 1.1358^9 ==
+0.35 × 1.108^9` exactly, and floor 10's ceiling index (8), mean xp and
+threat mass (264.5) are unchanged to the digit. A test asserts this
+against the literal pre-M25 pair, so changing one constant without
+re-solving the other fails loudly instead of quietly sliding floor 10.
+
+**The base was SWEPT** — n=50 floors per level, scoring the standard
+deviation of the log floor-to-floor threat-mass ratio ("how even are the
+steps", lower is smoother):
+
+| base | growth | floor 1 mass | floor 10 mass | smoothness |
+|---|---|---|---|---|
+| 0.35 | 1.108 | 26.6 | 264.5 | 0.204 (was) |
+| 0.32 | 1.1191 | 26.0 | 264.5 | 0.213 |
+| 0.30 | 1.1271 | 25.4 | 264.5 | 0.140 |
+| **0.28** | **1.1358** | **20.9** | **264.5** | **0.116** |
+| 0.26 | 1.1452 | 20.8 | 264.5 | 0.226 |
+| 0.24 | 1.1554 | 20.2 | 264.5 | 0.227 |
+| 0.22 | 1.1667 | 20.2 | 264.5 | 0.198 |
+
+**Not monotonic, which is why this was swept rather than reasoned.** The
+score is driven by where the INTEGER ceiling-index steps land; 0.28 is
+where they space out evenly. 0.26 and 0.24 cut floor 1 just as hard and
+score *worse than the setting they replaced*.
+
+Threat mass per floor, measured (n=50/floor):
+
+    was    26.6  27.2  47.0  44.9  60.9  72.3  111.7  161.1  167.2  264.5
+    ratio        1.02  1.73  0.96  1.36  1.19   1.54   1.44   1.04   1.58
+
+    now    20.9  25.0  31.1  41.7  48.6  69.6  107.2  145.5  164.8  264.5
+    ratio        1.20  1.24  1.34  1.17  1.43   1.54   1.36   1.13   1.60
+
+The old ramp went BACKWARDS at floor 4 (0.96 — floor 4 easier than floor
+3) and sat nearly flat at floors 2 and 9 around a 73% cliff at floor 3.
+Every ratio is now between 1.13 and 1.60.
+
+**The cost, and it is arithmetic, not a tuning miss: the average slope
+got STEEPER.** Lowering the start while pinning the end cannot do
+anything else. Measured per-floor mass growth 1.291 → 1.326, and the M7
+budget check (`MONSTER_GROWTH_REBALANCED × STRENGTH_GROWTH_REBALANCED^2.356
+/ MONSTER_GROWTH`) drifts from 3.2% to **9.4%** over — still inside the
+15% band its test allows, but two thirds of the way to the edge. If a
+later item wants to spend that band, this is where it went.
+
+**Mid floors hold genuinely weaker creatures**, which is what "smoother
+up to floor 10" means and was accepted explicitly: ceiling index drops
+4 → 3 at floor 3, 5 → 4 at floor 5, 7 → 6 at floor 8. Only floor 10 was
+anchored.
+
+**The obvious alternative was measured and rejected.** Cutting floor 1's
+roster instead (`MONSTERS_BASE` 5 → 3, count growth repinned to 8 at
+floor 10) with this ramp left alone scored **0.247 — worse than the
+setting it would replace** — because integer counts that low make every
+step a large relative jump (floor 2 fell *below* floor 1, then floor 3
+jumped 91%). It would also undo M17 head-on.
+
+**The risk M17 flagged did not fire.** That comment warned a faster ramp
+could saturate the 11-row table inside the descent; `saturatedAt` returns
+null at the new pair (floor 10 reaches 0.881, still under 1.0), and the
+existing no-saturation test covers it.
+
+Real-bot effect, same 40 seeds used for M19 and M24 (`playDungeon`):
+mean death floor 3.40 → **4.03**, share dying by floor 2 35% → **30%**,
+and **one run cleared all ten floors** — the first clear in this seed
+range across the M19, M24 and M25 measurements. One clear in forty is not
+a rate; `run-check.html`'s `finishes` at a real sample is.
 
 **Measured, all three things the item asked for:**
 
