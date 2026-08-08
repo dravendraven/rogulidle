@@ -393,15 +393,55 @@ this dependency points at something real.
   `balance.js`) — correct baseline cited.
 - **Vito** — axe giving `dmg +4` instead of the shipped `+2` — correct
   baseline cited.
-- **Papazito** — full `GameState` read, no fog of war. This is a real,
-  deliberate exception to a hard rule (`CLAUDE.md`: "the bot may only read
-  Observation/Belief, never GameState"), and the proposal's framing —
-  document it the way `rogule-spec.md` §13 documents divergences, scope it
-  to this one persona, and make sure any "bot never touches GameState" test
-  gets a persona-specific exception rather than a general loosening — is the
-  right shape for that kind of change. **This is a rule change, not a
-  tuning dial, and needs the owner's sign-off on the `CLAUDE.md` wording
-  specifically, separate from approving the feature.**
+
+### Papazito and Ricardo, converged on after several rounds — two
+### independent switches, not one big exception
+
+Settled shape, refined across the conversation that filed this item:
+**position/type visibility** and **loot-content visibility** are two
+separate axes, and no persona sits at "sees everything" on both.
+
+|              | position + type            | loot content (drop / hasLoot) |
+|--------------|-----------------------------|--------------------------------|
+| base/Pawa/Vito | normal fog of war (`VISIBLE_DIST`) | hidden, always — M28's fix |
+| **Papazito** | **whole map, always**      | hidden, same as everyone      |
+| **Ricardo**  | normal fog of war          | **revealed, for whatever he can already see** |
+
+**Papazito is a bigger viewport, nothing more.** He knows where every
+monster and chest is and what kind it is (type comes bundled with position
+in `Belief` for anyone), map-wide — which is what lets him plan room order
+in advance. He does **not** know what a chest holds or what a monster will
+drop until it is opened or killed, same rule as the base bot.
+
+**Ricardo is the opposite trade: normal reach, deeper knowledge of what is
+already in view.** Once a chest or monster is within his ordinary fog of
+war, he knows its true loot value instead of the tier-based expectation
+`expectedMonsterDropValue` (B9) computes for everyone else. The player is
+never told why — the persona is sold as "the smart one," not "the one who
+cheats," and the only observable signature is behavioural: he never opens
+an empty chest, never detours for a creature carrying nothing.
+
+**Neither one needs a `GameState` exception, which is a real simplification
+from the original framing.** `observe()` (`src/sim/observe.js`) already
+legitimately bridges `GameState` into `Belief` — that is its job. Papazito
+is `observe()` called with an unbounded visibility radius instead of
+`VISIBLE_DIST`; Ricardo is `observe()`/`copyEntity` called without M28's
+content strip. Both personas still only ever hand the bot a `Belief` object
+— the boundary `CLAUDE.md` protects (bot code never touches `state`
+directly) is untouched by either. This is worth noting as a persona-scoped
+parameter to `observe()`, in the spec's own §13 divergence style, rather
+than as the rule exception the first draft of this item called for — lighter
+sign-off, not none, since it is still fog of war behaving differently by
+design.
+
+**Ricardo's open empirical question, carried over from B9.** B9 shipped its
+drop-pricing OFF because pricing an *expected* drop reordered even mandatory
+fights and the bot died sooner. Ricardo prices a *known* drop instead of an
+estimate — whether perfect information avoids that harm (no more wasted
+detours toward creatures that turn out to carry nothing) or reproduces it
+(the reordering itself was the problem, not the uncertainty) is not
+knowable in advance and should be measured when Ricardo is built, not
+assumed either way.
 
 ### The architecture note is correctly flagged as a decision, not a detail
 
@@ -431,11 +471,14 @@ number (like win rate) can hide the real effect or invent a fake one.
 
 ### Roles, as scoped in the proposal
 
-`src/sim/` (persona as state parameter, item constants) — work agent.
-`src/ui/` (picker) — ui agent. Ricardo blocked on a real, filed
-`DUEL_SAFETY_MARGIN` calibration item — see above, that item does not exist
-yet. Papazito blocked on owner sign-off for the `CLAUDE.md` exception
-specifically.
+`src/sim/` (persona as state parameter, item constants, `observe()`'s
+visibility-radius and content-strip becoming persona-aware) — work agent.
+`src/ui/` (picker) — ui agent. Ricardo's combat tuning blocked on a real,
+filed `DUEL_SAFETY_MARGIN` calibration item — see above, that item does not
+exist yet; his loot awareness is buildable independently and rides on M28's
+mechanism directly. Papazito needs the owner's sign-off on the lighter
+`observe()`-parameter framing above, in place of the earlier `GameState`-
+exception framing.
 
 ## Dropped from the queue
 
