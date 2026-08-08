@@ -257,7 +257,7 @@ Four fixes have already been implemented against this and none moved the
 ratio, which is itself a reason to establish the effect exists before
 attempting a fifth.
 
-## U4 · a hero picker, persisting across deaths
+## U7 · a hero picker, persisting across deaths
 
 `owner idea` · **UNSCHEDULED — spectator control, the territory already
 flagged as deferred until bot/map base is done. Recorded, not blocking.**
@@ -334,17 +334,17 @@ dial.
 between runs.** No new item type — buying a shield still grants his own
 `armour 5`, the same mechanic every other persona's shield pickup uses.
 The only new thing is a second purchase trigger (floor transition, mid-run)
-alongside U3e's between-run shop. This is causally tied to his actual trait
+alongside U6e's between-run shop. This is causally tied to his actual trait
 (more armour per shield) rather than a bolted-on preference, which
 "explore more" never was.
 
-**Blocked on both U3 and U4 landing, not just U4.** Needs a coin balance
-that is readable and spendable MID-RUN — U3c today only settles the
+**Blocked on both U6 and U7 landing, not just U7.** Needs a coin balance
+that is readable and spendable MID-RUN — U6c today only settles the
 balance at run boundaries (bank on clear, reset-or-carry on death per the
 flag) — and needs the persona system itself, since only Pawa gets the
-option. Sequence: U3 (all six parts) and U4's base persona-as-state-
+option. Sequence: U6 (all six parts) and U7's base persona-as-state-
 parameter work land first; this is additive on top of both, not a seventh
-U3 item and not foldable into U4's first pass.
+U6 item and not foldable into U7's first pass.
 
 **The purchase decision has to be autonomous, and its rule is not
 decided.** The project's whole spectator model is non-blocking — nothing

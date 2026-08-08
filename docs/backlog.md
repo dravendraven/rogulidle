@@ -51,12 +51,12 @@ session, skip it.
 | 11 | X1 | Delete what nothing references | READY · list refreshed |
 | 12 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
 | 13 | U5 | Show the coin formula live on a real run | REPORTED |
-| 14 | U3a | A coin balance that survives a page reload | REPORTED |
-| 15 | U3b | Pay coin into the balance at floor completion | READY |
-| 16 | U3c | Bank or clear the run coin at run end, per the death rule | READY |
-| 17 | U3d | The engine accepts a starting loadout | READY |
-| 18 | U3e | The shop screen | READY |
-| 19 | U3f | Watch a full loop, integration check | READY |
+| 14 | U6a | A coin balance that survives a page reload | REPORTED |
+| 15 | U6b | Pay coin into the balance at floor completion | READY |
+| 16 | U6c | Bank or clear the run coin at run end, per the death rule | READY |
+| 17 | U6d | The engine accepts a starting loadout | READY |
+| 18 | U6e | The shop screen | READY |
+| 19 | U6f | Watch a full loop, integration check | READY |
 | 20 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
@@ -1684,23 +1684,23 @@ the NEXT field someone adds to `MONSTER_TABLE` or the live monster object
 too, so patching out `drop` alone is not durable.
 
 **Build the strip as a parameter, not a hardcoded omission — `docs/project/
-candidates.md`'s U4 already needs this exact hook.** U4 (parked,
+candidates.md`'s U7 already needs this exact hook.** U7 (parked,
 unscheduled) proposes a persona, Ricardo, whose one differentiator is
 seeing `drop`/chest-loot for whatever he can already see, while every other
 persona — base included — gets it stripped. If this item hardcodes the
-omission, whoever eventually builds U4 has to come back into this same
+omission, whoever eventually builds U7 has to come back into this same
 function and partially undo it. Cheap to avoid: give the monster/chest
 allow-list a `revealLoot` flag (default `false`), and `observe()` threads
 it through from whichever persona is active (today, always `false` — there
 is no persona system yet, so this is a parameter with one caller passing
-its default, not new machinery running). U4 stays unscheduled; this just
+its default, not new machinery running). U7 stays unscheduled; this just
 means M28 does not have to be redone when it isn't.
 
 **Assert.** Tests green. A `Belief.monsters` entry has no `drop` key at the
 default (or an explicit test that the bot cannot distinguish two monsters
 of the same tier by inventory-relevant fields). A second test confirms the
 flag itself works — call the allow-list with `revealLoot: true` and assert
-`drop` survives — so U4 has something to build against later instead of
+`drop` survives — so U7 has something to build against later instead of
 discovering the parameter does nothing. Confirm B9's own
 `expectedMonsterDropValue` still produces the same numbers it did before —
 this item closes a leak and adds an unused switch, it does not change what
@@ -1791,7 +1791,7 @@ one item.
 The category call on `hpMax`/`side`/`edge` — visible properties of a
 creature already in view, not unrevealed rolls, same bucket as `xp` — is
 correct and worth having written down, since it is the exact line a future
-persona (Papazito, U4) will need drawn again for the tiles/geometry side of
+persona (Papazito, U7) will need drawn again for the tiles/geometry side of
 the same question.
 
 No `rogule-spec.md` entry and no `balance.md` entry were both the right
@@ -1867,16 +1867,16 @@ spread widened. Measured on the probes.
 
 ## U5 · show the coin formula live, on the real run — not a batch instrument
 
-`ui agent` · **REPORTED** · metrics idea, closes U3's open question cheaply
+`ui agent` · **REPORTED** · metrics idea, closes U6's open question cheaply
 
-`docs/project/candidates.md`'s U3 (parked coin/shop meta-progression idea)
+`docs/project/candidates.md`'s U6 (parked coin/shop meta-progression idea)
 left one thing unresolved before pricing means anything: does today's real
 xp/turn even clear the cheapest item's threshold on a typical surviving
 floor? The metrics agent already validated the formula in `run-check.html`
 — `coins = round(xpEarned-this-floor / turns-this-floor * 10)`, summed per
 run — and paired it against the dumb probe: the bot earns 9.5 coins/turn
 against the probe's 4-5.5, because the probe dies early and loses whole
-floors of future earning. That is exactly the shape of number U3 needed and
+floors of future earning. That is exactly the shape of number U6 needed and
 did not have.
 
 **Why this is UI work and not a metrics-instrument extension.** Both
@@ -1902,18 +1902,18 @@ hero-picker/Extraction proposals both hold "never pause waiting on the
 spectator" as a hard rule. The floor-completion overlay has to animate and
 clear on its own; it cannot wait for input or pause the sim.
 
-**Why resetting to zero on death is fine here and is not U3's rule.** U3's
+**Why resetting to zero on death is fine here and is not U6's rule.** U6's
 actual (parked) design has spent coin survive death — only the unbanked
 balance resets — specifically because a real shop needs runs to be worth
 attempting even at today's ~6-7% finish rate. **This counter has no
 shop and nothing persists between page loads**, so "reset to zero" here
 just means there is nowhere else for the number to live yet, not a design
-choice about currency rules. If U3 ever ships for real, this display's
-reset behaviour needs reconciling with whatever U3 settles on — flag that
+choice about currency rules. If U6 ever ships for real, this display's
+reset behaviour needs reconciling with whatever U6 settles on — flag that
 dependency then, not now.
 
 **Naming caution, not a blocker.** Label it as an efficiency read, not as
-game currency — U3 (if it ever ships) may spend coins differently than this
+game currency — U6 (if it ever ships) may spend coins differently than this
 raw formula computes (banked vs. unbanked balance, floor-completion vs.
 run-completion payout). Calling this "moedas teóricas" or similar in the
 UI avoids implying a shop exists that does not.
@@ -1980,12 +1980,12 @@ only wording (`+N 🪙`, counter as `🪙 N`) came from an owner follow-up
 mid-task, after the first pass shipped with top-anchored placement and
 "+N this floor" / "N coins" text.
 
-## U3a · a coin balance that survives a page reload
+## U6a · a coin balance that survives a page reload
 
-`ui agent` · **REPORTED** · first of six, U3's arc — see the death rule
+`ui agent` · **REPORTED** · first of six, U6's arc — see the death rule
 below, final
 
-Promoted off `candidates.md`'s U3 now that the owner has settled the one
+Promoted off `candidates.md`'s U6 now that the owner has settled the one
 question that was blocking it: **on death, balance and any held item reset
 to zero.** In the owner's words, the coin and the item are what THIS hero
 is holding by virtue of surviving — die, and a new hero starts from zero.
@@ -2022,11 +2022,11 @@ a death, both survive.
 `localStorage` key, same shape as `score.js` (U4): `load()`/`save()` guard
 against private-browsing/quota/corrupt-JSON by degrading to `{balance: 0,
 heldItem: null}` rather than throwing. `resetOnDeath` takes the flag as an
-explicit argument rather than reading the constant internally, so U3f can
+explicit argument rather than reading the constant internally, so U6f can
 compare both settings later without a page reload.
 
 No `index.html`/`style.css` touched — the item says so explicitly ("the
-drawer existing, empty") and there's nothing to show yet: U3b hasn't built
+drawer existing, empty") and there's nothing to show yet: U6b hasn't built
 the unbanked total, so there's no number to bank or display beyond what a
 console call can already read.
 
@@ -2040,28 +2040,28 @@ flag zeroed both — death, flag off. Set balance 52 + a different item,
 **Nothing to disclose.** No design call was left open by the spec, and the
 module is small enough that the three asserts cover its whole surface.
 
-## U3b · pay coin into the balance at floor completion
+## U6b · pay coin into the balance at floor completion
 
 `ui agent` · READY · **second of six**
 
 Wires U5's already-validated formula (`coins = round(xpEarned-this-floor /
-turns-this-floor * 10)`) into U3a's balance instead of only displaying it.
+turns-this-floor * 10)`) into U6a's balance instead of only displaying it.
 Builds on U5 directly — if U5 has not landed yet, build the formula call
 here rather than block on it, since both need the same read of
 `state.player.xpEarned`/`state.turn`.
 
 **Do.** On floor completion, compute the coin figure and add it to the
 CURRENT RUN's unbanked total (not the persisted balance yet — that only
-happens per U3a's death/survive rule, at run end).
+happens per U6a's death/survive rule, at run end).
 
 **Assert.** Play a run, unbanked total matches U5's own displayed number
 floor by floor.
 
-## U3c · bank or clear the run's coin at run end, per the death rule
+## U6c · bank or clear the run's coin at run end, per the death rule
 
 `ui agent` · READY · **third of six, the rule itself**
 
-The mechanic U3a's drawer was built for. At run end (death or shrine),
+The mechanic U6a's drawer was built for. At run end (death or shrine),
 apply the rule: died and flag off → balance and held item both reset to
 zero (default). Died and flag on → unbanked total is discarded, but
 whatever was already in the persisted balance and whatever item was held
@@ -2074,7 +2074,7 @@ everything; death with flag on leaves pre-existing balance/item untouched
 and discards the run's unbanked coin; a clear banks the run's coin into the
 persisted total.
 
-## U3d · the engine accepts a starting loadout
+## U6d · the engine accepts a starting loadout
 
 `work agent` · READY · **fourth of six, the one item that touches
 `src/sim/`**
@@ -2095,14 +2095,14 @@ carrying it from turn 1; `weaponDamage`/`armourValue` read it correctly
 assert exists to CONFIRM that, not to build new logic for it). All existing
 tests green with the option omitted.
 
-## U3e · the shop screen
+## U6e · the shop screen
 
 `ui agent` · READY · **fifth of six**
 
 Three purchase options at run end, priced per the table already fixed
-(shield 1, dagger 5, axe 8 — `docs/project/candidates.md`'s old U3 has the
-derivation, now folded into this arc). Buying sets U3a's held-item slot for
-the run about to start; U3d's option carries it in.
+(shield 1, dagger 5, axe 8 — `docs/project/candidates.md`'s old U6 has the
+derivation, now folded into this arc). Buying sets U6a's held-item slot for
+the run about to start; U6d's option carries it in.
 
 **Do.** Offer screen: three items, current balance, afford/cannot-afford
 state. Purchase deducts from the persisted balance immediately (not
@@ -2117,12 +2117,12 @@ choice) if nothing is picked in time, never a pause waiting on input.
 **Assert.** Balance decreases by the right amount on purchase. Skipping
 leaves balance untouched and the next run starts unarmed, same as today.
 
-## U3f · watch a full loop, coins to gear to next run to death to reset
+## U6f · watch a full loop, coins to gear to next run to death to reset
 
 `ui agent` · READY · **sixth of six, the integration check — closes the
 arc**
 
-Not new logic — confirms U3a through U3e agree with each other end to end,
+Not new logic — confirms U6a through U6e agree with each other end to end,
 which none of the individual items can prove alone.
 
 **Assert, by playing it, not by reading code.** Earn coin across a run,
