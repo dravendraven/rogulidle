@@ -15,8 +15,8 @@
 // regardless; a potion is worth only the gap it can actually fill.
 
 import {
-  CHEST_LOOT_CHANCE, ITEM_TABLE, MONSTER_COUNT, POTION_HEAL,
-  UNKNOWN_MONSTER_ESTIMATE,
+  CHEST_LOOT_CHANCE, ITEM_TABLE, MONSTER_COUNT, MONSTER_DROP_CHANCE,
+  MONSTER_TABLE, POTION_HEAL, UNKNOWN_MONSTER_ESTIMATE, WEAPON_AXE_MIN_TIER,
 } from '../sim/balance.js';
 import { itemWeights } from '../sim/spawn.js';
 import { campaignCost } from './duel.js';
@@ -120,4 +120,39 @@ export function expectedChestValue(values) {
     sum += probability * (values.get(template.name) || 0);
   }
   return CHEST_LOOT_CHANCE * sum;
+}
+
+// B9 (docs/backlog.md). What a live creature is expected to be carrying,
+// in the same hp currency as everything else — M26 put a weapon-or-potion
+// pool on every creature, gated by its own tier, and until now nothing
+// priced it: `tactics.js` scores a duel on damage and distance alone, so a
+// creature with an axe under it scored identically to an empty one.
+//
+// Read from the creature's TIER, not from `monster.drop` — the belief
+// object happens to carry the real, already-rolled drop (`observe.js`
+// clones the whole entity), but pricing the exact item would be reading a
+// fog-of-war leak rather than an inference, and would make "expected"
+// meaningless. `weaponWeightsFor` in spawn.js is the live mechanism that
+// decides what a creature of this tier can carry; this calls the same
+// `itemWeights` shape rather than a second copy of its logic, so the
+// bot's guess cannot drift from what generation actually rolls.
+//
+// Chest scarcity is not modelled here either, matching `ITEM_MIX` above —
+// that map has always assumed scarcity 1 rather than reading
+// `armourScarcity`, and the monster side of this stays consistent with it
+// rather than inventing a new standard of precision for one drop source.
+export function expectedMonsterDropValue(monster, values) {
+  const tier = MONSTER_TABLE.findIndex((template) => template.name === monster.name);
+  if (tier < 0) return 0;
+
+  const quality = tier / (MONSTER_TABLE.length - 1);
+  const exclude = tier < WEAPON_AXE_MIN_TIER ? ['axe'] : [];
+  const weights = itemWeights({}, 'monster', quality, exclude);
+
+  let sum = 0;
+  for (const [template, probability] of weights) {
+    if (!template) continue;
+    sum += probability * (values.get(template.name) || 0);
+  }
+  return MONSTER_DROP_CHANCE * sum;
 }

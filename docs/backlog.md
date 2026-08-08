@@ -42,7 +42,7 @@ session, skip it.
 | 2 | M26 | Weapons come off creatures, gated by strength — the only permanent power | **DONE** |
 | 3 | M27 | Chests hold armour and potions — after M26, not with it | **DONE** |
 | 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **DONE** · shipped OFF |
-| 5 | B9 | Teach the bot that a creature carries something | READY · M26 landed |
+| 5 | B9 | Teach the bot that a creature carries something | **REPORTED** · shipped OFF |
 | 6 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
 | 7 | D1 | The crowd-correction fit is overdue for its own redo | READY |
 | 8 | X1 | Delete what nothing references | READY · list refreshed |
@@ -1193,7 +1193,7 @@ wall-bump lead up next.
 
 ## B9 · the bot does not know a creature is carrying anything
 
-`bot agent` · BLOCKED on M26
+`bot agent` · **REPORTED** · shipped OFF
 
 **M26 changes the world; it does not change what the bot wants.** Written
 now so the gap is not discovered as a disappointing measurement.
@@ -1222,10 +1222,115 @@ previously have walked past, and cumulative weapon damage by floor 10
 against M26 alone. **Watch `finishes` hard** — a bot that seeks fights for
 loot is a bot that dies for loot, and that is the failure mode.
 
+### Result
+
+**Built, measured, shipped OFF — the same verdict B4 reached on
+`exploreCompetes`, for a related reason.** A new `priceDrops` flag in
+`makeBot`'s settings, default `false`.
+
+**What it prices.** `expectedMonsterDropValue` (`src/bot/loot.js`) reads a
+live monster's TIER from its name (`MONSTER_TABLE.findIndex`), rebuilds the
+same `weaponWeightsFor`-shaped distribution `spawn.js` actually draws from
+(quality from tier, `axe` excluded below `WEAPON_AXE_MIN_TIER` — the exact
+mechanism M26 built), and sums `probability * value` over it, discounted by
+`MONSTER_DROP_CHANCE`. Deliberately reads the creature's TIER and not its
+`drop` field — `observe.js`'s `copyEntity` clones the whole monster
+including the already-rolled `drop`, so the real answer is sitting right
+there in Belief, but reading it would be scoring a certainty as an
+"expected value" and would make the discount the item asks for meaningless.
+Flagged here as a found-not-fixed fog-of-war leak — outside this item's
+`src/bot/` scope to close, and not this item's to decide whether it should
+close.
+
+**Wired into two places in `priceMonsters`, both inside `chooseGoal`
+branch 2:**
+1. **Ranking.** `cost = duel.hpLost + approach - drop` for every monster
+   already eligible — so between two fights of similar duel cost, the one
+   guarding better expected gear is preferred. This reorders the
+   cheap-kills-first snowball bot-strategy §3 relies on (cheap kills raise
+   xp, which lowers everything after) whenever it disagrees with the loot
+   ranking.
+2. **Eligibility.** A side monster outside its own activation radius — today
+   skipped outright, per the comment this item quoted about it being "an
+   option, not a job" — is now included if `drop - approach - duel.hpLost`
+   clears zero, the same trade `lootGoals` already makes for a chest behind
+   a guard, aimed at the guard itself.
+
+`values` (`valueByItemName`) is now computed once per turn in `chooseGoal`
+and threaded to `lootGoals` and `priceMonsters` both, rather than recomputed
+inside `lootGoals` alone — avoids pricing the whole item table twice on
+turns branch 2 actually runs.
+
+**Measured, n=60, seed 800000, against the current committed sim (post-M27,
+`WEAPON_SCARCITY` 4):**
+
+    priceDrops                    false    true
+    finishes                       0.0%    0.0%
+    median depth                      3     2.5
+    actions per run                 297     261
+    side kills per floor          0.186   0.238   (+28%)
+    weapon/armour pickups/floor   1.215   1.226
+    potion heals per floor        0.288   0.315
+
+The mechanism DOES fire this time — side kills per floor up 28%, unlike
+B4's `exploreValue` which measured as inert. But the run gets WORSE, not
+better: median depth 3 → 2.5, actions per run 297 → 261 — the bot is not
+wandering longer for loot, it is **dying sooner**, having spent hp on
+optional fights before the mandatory ones. Both arms read 0% finishes at
+this sample and difficulty, so `finishes` itself is uninformative here;
+depth and actions per run carry the signal instead, and both move the
+wrong way together. **Two earlier readings** (n=40 seed 800000 and n=30
+seed 910000, taken before this one) showed the same direction — finishes
+2.5%→0% and 6.7%→3.3%, depth down, actions per run up rather than down —
+but are disclosed rather than trusted at face value: `src/sim/spawn.js` and
+`src/sim/difficulty.js` were mid-edit on disk from a concurrent, uncommitted
+M27 session across both of those readings (`WEAPON_SCARCITY` moved 2 → 4
+partway through), so the two families were not measured against an
+identical baseline. All three readings agree on the sign of the effect;
+none of the three magnitudes should be trusted past that.
+
+**The collision ran both directions.** M27's own Result records the mirror
+image: its measurement run hit an `undefined values` crash inside
+`expectedChestValue` while this item's `chooseGoal` refactor (threading
+`values` through `lootGoals`/`priceMonsters`) was mid-edit on disk. Neither
+side's bug — both correctly diagnosed as the other's file moving underfoot,
+matching B4's own "diff the file under test" lesson. `docs/backlog.md`'s
+house rule to take a before- and after-reading in one session assumes a
+STABLE `src/sim/`; a stable `src/bot/` on the other end of the same
+comparison turns out to need the same caveat when a second session is live
+in it too.
+
+**Why the ranking change is the more likely culprit, not the new
+eligibility.** Side kills per floor moved 28% — real, but a small slice of
+total kills — while depth and actions per run moved on EVERY run, not just
+the ones that picked up a new side fight. `priceMonsters`'s cost reordering
+applies to every already-eligible monster on every turn branch 2 runs,
+mandatory spine fights included, so it can reshuffle fight ORDER even when
+it opens no new fight at all. Not proven — separating the two effects would
+need a second flag, which was not built, on the same reasoning B4 gave for
+not over-building an idea already measured as net negative.
+
+**New test**, following B4's pattern of locking the shipped default rather
+than the rejected mechanism: `'a creature out of reach is not hunted for
+its drop by default'` drives the bot at an out-of-activation `ogre` with no
+other goal available and asserts the trace never targets it and it is never
+engaged. 114 tests green at the time this landed (M27 had already added
+four of its own).
+
+**Files touched:** `src/bot/loot.js` (`expectedMonsterDropValue`),
+`src/bot/bot.js` (`priceDrops` flag, `priceMonsters` signature, `values`
+lifted to `chooseGoal` and threaded through), `test/tests.js` (one test),
+`run-b9.html` (new, temporary — add to X1). `src/sim/` untouched.
+
+### Review — pending
+
 ## X1 · delete what nothing uses
 
 **Add `run-zigzag.html` to the list** — B3 built it as an explicitly
 temporary instrument. Keep it only if B8 has not shipped yet.
+
+**Add `run-b9.html` to the list too** — B9's own temporary instrument, same
+deal: built to measure one flag, not meant to outlive the item.
 
 `work agent` · **READY** — list refreshed after the metrics agent's own pass
 
@@ -1239,6 +1344,7 @@ The metrics agent already deleted `run-ruler.html`, `run-lab.html` and
     run-cluster.html    served I2, closed
     run-i3.html         served I3, closed
     run-zigzag.html     served B3, temporary by its own author
+    run-b9.html         served B9, temporary by its own author
 
 **Modules — re-verify with a grep before deleting, the list is not proof.**
 

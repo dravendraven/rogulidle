@@ -17,7 +17,9 @@ import { MONSTERS_BASE, MONSTER_GROWTH } from '../sim/difficulty.js';
 import { scoreActions } from './tactics.js';
 import { effectiveHp } from '../sim/combat.js';
 import { duelCost } from './duel.js';
-import { expectedChestValue, monstersAhead, valueByItemName } from "./loot.js";
+import {
+  expectedChestValue, expectedMonsterDropValue, monstersAhead, valueByItemName,
+} from "./loot.js";
 import { dangerField } from './threat.js';
 import {
   actionToward, believedWalkable, dijkstra, exposure, frontiers, key, routeTo,
@@ -76,11 +78,18 @@ function liveMonsters(belief) {
 // the expensive monster at the end is met with double the starting damage.
 // Nothing here encodes that — it falls out of repricing every turn against
 // current xp and gear.
-function priceMonsters(belief, field, safetyMargin, mode = 'spine') {
+function priceMonsters(belief, field, safetyMargin, mode = 'spine', dropValues = null) {
   const out = [];
   for (const monster of liveMonsters(belief)) {
     const approach = priceOfReaching(field, monster.pos);
     if (!Number.isFinite(approach)) continue;     // walled off for now
+
+    const duel = duelCost(belief.player, monster);
+    // B9: what this creature is expected to be carrying, in the same hp
+    // currency as its own cost — see expectedMonsterDropValue for why this
+    // is an ESTIMATE from tier rather than a read of the real `drop`.
+    // Zero whenever `dropValues` is off, so the flag costs nothing to keep.
+    const drop = dropValues ? expectedMonsterDropValue(monster, dropValues) : 0;
 
     // A creature in a side room is not a job, it is an option — so it is
     // not hunted for its own sake. It becomes a target the moment it is
@@ -90,13 +99,18 @@ function priceMonsters(belief, field, safetyMargin, mode = 'spine') {
     // Side rooms still get visited: their CHESTS are goals, and the route
     // to a chest is danger-priced, so the bot pays for the guard when it
     // decides whether the loot is worth it. That is the whole risk/reward
-    // decision, and it happens in lootGoals rather than here.
+    // decision, and it happens in lootGoals rather than here — except now
+    // the creature ITSELF can be that same decision. B9: a side monster
+    // out of reach is still worth a special trip if what it is expected to
+    // carry pays for both the walk and the fight, exactly the trade
+    // lootGoals already makes for a guarded chest, aimed at the guard
+    // instead of what it is guarding.
     if (mode === 'spine' && monster.side) {
       const steps = field.steps.get(key(monster.pos));
-      if (steps === undefined || steps > monster.activation) continue;
+      const activated = steps !== undefined && steps <= monster.activation;
+      if (!activated && drop - approach - duel.hpLost <= 0) continue;
     }
 
-    const duel = duelCost(belief.player, monster);
     out.push({
       kind: 'monster',
       id: monster.id,
@@ -105,8 +119,10 @@ function priceMonsters(belief, field, safetyMargin, mode = 'spine') {
       // Not `survivable`, which is break-even. Expected damage is an
       // average, so a duel that costs exactly all the hp there is loses
       // about half the time. The bot wants headroom before committing.
+      // Unaffected by the drop: loot makes a fight more WORTHWHILE, not
+      // more SURVIVABLE, and this gate is about survival.
       worthStarting: duel.hpLost <= effectiveHp(belief.player) * safetyMargin,
-      cost: duel.hpLost + approach,
+      cost: duel.hpLost + approach - drop,
     });
   }
   return out;
@@ -283,9 +299,7 @@ function guardCost(belief, pos, enabled) {
   return total;
 }
 
-function lootGoals(belief, field, danger, total, stepCost, future = 0, guards = true,
-  crowd = true) {
-  const values = valueByItemName(belief, total, future, crowd);
+function lootGoals(belief, field, danger, values, stepCost, guards = true) {
   const chestValue = expectedChestValue(values);
   const out = [];
 
@@ -327,10 +341,9 @@ function lootGoals(belief, field, danger, total, stepCost, future = 0, guards = 
 // (there is no clock, spec §8) and a monster that follows the bot never
 // closes the gap — it moves after the player does, so retreating holds
 // the distance. Delay is genuinely cheap; only dead ends are not.
-function preparationGoals(belief, field, danger, options) {
+function preparationGoals(belief, field, danger, options, values) {
   const useful = lootGoals(
-    belief, field, danger, options.monsterCount, options.stepCost,
-    options.monstersAhead, options.guardPricing, options.crowdCost,
+    belief, field, danger, values, options.stepCost, options.guardPricing,
   ).filter((g) => g.gross > 0);
   if (useful.length) {
     return useful.reduce((a, b) => {
@@ -345,16 +358,21 @@ function preparationGoals(belief, field, danger, options) {
 }
 
 function chooseGoal(belief, field, danger, current, options) {
+  // Priced once per turn and threaded through every branch that needs it —
+  // loot goals, the dark's value (B4) and now a creature's own drop (B9)
+  // all quote the same figures, so "go and open that" and "go and kill
+  // that for what it might carry" are comparable in one currency.
+  const values = valueByItemName(
+    belief, options.monsterCount, options.monstersAhead, options.crowdCost,
+  );
+
   // 1. Anything free worth having? Rule 1: stock up before fighting. Loot
   //    that does not pay for its own walk scores negative and is skipped,
   //    so this does not become a compulsion to hoover up every chestnut —
   //    and now the walk is priced in danger too, so a shield guarded by a
   //    wolf is correctly no longer free.
   if (options.loot) {
-    const loot = lootGoals(
-      belief, field, danger, options.monsterCount, options.stepCost,
-      options.monstersAhead, options.guardPricing, options.crowdCost,
-    );
+    const loot = lootGoals(belief, field, danger, values, options.stepCost, options.guardPricing);
 
     // B4: the dark competes here, in the same net-value comparison, instead
     // of being the fallback it used to be at branch 3. `expectedChestValue`
@@ -391,7 +409,8 @@ function chooseGoal(belief, field, danger, current, options) {
 
   // 2. Something alive and known? Take the cheapest fight, not the closest.
   //    Walking into it is the attack, so combat needs no special case.
-  const priced = priceMonsters(belief, field, options.safetyMargin, options.requireClear);
+  const priced = priceMonsters(belief, field, options.safetyMargin, options.requireClear,
+    options.priceDrops ? values : null);
   if (priced.length) {
     // `pick` exists so P4 can ablate one rule at a time and measure what it
     // is actually worth, rather than trusting that it helped.
@@ -406,7 +425,7 @@ function chooseGoal(belief, field, danger, current, options) {
     // were started knowing the sum did not add up, and 63% of deaths came
     // from exactly that.
     if (options.refuseLostFights && !best.worthStarting) {
-      const prepare = preparationGoals(belief, field, danger, options);
+      const prepare = preparationGoals(belief, field, danger, options, values);
       if (prepare) return prepare;
       // Nothing left to prepare with. Take it — the bot is not allowed to
       // give up, and dying trying is an accepted outcome (§0).
@@ -505,6 +524,15 @@ export function makeBot(options = {}) {
     //                 the bot can have NOW is worth having first.
     exploreValue: false,
     exploreCompetes: false,
+
+    // B9. Prices a creature's expected drop (weapon or potion, gated by its
+    // tier — see expectedMonsterDropValue in loot.js) into both the cheapest-
+    // fight ranking and the eligibility of a side monster the bot would
+    // otherwise never approach. OFF by default, same reason as the two
+    // flags above: unmeasured. **Watch `finishes` before flipping this** —
+    // the item's own warning is that a bot that fights for loot is a bot
+    // that dies for loot.
+    priceDrops: false,
 
     // Every tunable the bot reads, defaulting to the shipped value. They
     // live here rather than being imported at the point of use so that P4
