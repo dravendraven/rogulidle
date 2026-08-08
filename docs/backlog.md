@@ -54,7 +54,7 @@ session, skip it.
 | 14 | U5 | Show the coin formula live on a real run | **DONE** |
 | 15 | U6a | A coin balance that survives a page reload | **DONE** |
 | 16 | U6b | Pay coin into the balance at floor completion | **DONE** |
-| 17 | U6c | Bank or clear the run coin at run end, per the death rule | READY |
+| 17 | U6c | Bank or clear the run coin at run end, per the death rule | IN FLIGHT |
 | 18 | U6d | The engine accepts a starting loadout | READY |
 | 19 | U6e | The shop screen | READY |
 | 20 | U6f | Watch a full loop, integration check | READY |
@@ -2358,7 +2358,7 @@ reach for it early.
 
 ## U6c · bank or clear the run's coin at run end, per the death rule
 
-`ui agent` · READY · **third of six, the rule itself**
+`ui agent` · **IN FLIGHT** · third of six, the rule itself
 
 The mechanic U6a's drawer was built for. At run end (death or shrine),
 apply the rule: died and flag off → balance and held item both reset to
