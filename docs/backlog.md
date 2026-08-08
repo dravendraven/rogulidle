@@ -47,18 +47,19 @@ session, skip it.
 | 7 | M28 | Belief clones a monster's drop before it should be knowable | **DONE** |
 | 8 | B10 | Weight the route toward a frontier by what it would reveal | **DONE** · shipped OFF, inert |
 | 9 | M30 | Floor 1 must cost less hp than floor 2, checked exactly | **REPORTED** |
-| 10 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
-| 11 | D1 | The crowd-correction fit is overdue for its own redo | READY |
-| 12 | X1 | Delete what nothing references | READY · list refreshed |
-| 13 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 14 | U5 | Show the coin formula live on a real run | **DONE** |
-| 15 | U6a | A coin balance that survives a page reload | **DONE** |
-| 16 | U6b | Pay coin into the balance at floor completion | **DONE** |
-| 17 | U6c | Bank or clear the run coin at run end, per the death rule | IN FLIGHT |
-| 18 | U6d | The engine accepts a starting loadout | READY |
-| 19 | U6e | The shop screen | READY |
-| 20 | U6f | Watch a full loop, integration check | READY |
-| 21 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 10 | B11 | Make combat compete with loot, not lose to it by construction | READY |
+| 11 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
+| 12 | D1 | The crowd-correction fit is overdue for its own redo | READY |
+| 13 | X1 | Delete what nothing references | READY · list refreshed |
+| 14 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
+| 15 | U5 | Show the coin formula live on a real run | **DONE** |
+| 16 | U6a | A coin balance that survives a page reload | **DONE** |
+| 17 | U6b | Pay coin into the balance at floor completion | **DONE** |
+| 18 | U6c | Bank or clear the run coin at run end, per the death rule | IN FLIGHT |
+| 19 | U6d | The engine accepts a starting loadout | READY |
+| 20 | U6e | The shop screen | READY |
+| 21 | U6f | Watch a full loop, integration check | READY |
+| 22 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -1134,6 +1135,100 @@ through `floorParams`/`DEFAULT_MODEL`/`makeFloorPlan`/`expectedFloorMass`),
 table, new M30 subsection under M24's). No `docs/rogule-spec.md` entry —
 a number-and-mechanism retune of an already-documented clamp family
 (M13/M24), not a new rule.
+
+## B11 · make combat compete with loot, not lose to it by construction
+
+`bot agent` · READY · **filed from a bot-agent proposal, reviewed and
+placed by the project agent**
+
+### Where this came from
+
+Owner asked, in chat with the bot agent: "what would make the bot prefer
+combat vs loot?" The answer surfaced a structural fact worth an item, not
+just a conversation: **the bot cannot currently prefer combat over loot,
+at any price.**
+
+`chooseGoal` (`bot.js:384`) is a branch chain with early return, not a
+comparison:
+
+    1. loot with net > 0 exists?  -> return the best one. STOP.
+    2. (only reached if 1 was empty) cheapest known monster fight.
+    3. shrine reachable.
+    4/5. explore.
+
+Branch 1 returns the instant ANY chest/item scores positive net. Branch 2
+— where B9's `priceDrops` lives — is never even evaluated on a turn where
+loot is on offer, regardless of how good the fight looks. **Verified
+empirically, not just read off the code:** an ad-hoc sim scaling the bot's
+belief about axe/dagger hp value by 2x, then 5x, with `GUARANTEE_FIRST_WEAPON`
+off (so weapon acquisition is genuinely contested), moved creatures killed
+and loot picked up per run by less than one event out of 40 seeded runs,
+identically at both multipliers. B9's `priceDrops` only reorders WHICH
+monster to fight once every visible loot option is already exhausted —
+a small share of turns on a 15-chest floor.
+
+### The idea
+
+Fold branch 1 and branch 2 into one comparison. Give a monster a `net` in
+the same hp currency loot already uses — `xp value gained + priceDrops`'s
+expected-drop value − expected hp lost` — and rank it against `loot.net`
+in the same list, same `reduce`. Highest net wins, whichever kind it is.
+Same shape B4 already used to make the dark compete with loot
+(`exploreCompetes`, same branch), combat as the competitor instead of
+exploration.
+
+### Why this is not B4's `exploreCompetes` repeated, and probably safer
+
+B4's dark-competes flag was harmful because the dark never expires —
+treating a non-decaying reward as biddable let it outbid loot sitting in
+plain sight. A monster does not have that problem: real, immediate, and
+decaying (it can wander off, and a spine creature has to be fought
+eventually anyway), closer to the comparison branch 1 already makes
+BETWEEN two chests than to B4's failure mode.
+
+**The real risk is B9's, sharpened, not B4's repeated.** B9's own item
+warned "a bot that seeks fights for loot is a bot that dies for loot," and
+this item makes that tradeoff sharper: it does not just let the bot walk a
+bit out of its way for a fight (B9), it lets a fight OUTRANK loot the bot
+could have taken for free. `worthStarting`'s survivability gate still
+applies before any fight is taken, but the RANKING step that puts combat
+ahead of a safe chest has no such gate.
+
+### Do
+
+- A `combatValue(monster, values, options)` helper (`bot.js` or `loot.js`),
+  returning the same hp-currency figure `priceMonsters` already computes
+  minus `hpLost`, symmetric with a chest's net.
+- Merge into branch 1's `worthwhile` list, behind a new flag, **default
+  OFF** — same pattern as `exploreCompetes`, `priceDrops` before its
+  remeasurement, `frontierRouting`.
+- Keep `worthStarting`'s survivability gate as a hard filter BEFORE a
+  monster enters the comparison — this item ranks a fight against loot, it
+  does not relax when a fight is safe to start.
+- Decide what happens to the existing hysteresis (branch 1's chest/item
+  stickiness, branch 2's monster stickiness) once they are one list —
+  probably one shared `stickiness` check keyed by `current.kind`, not two;
+  report the actual decision made, not just the proposal.
+
+### Assert
+
+Same discipline as B4/B9/B10: paired seeds, two families, before/after in
+one session. **Report `finishes` and median depth FIRST and loudest** —
+this is the one flag in the P4 series with a plausible path to a worse
+death rate, not just a wasted-turns number. Alongside: creatures killed per
+run, loot picked up per run, cumulative weapon damage by floor 10 (does the
+bot end up better-armed, or just more often mid-fight when it didn't have
+to be).
+
+**If `finishes` falls on either family, that is the stop signal** — same
+rule B10 used for wall bumps, applied to the sharper risk this item
+actually carries.
+
+**Cross-reference, not a blocker:** B9's own review left a z-score formally
+owed on `priceDrops`' side-kill rate. This item reuses that mechanism's
+expected-drop computation rather than its ranking decision, so it does not
+need to wait — but if that check later moves `priceDrops` itself, this
+item's baseline moves too.
 
 ## M21 · deep floors have something waiting where you land
 
