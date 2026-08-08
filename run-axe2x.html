@@ -66,10 +66,15 @@ async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
   let weaponPickups = 0;
   let cumulativeWeaponDmg = 0;
 
+  let killsTotal = 0;
+  let lootTotal = 0;
+
   for (let i = 0; i < runs; i++) {
     let carry = null;
     let depth = 0;
     let actions = 0;
+    let lootThisRun = 0;
+    let killsThisRun = 0;
 
     for (let level = 1; level <= LEVELS; level++) {
       const plan = floorPlan(level);
@@ -109,12 +114,18 @@ async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
             weaponPickups++;
             if (e.item === 'axe') axePickups++;
             if (e.item === 'dagger') daggerPickups++;
+            lootThisRun++;
           }
+          // A potion at full health is not consumed (stays on the floor),
+          // so 'heal' only logs when it actually did something — a real
+          // pickup, in effect if not in inventory.
+          if (e.type === 'heal') lootThisRun++;
         }
       }
 
       depth = level;
       floorsPlayed++;
+      killsThisRun = state.player.kills.length;
       if (state.outcome !== 'ascended') break;
       carry = carryFromPlayer(state.player);
       if (level === LEVELS) cleared++;
@@ -123,7 +134,9 @@ async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
       cumulativeWeaponDmg = carry.inventory.reduce((s, it) => s + (it.dmg || 0), 0);
     }
 
-    perRun.push({ depth, actions });
+    killsTotal += killsThisRun;
+    lootTotal += lootThisRun;
+    perRun.push({ depth, actions, kills: killsThisRun, loot: lootThisRun });
     document.getElementById('out').textContent = `run ${i + 1}/${runs}…`;
     if (i % 10 === 9) await new Promise((r) => setTimeout(r, 0));
   }
@@ -139,7 +152,13 @@ async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
     axePickupsPerFloor: floorsPlayed ? axePickups / floorsPlayed : null,
     daggerPickupsPerFloor: floorsPlayed ? daggerPickups / floorsPlayed : null,
     weaponPickupsPerFloor: floorsPlayed ? weaponPickups / floorsPlayed : null,
+    killsPerRun: killsTotal / runs,
+    medianKillsPerRun: median(perRun.map((r) => r.kills)),
+    lootPerRun: lootTotal / runs,
+    medianLootPerRun: median(perRun.map((r) => r.loot)),
     perRunDepth: perRun.map((r) => r.depth),
+    perRunKills: perRun.map((r) => r.kills),
+    perRunLoot: perRun.map((r) => r.loot),
   };
 }
 
@@ -153,8 +172,12 @@ function render(r) {
     `axe pickups per floor    ${r.axePickupsPerFloor === null ? '—' : r.axePickupsPerFloor.toFixed(3)}`,
     `dagger pickups per floor ${r.daggerPickupsPerFloor === null ? '—' : r.daggerPickupsPerFloor.toFixed(3)}`,
     `weapon pickups per floor ${r.weaponPickupsPerFloor === null ? '—' : r.weaponPickupsPerFloor.toFixed(3)}`,
+    `creatures killed per run ${r.killsPerRun.toFixed(2)}  (median ${r.medianKillsPerRun})`,
+    `loot picked up per run   ${r.lootPerRun.toFixed(2)}  (median ${r.medianLootPerRun})`,
     ``,
     `per-run depth            ${JSON.stringify(r.perRunDepth)}`,
+    `per-run kills            ${JSON.stringify(r.perRunKills)}`,
+    `per-run loot             ${JSON.stringify(r.perRunLoot)}`,
   ].join('\n');
 }
 
