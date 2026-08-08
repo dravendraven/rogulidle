@@ -34,7 +34,7 @@
   th, td { text-align:right; padding:.3rem .5rem; border-bottom:1px solid var(--line); white-space:nowrap; }
   th:first-child, td:first-child { text-align:left; }
   th { color:var(--dim); font-weight:600; }
-  th[title] { cursor:help; text-decoration:underline dotted var(--faint); text-underline-offset:3px; }
+  th[title], label[title] { cursor:help; text-decoration:underline dotted var(--faint); text-underline-offset:3px; }
   td.thin { color:var(--faint); }
   .err { color:var(--faint); font-size:10.5px; }
   .card { border:1px solid var(--line); border-radius:8px; background:var(--panel);
@@ -65,10 +65,10 @@ measured, and the selection check below does that instead of waving at it.</p>
 <fieldset>
   <legend>run</legend>
   <div class="row">
-    <div><label>generated floors per level</label><input id="genRuns" type="number" value="400"></div>
-    <div><label>descents</label><input id="descents" type="number" value="120"></div>
-    <div><label>seed base</label><input id="firstSeed" type="number" value="1000"></div>
-    <div><label>confirmation seed base</label><input id="confirmSeed" type="number" value="7700000"></div>
+    <div><label title="How many floors are generated fresh at each level to compute challenge, reward and their CVs. Generating is cheap — no one plays these floors — so this can be large. Higher = tighter ± error bars on those four columns; it does not touch power, buffer or the 'reached' counts.">generated floors per level</label><input id="genRuns" type="number" value="400"></div>
+    <div><label title="How many full ten-floor dungeons are actually PLAYED (with the real bot) to compute power and buffer. Expensive — each one simulates a whole run — and a floor only gets a sample when a descent survives that far, so deep rows ('reached') stay thin even at high counts. Raising this mainly narrows the error bars on floors 7-10, since 1-6 already have plenty of survivors.">descents</label><input id="descents" type="number" value="120"></div>
+    <div><label title="Anchor of the standard reference sample this page reports by default. Challenge/reward draw from it directly; descents draw from it offset by +900000. Leave it at 1000 — that's the fixed panel of floors every number written down in the docs was measured against, the same way REFERENCE_HERO is a fixed hero rather than a random one. Changing it swaps in a whole different reference sample, which breaks comparability with past write-ups; it is not how robustness gets checked (see confirmation seed base).">seed base</label><input id="firstSeed" type="number" value="1000"></div>
+    <div><label title="A second, separately-fixed reference sample, used automatically on every run to recompute challenge/reward on floors 'seed base' never touches. This IS the built-in robustness check — the 'Confirmation on separate seeds' table below compares the two and flags disagreement — so there's no need to also change 'seed base' for that purpose. Leave both at their defaults unless you deliberately want a new pair of reference samples.">confirmation seed base</label><input id="confirmSeed" type="number" value="7700000"></div>
   </div>
 </fieldset>
 
