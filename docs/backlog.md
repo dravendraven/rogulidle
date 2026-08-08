@@ -42,7 +42,7 @@ session, skip it.
 | 2 | M26 | Weapons come off creatures, gated by strength — the only permanent power | **DONE** |
 | 3 | M27 | Chests hold armour and potions — after M26, not with it | **DONE** |
 | 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **DONE** · shipped OFF |
-| 5 | B9 | Teach the bot that a creature carries something | **REPORTED** · shipped ON, reopened |
+| 5 | B9 | Teach the bot that a creature carries something | **DONE** · shipped ON, one z-score owed |
 | 6 | M28 | Belief clones a monster's drop before it should be knowable | READY |
 | 7 | B10 | Weight the route toward a frontier by what it would reveal | READY |
 | 8 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
@@ -1464,6 +1464,30 @@ behaviour, since default behaviour is now the opposite of what it asserted.
 in that review (fog-of-war leak, filed as M28) stands regardless of which
 way the flag ships. The verdict on the flag itself needs a second look
 against these numbers before it is called either way for real.
+
+### Review of the reopened verdict — ADOPTED provisionally, one number owed
+
+Clean data beats contaminated data, and the earlier ADOPT was too quick to
+credit sign-agreement across three readings when the report's own caveat
+said two of them shared a moving file. That is on this review, not on the
+item — the contamination was disclosed both times, and it should have
+blocked the first verdict rather than being noted and adopted anyway.
+
+**The new case is stronger, but one check is still owed before this counts
+as settled.** Side kills per floor is the clean, high-resolution signal —
+count-based, moves 18-31% on both independent families, same direction
+both times. `priceDrops: true` staying shipped on that is reasonable.
+
+**Finishes and depth reading as literally identical across both arms is
+mildly suspicious in the convenient direction, not just reassuring.**
+Median depth is coarse (few distinct values at this n), so "identical" may
+mean "not sensitive enough to see a small real difference" rather than
+"provably flat." Neither this reading nor the one it replaced was checked
+against `CLAUDE.md`'s own 2-sigma bar. **Owed before this is cited as a
+finding rather than a provisional call:** a proper z-score on the side-kill
+rate and on actions-per-run, at whatever n that takes. Whoever next touches
+`src/bot/loot.js` or re-runs `run-b9.html` should close this rather than
+open a new item for it.
 
 ## M28 · Belief clones a monster's drop before it should be knowable
 
