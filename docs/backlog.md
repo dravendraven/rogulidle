@@ -495,7 +495,9 @@ agents, none of whom had seen the others' version.** It is now written in
 
 ## D1 · the crowd-correction fit is overdue for the redo it asked for
 
-`work agent` · READY
+`work agent` · READY · **sequence after M29** — M29 is about to move
+`MONSTER_STRENGTH`/`STRENGTH_GROWTH_REBALANCED`, the exact dials this fit
+is refit against. Refitting now and again after M29 lands is wasted work.
 
 The crowd-correction fit carries its own escape clause in `docs/balance.md`:
 *"if [the ramp] is ever switched on, this fit has to be redone."* **M17
@@ -1684,11 +1686,9 @@ divergence, and a boolean parameter is not a tunable.
 
 ## X1 · delete what nothing uses
 
-**Add `run-zigzag.html` to the list** — B3 built it as an explicitly
-temporary instrument. Keep it only if B8 has not shipped yet.
-
-**Add `run-b9.html` to the list too** — B9's own temporary instrument, same
-deal: built to measure one flag, not meant to outlive the item.
+**`run-zigzag.html` and `run-b9.html` are both clear to delete now** —
+B3's condition (keep only if B8 has not shipped) and B9's (not meant to
+outlive the item) have both resolved: B8 and B9 are DONE.
 
 `work agent` · **READY** — list refreshed after the metrics agent's own pass
 
@@ -1726,7 +1726,10 @@ reported.
 
 ## M4 · scale the side-room bonus with depth
 
-`map` · `work agent` · **READY** — fine tuning, only if M7 leaves a gap
+`map` · `work agent` · **READY, but sequence after M29** — gated on M7
+leaving a gap in its budget band, and M29 is about to spend more of that
+same band (already at 9.4% of 15% per M25). Size this against whatever
+headroom M29 actually leaves, not against today's number.
 
 `SIDE_ROOM_DEPTH_BONUS = 0.35` is fixed, so the only structural variance in
 the game is constant across the descent.
