@@ -15,6 +15,7 @@ import { dangerField } from '../bot/threat.js';
 import { buildGrid, renderFrame, renderHud, renderHistory, renderScore } from './render.js';
 import { tileSvg } from './tiles.js';
 import { award, readScore, resetScore } from './score.js';
+import { getBalance, setBalance, resetOnDeath } from './wallet.js';
 
 const MAX_TURNS = 900;       // per floor
 const BASE_DELAY = 110;      // ms per turn at 1x
@@ -219,6 +220,23 @@ function tallyDescent(run, finalState) {
     const totalTurns = run.levels.reduce((sum, level) => sum + level.turns, 0);
     const score = award(finalState.player.xpEarned, totalTurns);
     if (el.score) renderScore(el.score, score);
+
+    // U6c — docs/backlog.md. A clear banks the run's unbanked coin into
+    // the persisted wallet balance. Separate from U4's lifetime score
+    // above: that's a read-only record of performance, this is spendable
+    // (once U6e's shop exists) — different formulas, different purpose,
+    // deliberately not the same number.
+    setBalance(getBalance() + session.unbankedCoins);
+  } else {
+    // U6c's death rule. session.unbankedCoins is already 0 here — U5's
+    // own per-floor loop zeroes it the moment a floor fails, before this
+    // function ever runs — so there is nothing of the run's own to
+    // discard; this call is purely the wallet-level rule (default: wipe
+    // pre-existing balance/item too; PERSIST_BALANCE_ACROSS_DEATH: leave
+    // them exactly as they were). Timeout gets the same treatment as
+    // death, same as U5 already treats them as one "not a completion"
+    // case rather than two.
+    resetOnDeath();
   }
 
   session.history.unshift({
