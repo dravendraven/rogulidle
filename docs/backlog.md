@@ -39,12 +39,14 @@ session, skip it.
 | # | id | what gets done | status |
 |---|---|---|---|
 | 1 | B8 | Set REVERSAL_PENALTY to 6 — one line, measured by B3 | READY |
-| 2 | M26 | Weapons drop from creatures, scaled to strength; chests hold sustain | READY |
-| 3 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
-| 4 | D1 | The crowd-correction fit is overdue for its own redo | READY |
-| 5 | X1 | Delete what nothing references | READY · list refreshed |
-| 6 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 7 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 2 | M26 | Weapons come off creatures, gated by strength — the only permanent power | READY |
+| 3 | M27 | Chests hold armour and potions — after M26, not with it | READY |
+| 4 | B9 | Teach the bot that a creature carries something | BLOCKED on M26 |
+| 5 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
+| 6 | D1 | The crowd-correction fit is overdue for its own redo | READY |
+| 7 | X1 | Delete what nothing references | READY · list refreshed |
+| 8 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
+| 9 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -588,54 +590,113 @@ blamed for all of it.
 given: M23's precedent is that spine share is never repaired by editing the
 band or the test.
 
-## M26 · weapons come off creatures, chests hold sustain
+## M26 · weapons come off creatures, gated by how strong the creature is
 
-**Check the budget band before building, not after.** M25 spent two thirds
-of the M7 budget check's 15% band (3.2% → 9.4%). Anything that adds threat
-mass — and creature drops change what the hero brings to the next fight —
-has to be sized against what is left of it.
+`work agent` · READY · **owner request, reframed — read the second section
+before building**
 
-`work agent` · **READY**
+**Ask, in the owner's words:** weapons drop from creatures, rarely, scaling
+with strength, with a cap — *"axe nao dropa de criaturas fracas"*. Chests
+hold armour and potion instead, a little more often. Weapons should feel
+rare in a run.
 
-Split the two loot channels by what they are for.
+### Why this is bigger than a loot reshuffle
 
-    chests      shields, potions, collectibles — staying alive
-    creatures   weapons — hitting harder
+`weaponDamage` **sums the inventory**, and `WEAPONS_WIDEN_ROLL` is true, so
+every weapon widens the damage die permanently for the rest of the run.
+`XP_FROM_KILLS` and `HP_FROM_KILLS` are both false. **Weapons are the only
+thing in this game that makes the hero permanently stronger.**
 
-And **weapon quality scales with the creature that carried it.** A rat drops
-a knife rarely; a wolf drops one often and an axe sometimes. Rarity falls as
-strength rises.
+That makes this the missing conversion. Floor 10 costs about 95 hp against a
+10 hp cap, and the reason that gap has never closed is that a kill buys
+nothing durable. Putting weapons on creatures means **creature strength
+becomes the supply curve** — deeper floors carry stronger creatures, so
+deeper floors arm the hero better. That is the DCSS shape, where a monster's
+loot IS its equipment, and it arrives here by the owner's own instinct
+rather than by importing it.
 
-**Why this is worth more than it looks.** Nothing currently converts a kill
-into anything: `XP_FROM_KILLS` is off, `HP_FROM_KILLS` is off, and a kill
-gives the hero one fewer threat and a drop that never looks at what died.
-Weapons **stack** — the damage formula is `(roll + weapons) × hit` and
-weapons sum across everything ever picked up — so weapons-from-creatures
-restores kill-to-power compounding through loot rather than by turning xp
-back on, which was frozen deliberately.
+**So build it. But the word "rare" has to be aimed carefully**, because it
+points at the one curve holding the run up.
 
-It also makes "is this fight worth it" answerable by looking at the
-creature, which is the thing DCSS gets for free and this game does not have.
+### The supply arithmetic, before any dial is picked
 
-**The conflict, and it has to be solved not ignored.** M19 guarantees a
-weapon near the spawn by converting the nearest chest into one. If chests
-hold no weapons, that mechanism has no home. Either the guarantee moves to
-the first kill, or M19 stays an explicit exception — decide and write down
-which, rather than letting M19 silently keep putting a weapon in a chest
-that is supposed to have none.
+Today, per floor: 6 chests, `hasLoot` averaging ~0.55, then `itemWeights`
+gives a weapon 0.5/`SCARCITY` = 0.167 of a loaded chest. That is **~0.55
+weapons per floor, ~5.5 over a descent**, plus M19's guaranteed one.
 
-**Watch: the hero starts with nothing and now must kill to arm itself.**
-Floor 1 is already the wall this whole queue is about. A hero that needs a
-kill before it can fight well is a hero that has to win its first fight
-unarmed — check that the first drop lands early enough to matter.
+If weapons simply move to creatures at today's `DROP_CHANCE` 0.5 and
+`SCARCITY` 3, with weapon as the only monster kind: 0.5 x 1/3 = 0.167 per
+creature, over roughly 64 creatures in a full descent — **about 10.7
+weapons. Nearly double today, not rarer.** Whatever "rare" is set to has to
+be measured against that, not against intuition.
 
-**No instrument work.** I6's reward measurement reads `chests[].drop` and
-`monsters[].drop` off an unplayed state, so it picks this up by
-construction.
+**Do not cut total supply hard on a first pass.** M25 has the hero dying at
+floor 4.03 and one run in forty finishing; the descent is already short.
+Aim total accumulated weapon damage by floor 10 within about 20% of today's,
+**redistributed later in the run** — that is what "rarer" should buy, a run
+where the hero starts thin and arms up by killing, not a run with less gear
+in it. If a sweep says a real cut plays better, that is a finding and it
+ships; the point is that it is measured rather than assumed.
 
-**Assert.** Weapon drops per floor and their tier at 1, 5, 10 — the tier
-should track creature strength. Mean weapon bonus the hero carries by floor.
-And `run-check`'s death floor, since arming now depends on killing.
+### The trap: do not make being armed at all the rare thing
+
+Unarmed, the hero deals about 0.83 damage a turn and one floor-1 creature
+costs it most of its hp. **M19 exists for exactly this reason** and moved
+mean death floor 1.75 to 2.70. Gating the first weapon behind a kill is
+circular: the hero must win the fight the weapon exists to make winnable.
+
+**Keep M19's guarantee and restrict it to the dagger.** The rarity the owner
+is asking for lives in the *upgrade*, not in being armed — and with only
+`dagger` (+1) and `axe` (+2) in the table, the axe is the only thing rarity
+can meaningfully act on.
+
+### Do
+
+**Reuse the `quality` machinery rather than adding a curve.** `itemWeights`
+already tilts within a kind by `value^(2q - 1)`: at q = 0 strong items are
+rare, at q = 1 the axe is the COMMON outcome. Drive q **from the killed
+creature's tier** instead of from position, and the owner's "raridade
+proporcional a forca" falls straight out of the existing expression with no
+new shape invented.
+
+**The cap is a filter, not a tilt.** Below some tier, remove `axe` from the
+pool entirely — a tilt only makes it unlikely, and the owner asked for
+"nao dropa", which is a different statement. That threshold is a dial.
+
+**Add `'weapon'` to the monster source** in `itemWeights`; whether potion
+stays there is M27's call, not this item's.
+
+### Assert
+
+Weapons per floor and cumulative weapon damage by floor 10, before and
+after. Highest weapon seen on floors 1, 5 and 10 — the axe should be absent
+early by construction, and that is a mechanism check, not a rate. Mean death
+floor and `finishes` from `run-check.html`. And the **budget band**: M25
+left the M7 check at 9.4% of 15%, so report where this lands it.
+
+**Do not measure this with a ratio.** Three items this session were misread
+by a share whose denominator the treatment had moved — see the head of
+`docs/project/decisions.md`. Totals and peaks.
+
+## M27 · chests hold armour and potions
+
+`work agent` · READY · **after M26 has been measured, not with it**
+
+Owner request, the other half of M26: chests hold armour and potion, a
+little more often. Split from M26 deliberately.
+
+**Why split.** The two halves push in *opposite directions* on the thing the
+owner actually wants. Weapons on creatures makes killing pay. Moving the
+heal off creatures and into chests makes killing pay **less** — sustain
+stops requiring combat, and the bot gains a way to top up by walking. Run
+them together and the net is unreadable.
+
+**Do.** Move `potion` to the chest source, and raise chest loot frequency by
+whatever the sweep supports. `SCARCITY` is currently one number shared by
+all three kinds; this probably wants the potion dial split out.
+
+**Assert.** Same as M26, plus: does the bot fight less? Kills per floor, and
+share of creatures left alive when the shrine is taken.
 
 ## M21 · deep floors have something waiting where you land
 
@@ -673,6 +734,37 @@ relative to a spawn point that is about to move is work done twice.
 and 10 — near zero, middling, near certain. And `finishes`, because this is
 one more thing making the descent harder at a moment when it is already at
 zero.
+
+## B9 · the bot does not know a creature is carrying anything
+
+`bot agent` · BLOCKED on M26
+
+**M26 changes the world; it does not change what the bot wants.** Written
+now so the gap is not discovered as a disappointing measurement.
+
+`tactics.js`'s evaluator scores `effectiveHp` plus damage dealt minus
+distance. It knows nothing about drops, so after M26 a creature carrying an
+axe scores **identically** to one carrying nothing. And `chooseGoal` picks
+between monster and loot goals on net value, which is where a drop would
+have to be priced and currently is not.
+
+So the honest expectation for M26 alone: the hero gets stronger by killing
+*incidentally*, because it kills things anyway. It does not go and kill
+something *because* of what it drops.
+
+**This is legal to fix.** The bot may read `Observation` / `Belief`, which
+carries the creature's type. Drop odds are a function of tier, so expected
+drop value is inferable from what the bot can already see — no `GameState`
+access, no fog-of-war violation.
+
+**Do.** Price a creature's expected drop into `chooseGoal`'s valuation:
+expected damage gained, discounted by drop chance, in the same currency the
+rest of that comparison already uses.
+
+**Assert.** Share of runs where the hero engages a creature it would
+previously have walked past, and cumulative weapon damage by floor 10
+against M26 alone. **Watch `finishes` hard** — a bot that seeks fights for
+loot is a bot that dies for loot, and that is the failure mode.
 
 ## X1 · delete what nothing uses
 
