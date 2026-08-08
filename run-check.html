@@ -76,7 +76,7 @@
 <div id="out"></div>
 
 <script type="module">
-import { rewardShape, capacityShape, builtShape, coinShape } from './src/analysis/observed-ruler.js';
+import { rewardShape, capacityShape, builtShape, mortalCoinShape } from './src/analysis/observed-ruler.js';
 import { descentCheck } from './src/analysis/clustering.js';
 import { floorPlan, LEVELS } from './src/sim/dungeon.js';
 import { PLAYER_HP } from './src/sim/balance.js';
@@ -224,13 +224,15 @@ function render(reward, counts, dc, cap, sonda, coins) {
   $('out').append(levelSection('Bot', null, botCells));
 
   // Theoretical coins: round(xp/turn × 10) per floor, summed per run, mean
-  // across runs. Sonda A/B are 10 independent floor draws (never connected
-  // — same as challenge/reward); bot is a real connected descent.
+  // across runs. All three now mortal (real PLAYER_HP base, dies for real)
+  // and same-seed paired with the bot's own descent — same reason to hold
+  // back on a fight, same floor draws, so the comparison isn't mixing
+  // "efficiency" with "who's allowed to die" or "who got an easier floor".
   const coinsDiv = el('div');
-  coinsDiv.append(el('h3', null, 'theoretical coins (xp/turn × 10, per run)'));
+  coinsDiv.append(el('h3', null, 'theoretical coins (xp/turn × 10, per run, mortal, paired seed)'));
   coinsDiv.append(el('div', null,
     `<table><thead><tr><th></th><th>sonda A</th><th>sonda B</th><th>bot</th></tr></thead>`
-    + `<tbody><tr><td>mean/run</td><td>${f(coins.coinsA.mean, 1)}</td><td>${f(coins.coinsB.mean, 1)}</td><td>${f(dc.meanCoins, 1)}</td></tr></tbody></table>`));
+    + `<tbody><tr><td>mean/run</td><td>${f(coins.sondaA.coins.mean, 1)}</td><td>${f(coins.sondaB.coins.mean, 1)}</td><td>${f(dc.meanCoins, 1)}</td></tr></tbody></table>`));
   $('out').append(coinsDiv);
 }
 
@@ -248,9 +250,14 @@ $('run').addEventListener('click', async () => {
     const reward = rewardShape({ runs: floorRuns, firstSeed });
     const counts = Array.from({ length: LEVELS }, (_, i) => floorPlan(i + 1).monsters);
 
+    // Bot, mortal sonda (depth) and mortal sonda (coins, both A and B) all
+    // share this seed base and `descentRuns` — same floor draws under
+    // every policy, so differences are policy, not "who got an easier map".
+    const pairedSeed = firstSeed + 700000;
+
     $('status').textContent = 'playing full descents with the real bot (product + bot numbers)…';
     await new Promise((r) => setTimeout(r, 20));
-    const dc = descentCheck({ runs: descentRuns, firstSeed: firstSeed + 700000 });
+    const dc = descentCheck({ runs: descentRuns, firstSeed: pairedSeed });
 
     $('status').textContent = 'playing full descents with the sonda, death suppressed (map difficulty)…';
     await new Promise((r) => setTimeout(r, 20));
@@ -261,20 +268,24 @@ $('run').addEventListener('click', async () => {
     // stretches (no regen by default), so 2-3 samples can average to a
     // near-zero that is real noise, not the actual expectation. 15 tames
     // it for a few seconds instead of tying it to the expensive bot dial.
+    // Not seed-paired with the bot — this one measures the MAP, on purpose.
     const cap = capacityShape({
       runs: 15, firstSeed: firstSeed + 1400000, suppressDeath: true, startHero: null,
     });
 
     $('status').textContent = 'playing full descents with the sonda, mortal (bot vs sonda)…';
     await new Promise((r) => setTimeout(r, 20));
-    // Same cheap sonda descent as capacityShape above, mortal this time
-    // (no death suppression) — the real baseline "depth, bot÷sonda" needs.
-    const sonda = builtShape({ runs: 15, firstSeed: firstSeed + 2100000 });
+    // Sonda B, mortal, real base, pickup on — same seed/runs as the bot.
+    const sonda = builtShape({ runs: descentRuns, firstSeed: pairedSeed });
 
-    $('status').textContent = 'pricing xp/turn (theoretical coins)…';
+    $('status').textContent = 'pricing xp/turn (theoretical coins, mortal, paired)…';
     await new Promise((r) => setTimeout(r, 20));
-    // Isolated floors like rewardShape, not a connected descent — cheap.
-    const coins = coinShape({ runs: floorRuns, firstSeed: firstSeed + 2800000 });
+    // Sonda A (no pickup) and Sonda B (pickup), both mortal, both on the
+    // SAME floors the bot just played above.
+    const coins = {
+      sondaA: mortalCoinShape({ runs: descentRuns, firstSeed: pairedSeed, noPickup: true }),
+      sondaB: mortalCoinShape({ runs: descentRuns, firstSeed: pairedSeed, noPickup: false }),
+    };
 
     render(reward, counts, dc, cap, sonda, coins);
     $('status').textContent = `done in ${((performance.now() - started) / 1000).toFixed(1)}s`;

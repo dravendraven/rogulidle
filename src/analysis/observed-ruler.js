@@ -518,6 +518,7 @@ function carryFromPlayer(player) {
 function driveDescent(seed, makePolicy, startHero, maxTurns, levels, dungeonOptions = {}, floorPlanFn = floorPlan) {
   let carry = startHero ? carryFromPlayer(startHero) : null;
   const perFloor = [];
+  let totalCoins = 0;
 
   for (let level = 1; level <= levels; level++) {
     const plan = floorPlanFn(level);
@@ -540,6 +541,7 @@ function driveDescent(seed, makePolicy, startHero, maxTurns, levels, dungeonOpti
       hpFromKills: dungeonOptions.hpFromKills,
       attackWhenAdjacent: dungeonOptions.attackWhenAdjacent,
       weaponsWidenRoll: dungeonOptions.weaponsWidenRoll,
+      noPickup: dungeonOptions.noPickup,
     };
 
     const arrivedWith = carry
@@ -547,20 +549,53 @@ function driveDescent(seed, makePolicy, startHero, maxTurns, levels, dungeonOpti
       : {
         hp: PLAYER_HP, hpMax: PLAYER_HP, armour: 0, xp: PLAYER_XP, inventory: [], kills: [],
       };
+    const xpEarnedStart = carry ? carry.xpEarned : 0;
 
     const run = playGame(hashSeeds(seed, level), makePolicy(), { maxTurns, counts });
     const damage = run.state.log
       .filter((e) => e.type === 'attack' && e.target === 'player')
       .reduce((sum, e) => sum + e.damage, 0);
+    if (run.turns > 0) {
+      totalCoins += Math.round(((run.state.player.xpEarned - xpEarnedStart) / run.turns) * 10);
+    }
 
     perFloor.push({
       level, arrivedWith, damage, outcome: run.outcome || 'timeout',
     });
 
-    if (run.outcome !== 'ascended') return { levels: perFloor, cleared: false, depth: level };
+    if (run.outcome !== 'ascended') return { levels: perFloor, cleared: false, depth: level, totalCoins };
     carry = carryFromPlayer(run.state.player);
   }
-  return { levels: perFloor, cleared: true, depth: levels };
+  return {
+    levels: perFloor, cleared: true, depth: levels, totalCoins,
+  };
+}
+
+// ***** mortal sonda coins — same base, same seed, as the bot's own ***** //
+//
+// coinShape's Sonda A/B are the 400-hp calibration probe: never dies, so it
+// always fully clears, which is a different reason to earn xp/turn than the
+// bot's — the bot refuses fights it prices as lost, the calibration probe
+// has no reason to refuse anything. Comparing the two rates mixed
+// "efficiency" with "willingness to risk it". This uses `driveDescent`
+// directly (bypassing `capacityShape`'s per-floor power/hpMax aggregation,
+// not needed here) with `startHero: null` — real `PLAYER_HP` base, dies for
+// real — so both sides of the comparison can die, same reason to hold back.
+// `noPickup` is `driveDescent`'s new passthrough (was already accepted by
+// `driveFloor`, just never wired into the multi-floor driver until now).
+export function mortalCoinShape(options = {}) {
+  const {
+    runs = 15, firstSeed = 900000, maxTurns = 4000, levels = LEVELS,
+    noPickup = false, floorPlanFn = floorPlan,
+  } = options;
+  const coins = [];
+  for (let i = 0; i < runs; i++) {
+    const result = driveDescent(
+      firstSeed + i, makeSondaPolicy, null, maxTurns, levels, { noPickup }, floorPlanFn,
+    );
+    coins.push(result.totalCoins);
+  }
+  return { coins: summarise(coins), runs };
 }
 
 // ***** I7 — capacity at the MORTAL series' own base ***** //
