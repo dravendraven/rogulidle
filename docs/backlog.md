@@ -39,6 +39,7 @@ session, skip it.
 | # | id | what gets done | status |
 |---|---|---|---|
 | 1 | M24 | Cap the tier from above too — floor 1 can roll wolves and ogres | **REPORTED** |
+| — | B3 | Stop the zigzag — bot agent, parallel |
 | 2 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M24 |
 | 3 | X1 | Delete what nothing references | READY · list refreshed |
 | 4 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
@@ -153,6 +154,51 @@ actually shipped, and updating M19's Result with what changed.
 into `playDungeon`'s per-floor `counts`, same pattern M19 already fixed
 for `tierFloorShare`'s neighbours), `test/tests.js`, `docs/balance.md`,
 `docs/rogule-spec.md` (new §13.15).
+
+## B3 · stop the zigzag
+
+`bot agent` · **READY** — runs in parallel with the map work
+
+The bot walks back and forth between two tiles instead of committing. It is
+the ugliest thing on screen.
+
+**B1 already found where it lives.** Diagnose no further than you need to —
+go and fix it.
+
+    tactical veto     61–64%    the main cause
+    routing           14–21%    happens BEFORE the veto is consulted
+    goal switching     7–11%    a real but minor share
+
+**Two things already tried that did not work.** `REVERSAL_PENALTY` was swept
+0 / 1.5 / 6 and moved the reversal rate only 0.238 → 0.205 while costing win
+rate; it sits at 0 today. And a fix scoped only to `scoreActions` /
+`bestValue` in `tactics.js` cannot reach the routing share at all, since
+that fires before the veto runs.
+
+**Why it happens, as far as anyone knows.** The veto compares a planned step
+against alternatives and dodging a blow is worth far more than a step
+towards the goal — `STEP_COST_IN_HP` is 0.01, so a step is worth a hundredth
+of a hit. Backing off always scores better than closing. `standoff`
+(`bot.js:491`) already hit this exact pathology elsewhere and solved it by
+**committing to a choice once** instead of recomputing every turn; that
+lesson was never generalised.
+
+**Do.** Fix it. You choose how — a commitment window, a hysteresis, a
+memory of the last step, or something else the code suggests once you are in
+it. Report what you tried, including what failed.
+
+**Assert.** Reversal rate before and after, from `run-check.html`. And the
+distribution, not just the mean: a fall in the average can hide the
+pathological runs surviving intact — this happens in about one run in nine.
+
+**Do not touch `src/sim/`.** The map is being changed in parallel by another
+session. If the fix seems to need an engine change, report it instead.
+
+**A warning about the numbers.** Reversal read 46% and then 19% across two
+recent readings, and that drop was **not** the bot improving — runs got
+shorter, so there were fewer chances to pace. Take your before-reading
+yourself, in the same session as your after-reading, and do not compare
+against a number from the backlog.
 
 ## M21 · deep floors have something waiting where you land
 
