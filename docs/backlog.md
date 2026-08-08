@@ -41,7 +41,7 @@ session, skip it.
 | 1 | B8 | Set REVERSAL_PENALTY to 6 — one line, measured by B3 | **REPORTED** |
 | 2 | M26 | Weapons come off creatures, gated by strength — the only permanent power | READY |
 | 3 | M27 | Chests hold armour and potions — after M26, not with it | READY |
-| 4 | B4 | Give exploration a value — routing is the whole zigzag residue | READY |
+| 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **IN FLIGHT** |
 | 5 | B9 | Teach the bot that a creature carries something | BLOCKED on M26 |
 | 6 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
 | 7 | D1 | The crowd-correction fit is overdue for its own redo | READY |
@@ -785,7 +785,7 @@ zero.
 
 ## B4 · give exploration a value
 
-`bot` · `bot agent` · **READY** — and B3 raised its priority
+`bot` · `bot agent` · **IN FLIGHT** — and B3 raised its priority
 
 **B3 makes this the top bot item.** With `REVERSAL_PENALTY` at 6 the layer
 split is veto 0, goal 13, mixed 0, **routing 259** — routing is the entire
