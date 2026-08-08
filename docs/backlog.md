@@ -46,20 +46,21 @@ session, skip it.
 | 6 | M29 | Turn off the guaranteed dagger, soften floor 1 via generation | **DONE** · ties baseline, does not beat it |
 | 7 | M28 | Belief clones a monster's drop before it should be knowable | **DONE** |
 | 8 | B10 | Weight the route toward a frontier by what it would reveal | **DONE** · shipped OFF, inert |
-| 9 | M30 | Floor 1 must cost less hp than floor 2, checked exactly | **REPORTED** |
-| 10 | B11 | Make combat compete with loot, not lose to it by construction | READY |
-| 11 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
-| 12 | D1 | The crowd-correction fit is overdue for its own redo | READY |
-| 13 | X1 | Delete what nothing references | READY · list refreshed |
-| 14 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 15 | U5 | Show the coin formula live on a real run | **DONE** |
-| 16 | U6a | A coin balance that survives a page reload | **DONE** |
-| 17 | U6b | Pay coin into the balance at floor completion | **DONE** |
-| 18 | U6c | Bank or clear the run coin at run end, per the death rule | IN FLIGHT |
-| 19 | U6d | The engine accepts a starting loadout | READY |
-| 20 | U6e | The shop screen | READY |
-| 21 | U6f | Watch a full loop, integration check | READY |
-| 22 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 9 | M30 | Floor 1 must cost less hp than floor 2, checked exactly | **DONE** |
+| 10 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | READY |
+| 11 | B11 | Make combat compete with loot, not lose to it by construction | READY |
+| 12 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
+| 13 | D1 | The crowd-correction fit is overdue for its own redo | READY |
+| 14 | X1 | Delete what nothing references | READY · list refreshed |
+| 15 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
+| 16 | U5 | Show the coin formula live on a real run | **DONE** |
+| 17 | U6a | A coin balance that survives a page reload | **DONE** |
+| 18 | U6b | Pay coin into the balance at floor completion | **DONE** |
+| 19 | U6c | Bank or clear the run coin at run end, per the death rule | IN FLIGHT |
+| 20 | U6d | The engine accepts a starting loadout | READY |
+| 21 | U6e | The shop screen | READY |
+| 22 | U6f | Watch a full loop, integration check | READY |
+| 23 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -503,9 +504,10 @@ agents, none of whom had seen the others' version.** It is now written in
 
 ## D1 · the crowd-correction fit is overdue for the redo it asked for
 
-`work agent` · READY · **sequence after M29 AND M30** — both move the
-same strength/tier dials this fit is refit against. Refitting before both
-land is wasted work, twice over now.
+`work agent` · READY · **sequence after M29, M30 AND M31** — the first two
+moved the same strength/tier dials this fit is refit against; M31 may move
+the M7 band itself, which is what "refit against the ramp as shipped" needs
+to be stable before it means anything.
 
 The crowd-correction fit carries its own escape clause in `docs/balance.md`:
 *"if [the ramp] is ever switched on, this fit has to be redone."* **M17
@@ -1135,6 +1137,81 @@ through `floorParams`/`DEFAULT_MODEL`/`makeFloorPlan`/`expectedFloorMass`),
 table, new M30 subsection under M24's). No `docs/rogule-spec.md` entry —
 a number-and-mechanism retune of an already-documented clamp family
 (M13/M24), not a new rule.
+
+### Review — ADOPTED, and a real gap it found is filed separately as M31
+
+**A genuinely new, local lever, not a repeat.** `earlyTierCapShare` clamps
+BELOW the natural centre at the shallow end only, fading to exactly 0 by
+floor 2 — structurally distinct from M13/M24's slack-adding ceiling and
+from the global dials M29 already exhausted. Discovering the dial is
+discrete (`floor(share × 2)`, only three real outcomes in the whole open
+interval) before sweeping it as if it were continuous is exactly the kind
+of check M29 taught this session to run first.
+
+**The exact-first requirement was met cleanly and is a real number, not a
+sampled one.** `expectedFloorMass(0)` 14.0 → 10.385, floor1/floor2 ratio
+0.94 → 0.70 against a 0.75 target — no z-score needed, no argument about
+n.
+
+**The M7 finding is the important part of this report, and it is not a
+footnote.** The formal ratio-formula check stays green — `earlyTierCapShare`
+never enters that formula — while the SAME closed form read as end-to-end
+growth rate (`expectedFloorMass(9)/expectedFloorMass(0)`, 9th root) moved
+to 1.3955, outside the 1.34 ±0.03 band the ratio check exists to protect.
+**The formal test passing is not the same as the invariant holding**, and
+this item found that gap rather than trusting the green check. Same class
+of finding as M28's fog-of-war leak — the letter of a rule satisfied while
+its purpose is not. Filed as **M31** below rather than absorbed silently,
+since it is a real, actionable gap in the check itself, not just a
+disclosure about this one item.
+
+**The guardian-modelling gap is correctly scoped as out of bounds for this
+item.** Applies symmetrically to floor 1 and floor 2 (one guardian each),
+so the ratio this item was built around stays fair even though neither
+absolute number is exact — the right call to disclose and not fix here.
+
+**Real-play confirmation is honest about what it does and doesn't show.**
+Movement toward the guarantee-ON target on both metrics, neither at 2σ —
+reported as a measured step, not oversold as proof.
+
+**The guardian-exclusion test is exactly the kind of test-the-test
+discipline this session keeps rewarding.** The obvious test ("highest tier
+seen on floor 1") would have passed for the wrong reason; a separate test
+was written specifically because that was noticed, not assumed safe.
+
+## M31 · the M7 budget check has a blind spot — earlyTierCapShare moves the
+## real growth rate without moving the check that is supposed to catch it
+
+`work agent` · READY · **found by M30's own review, not requested by the
+owner — small, and worth doing before another item drifts through the same
+gap**
+
+M30 found this directly: the M7 ratio-formula check (`MONSTER_GROWTH_REBALANCED
+× STRENGTH_GROWTH_REBALANCED^2.356 / MONSTER_GROWTH`) does not include
+`earlyTierCapShare`, so it reads 14.35%/15%, unchanged from M29 — while the
+actual end-to-end growth rate, read from the same `expectedFloorMass` closed
+form the ratio check is supposed to approximate, moved to 1.3955, outside
+the 1.34 ±0.03 band that check exists to protect. **The test passed while
+the thing it is a proxy for did not.**
+
+**Do.** Either fold `earlyTierCapShare` (and any future floor-local clamp
+in the same family) into the ratio-formula check so it stops being blind to
+this class of dial, or replace the check's formula with a direct read of
+`expectedFloorMass(9)/expectedFloorMass(0)` — the number M30 already showed
+is the more complete one — so the check tracks the quantity that actually
+matters instead of a proxy formula that can drift out of step with it.
+
+**Do not silently re-widen the band to make M30's 1.3955 pass.** That would
+launder the exact finding this item exists to act on. If the band itself
+needs revisiting, that is a separate, explicit decision — same discipline
+M29's review insisted on for its own budget question.
+
+**Assert.** Re-run the (fixed) check against M29 and M30's shipped state —
+confirm it now correctly flags M30 as outside band, or, if the owner
+decides the band should widen to accommodate M30, that the widening is a
+recorded decision and not a side effect of the fix. Confirm the check still
+passes clean on everything shipped before M30 that was never near this
+edge.
 
 ## B11 · make combat compete with loot, not lose to it by construction
 
@@ -2232,10 +2309,11 @@ reported.
 
 ## M4 · scale the side-room bonus with depth
 
-`map` · `work agent` · **READY, but sequence after M29 AND M30** — gated
-on M7 leaving a gap in its budget band. M29 left 0.65 points of 15%;
-M30 is about to spend more of it too. Size this against whatever
-headroom is left after both, not against today's number.
+`map` · `work agent` · **READY, but sequence after M29, M30 AND M31** —
+M29 left 0.65 points of a 15% band; M30 spent more of it, and M31 found
+the band's own check is blind to what M30 actually cost. Size this
+against whatever the M7 check reads once M31 fixes it, not against a
+number that may currently be wrong.
 
 `SIDE_ROOM_DEPTH_BONUS = 0.35` is fixed, so the only structural variance in
 the game is constant across the descent.
