@@ -51,7 +51,7 @@ session, skip it.
 | 11 | X1 | Delete what nothing references | READY · list refreshed |
 | 12 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
 | 13 | U5 | Show the coin formula live on a real run | REPORTED |
-| 14 | U3a | A coin balance that survives a page reload | READY |
+| 14 | U3a | A coin balance that survives a page reload | IN FLIGHT |
 | 15 | U3b | Pay coin into the balance at floor completion | READY |
 | 16 | U3c | Bank or clear the run coin at run end, per the death rule | READY |
 | 17 | U3d | The engine accepts a starting loadout | READY |
@@ -1943,8 +1943,8 @@ mid-task, after the first pass shipped with top-anchored placement and
 
 ## U3a · a coin balance that survives a page reload
 
-`ui agent` · READY · **first of six, U3's arc — see the death rule below,
-final**
+`ui agent` · **IN FLIGHT** · first of six, U3's arc — see the death rule
+below, final
 
 Promoted off `candidates.md`'s U3 now that the owner has settled the one
 question that was blocking it: **on death, balance and any held item reset
