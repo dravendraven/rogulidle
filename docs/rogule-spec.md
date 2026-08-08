@@ -1215,3 +1215,75 @@ que deve trazer `potion` — também um item só — para o baú) em vez de ser
 desviado por um caso especial.
 
 **Estado atual: construído e ligado, sem flag.** Ver `docs/backlog.md` M26.
+
+### 13.17 Poções vêm de baú, não de criatura (M27)
+
+**A outra metade do M26, separada de propósito.** As duas trocas empurram
+o incentivo do bot em direções OPOSTAS: arma em criatura faz matar
+compensar; poção saindo de criatura e indo pro baú faz matar compensar
+MENOS — sustento deixa de exigir combate, e o bot ganha uma forma de se
+recuperar andando. Rodar as duas juntas tornaria o resultado líquido
+ilegível — essa é a própria razão dada para o item ter sido bloqueado
+"depois do M26, não junto".
+
+**Regra nova, estrutural, sem flag — outra troca completa, não adição.**
+`itemWeights('monster', ...)` agora sorteia só `weapon`; `itemWeights(
+'chest', ...)` sorteia `armour` E `potion` juntos. Antes do M27 era o
+oposto para poção — criatura tinha, baú não.
+
+**Efeito colateral em ARMA, medido antes de qualquer dial ser fixado —
+mesma lição do M26, uma camada adiante.** Tirar `potion` do kind de
+criatura deixou `weapon` como o ÚNICO kind ali, e `itemWeights` divide a
+massa igualmente entre os kinds de uma fonte (`shareEach = 1/nº de
+kinds`) — isso sozinho DOBRA a fatia da arma (0,5 → 1,0), independente de
+qualquer coisa que este item tente fazer. Medido: no valor antigo de
+`WEAPON_SCARCITY` (2), o dano total de arma na descida saltou de 9,59 para
+19,31 — quase exatamente 2×. `WEAPON_SCARCITY` foi para 4 no mesmo commit
+para anular isso: 9,58, batendo com o resultado que o M26 já tinha medido
+e publicado. O M27 não tem autorização para mover em silêncio um número
+que o M26 já mediu e fechou.
+
+**A troca sozinha, na escassez compartilhada de sempre (3, igual
+armadura), já entrega "um pouco mais" — sem precisar apertar dial
+nenhum.** Suprimento total de cura na descida: 16,38 (vindo de criatura,
+antes do M27) → 18,32 (vindo de baú, escassez 3) — baú sorteia loot um
+pouco mais often que criatura carrega (`hasLoot` médio ~0,55 contra
+`MONSTER_DROP_CHANCE` fixo em 0,5), puramente da forma dos dois
+mecanismos, não de nenhuma escolha de dial.
+
+**`POTION_SCARCITY` foi separado do `SCARCITY` compartilhado — pedido
+explícito do item — e varrido mesmo assim, para ver até onde "um pouco"
+ainda significava pouco:**
+
+    escassez de poção   cura total na descida   vs antes do M27 (16,38)
+    3,0 (escolhida)          18,32                   +11,8%
+    2,5                      22,08                   +34,8%
+    2,0                      27,26                   +66,4%
+    1,5                      36,98                  +125,8%
+    1,2                      46,10                  +181,4%
+
+3,0 — o mesmo valor que o `SCARCITY` compartilhado já usava — foi o que
+ficou. É um aumento real e medido, não um número escolhido por instinto;
+qualquer valor abaixo dele já lê como "bem mais", não "um pouco mais".
+
+**A pergunta que o item pediu: o bot briga menos?** Bot real, mesmos
+seeds, 40 corridas cada braço. Mortes por corrida caíram 23% (17,7 →
+13,57), mas a profundidade média TAMBÉM caiu (3,88 → 3,2) — o mesmo tipo
+de armadilha de denominador que este projeto já tropeçou três vezes:
+corrida mais curta tem menos chance de matar, então parte da queda é só
+comprimento. Normalizando por andar realmente jogado, a queda real é bem
+menor: 4,126 → 3,909 mortes/andar, **~5,3%**. Fração de criaturas vivas
+quando cada andar é vencido não mudou (0,06 → 0,07).
+
+**A queda de profundidade em si não passa no teste de 2σ (z=-1,55,
+n=40)** — registrada, não afirmada como causal. É a direção que o item
+avisou que podia acontecer ("sustento deixa de exigir combate"), mas o
+tamanho da amostra não permite dizer que é real.
+
+**Efeito colateral de qualidade, igual ao do M26, continua.**
+`CHEST_QUALITY_BY_DEPTH`/`EARLY_CHEST_QUALITY_BOOST` seguem inertes: baú
+agora tem dois kinds (`armour`, `potion`), mas cada um com um item só
+(`shield`, `health`) — inclinação de qualidade ainda não tem o que fazer
+com um kind de item único. Fica ligado, não é caso especial.
+
+**Estado atual: construído e ligado, sem flag.** Ver `docs/backlog.md` M27.

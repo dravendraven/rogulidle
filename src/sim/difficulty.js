@@ -252,14 +252,51 @@ export const SCARCITY = 3;
 //     scarcity   cum. weapon dmg
 //     3.0            6.76   (the shared default — 35% short, outside the band)
 //     2.5            7.83   (24% short, still outside)
-//     2.0            9.69   (6.6% short — shipped)
+//     2.0            9.69   (6.6% short — shipped by M26)
 //     1.7           11.49   (within band, but closer to "unchanged" than "rarer")
 //     1.5           12.79   (over the pre-M26 baseline)
 //
-// 2.0 lands inside the band without landing on "basically unchanged" —
-// there is still a real, measured cut, just not the near-doubling the
-// item's own arithmetic warned a naive move would produce.
-export const WEAPON_SCARCITY = 2;
+// RE-SWEPT and RAISED 2 -> 4 by M27 (docs/backlog.md M27), not left at
+// M26's value. M27 removed `potion` from the monster source, leaving
+// `weapon` as its ONLY kind — `itemWeights`'s `shareEach` is `1/kinds
+// .length`, so that alone doubles weapon's share of every carrying roll
+// (0.5 -> 1.0), independent of anything this item is actually about.
+// Measured, not assumed: at the OLD value (2) cumulative weapon damage
+// jumped 9.59 -> 19.31, almost exactly 2x. Doubling the scarcity to 4
+// cancels it: 9.58, matching M26's own shipped result to two figures.
+// M27 does not get to silently move a result M26 already measured and
+// shipped, so this reproduces it rather than re-deciding it.
+export const WEAPON_SCARCITY = 4;
+
+// ***** M27 — chests hold armour and potions, docs/backlog.md M27 ***** //
+// SWEPT — potion split off from the shared SCARCITY the same way weapon
+// was in M26, once potion moved from monster to chest (spawn.js) and the
+// two uses could no longer collide.
+//
+// The swap ALONE, at the unchanged shared value (3, matching armour),
+// already delivers "a little more often" without touching the dial: total
+// heal supply across a descent went 16.38 (monster-sourced, pre-M27) ->
+// 18.32 (chest-sourced at scarcity 3) — chests roll loot slightly more
+// often than monsters carry (CHEST_DIFFICULTY_SCALE's ~0.55 mean hasLoot
+// against `MONSTER_DROP_CHANCE`'s flat 0.5) purely from the two
+// mechanisms' own shapes, not from any dial choice.
+//
+// Swept lower anyway, to see how much further "a little" could mean
+// before it stopped meaning "little":
+//
+//     potionScarcity   cum. heal supply   vs pre-M27 (16.38)
+//     3.0 (shipped)         18.32           +11.8%
+//     2.5                   22.08           +34.8%
+//     2.0                   27.26           +66.4%
+//     1.5                   36.98          +125.8%
+//     1.2                   46.10          +181.4%
+//
+// 3.0 (i.e. the unsplit shared default) is what shipped: it is already a
+// measured, real increase, and every value tried below it reads as "a lot
+// more" rather than "a little more". Split into its own dial anyway, per
+// the item's own suggestion, so it can move independently of `armour`
+// later without colliding with it the way weapon and armour used to.
+export const POTION_SCARCITY = 3;
 
 // Chance a corpse leaves a potion behind.
 export const DROP_CHANCE = 0.5;
@@ -355,7 +392,7 @@ export function floorParams(level) {
     dropChance: DROP_CHANCE,
     weaponScarcity: WEAPON_SCARCITY,
     armourScarcity: SCARCITY,
-    potionScarcity: SCARCITY,
+    potionScarcity: POTION_SCARCITY,
   };
 }
 
@@ -400,7 +437,7 @@ export const DEFAULT_MODEL = {
   dropChance: DROP_CHANCE,
   weaponScarcity: WEAPON_SCARCITY,
   armourScarcity: SCARCITY,
-  potionScarcity: SCARCITY,
+  potionScarcity: POTION_SCARCITY,
   levels: 10,
 
   // Map design (docs/map-design.md). Mirrored from balance.js so the lab

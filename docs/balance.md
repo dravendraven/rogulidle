@@ -67,6 +67,7 @@ statement about today. Only this table is current.
 | `PLAYER_HP` | `10` | balance.js |
 | `PLAYER_XP` | `3` | balance.js |
 | `POTION_HEAL` | `3` | balance.js |
+| `POTION_SCARCITY` | `3` | difficulty.js |
 | `REVERSAL_PENALTY` | `6` | balance.js |
 | `ROOM_HEIGHT` | `[4, 7]` | balance.js |
 | `ROOM_WIDTH` | `[5, 9]` | balance.js |
@@ -92,7 +93,7 @@ statement about today. Only this table is current.
 | `VISIBLE_DIST` | `9` | balance.js |
 | `WEAPONS_WIDEN_ROLL` | `true` | balance.js |
 | `WEAPON_AXE_MIN_TIER` | `4` | balance.js |
-| `WEAPON_SCARCITY` | `2` | difficulty.js |
+| `WEAPON_SCARCITY` | `4` | difficulty.js |
 | `XP_FROM_KILLS` | `false` | balance.js |
 
 Values marked FAITHFUL in the prose below are copied from the original
@@ -1322,26 +1323,39 @@ documented here for the first time.
 Pick weight is `1 / value` at quality 0, so a high `value` means a **rare**
 item — see `spawn.js`'s `itemWeights` for the full formula, which also
 tilts by depth or by the killed creature's tier (`CHEST_QUALITY_BY_DEPTH`)
-and by scarcity (`SCARCITY`/`WEAPON_SCARCITY` dials,
+and by scarcity (`SCARCITY`/`WEAPON_SCARCITY`/`POTION_SCARCITY` dials,
 `src/sim/difficulty.js`). No fixed probability column below for that
 reason — the split isn't a static pool any more.
 
 | Item | Emoji | `value` | `kind` | Effect |
 |---|---|---|---|---|
-| health | 🥃 | 2 | potion | +3 HP (`POTION_HEAL`), capped at max — monster drops only |
+| health | 🥃 | 2 | potion | +3 HP (`POTION_HEAL`), capped at max — chests only |
 | shield | 🛡️ | 3 | armour | **+3 armour** — a second bar, and it is spent — chests only |
 | dagger | 🗡️ | 3 | weapon | +1 damage — monster drops (any tier), or chests via M19's guarantee only |
 | axe | 🪓 | 4 | weapon | +2 damage — monster drops, tier >= `WEAPON_AXE_MIN_TIER` only |
 
-**`kind` decides the source, not just a label — and M26 (docs/backlog.md)
-moved which source holds which.** `itemWeights('chest', ...)` now draws
-from `armour` only (`shield`); `itemWeights('monster', ...)` draws from
-`weapon` and `potion` (dagger, axe, health). Before M26 it was the
-opposite split for weapons — chests held them, corpses did not. A chest
-can still hold a weapon exactly once per descent: M19's own guarantee
+**`kind` decides the source, not just a label — and M26/M27 (docs/backlog.md)
+moved which source holds which, one kind at a time.** `itemWeights('chest',
+...)` draws from `armour` and `potion` (shield, health); `itemWeights(
+'monster', ...)` draws from `weapon` only (dagger, axe). Before M26,
+weapons were the chest side's and potions the monster side's — both moves
+were full swaps, not additions, and each was measured on its own before
+the next was allowed to touch it (M27 was explicitly blocked from shipping
+"with" M26, only "after" it — see `docs/backlog.md` M27). A chest can
+still hold a weapon exactly once per descent: M19's own guarantee
 (`spawn.js` step 4b) converts the nearest chest to a forced `dagger`,
 never an `axe`, when the hero is unarmed — a deliberate exception to the
 kind rule above, not a second source.
+
+**Removing `potion` from monster's kind list had a side effect on
+`weapon`, and it was measured rather than assumed away.** `itemWeights`
+splits each source's mass evenly across its own kinds
+(`shareEach = 1/kinds.length`) — with `weapon` as monster's only kind now,
+`shareEach` doubled from 1/2 to 1/1, so weapon supply would have doubled
+too at M26's unchanged scarcity. `WEAPON_SCARCITY` was raised 2 → 4 in the
+same commit to cancel it out, holding M26's own already-measured
+cumulative weapon damage rather than letting M27 silently move it. See
+`WEAPON_SCARCITY`'s own comment in `difficulty.js` for the numbers.
 
 | Name | Value | Status |
 |---|---|---|

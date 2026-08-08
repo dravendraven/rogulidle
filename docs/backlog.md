@@ -40,7 +40,7 @@ session, skip it.
 |---|---|---|---|
 | 1 | B8 | Set REVERSAL_PENALTY to 6 — one line, measured by B3 | **REPORTED** |
 | 2 | M26 | Weapons come off creatures, gated by strength — the only permanent power | **REPORTED** |
-| 3 | M27 | Chests hold armour and potions — after M26, not with it | READY |
+| 3 | M27 | Chests hold armour and potions — after M26, not with it | **REPORTED** |
 | 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **REPORTED** · shipped OFF |
 | 5 | B9 | Teach the bot that a creature carries something | READY · M26 landed |
 | 6 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
@@ -843,7 +843,7 @@ the question by adding `potion` to chests.
 
 ## M27 · chests hold armour and potions
 
-`work agent` · READY · **after M26 has been measured, not with it**
+`work agent` · **REPORTED** · **after M26 has been measured, not with it**
 
 Owner request, the other half of M26: chests hold armour and potion, a
 little more often. Split from M26 deliberately.
@@ -860,6 +860,92 @@ all three kinds; this probably wants the potion dial split out.
 
 **Assert.** Same as M26, plus: does the bot fight less? Kills per floor, and
 share of creatures left alive when the shrine is taken.
+
+### Result
+
+**Built as the mirror image of M26: a swap, the other direction.**
+`itemWeights('monster', ...)` now draws `weapon` only; `itemWeights(
+'chest', ...)` draws `armour` and `potion` together. Before M27 it was
+the opposite for potion — monster had it, chest did not.
+
+**Caught the side effect M26's own comment predicted before it shipped
+anything.** Removing `potion` left `weapon` as monster's ONLY kind, and
+`itemWeights` splits mass evenly across a source's own kinds
+(`shareEach = 1/kinds.length`) — so weapon's share doubled (0.5 -> 1.0)
+independent of anything this item is about. Measured before deciding
+anything: at M26's shipped `WEAPON_SCARCITY` (2), cumulative weapon
+damage jumped 9.59 -> 19.31, almost exactly 2x. Raised to 4 in the same
+commit, which lands at 9.58 — matching M26's own already-measured,
+already-shipped result to two figures. M27 does not get to silently move
+a number M26 closed.
+
+**The swap alone, at the unchanged shared scarcity (3, same as armour),
+already delivered "a little more often" — no dial-pressing needed.**
+Total heal supply across a descent: 16.38 (monster-sourced, before M27)
+-> 18.32 (chest-sourced, scarcity 3, unchanged). Chests roll loot
+slightly more often than monsters carry it purely from the two
+mechanisms' own shapes (`hasLoot`'s ~0.55 mean vs `MONSTER_DROP_CHANCE`'s
+flat 0.5), not from any number chosen for this item.
+
+**Split `POTION_SCARCITY` out anyway, per the item's own suggestion, and
+swept it to see how far "a little" could go before it stopped meaning
+that:**
+
+    potionScarcity   cum. heal supply   vs pre-M27 (16.38)
+    3.0 (shipped)         18.32            +11.8%
+    2.5                   22.08            +34.8%
+    2.0                   27.26            +66.4%
+    1.5                   36.98           +125.8%
+    1.2                   46.10           +181.4%
+
+Shipped at 3.0 — the unsplit shared value already IS the measured "a
+little more"; everything swept below it reads as "a lot more."
+
+**Does the bot fight less — the question this item added.** Real bot, 40
+seeds, same seeds both arms. Raw kills per run fell 23% (17.7 -> 13.57),
+but mean depth fell too (3.88 -> 3.2) — the same denominator trap this
+session has now hit three times (I7, M19-adjacent, M3). Normalized to
+kills per floor actually played, the real fall is much smaller:
+**4.126 -> 3.909 kills/floor, ~5.3%.** Share of creatures left alive when
+each floor's shrine (staircase) was taken did not move (0.06 -> 0.07).
+
+**The depth drop itself does not clear 2 sigma (z = -1.55, n=40) — flagged,
+not claimed.** It is the direction the item warned was possible ("sustain
+stops requiring combat"), but this sample cannot say it is real. Worth a
+larger read before treating it as a finding.
+
+**Budget band untouched, same reasoning as M26**: this item changes what
+a SOURCE holds, never a creature's hp/xp/tier, so the M7 challenge-budget
+check is unaffected by construction.
+
+**The M26 quality-inertness finding continues exactly as predicted, not
+resolved.** Chest now has two kinds (`armour`, `potion`) instead of one,
+but each still has a single member (`shield`, `health`) — a quality tilt
+still has nothing to act on. M26's Result said this would stay true after
+M27 landed `potion`; it did.
+
+**Two new tests, mirroring M26's:** "potions no longer come from the
+ordinary monster draw" and "a chest can hold a potion now" (the
+mechanism-check pair, same shape as M26's weapon-side pair). Plus a
+direct check that `WEAPON_SCARCITY`'s re-sweep actually landed where the
+comment claims (`itemWeights` weapon mass == `1/WEAPON_SCARCITY` now that
+it's the only monster kind), and the equivalent for `POTION_SCARCITY` on
+the chest side.
+
+**A concurrent-session hazard hit and cleared, not caused by this
+item.** Mid-measurement, the descent harness crashed inside
+`src/bot/loot.js`'s `expectedChestValue` — `values` came through
+`undefined`. Reproduced once, could not reproduce again after a reload;
+`src/bot/bot.js`/`src/bot/loot.js` were being actively edited by a
+concurrent bot-agent session at the time (B9 landing). Not this item's
+files, not this item's bug — noted here only because it interrupted the
+measurement run and the interruption should be legible in the record
+rather than silently retried away.
+
+**Files touched:** `src/sim/difficulty.js` (`POTION_SCARCITY`;
+`WEAPON_SCARCITY` re-tuned 2 -> 4), `src/sim/spawn.js` (`itemWeights`
+kind swap, header comment), `test/tests.js`, `docs/balance.md`,
+`docs/rogule-spec.md` (new §13.17).
 
 ## M21 · deep floors have something waiting where you land
 

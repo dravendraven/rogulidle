@@ -31,18 +31,30 @@ import { classifyRooms } from './spine.js';
 //
 // The two sources hold different things, by owner decision:
 //
-//   chests   armour — gear comes from exploring
-//   monsters weapons and health potions — the only permanent power in the
-//            game (weaponDamage sums the inventory) now comes from killing
+//   chests   armour and health potions — gear AND sustain come from
+//            exploring
+//   monsters weapons only — the only permanent power in the game
+//            (weaponDamage sums the inventory) comes from killing
 //
 // M26 — docs/backlog.md. Weapons MOVED here from chests, they were not
-// added on top: chests dropped `weapon` before this item and do not any
-// more. `weapon` stayed paired with `potion` on the monster side (rather
-// than replacing it) specifically so the per-creature weapon odds land
-// near the old chest-sourced total instead of nearly doubling it — see
-// the item's own supply arithmetic for the numbers that decision rests
-// on. `armour` alone on the chest side is a placeholder for M27, which
-// is expected to add `potion` there; it is not this item's call.
+// added on top: chests dropped `weapon` before that item and do not any
+// more.
+//
+// M27 — docs/backlog.md, "the other half of M26, deliberately split out."
+// `potion` MOVED the other way, from monster to chest, for the opposite
+// reason M26 kept weapon paired with it: the two moves push the bot's
+// incentives in OPPOSITE directions on purpose. Weapons on creatures make
+// killing pay; potions off creatures make killing pay LESS, since sustain
+// no longer requires combat. Splitting them into separate items is what
+// keeps each effect legible — shipped together the net would have been
+// unreadable, which is the item's own stated reason for the order.
+//
+// Removing `potion` left `weapon` as monster's ONLY kind, which raises
+// `shareEach` for weapon from 1/2 to 1/1 — a real side effect of this
+// swap, not a null one, and `WEAPON_SCARCITY` was re-swept in this
+// configuration (not assumed unchanged) to hold M26's own cumulative
+// weapon-damage result rather than silently let it drift. See
+// `docs/backlog.md` M27 for that number.
 //
 // Scarcity keeps the same meaning either way: 1 draw in S gives something,
 // the rest come up empty.
@@ -69,7 +81,7 @@ import { classifyRooms } from './spine.js';
 //
 // Returns [[item | null, weight], ...]; null means this draw holds nothing.
 export function itemWeights(scarcity = {}, source = 'chest', quality = 0, exclude = []) {
-  const kinds = source === 'monster' ? ['weapon', 'potion'] : ['armour'];
+  const kinds = source === 'monster' ? ['weapon'] : ['armour', 'potion'];
   const shareEach = 1 / kinds.length;
   const exponent = 2 * quality - 1;
   const tilt = (item) => Math.pow(item.value, exponent);
@@ -401,14 +413,14 @@ export function populate(state, map, counts = {}) {
     // and never quality. M19 adds `earlyChestBoost` on top — WHICH item a
     // chest holds, same as depth; whether it holds one at all is untouched.
     //
-    // M26 NOTE: `quality` only has anything to bite on when a kind holds
-    // more than one item, and since M26 moved `weapon` (dagger, axe) off
-    // the chest source, `armour` (`shield` alone) is the only kind left
-    // here — this tilt is currently a no-op for chests by construction,
-    // not a bug. It stays live rather than special-cased away: M27 is
-    // expected to add `potion` (`health` alone) to this source, and either
-    // way the computation should not silently diverge from what a chest
-    // with more than one candidate in a kind would actually do.
+    // M26/M27 NOTE: `quality` only has anything to bite on when a kind
+    // holds more than one item. Chests now draw two kinds — `armour`
+    // (`shield` alone) and, since M27, `potion` (`health` alone) — but
+    // every kind here still has exactly one member, so the tilt remains a
+    // no-op for chests by construction. Not special-cased away: this stays
+    // the same expression a chest with a real multi-item kind would use,
+    // and it would start doing something the day `ITEM_TABLE` grows a
+    // second armour or potion.
     const quality = Math.min(1, depth + earlyChestBoost);
     const template = drawWeighted(state, 'spawn',
       itemWeights(scarcity, 'chest', CHEST_QUALITY_BY_DEPTH ? quality : 0));

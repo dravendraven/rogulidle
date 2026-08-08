@@ -19,7 +19,7 @@ import {
   expectedFloorMass, floorParams, floorStrength, makeFloorPlan, monstersAt,
   outOfDepthChanceAt, saturatedAt,
   CLUSTER_SIZE, DIFFICULTY_REBALANCED, MONSTERS_BASE, MONSTER_GROWTH, MONSTER_GROWTH_REBALANCED,
-  MONSTER_STRENGTH, STRENGTH_GROWTH, STRENGTH_GROWTH_REBALANCED,
+  MONSTER_STRENGTH, POTION_SCARCITY, STRENGTH_GROWTH, STRENGTH_GROWTH_REBALANCED, WEAPON_SCARCITY,
 } from '../src/sim/difficulty.js';
 import { monstersAhead, valueByItemName } from '../src/bot/loot.js';
 import { makeBot } from '../src/bot/bot.js';
@@ -885,11 +885,16 @@ test('itemWeights exclude is a filter, not a tilt', () => {
     weightOf(withAxe, 'axe') + weightOf(withAxe, 'dagger'),
     'dagger did not absorb the excluded axe\'s entire share of the weapon kind');
 
-  // Excluding a kind's only remaining item should not touch other kinds —
-  // potion's mass is untouched by what happens inside weapon.
+  // Excluding an item in one kind should not touch other kinds. Monster's
+  // own pool is weapon-only since M27 (nothing else to check this against
+  // there any more), so this half reads against chest, which draws
+  // armour AND potion since the same item — excluding shield must leave
+  // potion's own weight untouched.
+  const withShield = itemWeights({}, 'chest', 0);
+  const noShield = itemWeights({}, 'chest', 0, ['shield']);
   const potionWeight = (entries) => entries.find(([i]) => i && i.name === 'health')[1];
-  assertEq(potionWeight(withAxe), potionWeight(noAxe),
-    'excluding a weapon changed potion\'s own weight');
+  assertEq(potionWeight(withShield), potionWeight(noShield),
+    'excluding armour changed potion\'s own weight');
 });
 
 test('a creature below WEAPON_AXE_MIN_TIER can never drop an axe', () => {
@@ -932,9 +937,9 @@ test('a creature at or above WEAPON_AXE_MIN_TIER can drop an axe', () => {
 });
 
 test('weapons no longer come from the ordinary chest draw', () => {
-  // The other half of the move: chest kind is armour only. An armed hero
-  // so M19's guaranteed-dagger override (a deliberate exception) cannot
-  // confound the read.
+  // Chest kind is armour and (since M27) potion — never weapon. An armed
+  // hero so M19's guaranteed-dagger override (a deliberate exception)
+  // cannot confound the read.
   const carry = {
     hp: 8, hpMax: 10, armour: 0, xp: 1,
     inventory: [{ id: 'w1', name: 'axe', dmg: 2 }], kills: [], xpEarned: 0,
@@ -959,6 +964,61 @@ test('M19\'s guarantee only ever hands over a dagger', () => {
     assert(nearest.drop && nearest.drop.name === 'dagger',
       `seed ${seed}: the guaranteed weapon was ${nearest.drop && nearest.drop.name}, not dagger`);
   }
+});
+
+// ***** M27 — chests hold armour and potions ***** //
+
+test('potions no longer come from the ordinary monster draw', () => {
+  // The mirror image of M27's chest-side check: monster kind is weapon
+  // only, never potion, once potion moved the other way.
+  for (const level of [1, 5, 10]) {
+    for (let seed = 0; seed < 20; seed++) {
+      const state = newGame(963000 + level * 1000 + seed, floorPlan(level));
+      assert(!state.monsters.some((m) => m.drop && m.drop.heal),
+        `floor ${level} seed ${seed}: a creature dropped a potion`);
+    }
+  }
+});
+
+test('a chest can hold a potion now', () => {
+  // The other half — "never from monsters" is satisfiable by "nowhere at
+  // all". A mechanism check across enough seeds and floors to be sure
+  // it's structural, not luck.
+  let sawPotion = false;
+  outer:
+  for (const level of [1, 5, 10]) {
+    for (let seed = 0; seed < 40; seed++) {
+      const state = newGame(964000 + level * 1000 + seed, floorPlan(level));
+      if (state.chests.some((c) => c.drop && c.drop.heal)) { sawPotion = true; break outer; }
+    }
+  }
+  assert(sawPotion, 'no chest ever held a potion across 120 floors sampled');
+});
+
+test('weapon supply was re-swept, not left to drift, when potion left the monster kind', () => {
+  // The interaction M27's own comment in difficulty.js explains: removing
+  // potion left weapon as monster's only kind, which doubles its
+  // itemWeights shareEach (1/1 vs 1/2) independent of anything this item
+  // is about. WEAPON_SCARCITY was raised 2 -> 4 to cancel it out — checked
+  // here directly against the unweighted mass itemWeights would assign,
+  // so a future change to the kind list is caught even before a full
+  // simulation would show it.
+  const weights = itemWeights({ weapon: WEAPON_SCARCITY }, 'monster', 0);
+  const weaponMass = weights.reduce((s, [item, w]) => s + (item && item.kind === 'weapon' ? w : 0), 0);
+  const expected = 1 / WEAPON_SCARCITY;
+  assert(Math.abs(weaponMass - expected) < 1e-9,
+    `weapon's total mass is ${weaponMass}, expected 1/WEAPON_SCARCITY (${expected}) now that weapon is monster's only kind`);
+});
+
+test('potion has its own scarcity dial, independent of armour', () => {
+  // Split out per the item's own suggestion — checked directly so a future
+  // edit that re-merges them back into shared SCARCITY breaks this rather
+  // than silently changing chest economics no test was watching.
+  const shipped = itemWeights({ armour: 3, potion: POTION_SCARCITY }, 'chest', 0);
+  const potionMass = shipped.reduce((s, [item, w]) => s + (item && item.kind === 'potion' ? w : 0), 0);
+  const expected = 0.5 / POTION_SCARCITY; // shareEach 1/2 (armour, potion) / scarcity
+  assert(Math.abs(potionMass - expected) < 1e-9,
+    `potion's total mass is ${potionMass}, expected shareEach/POTION_SCARCITY (${expected})`);
 });
 
 // ***** the bot's campaign horizon ***** //
@@ -1881,6 +1941,34 @@ test('a chest in hand beats the dark', () => {
   const { actions } = driveBot(state, 4);
   assert(actions.every((a) => a === 'right'),
     `the bot went exploring instead of opening the chest: ${actions.join(',')}`);
+});
+
+// ***** B9: a creature's drop is priced, but the flag ships off ***** //
+//
+// docs/backlog.md B9 measured `priceDrops` — it barely moved the mechanism
+// it was built for (side kills per floor ~0.27 -> ~0.28, noise) while
+// actions per run rose (+16% / +5% across two seed families) and finishes
+// fell on both. Shipped OFF, same pattern as B4's `exploreCompetes`. This
+// locks the shipped default: a side creature outside its activation radius,
+// with no other reason to approach it, is left alone rather than hunted for
+// what it might be carrying.
+test('a creature out of reach is not hunted for its drop by default', () => {
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [10, 1],
+    monsters: [dummy('ogre', [14, 1], { side: true, activation: 0 })],
+  });
+
+  const trace = [];
+  const { actions } = driveBot(state, 8, { monsterCount: 1, trace });
+  assert(!trace.some((t) => t.goal.kind === 'monster'),
+    `the bot targeted the creature with priceDrops off: ${JSON.stringify(trace.map((t) => t.goal))}`);
+  assert(!state.monsters[0].dead, 'the creature was engaged despite being out of reach');
 });
 
 // ***** run it ***** //
