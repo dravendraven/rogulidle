@@ -52,7 +52,7 @@ session, skip it.
 | 12 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
 | 13 | U5 | Show the coin formula live on a real run | **DONE** |
 | 14 | U6a | A coin balance that survives a page reload | **DONE** |
-| 15 | U6b | Pay coin into the balance at floor completion | READY |
+| 15 | U6b | Pay coin into the balance at floor completion | IN FLIGHT |
 | 16 | U6c | Bank or clear the run coin at run end, per the death rule | READY |
 | 17 | U6d | The engine accepts a starting loadout | READY |
 | 18 | U6e | The shop screen | READY |
@@ -2235,7 +2235,7 @@ described from reading the code.
 
 ## U6b · pay coin into the balance at floor completion
 
-`ui agent` · READY · **second of six**
+`ui agent` · **IN FLIGHT** · second of six
 
 Wires U5's already-validated formula (`coins = round(xpEarned-this-floor /
 turns-this-floor * 10)`) into U6a's balance instead of only displaying it.
