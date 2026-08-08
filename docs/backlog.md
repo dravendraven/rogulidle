@@ -53,7 +53,7 @@ session, skip it.
 | 13 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
 | 14 | U5 | Show the coin formula live on a real run | **DONE** |
 | 15 | U6a | A coin balance that survives a page reload | **DONE** |
-| 16 | U6b | Pay coin into the balance at floor completion | REPORTED |
+| 16 | U6b | Pay coin into the balance at floor completion | **DONE** |
 | 17 | U6c | Bank or clear the run coin at run end, per the death rule | READY |
 | 18 | U6d | The engine accepts a starting loadout | READY |
 | 19 | U6e | The shop screen | READY |
