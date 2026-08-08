@@ -41,7 +41,7 @@ session, skip it.
 | 1 | B8 | Set REVERSAL_PENALTY to 6 — one line, measured by B3 | **REPORTED** |
 | 2 | M26 | Weapons come off creatures, gated by strength — the only permanent power | **REPORTED** |
 | 3 | M27 | Chests hold armour and potions — after M26, not with it | READY |
-| 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **IN FLIGHT** |
+| 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **REPORTED** · shipped OFF |
 | 5 | B9 | Teach the bot that a creature carries something | BLOCKED on M26 |
 | 6 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
 | 7 | D1 | The crowd-correction fit is overdue for its own redo | READY |
@@ -873,7 +873,7 @@ zero.
 
 ## B4 · give exploration a value
 
-`bot` · `bot agent` · **IN FLIGHT** — and B3 raised its priority
+`bot` · `bot agent` · **REPORTED** — both halves measured, both shipped off
 
 **B3 makes this the top bot item.** With `REVERSAL_PENALTY` at 6 the layer
 split is veto 0, goal 13, mixed 0, **routing 259** — routing is the entire
@@ -946,6 +946,80 @@ towards rather than away from.
 **Watch `finishes` and actions per run.** A bot that values exploring is a
 bot that explores instead of descending. The third acceptance bullet is the
 one most likely to fail.
+
+### Result
+
+**Built, measured, shipped OFF.** The idea splits into two independently
+flagged pieces because they had opposite outcomes, and both default to off
+in `makeBot`'s settings — the same pattern `chokepoint`/`exposurePricing`
+already use for a measured-and-rejected idea, kept rather than deleted so
+the numbers travel with the code.
+
+**A false start first, worth recording.** The first "after" reading came
+back worse across the board and looked like confirmation of exactly the
+danger this item's Scope warns about. It was not the bot — a concurrent
+session (M26) had uncommitted changes sitting in `src/bot/loot.js`, my own
+directory, which the before-reading had already been taken against and the
+first after-reading was not. Caught by running the ablated arm (both flags
+off) through a page that imports both the pre-B4 `bot.js` and the new one
+side by side: with both flags off the two produce an **identical 30-floor
+action sequence**, seed for seed. That check is worth keeping in mind for
+any future parallel-session measurement — a diff of the file being measured
+would have caught it faster than a diff of the numbers did.
+
+**`exploreValue`** — rank frontiers by how much dark they would reveal
+(`wouldReveal`), priced at `expectedChestValue` spread over the unseen
+tiles, instead of picking the nearest one. **Changed nothing measurable.**
+Chests opened per floor and floors played matched the baseline to three
+figures on both seed families. Cause, once looked for: frontier goals are
+kept sticky specifically so the bot does not re-pick one every step
+(`stillValid`'s frontier branch), so the question "which unexplored tile is
+more promising" is asked almost never — by the time a new choice is due,
+usually only one candidate is still live. The machinery works; there is
+almost no game state where it gets consulted.
+
+**`exploreCompetes`** — let a frontier bid against chests and items in
+`chooseGoal`'s branch 1, instead of staying the branch-3 fallback it always
+was. **Actively harmful, confirmed on two independent seed families:**
+
+    n=60 seeds 800000        off      on          n=40 seeds 910000   off    on
+    median depth               4       2          pooled rate        13.4%  23.3%
+    chests opened/floor     4.85    3.75          zigzag turns         9.0%  21.9%
+    zigzag turns (13.8      9.0%   21.9%          chests opened/floor 4.85   3.75
+      baseline drifted between
+      readings — session noise,
+      not a treatment effect)
+
+Both families agree: chests opened per floor falls by the same ~23% and
+zigzag turns roughly triples. **Diagnosis, not just a number.** A chest is
+worth having now; the dark is worth having eventually, since nothing about
+it decays while the bot is elsewhere. Making the two compete on equal
+footing in the same turn's comparison means a slightly-more-promising dark
+region can outbid a chest sitting in plain sight, so the bot leaves loot on
+the floor to go look at something it could have looked at just as well
+later. This is the flip side of B3's route-commitment failure: there, a
+route aimed into rock because the destination had no value to weigh against
+the bump; here, a destination gets pursued as if the walk to it disappears
+if delayed.
+
+**The wall-bump lead B3 left was not addressed, on the evidence.** The
+hoped-for mechanism — a valued frontier making the tactical veto's plan
+worth defending, so routing stops flip-flopping — did not materialise,
+because branch-1 competition is the wrong lever (see above) and the
+fallback-only `exploreValue` essentially never fires. Routing is
+unchanged: still the entire zigzag residue this item was written to attack,
+and still open.
+
+**New test.** `'a chest in hand beats the dark'` drives the shipped bot at
+a chest with a wide unexplored region on the other side and asserts it
+walks straight to the chest — locks the shipped choice so a future
+flag-flip fails a test instead of only showing up in a rate. 109 tests
+green (M26 already merged to HEAD by the time this landed).
+
+**Files touched:** `src/bot/bot.js` (both flags, default off),
+`test/tests.js` (one test), `run-zigzag.html` (chests-opened-per-floor
+column, needed to see the harm `exploreCompetes` does). `src/sim/`
+untouched.
 
 ## B9 · the bot does not know a creature is carrying anything
 
