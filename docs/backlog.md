@@ -44,7 +44,7 @@ session, skip it.
 | 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **DONE** · shipped OFF |
 | 5 | B9 | Teach the bot that a creature carries something | **DONE** · shipped ON, one z-score owed |
 | 6 | M29 | Turn off the guaranteed dagger, soften floor 1 via generation | READY |
-| 7 | M28 | Belief clones a monster's drop before it should be knowable | **REPORTED** |
+| 7 | M28 | Belief clones a monster's drop before it should be knowable | **DONE** |
 | 8 | B10 | Weight the route toward a frontier by what it would reveal | READY |
 | 9 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
 | 10 | D1 | The crowd-correction fit is overdue for its own redo | READY |
@@ -1652,6 +1652,35 @@ constant either; `revealLoot` is a boolean parameter, not a tunable
 number, so `docs/balance.md`'s table is untouched.
 
 **Files touched:** `src/sim/observe.js`, `test/tests.js`.
+
+### Review — ADOPTED
+
+Verified directly, not just read: `MONSTER_FIELDS`/`CHEST_FIELDS` both
+exclude `drop` by default, `revealLoot` appends it back to both
+symmetrically, exactly as specced.
+
+**The "confirm the leak was real before confirming it's closed" discipline
+is the best thing in this item**, and it generalises past M28: any test of
+the shape "field X is absent" is worthless without a companion assertion
+that field X was actually populated somewhere upstream first — otherwise a
+green test proves the fixture was empty, not that the fix works. Worth
+remembering the next time a boundary-strip item gets built.
+
+Catching the false-failure mode in the `revealLoot` test (searching among
+the SEEN carriers, not any carrier on the floor, since fog-of-war radius at
+generation is an unrelated reason a pick could fail) and fixing it at the
+root instead of padding the seed count is the right instinct, twice over in
+one item.
+
+The category call on `hpMax`/`side`/`edge` — visible properties of a
+creature already in view, not unrevealed rolls, same bucket as `xp` — is
+correct and worth having written down, since it is the exact line a future
+persona (Papazito, U4) will need drawn again for the tiles/geometry side of
+the same question.
+
+No `rogule-spec.md` entry and no `balance.md` entry were both the right
+calls: a channel bug fixed correctly for the first time is not a
+divergence, and a boolean parameter is not a tunable.
 
 ## X1 · delete what nothing uses
 
