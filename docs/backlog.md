@@ -38,11 +38,10 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| 1 | M24 | Cap the tier from above too — floor 1 can roll wolves and ogres | **REPORTED** |
-| 1 | M25 | Gentler floor 1, smoother climb, floor 10 unmoved — owner request | **REPORTED** |
 | — | B3 | Stop the zigzag — bot agent, parallel | **REPORTED** · one line owed in balance.js |
-| 2 | M26 | Weapons drop from creatures, scaled to strength; chests hold sustain | READY |
-| 3 | M21 | Deep floors put a creature in the room where the hero lands | BLOCKED on M24 |
+| 1 | M26 | Weapons drop from creatures, scaled to strength; chests hold sustain | READY |
+| 2 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
+| 3 | D1 | The crowd-correction fit is overdue for its own redo | READY |
 | 4 | X1 | Delete what nothing references | READY · list refreshed |
 | 5 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
 | 6 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
@@ -157,6 +156,28 @@ into `playDungeon`'s per-floor `counts`, same pattern M19 already fixed
 for `tierFloorShare`'s neighbours), `test/tests.js`, `docs/balance.md`,
 `docs/rogule-spec.md` (new §13.15).
 
+### Review — ADOPTED
+
+Mirrors M13 exactly, including the lesson M13 had to learn mid-build:
+**clamp the drawn slot, not the centre.** Clamping the centre would have
+measured as nothing, because `MONSTER_WEIGHTS`'s ±2 reaches past it either
+way. Reused rather than relearned, which is the whole point of writing that
+down the first time.
+
+The numbers are the shape the item asked for and not a difficulty cut:
+floor 1's highest tier drops the requested two indices and its threat mass
+falls 19%, while mean xp moves 2.73 → 2.58 and **floor 10 moves 277.4 →
+276.7** — nothing. A tail was cut; no centre moved.
+
+Folding it into `expectedFloorMass`'s closed form was necessary and the
+Monte Carlo cross-check caught the mismatch when it wasn't there. That test
+is now the second time it has paid for itself.
+
+**One thing owed, and disclosed rather than assumed:** `spread within a
+floor` was not re-measured, and M24 predicted it would *rise*. Not worth its
+own item — whatever next touches floor composition measures it.
+
+
 ## M25 · a gentler floor 1, pivoted around an unchanged floor 10
 
 `work agent` · **REPORTED** — owner request, mid-session
@@ -236,6 +257,40 @@ redone"* — has been due since M17 turned it on. Nobody owns that redo.
 `docs/balance.md`. No `rogule-spec.md` §13 entry: this is a number retune
 of an already-documented mechanism, not a new rule, matching the M12
 precedent.
+
+### Review — ADOPTED
+
+**Solved, not picked.** Pinning floor 10 by construction (`(0.35 × 1.108^9
+/ base)^(1/9)`) is the right shape for a constraint the owner stated as a
+constraint, and the tests check the anchor against the **literal old pair**,
+so moving one constant without re-solving the other fails loudly. That is
+the part that will still be true in six months.
+
+**The sweep earned its keep and is the finding here.** 0.26 and 0.24 score
+*worse than the setting they replace* while cutting floor 1 just as hard,
+because the score is driven by where the integer ceiling-index steps land.
+Non-monotonic in the base. **Nobody could have reasoned to 0.28**, and the
+obvious alternative — cutting the roster — measured worse than the status
+quo and would have undone M17 head-on. Both recorded.
+
+**The cost is stated plainly and is the thing to watch.** The M7 budget
+check drifts 3.2% → **9.4% against a 15% band**: two thirds spent, by
+arithmetic that cannot be fixed while both ends stay pinned. **M26 and
+anything else that adds threat now has to be checked against that band
+before it is built, not after.**
+
+**Real-bot: mean death floor 3.40 → 4.03, dying by floor 2 35% → 30%, and
+one run cleared all ten.** First clear on record. Correctly not called a
+rate at 1-in-40.
+
+**This also closes a pending re-measure.** M24 owed M19's numbers against
+the floor that actually shipped; M25 measured the same 40 seeds and the
+post-M24 baseline is 3.40, against M19's pre-M24 2.70. No separate pass
+needed.
+
+**Written by the work agent and flagged as such** — correct call, and the
+framing holds up.
+
 
 ## B3 · stop the zigzag
 
@@ -444,7 +499,32 @@ blamed for all of it.
 given: M23's precedent is that spine share is never repaired by editing the
 band or the test.
 
+## D1 · the crowd-correction fit is overdue for the redo it asked for
+
+`work agent` · READY
+
+The crowd-correction fit carries its own escape clause in `docs/balance.md`:
+*"if [the ramp] is ever switched on, this fit has to be redone."* **M17
+switched it on.** Found by M25 while writing up something else; nobody owns
+it, which is why it is now an item.
+
+**Do.** Refit against the ramp as it actually ships today, or — if the
+refit lands close enough to the current numbers to not matter — say so and
+delete the escape clause, so the next person does not re-find it.
+
+**Assert.** Whatever the fit predicts against what real play does, at the
+shipped dials. If nothing moves, that is a result and gets written down.
+
+**Also owed, smaller:** `balance.md`'s headline block still states the count
+law as `2 × 1.3^(N-1)`, stale since M17. M25 flagged it rather than
+rewriting someone else's record. Fix it here.
+
 ## M26 · weapons come off creatures, chests hold sustain
+
+**Check the budget band before building, not after.** M25 spent two thirds
+of the M7 budget check's 15% band (3.2% → 9.4%). Anything that adds threat
+mass — and creature drops change what the hero brings to the next fight —
+has to be sized against what is left of it.
 
 `work agent` · **READY**
 
