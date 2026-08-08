@@ -76,7 +76,7 @@
 <div id="out"></div>
 
 <script type="module">
-import { rewardShape, capacityShape } from './src/analysis/observed-ruler.js';
+import { rewardShape, capacityShape, builtShape } from './src/analysis/observed-ruler.js';
 import { descentCheck } from './src/analysis/clustering.js';
 import { floorPlan, LEVELS } from './src/sim/dungeon.js';
 import { PLAYER_HP } from './src/sim/balance.js';
@@ -84,6 +84,11 @@ import { PLAYER_HP } from './src/sim/balance.js';
 const $ = (id) => document.getElementById(id);
 const f = (x, d = 1) => (x === null || x === undefined || !Number.isFinite(x) ? '—' : x.toFixed(d));
 const pct = (x) => (x === null || x === undefined || !Number.isFinite(x) ? '—' : Math.round(x * 100) + '%');
+function median(xs) {
+  const s = [...xs].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
 
 function el(tag, cls, html) {
   const e = document.createElement(tag);
@@ -111,7 +116,7 @@ function levelSection(title, lede, cells, flagNode) {
   return s;
 }
 
-function render(reward, counts, dc, cap) {
+function render(reward, counts, dc, cap, sonda) {
   $('out').innerHTML = '';
 
   // ***** Product *****
@@ -201,8 +206,16 @@ function render(reward, counts, dc, cap) {
   $('out').append(mapSection);
 
   // ***** Bot *****
+  // Same real mortal hero, same map, dumb sonda policy instead of the bot
+  // (builtShape vs descentCheck) — isolates bot skill from map difficulty,
+  // which damage-per-kill could not (deeper floors hit harder regardless
+  // of how well anyone plays). Median depth, not finish rate: finish rate
+  // is 0/0-noisy at the small samples this page uses, depth isn't.
+  const sondaDepth = median(sonda.depths);
+  const botDepth = dc.medianDepth;
   const botCells = [
-    cell('success', 'damage per kill', f(dc.damagePerKill, 2)),
+    cell('success', 'depth, bot÷sonda', `${f(botDepth / (sondaDepth || 1), 2)}×`,
+      `bot ${f(botDepth, 1)} / sonda ${f(sondaDepth, 1)}`),
     cell('health', 'reversal rate', pct(dc.reversalRate)),
     cell('health', 'turns per floor', f(dc.turnsPerFloor, 0)),
     cell('health', 'lost fights started',
@@ -242,7 +255,13 @@ $('run').addEventListener('click', async () => {
       runs: 15, firstSeed: firstSeed + 1400000, suppressDeath: true, startHero: null,
     });
 
-    render(reward, counts, dc, cap);
+    $('status').textContent = 'playing full descents with the sonda, mortal (bot vs sonda)…';
+    await new Promise((r) => setTimeout(r, 20));
+    // Same cheap sonda descent as capacityShape above, mortal this time
+    // (no death suppression) — the real baseline "depth, bot÷sonda" needs.
+    const sonda = builtShape({ runs: 15, firstSeed: firstSeed + 2100000 });
+
+    render(reward, counts, dc, cap, sonda);
     $('status').textContent = `done in ${((performance.now() - started) / 1000).toFixed(1)}s`;
   } catch (error) {
     $('status').textContent = 'failed: ' + error.message;
