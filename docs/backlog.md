@@ -38,10 +38,10 @@ session, skip it.
 
 | # | id | what gets done | status |
 |---|---|---|---|
-| 1 | B8 | Set REVERSAL_PENALTY to 6 — one line, measured by B3 | **REPORTED** |
-| 2 | M26 | Weapons come off creatures, gated by strength — the only permanent power | **REPORTED** |
-| 3 | M27 | Chests hold armour and potions — after M26, not with it | **REPORTED** |
-| 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **REPORTED** · shipped OFF |
+| 1 | B8 | Set REVERSAL_PENALTY to 6 — one line, measured by B3 | **DONE** |
+| 2 | M26 | Weapons come off creatures, gated by strength — the only permanent power | **DONE** |
+| 3 | M27 | Chests hold armour and potions — after M26, not with it | **DONE** |
+| 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **DONE** · shipped OFF |
 | 5 | B9 | Teach the bot that a creature carries something | READY · M26 landed |
 | 6 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
 | 7 | D1 | The crowd-correction fit is overdue for its own redo | READY |
