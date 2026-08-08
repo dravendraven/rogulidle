@@ -22,11 +22,54 @@ export function isVisible(playerPos, pos) {
   return distSq(playerPos, pos) <= VISIBLE_DIST_SQ;
 }
 
-function copyEntity(entity) {
-  return JSON.parse(JSON.stringify(entity));
+// M28 — docs/backlog.md. `copyEntity` used to be a blind deep clone
+// (`JSON.parse(JSON.stringify(entity))`), which meant every field on a
+// GameState entity crossed into Observation/Belief automatically — including
+// `drop`, the item M26 already rolled for a monster or chest before the
+// hero has discovered or opened it. "The bot may only read Observation/
+// Belief, never GameState" (CLAUDE.md) is a statement about the CHANNEL: a
+// channel that already carries an unrevealed answer has failed the rule the
+// instant the data crosses it, whether or not anything downstream happens
+// to read that field. B9 had to build `expectedMonsterDropValue` specifically
+// to price a creature's likely drop from its TIER instead of reading
+// `monster.drop` directly, precisely because the leak existed.
+//
+// An explicit ALLOW-LIST per kind, not a hardcoded omission of `drop`
+// alone — a clone of a growing object is exactly the pattern that leaks the
+// next field someone adds to `MONSTER_TABLE` or a live entity too.
+const PLAYER_FIELDS = ['pos', 'hp', 'hpMax', 'armour', 'xp', 'inventory', 'kills', 'xpEarned'];
+const MONSTER_FIELDS = ['id', 'name', 'emoji', 'pos', 'hp', 'hpMax', 'xp', 'activation', 'dead', 'side', 'edge'];
+const CHEST_FIELDS = ['id', 'name', 'emoji', 'pos', 'side', 'edge'];
+const ITEM_FIELDS = ['id', 'name', 'emoji', 'pos', 'dmg', 'armour', 'heal'];
+const SHRINE_FIELDS = ['id', 'emoji', 'pos'];
+
+// `revealLoot` adds `drop` to the monster/chest allow-lists. Off (the
+// default) for every caller today — there is no persona system yet — but
+// built as a parameter rather than left out entirely: docs/project/
+// candidates.md's parked U4 (a persona that CAN see drops) needs exactly
+// this hook, and hardcoding the omission here would mean U4 has to come
+// back into this function to partially undo it later. A parameter with one
+// caller passing its default is not new machinery running.
+function monsterFields(revealLoot) {
+  return revealLoot ? [...MONSTER_FIELDS, 'drop'] : MONSTER_FIELDS;
+}
+function chestFields(revealLoot) {
+  return revealLoot ? [...CHEST_FIELDS, 'drop'] : CHEST_FIELDS;
 }
 
-export function observe(state) {
+// Deep-clones only the allow-listed fields — still a JSON round-trip
+// underneath (so nested data like `inventory` is copied too, not aliased),
+// just applied to a picked-down object instead of the entity whole.
+function copyEntity(entity, fields) {
+  const picked = {};
+  for (const f of fields) {
+    if (f in entity) picked[f] = entity[f];
+  }
+  return JSON.parse(JSON.stringify(picked));
+}
+
+export function observe(state, options = {}) {
+  const revealLoot = options.revealLoot ?? false;
   const map = state.map;
   const from = state.player.pos;
 
@@ -52,13 +95,13 @@ export function observe(state) {
     // The rules in force are known to the player, not discovered.
     attackWhenAdjacent: state.attackWhenAdjacent,
     // You always know your own hp, xp, inventory and step count.
-    player: copyEntity(state.player),
+    player: copyEntity(state.player, PLAYER_FIELDS),
     visible,
     tiles,
-    monsters: state.monsters.filter(seen).map(copyEntity),
-    items: state.items.filter(seen).map(copyEntity),
-    chests: state.chests.filter(seen).map(copyEntity),
-    shrine: seen(state.shrine) ? copyEntity(state.shrine) : null,
+    monsters: state.monsters.filter(seen).map((m) => copyEntity(m, monsterFields(revealLoot))),
+    items: state.items.filter(seen).map((i) => copyEntity(i, ITEM_FIELDS)),
+    chests: state.chests.filter(seen).map((c) => copyEntity(c, chestFields(revealLoot))),
+    shrine: seen(state.shrine) ? copyEntity(state.shrine, SHRINE_FIELDS) : null,
   };
 }
 

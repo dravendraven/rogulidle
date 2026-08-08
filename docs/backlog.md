@@ -43,7 +43,7 @@ session, skip it.
 | 3 | M27 | Chests hold armour and potions — after M26, not with it | **DONE** |
 | 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **DONE** · shipped OFF |
 | 5 | B9 | Teach the bot that a creature carries something | **DONE** · shipped ON, one z-score owed |
-| 6 | M28 | Belief clones a monster's drop before it should be knowable | READY |
+| 6 | M28 | Belief clones a monster's drop before it should be knowable | **REPORTED** |
 | 7 | B10 | Weight the route toward a frontier by what it would reveal | READY |
 | 8 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
 | 9 | D1 | The crowd-correction fit is overdue for its own redo | READY |
@@ -1492,7 +1492,7 @@ open a new item for it.
 
 ## M28 · Belief clones a monster's drop before it should be knowable
 
-`work agent` · READY · **small, found by B9's review**
+`work agent` · **REPORTED** · **small, found by B9's review**
 
 `observe.js`'s `copyEntity` (`JSON.parse(JSON.stringify(entity))`) clones a
 monster whole into Belief the instant it is seen, including `drop` — the
@@ -1536,6 +1536,69 @@ discovering the parameter does nothing. Confirm B9's own
 `expectedMonsterDropValue` still produces the same numbers it did before —
 this item closes a leak and adds an unused switch, it does not change what
 anything currently computes.
+
+### Result
+
+**Built exactly as specified — allow-list per kind, `revealLoot` as a
+parameter with one caller.** `copyEntity(entity, fields)` replaces the
+blind `JSON.parse(JSON.stringify(entity))`; five field lists
+(`PLAYER_FIELDS`, `MONSTER_FIELDS`, `CHEST_FIELDS`, `ITEM_FIELDS`,
+`SHRINE_FIELDS`) name exactly what each kind may carry across the
+Observation/Belief channel. `drop` is on none of them by default.
+`monsterFields(revealLoot)`/`chestFields(revealLoot)` append it back when
+`observe(state, { revealLoot: true })` is called; every existing caller
+still calls `observe(state)` with no second argument, so the default
+(`false`) is what ships everywhere today — nothing had to be updated at
+any call site for that reason alone.
+
+**The field lists came from reading every consumer, not from guessing
+what "should" be visible.** Grepped `src/bot/*.js` and `src/ui/*.js` for
+every `monster.`/`m.`/`chest.`/`item.` field access before writing
+`MONSTER_FIELDS` etc., so the allow-list is exactly what the bot and
+renderer actually use today (`emoji` included — `render.js` reads it off
+every kind for the tile glyph) plus `hpMax`/`side`/`edge`, which nothing
+currently reads but which describe a visible property of a creature
+already in view, not an unrevealed roll — the same category as `xp` and
+`activation`, not the same category as `drop`.
+
+**Confirmed the leak was real before confirming it was closed** — a test
+that only checks "no `drop` key" against a floor where nothing happens to
+carry one would pass by accident. Both new tests first search a sample of
+seeds for a monster/chest that DOES carry something (via real `GameState`,
+which the test is allowed to read directly), and fail loudly if none is
+found, before asserting the corresponding `Belief` entry lacks the key.
+
+**`revealLoot: true` verified against the SEEN carrier, not any carrier on
+the floor** — an early version of this test picked a drop-carrying
+monster from `GameState` first and then asked whether it survived into
+Observation, which can fail on ordinary fog-of-war grounds (out of
+`VISIBLE_DIST` at generation) that have nothing to do with this item.
+Fixed to search among monsters already present in the `revealLoot`
+observation for one that carries, removing the false-failure mode instead
+of widening the seed count to paper over it.
+
+**`expectedMonsterDropValue` confirmed unchanged, directly, not by
+absence of a diff.** Two checks: every live monster in a real belief still
+prices to a finite number, and — the stronger one — pricing a hand-built
+monster object with `.drop` present and the same object with `.drop`
+deleted produce IDENTICAL results. That is the actual claim ("this
+function's output never depended on the leaked field"), checked directly
+rather than inferred from the function reading `.name` instead of `.drop`
+in its own source.
+
+**119 tests green** (115 before this item's own 4 additions). `index.html`
+played a live descent after the change with no console errors and normal
+rendering (emoji, hp, inventory) — the allow-list did not drop a field the
+renderer needed.
+
+**No `docs/rogule-spec.md` entry.** This closes a channel-discipline bug
+in the engine/bot boundary, not a deliberate divergence from Rogule's
+rules — spec §12 already documents the fog-of-war rule this item was
+enforcing correctly for the first time. No new `balance.js`/`difficulty.js`
+constant either; `revealLoot` is a boolean parameter, not a tunable
+number, so `docs/balance.md`'s table is untouched.
+
+**Files touched:** `src/sim/observe.js`, `test/tests.js`.
 
 ## X1 · delete what nothing uses
 

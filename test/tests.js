@@ -21,7 +21,7 @@ import {
   CLUSTER_SIZE, DIFFICULTY_REBALANCED, MONSTERS_BASE, MONSTER_GROWTH, MONSTER_GROWTH_REBALANCED,
   MONSTER_STRENGTH, POTION_SCARCITY, STRENGTH_GROWTH, STRENGTH_GROWTH_REBALANCED, WEAPON_SCARCITY,
 } from '../src/sim/difficulty.js';
-import { monstersAhead, valueByItemName } from '../src/bot/loot.js';
+import { expectedMonsterDropValue, monstersAhead, valueByItemName } from '../src/bot/loot.js';
 import { makeBot } from '../src/bot/bot.js';
 import { growthOf, summarise, ITEM_VALUE } from '../src/analysis/shape.js';
 import { campaignCost, crowdOverhead, duelCost } from '../src/bot/duel.js';
@@ -640,6 +640,101 @@ test('belief keeps a monster it can no longer see, and drops one that left', () 
   const vanished = makeState({ map, playerPos: [2, 1], monsters: [] });
   const after = foldBelief(belief, observe(vanished));
   assertEq(after.monsters.size, 0, 'a monster known to be gone was still remembered');
+});
+
+// ***** M28 — Belief clones a monster's drop before it should be knowable ***** //
+
+test('a Belief monster has no drop key at the default', () => {
+  // The leak itself, closed. Real generation (M26 rolls a drop on every
+  // creature that carries), so a state where SOME monster actually has a
+  // truthy `.drop` is needed to prove the key is gone from Belief, not
+  // merely null there — a stripped-but-still-null value would pass a
+  // weaker check by accident.
+  let sawADrop = false;
+  for (let seed = 0; seed < 30 && !sawADrop; seed++) {
+    const state = newGame(965000 + seed, floorPlan(5));
+    if (state.monsters.some((m) => m.drop)) sawADrop = true;
+  }
+  assert(sawADrop, 'no seed in this sample rolled a monster with a drop — cannot prove the leak is closed');
+
+  for (let seed = 0; seed < 30; seed++) {
+    const state = newGame(965000 + seed, floorPlan(5));
+    const obs = observe(state);
+    for (const m of obs.monsters) {
+      assert(!('drop' in m), `seed ${seed}: Observation monster "${m.name}" still carries a drop key`);
+    }
+    const belief = foldBelief(emptyBelief(), obs);
+    for (const m of belief.monsters.values()) {
+      assert(!('drop' in m), `seed ${seed}: Belief monster "${m.name}" still carries a drop key`);
+    }
+  }
+});
+
+test('a Belief chest has no drop key at the default either', () => {
+  let sawADrop = false;
+  for (let seed = 0; seed < 30 && !sawADrop; seed++) {
+    const state = newGame(966000 + seed, floorPlan(5));
+    if (state.chests.some((c) => c.drop)) sawADrop = true;
+  }
+  assert(sawADrop, 'no seed in this sample rolled a chest with a drop — cannot prove the leak is closed');
+
+  for (let seed = 0; seed < 30; seed++) {
+    const state = newGame(966000 + seed, floorPlan(5));
+    const belief = foldBelief(emptyBelief(), observe(state));
+    for (const c of belief.chests.values()) {
+      assert(!('drop' in c), `seed ${seed}: Belief chest "${c.name}" still carries a drop key`);
+    }
+  }
+});
+
+test('revealLoot brings the drop back, for whoever eventually builds U4', () => {
+  // The other half of the allow-list design: the flag itself has to work,
+  // not just exist, so U4 (parked, docs/project/candidates.md) has
+  // something to build against later instead of discovering the parameter
+  // is inert.
+  let checked = false;
+  for (let seed = 0; seed < 60 && !checked; seed++) {
+    const state = newGame(965000 + seed, floorPlan(5));
+    const obs = observe(state, { revealLoot: true });
+    // Only monsters visible at generation (turn 0) are in `obs` at all —
+    // search among THOSE for one that carries, rather than picking any
+    // carrier on the floor and risking one outside the starting radius.
+    const seenCarrier = obs.monsters.find((m) => m.drop);
+    if (!seenCarrier) continue;
+    checked = true;
+    const truth = state.monsters.find((m) => m.id === seenCarrier.id);
+    assertEq(seenCarrier.drop.name, truth.drop.name,
+      'revealLoot: true did not carry the real drop through');
+  }
+  assert(checked, 'no seed in this sample put a drop-carrying monster within sight at generation');
+});
+
+test('stripping drop did not touch what expectedMonsterDropValue computes', () => {
+  // B9's whole reason for reading tier instead of `.drop` was that the
+  // field was never meant to be readable — this is not a coincidence to
+  // re-verify by inspection, it is the thing M28's Assert asked to
+  // confirm directly: the same belief, before and after this item, must
+  // price a creature's expected drop identically, because the function
+  // never touched the leaked field to begin with.
+  const state = newGame(4242, floorPlan(5));
+  const obs = observe(state);
+  const belief = foldBelief(emptyBelief(), obs);
+  const values = valueByItemName(belief, 6, 0, true);
+  for (const m of belief.monsters.values()) {
+    const priced = expectedMonsterDropValue(m, values);
+    assert(Number.isFinite(priced), `expectedMonsterDropValue returned a non-number for "${m.name}"`);
+  }
+  // And directly: pricing from a hand-built object with `drop` present
+  // must match pricing the same object with it stripped — proof the
+  // function's OUTPUT never depended on the field this item removes.
+  const sample = [...belief.monsters.values()][0];
+  if (sample) {
+    const withDrop = { ...sample, drop: { name: 'axe', dmg: 2 } };
+    const withoutDrop = { ...sample };
+    delete withoutDrop.drop;
+    assertEq(expectedMonsterDropValue(withDrop, values), expectedMonsterDropValue(withoutDrop, values),
+      'expectedMonsterDropValue\'s result changed depending on whether .drop was present');
+  }
 });
 
 test('the belief never leaks the full map', () => {
