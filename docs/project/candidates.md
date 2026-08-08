@@ -257,6 +257,84 @@ Four fixes have already been implemented against this and none moved the
 ratio, which is itself a reason to establish the effect exists before
 attempting a fifth.
 
+## U3 · a coin, a shop, and gear carried between runs
+
+`owner idea` · **UNSCHEDULED — new meta-progression layer, not a tuning item**
+
+### Ask, in the owner's words
+
+Finishing a floor pays coin proportional to xp/turn — 0.1 xp/turn = 1 coin.
+Clearing all 10 floors keeps the coins earned; dying loses them, **except
+whatever coin was already spent stays spent** — a shop purchase survives a
+death, only the pending balance is at risk. Every run ends at a loot box: 3
+purchase options, e.g. dagger 5 coins, axe 8 coins, armour 1 coin — buying
+one means the *next* run starts already holding it.
+
+### The price list is done and it is real, not guessed
+
+Priced in hp, full-health hero, rest of the campaign, by the metrics agent:
+potion 0 (a full-hp hero wastes it), shield 3, dagger 15.75, axe 23.6.
+Anchoring shield at 1 coin fixes the exchange rate at 1 coin = 3 hp, and the
+rest falls out by division, not by feel:
+
+    shield   3.00 / 3 = 1.00  -> 1
+    dagger  15.75 / 3 = 5.25  -> 5
+    axe     23.60 / 3 = 7.87  -> 8
+
+Matches the owner's own numbers exactly. **One open question, not blocking
+the price list:** the axe measured at 1.5x the dagger's hp value, not the 2x
+the combat formula predicts from `expectedDamage`'s linear weapon term.
+Something survival-shaped is diluting the marginal gain — worth asking
+metrics why, since it says something about how the widened-roll model
+compounds, but it does not change what to charge.
+
+### The renda problem — decided, and it changes what "moeda" earns
+
+**The original rule (die = lose everything) was checked against the current
+finish rate and rejected before it was built:** `P(finish)` reads 6-7%
+(B3/M25), so under "morre = perde tudo" roughly 19 attempts in 20 pay zero
+coin and the shop is unreachable for real play, not just for a weak run.
+
+**The owner's revision fixes exactly this.** Coin spent on a purchase is not
+at risk on the next death — only the *unspent balance* from the run in
+progress is. That converts the shop from "must survive to ever spend" into
+"survive to a floor, bank incrementally" — which is compatible with the
+stated per-floor payout (xp/turn is measured at floor completion, not run
+completion, so partial credit already exists in the mechanic as written; the
+"perde as moedas" line applies to the CURRENT run's unbanked total, and
+first purchases are cheap — shield at 1 coin, reachable off a single early
+floor at a plausible xp/turn).
+
+**Still worth a check before building:** what "moeda de valor diretamente
+proporcional ao exp/turno" pays out at TODAY's real xp/turn, on a typical
+surviving floor. If floor 1 alone pays under 1 coin because xp/turn habitually
+reads under 0.1, the whole ramp is too slow regardless of item prices being
+correct — that is an income-rate sweep, separate from pricing the items.
+
+### Why this is not a tuning item
+
+New subsystem: persistent state across runs (none exists today — "the next
+run starts the moment the last one ends," no save), a shop UI, and a starting
+loadout the engine currently always sets to empty. Touches `src/sim/`
+(starting inventory), `src/ui/` (shop screen), and needs a persistence layer
+that has never been built. Scope this as its own multi-item arc when it is
+picked up, not folded into M26/M27.
+
+### What would need scoping when this is picked up
+
+1. Persistence: where the coin balance and owned starting items live between
+   page loads (`localStorage`, presumably — confirm with the owner, this is
+   the first thing in the project that needs to survive a reload).
+2. Payout mechanic: xp/turn measured per floor, converted at the rate above;
+   confirm against real xp/turn what a typical floor actually pays.
+3. Starting loadout: `dungeon.js`/`game.js` need to accept "hero already
+   holds X," which does not exist as an entry point today.
+4. Shop UI: 3-option offer screen, purchase flow, balance display.
+5. The bot's own valuation (`tactics.js`/`bot.js`) starts from whatever the
+   hero is holding already — should need no change if starting inventory
+   just becomes non-empty, since weapon/armour value already flows through
+   `weaponDamage`/`armourValue`, but confirm nothing assumes an empty start.
+
 ## Dropped from the queue
 
 ### M9 — tie a monster's drop to its own tier
