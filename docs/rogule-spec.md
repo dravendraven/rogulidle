@@ -1041,8 +1041,19 @@ os andares 5–10 fáceis demais.
 medidos contra um andar 1 que ainda rolava lobo e ogro.** M24 (§13.15,
 abaixo) consertou isso depois, na ordem errada — dimensionar M19 primeiro
 e consertar o andar-alvo depois deixou o dimensionamento contra um andar
-que não é mais o que existe. Remedido após M24; ver `docs/backlog.md` M19
-e M24 para os números corrigidos.
+que não é mais o que existe.
+
+**Remedido após M24 — mesmos 40 seeds, mesmo `playDungeon`, código do M19
+intocado:**
+
+    andar médio de morte     2,70  ->  3,40
+    fração morta até andar2  65%   ->  35%
+
+A compensação do M19 (arma garantida) não mudou; o que mudou foi contra
+quem ela luta. Sem lobo/ogre no andar 1, a mesma arma garantida rende
+muito mais — a fração morrendo até o andar 2 quase cai pela metade de
+novo. Comparado à linha de base original (antes do M19 e do M24): andar
+médio de morte 1,75 -> 3,40, fração até andar 2 80% -> 35%.
 
 ### 13.15 O teto é um centro, não uma parede (M24)
 
