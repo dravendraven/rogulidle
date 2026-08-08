@@ -76,7 +76,7 @@
 <div id="out"></div>
 
 <script type="module">
-import { rewardShape, capacityShape, builtShape } from './src/analysis/observed-ruler.js';
+import { rewardShape, capacityShape, builtShape, coinShape } from './src/analysis/observed-ruler.js';
 import { descentCheck } from './src/analysis/clustering.js';
 import { floorPlan, LEVELS } from './src/sim/dungeon.js';
 import { PLAYER_HP } from './src/sim/balance.js';
@@ -116,7 +116,7 @@ function levelSection(title, lede, cells, flagNode) {
   return s;
 }
 
-function render(reward, counts, dc, cap, sonda) {
+function render(reward, counts, dc, cap, sonda, coins) {
   $('out').innerHTML = '';
 
   // ***** Product *****
@@ -222,6 +222,16 @@ function render(reward, counts, dc, cap, sonda) {
       `${dc.lostFightsStarted} <span style="font-size:.85rem;color:var(--faint)">/ ${dc.fightsStarted}</span>`),
   ];
   $('out').append(levelSection('Bot', null, botCells));
+
+  // Theoretical coins: round(xp/turn × 10) per floor, summed per run, mean
+  // across runs. Sonda A/B are 10 independent floor draws (never connected
+  // — same as challenge/reward); bot is a real connected descent.
+  const coinsDiv = el('div');
+  coinsDiv.append(el('h3', null, 'theoretical coins (xp/turn × 10, per run)'));
+  coinsDiv.append(el('div', null,
+    `<table><thead><tr><th></th><th>sonda A</th><th>sonda B</th><th>bot</th></tr></thead>`
+    + `<tbody><tr><td>mean/run</td><td>${f(coins.coinsA.mean, 1)}</td><td>${f(coins.coinsB.mean, 1)}</td><td>${f(dc.meanCoins, 1)}</td></tr></tbody></table>`));
+  $('out').append(coinsDiv);
 }
 
 $('run').addEventListener('click', async () => {
@@ -261,7 +271,12 @@ $('run').addEventListener('click', async () => {
     // (no death suppression) — the real baseline "depth, bot÷sonda" needs.
     const sonda = builtShape({ runs: 15, firstSeed: firstSeed + 2100000 });
 
-    render(reward, counts, dc, cap, sonda);
+    $('status').textContent = 'pricing xp/turn (theoretical coins)…';
+    await new Promise((r) => setTimeout(r, 20));
+    // Isolated floors like rewardShape, not a connected descent — cheap.
+    const coins = coinShape({ runs: floorRuns, firstSeed: firstSeed + 2800000 });
+
+    render(reward, counts, dc, cap, sonda, coins);
     $('status').textContent = `done in ${((performance.now() - started) / 1000).toFixed(1)}s`;
   } catch (error) {
     $('status').textContent = 'failed: ' + error.message;

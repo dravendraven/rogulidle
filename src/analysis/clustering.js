@@ -381,6 +381,9 @@ function carryFromPlayer(player) {
     xp: player.xp,
     inventory: player.inventory.map((i) => ({ ...i })),
     kills: player.kills.slice(),
+    // No `?? 0` at the newGame end that reads this back — omitting it
+    // turns every kill's xpEarned accumulation to NaN from here on.
+    xpEarned: player.xpEarned,
   };
 }
 
@@ -613,6 +616,7 @@ export function descentCheck(options = {}) {
   let floorAttempts = 0;
   let fightsStarted = 0;
   let lostFightsStarted = 0;
+  let totalCoins = 0;
   const eventGaps = [];
 
   for (let i = 0; i < runs; i++) {
@@ -644,6 +648,7 @@ export function descentCheck(options = {}) {
       };
       const seed = hashSeeds(firstSeed + i, level);
       let state = newGame(seed, counts);
+      const xpStart = state.player.xpEarned;
       let observation = observe(state);
       let belief = foldBelief(emptyBelief(), observation);
       const bot = makeBot({ monsterCount: plan.monsters, level, levels });
@@ -693,6 +698,11 @@ export function descentCheck(options = {}) {
       floorAttempts++;
       runTurnOffset += state.turn;
       depthReached = level;
+      // Theoretical coins: round(xp gained ÷ turns spent × 10), this floor,
+      // added into the run's running total.
+      if (state.turn > 0) {
+        totalCoins += Math.round(((state.player.xpEarned - xpStart) / state.turn) * 10);
+      }
 
       if (state.outcome !== 'ascended') {
         totalKills += state.player.kills.length;
@@ -741,5 +751,6 @@ export function descentCheck(options = {}) {
     fightsStarted,
     lostFightsStarted,
     lostFightRate: fightsStarted ? lostFightsStarted / fightsStarted : null,
+    meanCoins: runs ? totalCoins / runs : null,
   };
 }

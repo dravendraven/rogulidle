@@ -121,6 +121,12 @@ export const PROBE_HERO = {
     name: 'axe', emoji: '🪓', dmg: 2, armour: 0, heal: 0,
   }],
   kills: [],
+  // U3 — cumulative xp earned from kills, separate from `xp` (the level
+  // stat, XP_FROM_KILLS-gated). `newGame`'s carry handling copies this
+  // field with no `?? 0` fallback, so a carry object missing it turns
+  // xpEarned into `undefined`, then NaN the first kill after. Found while
+  // wiring coinShape below — every carry-builder in this file needs this.
+  xpEarned: 0,
 };
 
 function heroCopy(hero) {
@@ -264,7 +270,9 @@ function driveFloor(seed, plan, collect, maxTurns, gameOptions = {}) {
   const damage = run.state.log
     .filter((e) => e.type === 'attack' && e.target === 'player')
     .reduce((sum, e) => sum + e.damage, 0);
-  return { clearedAll, damage, turns: run.turns };
+  return {
+    clearedAll, damage, turns: run.turns, xpGained: run.state.player.xpEarned - hero.xpEarned,
+  };
 }
 
 // ***** statistics, duplicated from analysis/shape.js — see file header ***** //
@@ -379,6 +387,41 @@ export function isolatedShape(options = {}) {
   return rows;
 }
 
+// ***** theoretical coins: xp/turn, scaled, summed over a run ***** //
+//
+// coins(floor) = round(xp gained that floor / turns spent that floor × 10).
+// Summed across all ten floors for one "run" — Sonda A and B never carry
+// anything between floors (each is a fresh isolated sample, same as
+// challenge/reward), so a run here is ten INDEPENDENT floor draws sharing
+// one seed index, not a connected descent. That mirrors exactly how
+// challenge/reward already treat the ladder, so it costs nothing new to
+// generate — reuses `driveFloor`, now also returning `xpGained`.
+export function coinShape(options = {}) {
+  const {
+    runs = 15, firstSeed = 830000, maxTurns = 4000, levels = LEVELS,
+    gameOptions = {}, floorPlanFn = floorPlan,
+  } = options;
+  const coinsA = [];
+  const coinsB = [];
+
+  for (let i = 0; i < runs; i++) {
+    let totalA = 0;
+    let totalB = 0;
+    for (let level = 1; level <= levels; level++) {
+      const plan = floorPlanFn(level);
+      const seed = hashSeeds(firstSeed + i, level);
+      const a = driveFloor(seed, plan, false, maxTurns, gameOptions);
+      const b = driveFloor(seed, plan, true, maxTurns, gameOptions);
+      if (a.turns > 0) totalA += Math.round((a.xpGained / a.turns) * 10);
+      if (b.turns > 0) totalB += Math.round((b.xpGained / b.turns) * 10);
+    }
+    coinsA.push(totalA);
+    coinsB.push(totalB);
+  }
+
+  return { coinsA: summarise(coinsA), coinsB: summarise(coinsB), runs };
+}
+
 // ***** 3 & 4. power and buffer: a real descent, Sonda B only ***** //
 //
 // Power and buffer are properties of the hero on arrival, which only exist
@@ -466,6 +509,9 @@ function carryFromPlayer(player) {
     xp: player.xp,
     inventory: player.inventory.map((i) => ({ ...i })),
     kills: player.kills.slice(),
+    // No `?? 0` at the newGame end that reads this back — omitting it
+    // turns every kill's xpEarned accumulation to NaN from here on.
+    xpEarned: player.xpEarned,
   };
 }
 
