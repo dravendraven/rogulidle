@@ -143,6 +143,13 @@ export function playDungeon(seed, makePolicy, options = {}) {
       // pattern as weaponScarcity above.
       earlyChestQualityBoost: options.earlyChestQualityBoost ?? plan.earlyChestQualityBoost,
       carry,
+      // U6d — docs/backlog.md. What the hero starts the WHOLE RUN holding
+      // (the shop, U6e). Forwarded to every floor rather than gated to
+      // floor 1 only: game.js applies `carry` after `startingItems`, so
+      // any floor past the first — which always has a `carry` by then —
+      // overwrites it with the more current inventory regardless. Nothing
+      // here needs to know which floor is "first".
+      startingItems: options.startingItems,
       // Rule variants apply to every floor of the descent.
       xpFromKills: options.xpFromKills,
       hpFromKills: options.hpFromKills,

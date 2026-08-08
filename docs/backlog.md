@@ -63,7 +63,7 @@ session, skip it.
 | 17 | U6a | A coin balance that survives a page reload | **DONE** |
 | 18 | U6b | Pay coin into the balance at floor completion | **DONE** |
 | 19 | U6c | Bank or clear the run coin at run end, per the death rule | REPORTED |
-| 20 | U6d | The engine accepts a starting loadout | READY |
+| 20 | U6d | The engine accepts a starting loadout | **REPORTED** |
 | 21 | U6e | The shop screen | READY |
 | 22 | U6f | Watch a full loop, integration check | READY |
 | 23 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
@@ -2747,7 +2747,7 @@ coin needed discarding at this call site specifically.
 
 ## U6d · the engine accepts a starting loadout
 
-`work agent` · READY · **fourth of six, the one item that touches
+`work agent` · **REPORTED** · **fourth of six, the one item that touches
 `src/sim/`**
 
 `dungeon.js`/`game.js` always start a hero with empty inventory today.
@@ -2765,6 +2765,56 @@ carrying it from turn 1; `weaponDamage`/`armourValue` read it correctly
 (should need no change, since both already read the live inventory — this
 assert exists to CONFIRM that, not to build new logic for it). All existing
 tests green with the option omitted.
+
+### Result
+
+**A genuine new option, not a rediscovery of `counts.carry`.** `carry`
+already lets a caller hand the engine a full player object (hp, xp, kills,
+inventory, the works) — checked first, since it looked like it might
+already cover this — but it exists for floor-to-floor persistence WITHIN
+a descent already in progress, and needs all of that bookkeeping filled
+in correctly just to specify "starts with a dagger". `startingItems`
+is the narrower thing the shop (U6e) actually needs: just the items, sane
+defaults (`PLAYER_HP`, `PLAYER_XP`, empty kills) for everything else,
+via `populate()`'s own fresh player.
+
+**`game.js`, not `spawn.js`.** Applied right after `populate()` runs and
+BEFORE the `carry` check, mirroring `carry`'s own placement — so a call
+that somehow supplies both (not a real descent shape, but nothing assumes
+it cannot happen) resolves to `carry`'s inventory, the more current of
+the two truths. Own item ids, from `nextId` — exported from `spawn.js`
+for this rather than duplicated, so there is one source of truth for the
+id format across everything that ever enters a floor.
+
+**Threaded through `dungeon.js` unconditionally, every floor, not gated
+to floor 1.** `options.startingItems` rides in `counts` on every floor's
+`playGame` call; floors past the first always carry a `carry` object by
+then, and `carry` wins over `startingItems` in `game.js`'s own ordering,
+so the net effect is correct without `dungeon.js` needing to know which
+floor is "first" — checked directly (see the "does not multiply" test
+below), not just assumed from the ordering.
+
+**Confirmed, not built:** `weaponDamage`/`armourValue` (`combat.js`) only
+ever read `.dmg`/`.armour` off inventory entries — verified live before
+writing anything, then locked with a test asserting the exact value
+(`weaponDamage(state.player) === dagger.dmg`), not just that it runs.
+
+**Three tests**, one per the item's own three-part assert plus the edge
+case found while placing the `carry` ordering: starting item present from
+turn 1 with a real id; `carry` wins if both are somehow set together;
+omitting the option leaves the hero unarmed exactly as before. **128
+tests green** (125 before, 3 added) — the option-omitted case was already
+covered by every other existing test never passing it.
+
+**No `docs/rogule-spec.md` or `docs/balance.md` entry** — same precedent
+as `counts.carry` itself and U6a/b/c (checked: neither touched either
+doc). This is engine plumbing for the meta-progression arc sitting
+outside a single run's own rules, not a divergence in how a descent plays
+out, and not a numeric dial.
+
+**Files touched:** `src/sim/spawn.js` (exported `nextId`),
+`src/sim/game.js` (the new block), `src/sim/dungeon.js` (forwarded the
+option), `test/tests.js`.
 
 ## U6e · the shop screen
 

@@ -3,7 +3,7 @@
 import { generateMap } from './mapgen.js';
 import { MAP_SIZE } from './balance.js';
 import { hashSeeds, seedFromString } from './rng.js';
-import { populate } from './spawn.js';
+import { nextId, populate } from './spawn.js';
 import { step } from './step.js';
 import { emptyBelief, foldBelief, observe } from './observe.js';
 
@@ -55,6 +55,23 @@ export function newGame(seed, counts = {}) {
     dugPercentage: counts.dugPercentage,
   });
   populate(state, state.map, counts);
+
+  // U6d — docs/backlog.md. What the hero brings into the RUN, from the
+  // shop (U6e) or a test — distinct from `carry` below, which is what
+  // moves floor-to-floor WITHIN a run already in progress. Applied before
+  // `carry` so a floor that has both (should not happen in practice, but
+  // nothing here assumes it cannot) resolves to `carry`'s inventory, the
+  // more current of the two truths.
+  //
+  // Own id, from the same namespace `populate()` just drew from — an item
+  // that walked in with the hero is not less real than one found on the
+  // floor, and needs an id something in dungeon.js/render.js could key on
+  // later. `weaponDamage`/`armourValue` (combat.js) only ever read
+  // `.dmg`/`.armour` off inventory entries, so no other field is required
+  // for combat math to already work with this — confirmed, not assumed.
+  if (counts.startingItems) {
+    state.player.inventory = counts.startingItems.map((item) => ({ ...item, id: nextId(state) }));
+  }
 
   // Carrying a player in from the floor above. The position always comes
   // from this floor's generation — only what the hero IS travels, not

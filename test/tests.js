@@ -187,6 +187,44 @@ test('a replay of a non-default floor rebuilds the same floor', () => {
   assertEq(last.player.hp, run.state.player.hp, 'hp');
 });
 
+// ***** U6d — the engine accepts a starting loadout ***** //
+
+test('a hero started with startingItems carries it from turn 1', () => {
+  const dagger = ITEM_TABLE.find((i) => i.name === 'dagger');
+  const state = newGame(4242, { startingItems: [dagger] });
+  assertEq(state.turn, 0, 'this should be the very start of the run');
+  assertEq(state.player.inventory.length, 1, 'the starting item did not arrive');
+  assertEq(state.player.inventory[0].name, 'dagger', 'the wrong item arrived');
+  assert(state.player.inventory[0].id, 'the starting item has no id');
+
+  // weaponDamage/armourValue only ever read .dmg/.armour off inventory
+  // entries (combat.js) — this confirms that already works, rather than
+  // building new logic for it, per the item's own wording.
+  assertEq(weaponDamage(state.player), dagger.dmg, 'weaponDamage did not read the starting item');
+});
+
+test('startingItems does not multiply if the hero already carries something', () => {
+  // Only meaningful together with `carry` in the unusual case both are
+  // set on the same call — `carry`, being the more current truth of the
+  // two, wins. Not a real descent shape (carry only exists floor 2+,
+  // startingItems only matters floor 1), but nothing here assumes the
+  // combination cannot happen, so it is checked directly.
+  const dagger = ITEM_TABLE.find((i) => i.name === 'dagger');
+  const axe = ITEM_TABLE.find((i) => i.name === 'axe');
+  const carry = {
+    hp: 8, hpMax: 10, armour: 0, xp: 3,
+    inventory: [{ id: 'x', name: 'axe', dmg: axe.dmg }], kills: [], xpEarned: 0,
+  };
+  const state = newGame(4242, { startingItems: [dagger], carry });
+  assertEq(state.player.inventory.length, 1, 'items from both sources ended up in the inventory');
+  assertEq(state.player.inventory[0].name, 'axe', 'carry should have won over startingItems');
+});
+
+test('omitting startingItems leaves the hero unarmed, same as before this item', () => {
+  const state = newGame(4242);
+  assertEq(state.player.inventory.length, 0, 'a hero with no startingItems option started carrying something');
+});
+
 test('step does not mutate the state it was given', () => {
   const state = newGame(55);
   const before = JSON.stringify({ ...state, map: null });

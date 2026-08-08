@@ -105,7 +105,11 @@ export function itemWeights(scarcity = {}, source = 'chest', quality = 0, exclud
   return entries;
 }
 
-function nextId(state) {
+// Exported for U6d — a starting-item slot needs an id from the same
+// namespace everything else on the floor draws from, and duplicating the
+// format ('e' + counter) elsewhere would be a second source of truth for
+// something that already has one.
+export function nextId(state) {
   return 'e' + (state.nextId++);
 }
 
