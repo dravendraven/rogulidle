@@ -56,18 +56,19 @@ session, skip it.
 | 9 | M30 | Floor 1 must cost less hp than floor 2, checked exactly | **DONE** |
 | 10 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | READY |
 | 11 | B11 | Make combat compete with loot, not lose to it by construction | **REPORTED** · shipped ON |
-| 12 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
-| 13 | D1 | The crowd-correction fit is overdue for its own redo | READY |
-| 14 | X1 | Delete what nothing references | READY · list refreshed |
-| 15 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 16 | U5 | Show the coin formula live on a real run | **DONE** |
-| 17 | U6a | A coin balance that survives a page reload | **DONE** |
-| 18 | U6b | Pay coin into the balance at floor completion | **DONE** |
-| 19 | U6c | Bank or clear the run coin at run end, per the death rule | **DONE** |
-| 20 | U6d | The engine accepts a starting loadout | **DONE** |
-| 21 | U6e | The shop screen | READY — U6d's fix landed |
-| 22 | U6f | Watch a full loop, integration check | READY |
-| 23 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
+| 12 | M32 | Weapons become a tier ladder instead of a stack | BLOCKED on the lab |
+| 13 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
+| 14 | D1 | The crowd-correction fit is overdue for its own redo | READY |
+| 15 | X1 | Delete what nothing references | READY · list refreshed |
+| 16 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
+| 17 | U5 | Show the coin formula live on a real run | **DONE** |
+| 18 | U6a | A coin balance that survives a page reload | **DONE** |
+| 19 | U6b | Pay coin into the balance at floor completion | **DONE** |
+| 20 | U6c | Bank or clear the run coin at run end, per the death rule | **DONE** |
+| 21 | U6d | The engine accepts a starting loadout | **DONE** |
+| 22 | U6e | The shop screen | READY — U6d's fix landed |
+| 23 | U6f | Watch a full loop, integration check | READY |
+| 24 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -1382,6 +1383,62 @@ via `pricedEarly`/`combat`, `combatCompetes` flag, unified hysteresis),
 B9/B10 — the ON threshold depends on live item-table values and was
 judged too fragile to hand-derive into a fixture), `run-b11.html` (new,
 temporary — add to X1). `src/sim/` untouched. 125 tests green.
+
+## M32 · weapons become a tier ladder instead of a stack
+
+`work agent` · **BLOCKED on the lab** (`docs/lab-backlog.md`) · owner
+decision, deferred deliberately
+
+U6e ships with flat prices and multi-buy, which makes the second weapon poor
+value and shield-spam the rational purchase. That is accepted for now and is
+recorded in U6e as deliberate. **This item is the real fix, and it is
+deferred because it is not a shop change.**
+
+### Why it is a whole-game change, not a pricing tweak
+
+The diminishing return is arithmetic, not tuning: damage per turn is
+perfectly linear in weapon points (`5/6 × (xp + weapons − 1) / 2`), but hp
+*saved* goes as 1/dps, because turns-to-kill is `monster hp ÷ damage per
+turn`. Measured: dagger (1 point) 15.75 hp, axe (2 points) 23.6 hp — **the
+second point is worth 7.85, half the first.** No flat-damage weapon avoids
+this.
+
+So the fix is structural. Weapons stop stacking and become a ladder: one
+weapon slot, tiers, each tier strictly better, price rising with tier. That
+touches:
+
+- **M26's creature drops**, which already gate weapons by creature tier
+  (`WEAPON_AXE_MIN_TIER`) — a 5-tier ladder is a continuation of that
+  mechanism, not a new one, but it changes what every drop is worth.
+- **`weaponDamage`**, which sums the inventory today and would become
+  `max()`. Small change, real one — it is combat.
+- **The difficulty ramp**, since how fast the hero arms up is half of
+  whether a floor is survivable.
+
+### Why after the lab, specifically
+
+Judging a change of this size needs the instrument that does not exist yet.
+The lab is exactly that instrument — hand-tune the dials, run the same seed
+against Sonda A, Sonda B and the bot, and read finish rate and median depth
+against a known baseline. Doing this before the lab means tuning in the
+dark, which is what M29 already cost a session to.
+
+### Do not break this when you get here
+
+`valueByItemName` (`loot.js`) prices a weapon as a **marginal delta** —
+`campaignCost(player) − campaignCost(player + item)`. That is already
+correct and already handles diminishing returns automatically. With
+`max()` it keeps working and starts correctly valuing a worse weapon at
+zero. **Whatever the ladder looks like, that marginal computation must
+survive it.**
+
+### Assert
+
+Finish rate and median depth against the pre-change baseline, on paired
+seeds, two families — via the lab. Cumulative weapon damage by floor 10.
+And the shop question that started this: with a ladder, is there a real
+choice between shields and the next weapon tier, or does one still
+dominate?
 
 ## M21 · deep floors have something waiting where you land
 
@@ -2985,10 +3042,28 @@ against one dagger's 15.75. **It breaks at larger balances:** 25 coins buys
 5 × 15.75. Shield-spam becoming the dominant purchase would make three
 options one option with decoration.
 
-**Recorded as a falsifiable prediction before building, not discovered
-after.** If shield-spam dominates once this ships, the natural fix is a cap
-on the armour bar (which is also defensible thematically). Do not
-pre-emptively add the cap — measure first.
+**Owner decision: ship it knowingly wrong, and do not fix it here.** The
+second weapon will be poor value and buying several shields will beat it.
+That is accepted, on purpose, for a good reason: **the weapon curve is a
+whole-game balance question, not a shop question** — it changes what every
+creature drop is worth (M26), what the bot's marginal valuation computes
+against, and how the difficulty ramp reads. Changing it belongs *after* the
+lab exists, because the lab is the instrument for judging a whole-game
+balance change. Filed as **M32**, blocked on the lab.
+
+**So do not "fix" the pricing while building this item.** Flat prices,
+multi-buy allowed, dominance accepted. If it looks wrong while you are in
+here, it is meant to.
+
+**One consequence that is bigger here than in an ordinary game, and needs a
+deliberate answer before this ships.** Rogulidle plays itself — nobody is
+guaranteed to be watching when the shop appears. Whatever the no-input
+default is, **that is what actually happens in most runs**, not a fallback.
+With flat pricing, a "cheapest affordable" default means *every run buys
+shields*, forever, and the shop is three options that only ever resolve to
+one. Pick the default deliberately with that in mind — varying it, or
+weighting it toward the more interesting purchase, keeps the screen worth
+watching while the pricing is knowingly wrong.
 
 **One thing weapons are NOT being credited for yet.** The coin formula is
 `xpEarned ÷ turns × 10`, so a weapon that kills faster earns *more coins per
