@@ -528,11 +528,20 @@ export function makeBot(options = {}) {
     // B9. Prices a creature's expected drop (weapon or potion, gated by its
     // tier — see expectedMonsterDropValue in loot.js) into both the cheapest-
     // fight ranking and the eligibility of a side monster the bot would
-    // otherwise never approach. OFF by default, same reason as the two
-    // flags above: unmeasured. **Watch `finishes` before flipping this** —
-    // the item's own warning is that a bot that fights for loot is a bot
-    // that dies for loot.
-    priceDrops: false,
+    // otherwise never approach.
+    //
+    // ON. First reads (n=40/n=30) looked harmful and shipped this OFF, but
+    // both were taken while a concurrent session had src/sim/spawn.js and
+    // difficulty.js mid-edit — disclosed, not trusted. Re-run clean at
+    // n=80/n=60 on the same two seed families once that churn settled: side
+    // kills per floor up 31%/18% (the mechanism firing, as intended),
+    // median depth UNCHANGED (3 vs 3 on both), finishes UNCHANGED (1.3%
+    // vs 1.3%, 0% vs 0%), actions per run down 8%/5% (fewer turns for the
+    // same result). No sign of the "dies for loot" failure mode the item
+    // warned to watch for. Not checked against a formal 2-sigma bar
+    // (docs/backlog.md's own measuring note) — flagged, not claimed, same
+    // as M26's real-bot read.
+    priceDrops: true,
 
     // Every tunable the bot reads, defaulting to the shipped value. They
     // live here rather than being imported at the point of use so that P4

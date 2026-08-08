@@ -1943,16 +1943,18 @@ test('a chest in hand beats the dark', () => {
     `the bot went exploring instead of opening the chest: ${actions.join(',')}`);
 });
 
-// ***** B9: a creature's drop is priced, but the flag ships off ***** //
+// ***** B9: a creature's drop is priced, and the flag ships on ***** //
 //
-// docs/backlog.md B9 measured `priceDrops` — it barely moved the mechanism
-// it was built for (side kills per floor ~0.27 -> ~0.28, noise) while
-// actions per run rose (+16% / +5% across two seed families) and finishes
-// fell on both. Shipped OFF, same pattern as B4's `exploreCompetes`. This
-// locks the shipped default: a side creature outside its activation radius,
-// with no other reason to approach it, is left alone rather than hunted for
-// what it might be carrying.
-test('a creature out of reach is not hunted for its drop by default', () => {
+// docs/backlog.md B9. First reads (n=40/n=30) looked harmful and shipped
+// this OFF, but both were taken while a concurrent session had
+// src/sim/spawn.js and difficulty.js mid-edit on disk — disclosed in the
+// backlog rather than trusted. Re-measured clean at n=80/n=60 once that
+// churn settled: side kills per floor up 31%/18% (the mechanism firing),
+// median depth and finishes UNCHANGED on both seed families, actions per
+// run down 8%/5%. Shipped ON. This locks the OFF half of the mechanism
+// instead — with the flag explicitly disabled, a side creature outside its
+// activation radius, with no other reason to approach it, is left alone.
+test('a creature out of reach is not hunted for its drop when priceDrops is off', () => {
   const map = tinyMap([
     '#####################',
     '#-------------------#',
@@ -1965,7 +1967,7 @@ test('a creature out of reach is not hunted for its drop by default', () => {
   });
 
   const trace = [];
-  const { actions } = driveBot(state, 8, { monsterCount: 1, trace });
+  const { actions } = driveBot(state, 8, { monsterCount: 1, trace, priceDrops: false });
   assert(!trace.some((t) => t.goal.kind === 'monster'),
     `the bot targeted the creature with priceDrops off: ${JSON.stringify(trace.map((t) => t.goal))}`);
   assert(!state.monsters[0].dead, 'the creature was engaged despite being out of reach');

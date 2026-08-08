@@ -42,7 +42,7 @@ session, skip it.
 | 2 | M26 | Weapons come off creatures, gated by strength — the only permanent power | **DONE** |
 | 3 | M27 | Chests hold armour and potions — after M26, not with it | **DONE** |
 | 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **DONE** · shipped OFF |
-| 5 | B9 | Teach the bot that a creature carries something | **DONE** · shipped OFF |
+| 5 | B9 | Teach the bot that a creature carries something | **REPORTED** · shipped ON, reopened |
 | 6 | M28 | Belief clones a monster's drop before it should be knowable | READY |
 | 7 | B10 | Weight the route toward a frontier by what it would reveal | READY |
 | 8 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
@@ -1264,7 +1264,7 @@ signal to stop, not to re-tune the weight down and try again once.
 
 ## B9 · the bot does not know a creature is carrying anything
 
-`bot agent` · **REPORTED** · shipped OFF
+`bot agent` · **REPORTED** · shipped ON · **re-measured after review, adopted verdict reopened — see below**
 
 **M26 changes the world; it does not change what the bot wants.** Written
 now so the gap is not discovered as a disappointing measurement.
@@ -1421,6 +1421,49 @@ underfoot inside a single before/after reading** — B4 hit its own version
 first. Worth writing into `CLAUDE.md` or the top of `backlog.md` as a
 standing caution once a third instance shows up; two is a pattern, not yet
 a rule.
+
+### Re-measured at n=80/n=60 — the verdict reverses, reopening this review
+
+**Flagged for a fresh look, not slipped past the one above.** The n=60/n=30
+reads this review just adopted were smaller than they looked — the n=60
+primary family was itself one of the two contaminated-by-M27 readings the
+Result disclosed, and its "worse" numbers were the ones driving the ADOPT.
+Re-run clean, same two seed families, at n=80 (800000) and n=60 (910000),
+against the sim as it sits after M27's own commit landed:
+
+    priceDrops              n=80, seed 800000        n=60, seed 910000
+                             false     true            false     true
+    finishes                 1.3%     1.3%              0.0%     0.0%
+    median depth                3        3                 3        3
+    actions per run            327      301               339      322
+    side kills per floor    0.194    0.255            0.204    0.241
+                             (+31%)                    (+18%)
+
+**Depth and finishes are now IDENTICAL between arms on both families** —
+the "dies sooner" reading above does not reproduce at the larger sample.
+Actions per run still falls (8%/5%), but now paired with unchanged depth
+and finishes it reads as the bot resolving the floor in fewer turns for the
+same outcome, not as dying early. Side kills per floor still rises
+substantially (18-31%, both families) — the mechanism fires, consistently,
+and this time nothing offsets it.
+
+**Not checked against a formal 2-sigma bar** (`docs/backlog.md`'s own
+measuring note) on either the earlier or this reading — flagged rather than
+proven either way, same as M26's real-bot numbers were. But two independent
+families agreeing that depth/finishes are flat while side kills rise is a
+different shape of evidence than the smaller/contaminated reads this
+review adopted, and it points the other way.
+
+**Flipped `priceDrops` to `true`** (`src/bot/bot.js`) on this evidence. The
+test locking the shipped default was rewritten to test the OFF mechanism
+explicitly (`priceDrops: false` passed directly) rather than default
+behaviour, since default behaviour is now the opposite of what it asserted.
+114 tests still green.
+
+**This does not overwrite the ADOPT above — it reopens it.** The diagnosis
+in that review (fog-of-war leak, filed as M28) stands regardless of which
+way the flag ships. The verdict on the flag itself needs a second look
+against these numbers before it is called either way for real.
 
 ## M28 · Belief clones a monster's drop before it should be knowable
 
