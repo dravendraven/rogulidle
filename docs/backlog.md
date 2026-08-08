@@ -42,7 +42,7 @@ session, skip it.
 | 2 | M26 | Weapons come off creatures, gated by strength — the only permanent power | **REPORTED** |
 | 3 | M27 | Chests hold armour and potions — after M26, not with it | READY |
 | 4 | B4 | Give exploration a value — routing is the whole zigzag residue | **REPORTED** · shipped OFF |
-| 5 | B9 | Teach the bot that a creature carries something | BLOCKED on M26 |
+| 5 | B9 | Teach the bot that a creature carries something | READY · M26 landed |
 | 6 | M21 | Deep floors put a creature in the room where the hero lands | READY · M24 landed |
 | 7 | D1 | The crowd-correction fit is overdue for its own redo | READY |
 | 8 | X1 | Delete what nothing references | READY · list refreshed |
@@ -572,6 +572,16 @@ this item arrived already done — the code half of B8 and the previous
 turn's REVERSAL_PENALTY commit were the same change, described from two
 different angles.
 
+### Review — ADOPTED
+
+Confirms B3's own numbers rather than repeating them blind: turns-inside-
+episodes more than halves on both seed families, veto-layer episodes hit
+zero on both. The one reservation (median depth drops on the confirmation
+family, not the primary) reproduces exactly as flagged, not worse. Arrived
+already committed — the code and this Assert were the same change from two
+angles, correctly not re-done.
+
+
 ## M3 · un-archive the out-of-depth tail
 
 `work agent` · **DONE** — adopted
@@ -814,6 +824,23 @@ per-monster quality in `placeOne`, M19's guarantee restricted to
 `dagger`), `src/bot/loot.js` (comment only, flagged above), `test/tests.js`,
 `docs/balance.md`, `docs/rogule-spec.md` (new §13.16).
 
+### Review — ADOPTED
+
+The arithmetic section did its job: the shared-`SCARCITY` first attempt
+landed 35% under the item's own band, was caught before shipping, and a
+split `WEAPON_SCARCITY` dial was swept to 2.0 rather than picked. Damage per
+floor now rises with depth (0.72 to 1.30) where the old chest mechanism was
+flat — that is the redistribution the item asked for, not a relabelled cut.
+Axe absence on floors 1-3 confirmed structural against the shipped M25
+curve, not a lucky sample. M19's guarantee correctly narrowed to the dagger
+only. Budget band verified unaffected by construction, not assumed.
+
+**One thing to watch, not act on yet:** `CHEST_QUALITY_BY_DEPTH` and
+`EARLY_CHEST_QUALITY_BOOST` are inert with chests down to one item per kind.
+Correctly left alone rather than special-cased — M27 is expected to revive
+the question by adding `potion` to chests.
+
+
 ## M27 · chests hold armour and potions
 
 `work agent` · READY · **after M26 has been measured, not with it**
@@ -1020,6 +1047,32 @@ green (M26 already merged to HEAD by the time this landed).
 `test/tests.js` (one test), `run-zigzag.html` (chests-opened-per-floor
 column, needed to see the harm `exploreCompetes` does). `src/sim/`
 untouched.
+
+### Review — ADOPTED, both flags stay off
+
+Both halves were live experiments and both earned their "off": `exploreValue`
+changed nothing because sticky frontier goals mean the ranking is consulted
+almost never, and `exploreCompetes` was actively harmful on two independent
+seed families — chests opened per floor down ~23%, zigzag turns roughly
+triple. The diagnosis is the valuable part: pricing the dark to compete
+turn-by-turn treats a delayable reward as if it decays, so a slightly-better
+unexplored tile can outbid a chest sitting in plain sight. That is a
+real, general lesson about how NOT to price exploration, not just a failed
+number.
+
+**The false start is worth keeping in mind for every future parallel
+session:** a cross-session file collision (M26's uncommitted `loot.js`)
+produced a worse first reading that looked exactly like the danger this
+item's own Scope warned about. Caught by diffing the ablated arm's action
+sequence, not by staring at the rate. Diff the file under test before
+trusting a surprising number next time two sessions overlap.
+
+**Routing is still the open residue.** Neither flag touched it — filed as a
+finding, not a failure, since the item's hoped-for mechanism (a valued
+destination stabilizing the tactical veto) had a specific, falsifiable
+reason not to fire, and that reason is now on record for whoever picks the
+wall-bump lead up next.
+
 
 ## B9 · the bot does not know a creature is carrying anything
 
