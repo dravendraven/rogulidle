@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>B3 — zigzag meter</title>
+<style>
+  body { margin:0; padding:1.5rem; background:#101216; color:#d8dee9;
+         font:13px/1.55 ui-monospace, Menlo, Consolas, monospace; }
+  h1 { font-size:1rem; letter-spacing:.08em; text-transform:uppercase; }
+  button { font:inherit; color:#cfe6ff; background:#25333f; border:1px solid #33495c;
+           border-radius:6px; padding:.45rem 1rem; cursor:pointer; }
+  pre { background:#171a21; border:1px solid #262b35; border-radius:8px; padding:1rem;
+        white-space:pre-wrap; }
+  input { font:inherit; color:#d8dee9; background:#12151b; border:1px solid #262b35;
+          border-radius:5px; padding:.3rem .5rem; width:6rem; }
+</style>
+</head>
+<body>
+<h1>B3 — zigzag meter</h1>
+<p>Temporary instrument for backlog item B3. Not part of the shipped pages.
+Per-run distribution, not just the pooled mean — a pooled fall can be nothing
+but shorter runs.</p>
+<p>
+  runs <input id="runs" value="36">
+  first seed <input id="seed" value="800000">
+  <button id="go">measure</button>
+</p>
+<pre id="out">idle</pre>
+
+<script type="module">
+import { newGame } from './src/sim/game.js';
+import { floorPlan, LEVELS } from './src/sim/dungeon.js';
+import { hashSeeds } from './src/sim/rng.js';
+import { step } from './src/sim/step.js';
+import { observe, emptyBelief, foldBelief } from './src/sim/observe.js';
+import { makeBot } from './src/bot/bot.js';
+
+const OPPOSITE = { up: 'down', down: 'up', left: 'right', right: 'left' };
+
+function carryFromPlayer(player) {
+  return {
+    hp: player.hp, hpMax: player.hpMax, armour: player.armour, xp: player.xp,
+    inventory: player.inventory.map((i) => ({ ...i })),
+    kills: player.kills.slice(),
+  };
+}
+
+// An EPISODE is a maximal window of >= 4 actions alternating strictly
+// A,B,A,B with B === OPPOSITE[A]. Same definition B1 used, so the layer
+// split below is comparable with what it reported. Computed per FLOOR:
+// alternation across a floor change is meaningless.
+function episodesIn(records) {
+  const out = [];
+  let i = 0;
+  while (i < records.length) {
+    const a = records[i]?.action;
+    const b = records[i + 1]?.action;
+    if (!a || !b || OPPOSITE[a] !== b) { i++; continue; }
+    let j = i + 2;
+    while (j < records.length && records[j].action === records[j - 2].action
+           && OPPOSITE[records[j - 1].action] === records[j].action) j++;
+    const length = j - i;
+    if (length >= 4) {
+      const window = records.slice(i, j);
+      const vetoed = window.filter((r) => r.vetoed === true).length;
+      const goalChanges = window.filter((r, n) => n > 0 && r.goalId !== window[n - 1].goalId).length;
+      out.push({ length, vetoed, goalChanges });
+      i = j;
+    } else {
+      i++;
+    }
+  }
+  return out;
+}
+
+// B1's classification, reapplied so a fix can be checked against the layer
+// it was aimed at.
+function classify(ep) {
+  if (ep.goalChanges === 0 && ep.vetoed === 0) return 'routing';
+  if (ep.goalChanges === 0 && ep.vetoed > ep.length / 2) return 'veto';
+  if (ep.goalChanges > 0 && ep.vetoed === 0) return 'goal';
+  return 'mixed';
+}
+
+function median(xs) {
+  if (!xs.length) return null;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+function pct(x) { return x === null ? '—' : (100 * x).toFixed(1) + '%'; }
+
+async function measure(runs, firstSeed, maxTurns = 1500) {
+  const perRun = [];
+  const byLayer = { veto: 0, routing: 0, goal: 0, mixed: 0 };
+  const turnsByLayer = { veto: 0, routing: 0, goal: 0, mixed: 0 };
+  let cleared = 0;
+
+  for (let i = 0; i < runs; i++) {
+    let carry = null;
+    let depth = 0;
+    let actions = 0;
+    let reversals = 0;
+    let episodes = 0;
+    let episodeTurns = 0;
+    let lastAcrossFloors = null;
+
+    for (let level = 1; level <= LEVELS; level++) {
+      const plan = floorPlan(level);
+      const trace = [];
+      const counts = {
+        monsters: plan.monsters, chests: plan.chests,
+        difficultyScale: plan.difficultyScale, clusterSize: plan.clusterSize,
+        dropChance: plan.dropChance, weaponScarcity: plan.weaponScarcity,
+        armourScarcity: plan.armourScarcity, potionScarcity: plan.potionScarcity,
+        monsterSpread: plan.monsterSpread, sideActivationCap: plan.sideActivationCap,
+        sideRoomDepthBonus: plan.sideRoomDepthBonus, spineThreatShare: plan.spineThreatShare,
+        sideChestBias: plan.sideChestBias, outOfDepthChance: plan.outOfDepthChance,
+        carry,
+      };
+      let state = newGame(hashSeeds(firstSeed + i, level), counts);
+      let observation = observe(state);
+      let belief = foldBelief(emptyBelief(), observation);
+      const bot = makeBot({ monsterCount: plan.monsters, level, levels: LEVELS, trace });
+      const records = [];
+      let decisions = 0;
+
+      while (!state.outcome && state.turn < maxTurns && decisions < maxTurns * 4) {
+        const before = trace.length;
+        const action = bot(belief, observation);
+        const entry = trace.length > before ? trace[trace.length - 1] : null;
+        records.push({ action, vetoed: entry ? entry.vetoed : null, goalId: entry ? entry.goalId : null });
+
+        // Pooled reversal rate, the same definition run-check uses, kept
+        // running across floors exactly as descentCheck does.
+        if (lastAcrossFloors && action === OPPOSITE[lastAcrossFloors]) reversals++;
+        lastAcrossFloors = action;
+        actions++;
+
+        const result = step(state, action);
+        state = result.state;
+        observation = result.observation;
+        belief = foldBelief(belief, observation);
+        decisions++;
+      }
+
+      for (const ep of episodesIn(records)) {
+        episodes++;
+        episodeTurns += ep.length;
+        const layer = classify(ep);
+        byLayer[layer]++;
+        turnsByLayer[layer] += ep.length;
+      }
+
+      depth = level;
+      if (state.outcome !== 'ascended') break;
+      carry = carryFromPlayer(state.player);
+      if (level === LEVELS) cleared++;
+    }
+
+    perRun.push({ depth, actions, reversals, episodes, episodeTurns,
+      rate: actions ? reversals / actions : 0,
+      zigShare: actions ? episodeTurns / actions : 0 });
+    document.getElementById('out').textContent = `run ${i + 1}/${runs}…`;
+    // Yield rarely: a background tab clamps setTimeout to about a second
+    // (CLAUDE.md), so yielding per run costs more than the runs do.
+    if (i % 10 === 9) await new Promise((r) => setTimeout(r, 0));
+  }
+
+  const totalActions = perRun.reduce((s, r) => s + r.actions, 0);
+  const totalReversals = perRun.reduce((s, r) => s + r.reversals, 0);
+  const totalEpisodeTurns = perRun.reduce((s, r) => s + r.episodeTurns, 0);
+  const totalEpisodes = perRun.reduce((s, r) => s + r.episodes, 0);
+  const withEpisode = perRun.filter((r) => r.episodes > 0).length;
+
+  return {
+    runs, firstSeed,
+    finishRate: cleared / runs,
+    meanActions: totalActions / runs,
+    medianDepth: median(perRun.map((r) => r.depth)),
+    pooledReversalRate: totalActions ? totalReversals / totalActions : null,
+    medianRunReversalRate: median(perRun.map((r) => r.rate)),
+    worstRunReversalRate: Math.max(...perRun.map((r) => r.rate)),
+    runsWithEpisode: withEpisode / runs,
+    episodeTurnShare: totalActions ? totalEpisodeTurns / totalActions : null,
+    medianRunZigShare: median(perRun.map((r) => r.zigShare)),
+    totalEpisodes, totalActions,
+    byLayer, turnsByLayer,
+    perRunRates: perRun.map((r) => +r.rate.toFixed(3)),
+    perRunZigShare: perRun.map((r) => +r.zigShare.toFixed(3)),
+    perRunActions: perRun.map((r) => r.actions),
+  };
+}
+
+function render(r) {
+  const layerLine = (name) => `  ${name.padEnd(9)} ${String(r.byLayer[name]).padStart(4)} episodes` +
+    `  ${String(r.turnsByLayer[name]).padStart(5)} turns`;
+  return [
+    `runs ${r.runs}  first seed ${r.firstSeed}`,
+    ``,
+    `THE NUMBER (pooled, what run-check shows)`,
+    `  reversal rate            ${pct(r.pooledReversalRate)}`,
+    ``,
+    `THE DISTRIBUTION (what a pooled mean hides)`,
+    `  median run's rate        ${pct(r.medianRunReversalRate)}`,
+    `  worst run's rate         ${pct(r.worstRunReversalRate)}`,
+    `  runs with >=1 episode    ${pct(r.runsWithEpisode)}   <- the pathological runs`,
+    `  turns spent in episodes  ${pct(r.episodeTurnShare)}   <- the ugliness on screen`,
+    `  median run's zig share   ${pct(r.medianRunZigShare)}`,
+    `  episodes total           ${r.totalEpisodes}`,
+    ``,
+    `LENGTH CONTROL (a pooled fall can be nothing but shorter runs)`,
+    `  actions per run          ${r.meanActions.toFixed(0)}`,
+    `  median depth             ${r.medianDepth}`,
+    `  finishes                 ${pct(r.finishRate)}`,
+    ``,
+    `WHICH LAYER`,
+    layerLine('veto'), layerLine('routing'), layerLine('goal'), layerLine('mixed'),
+    ``,
+    `per-run reversal rate   ${JSON.stringify(r.perRunRates)}`,
+    `per-run zigzag share    ${JSON.stringify(r.perRunZigShare)}`,
+    `per-run actions         ${JSON.stringify(r.perRunActions)}`,
+  ].join('\n');
+}
+
+document.getElementById('go').onclick = async () => {
+  const runs = +document.getElementById('runs').value;
+  const seed = +document.getElementById('seed').value;
+  document.getElementById('go').disabled = true;
+  document.getElementById('out').textContent = 'running…';
+  const t0 = performance.now();
+  const r = await measure(runs, seed);
+  window.RESULT = r;
+  document.getElementById('out').textContent = render(r)
+    + `\n\n(${((performance.now() - t0) / 1000).toFixed(1)}s)`;
+  document.getElementById('go').disabled = false;
+};
+</script>
+</body>
+</html>
