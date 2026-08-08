@@ -50,7 +50,7 @@ session, skip it.
 | 10 | D1 | The crowd-correction fit is overdue for its own redo | READY |
 | 11 | X1 | Delete what nothing references | READY · list refreshed |
 | 12 | M4 | Side-room risk/reward spread scales with depth | READY · M22 dropped, so it lives |
-| 13 | U5 | Show the coin formula live on a real run | IN FLIGHT |
+| 13 | U5 | Show the coin formula live on a real run | REPORTED |
 | 14 | E1 | One resumable turn loop in src/sim, instead of four copies | READY |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
@@ -1822,7 +1822,7 @@ spread widened. Measured on the probes.
 
 ## U5 · show the coin formula live, on the real run — not a batch instrument
 
-`ui agent` · **IN FLIGHT** · metrics idea, closes U3's open question cheaply
+`ui agent` · **REPORTED** · metrics idea, closes U3's open question cheaply
 
 `docs/project/candidates.md`'s U3 (parked coin/shop meta-progression idea)
 left one thing unresolved before pricing means anything: does today's real
@@ -1876,6 +1876,64 @@ UI avoids implying a shop exists that does not.
 **Assert.** Number appears and updates correctly across a full descent,
 visually. No test needed beyond that — this is a read of already-tested
 fields, not new game logic.
+
+### Result
+
+All three pieces, in `src/ui/spectator.js` and `style.css` (`index.html`
+gets one new chip and one new overlay div, no other changes). A centered
+popup on floor completion ("+N 🪙", fades in/out on its own, timed the
+same way `showSummaryCard` already is — polled through `waitWhilePaused`
+rather than a plain `sleep`, so pausing mid-popup doesn't burn its
+on-screen time for nothing). A running "🪙 N" chip, accumulated on
+`ascended` and zeroed on anything else — death or timeout, both read as
+"not a completion" rather than special-casing death alone. Labelled via
+the chip's `title` attribute as "an efficiency read, not a currency (no
+shop exists)", per the naming caution.
+
+**Found and fixed a real bug in this session's own earlier U4 while
+wiring this up, not a new defect.** `run.levels[i]` (`src/sim/dungeon.js`)
+has never had an `xpEarned` field — only `carryFrom()` does, and only for
+the next floor's *starting* state. U4's lifetime-score award read
+`run.levels[last].xpEarned` anyway, which was always `undefined`:
+`award(undefined, turns)` computes `NaN`, `JSON.stringify` writes `NaN` as
+`null`, and every later `award()` call compounds on that stored `null`
+forever. Never caught during U4's own verification because that
+verification — correctly, per this repo's own advice about `finishes`
+reading near zero — only ever called `award()` directly with synthetic
+numbers, never traced a real `playDungeon()` result through
+`tallyDescent()` end to end. Confirmed live: after an actual floor clear
+in this session, the coins chip read `NaN coins`, and `renderScore`
+crashed outright once a corrupted `{total:null}` record existed in
+`localStorage`.
+
+**Fix stayed inside `src/ui/`.** Reads `xpEarned` off the already-replayed
+end-of-floor state (`finalState.player.xpEarned` — the replay this file
+already builds for rendering) instead of off `run.levels`, for both this
+item's per-floor coins and U4's per-run total. No `src/sim/` change
+needed; the data was already in reach, just not where I'd assumed.
+`tallyDescent()` now takes `finalState` as a second argument to reach it.
+Also hardened `render.js`'s `renderScore` with `Number.isFinite` guards on
+`total` and `last`, so a corrupted stored record degrades to `—` instead
+of crashing the page — belt and braces, on top of the root-cause fix.
+
+**Verified against real engine output, not just synthetic numbers this
+time.** A backgrounded browser tab throttles `setTimeout` to roughly once
+a second (documented elsewhere in this file), which made waiting for a
+live floor-clear impractical mid-session, so verification ran
+`playDungeon()` directly and replayed the result the same way
+`spectator.js` does: seed 1, floor 1 `ascended` at turns=73,
+`finalState.player.xpEarned`=5 → coins=1. No `NaN`, right order of
+magnitude. In-browser: three real deaths in a row on floor 1 (matches
+this repo's own documented floor-1 difficulty) each reset the coins chip
+to `🪙 0` cleanly, no corruption carried across runs, no console errors.
+`run-tests.html`: 120/120 minus 2 pre-existing failures in another
+session's in-flight M19 work (`GUARANTEE_FIRST_WEAPON`), confirmed
+unrelated — nothing here touches `src/sim/spawn.js`.
+
+**Styling note.** Popup position (centered vs. top) and the coin-emoji-
+only wording (`+N 🪙`, counter as `🪙 N`) came from an owner follow-up
+mid-task, after the first pass shipped with top-anchored placement and
+"+N this floor" / "N coins" text.
 
 ## E1 · expose a resumable turn loop from src/sim
 
