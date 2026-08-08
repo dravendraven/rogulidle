@@ -16,11 +16,15 @@
 </style>
 </head>
 <body>
-<h1>axe 2x — ad-hoc simulation</h1>
-<p>Not a backlog item. Scales what the bot BELIEVES an axe is worth in hp by
-2x (<code>axeValueMultiplier</code>, src/bot/bot.js) without touching the
-axe's real in-game dmg — a bot-perception experiment, not a balance change.
-Baseline is the current shipped bot (<code>priceDrops: true</code>, per B9).</p>
+<h1>axe+dagger 2x, GUARANTEE_FIRST_WEAPON off — ad-hoc simulation</h1>
+<p>Not a backlog item. Both arms play with <code>guaranteeFirstWeapon: false</code>
+(M19's dagger-near-spawn guarantee switched off), so an unarmed hero's
+nearest chest goes to the ordinary roll instead of a forced dagger. Scales
+what the bot BELIEVES axe and dagger are worth in hp by 2x
+(<code>axeValueMultiplier</code>/<code>daggerValueMultiplier</code>,
+src/bot/bot.js) without touching their real in-game dmg — a bot-perception
+experiment, not a balance change. Bot otherwise shipped default
+(<code>priceDrops: true</code>, per B9).</p>
 <p>
   runs <input id="runs" value="60">
   first seed <input id="seed" value="800000">
@@ -79,6 +83,7 @@ async function measure(runs, firstSeed, botOptions = {}, maxTurns = 1500) {
         sideRoomDepthBonus: plan.sideRoomDepthBonus, spineThreatShare: plan.spineThreatShare,
         sideChestBias: plan.sideChestBias, outOfDepthChance: plan.outOfDepthChance,
         carry,
+        guaranteeFirstWeapon: false,
       };
       let state = newGame(hashSeeds(firstSeed + i, level), counts);
       let observation = observe(state);
