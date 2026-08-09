@@ -15,12 +15,14 @@ import { dangerField } from '../bot/threat.js';
 import { buildGrid, renderFrame, renderHud, renderHistory, renderScore } from './render.js';
 import { tileSvg } from './tiles.js';
 import { award, readScore, resetScore } from './score.js';
-import { getBalance, setBalance, resetOnDeath } from './wallet.js';
+import { getBalance, setBalance, resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
+import { SHOP_ITEMS, pickDefaultPurchase } from './shop.js';
 
 const MAX_TURNS = 900;       // per floor
 const BASE_DELAY = 110;      // ms per turn at 1x
 const SUMMARY_MS = 2400;
 const COIN_POPUP_MS = 900;
+const SHOP_MS = 3200;
 const HISTORY_LEN = 12;
 
 const session = {
@@ -60,6 +62,7 @@ function grab() {
     'run', 'tally', 'summary', 'summaryTitle', 'summaryBody',
     'playPause', 'speed', 'debug', 'floor', 'history',
     'score', 'resetScore', 'coins', 'coinPopup',
+    'shop', 'shopBalance', 'shopItems', 'shopSkip',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -129,6 +132,65 @@ async function showCoinPopup(coins) {
     waited += 80;
   }
   el.coinPopup.classList.remove('shown');
+}
+
+function renderShopItems(balance) {
+  el.shopItems.innerHTML = '';
+  for (const entry of SHOP_ITEMS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.dataset.item = entry.item.name;
+    const affordable = entry.price <= balance;
+    btn.disabled = !affordable;
+    btn.classList.toggle('unaffordable', !affordable);
+    btn.innerHTML =
+      `${tileSvg(entry.item.emoji) || ''}<span>${entry.item.name} · ${entry.price}🪙</span>`;
+    el.shopItems.append(btn);
+  }
+}
+
+// U6e — docs/backlog.md. Shown at every run's end, spending whatever
+// tallyDescent's bank-or-clear just left in the wallet. Non-blocking like
+// showCoinPopup: a click resolves it immediately (buy or explicit skip),
+// but if nothing is clicked before the timer runs out, pickDefaultPurchase
+// applies — and per the item's own warning that IS what happens most
+// runs, since nobody is guaranteed to be watching a spectator that never
+// pauses for input.
+async function showShop() {
+  if (!el.shop) return;
+  const balance = getBalance();
+  if (el.shopBalance) el.shopBalance.textContent = `balance: ${balance} 🪙`;
+  renderShopItems(balance);
+  el.shop.classList.add('shown');
+
+  let chosen; // undefined = no click yet; null = explicit skip; entry = bought
+  const onItemClick = (e) => {
+    const btn = e.target.closest('button[data-item]');
+    if (!btn || btn.disabled) return;
+    chosen = SHOP_ITEMS.find((entry) => entry.item.name === btn.dataset.item);
+  };
+  const onSkipClick = () => { chosen = null; };
+  el.shopItems.addEventListener('click', onItemClick);
+  if (el.shopSkip) el.shopSkip.addEventListener('click', onSkipClick);
+
+  const until = SHOP_MS / session.speed;
+  let waited = 0;
+  while (waited < until && chosen === undefined) {
+    await waitWhilePaused();
+    await sleep(80);
+    waited += 80;
+  }
+  el.shopItems.removeEventListener('click', onItemClick);
+  if (el.shopSkip) el.shopSkip.removeEventListener('click', onSkipClick);
+
+  if (chosen === undefined) chosen = pickDefaultPurchase(balance);
+
+  if (chosen) {
+    setBalance(getBalance() - chosen.price);
+    addHeldItem(chosen.item);
+  }
+
+  el.shop.classList.remove('shown');
 }
 
 function tally(run) {
@@ -283,6 +345,12 @@ async function runDescentForever(sessionSeed) {
     // playDungeon calls this once per floor; a bot carries plan state that
     // means nothing on the next map down, so each floor gets a fresh trace
     // array too, collected in call order.
+    //
+    // U6e — docs/backlog.md. startingItems: whatever the shop bought (or
+    // the no-input default picked) last run is this run's loadout.
+    // dungeon.js forwards it to every floor's playGame unconditionally;
+    // carry() wins over it from floor 2 on, so it only ever actually arms
+    // floor 1 — exactly "the run about to start", per the item's framing.
     const traces = [];
     const run = playDungeon(seed, (floor) => {
       const trace = [];
@@ -310,7 +378,7 @@ async function runDescentForever(sessionSeed) {
       return makeBot({
         trace, monsterCount: floor.monsterCount, level: floor.level, levels: LEVELS,
       });
-    }, { maxTurns: MAX_TURNS });
+    }, { maxTurns: MAX_TURNS, startingItems: getHeldItems() });
 
     let finalState = null;
     session.turnOffset = 0;
@@ -362,6 +430,7 @@ async function runDescentForever(sessionSeed) {
 
     tallyDescent(run, finalState);
     await showDescentSummary(run, finalState);
+    await showShop();
   }
 }
 

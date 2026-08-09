@@ -185,6 +185,33 @@ main {
 .summary-row b { color: var(--text); font-weight: 700; }
 .summary-row b svg { width: 18px; height: 18px; vertical-align: middle; }
 
+/* The shop (U6e) reuses .summary's fade/centering but needs clicks to
+   land while it's shown — .summary itself stays pointer-events:none since
+   the plain end-of-run card never needed to be interactive. */
+#shop.shown { pointer-events: auto; }
+
+.shop-balance { color: var(--dim); font-size: .85rem; }
+
+.shop-items { display: flex; gap: .6rem; }
+.shop-items button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .25rem;
+  padding: .5rem .6rem;
+}
+.shop-items button svg { width: 28px; height: 28px; }
+.shop-items button span { font-size: .7rem; }
+.shop-items button.unaffordable {
+  opacity: .4;
+  cursor: not-allowed;
+}
+.shop-items button.unaffordable:active {
+  border-bottom-width: 5px;
+  margin-bottom: 0;
+  transform: none;
+}
+
 /* ***** side panel ***** */
 
 .panel {
