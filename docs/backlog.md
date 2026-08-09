@@ -79,7 +79,7 @@ session, skip it.
 | 1 | U6e | The shop screen | ui | **DONE** |
 | 2 | U6f | Watch a full loop, integration check | ui | REPORTED · not watched live, see Result |
 | 3 | B13 | Charge a pursuer where it actually collects | bot | **DONE** · shipped OFF, inert |
-| 4 | B12 | Fighting should compete with leaving, not precede it | bot | READY · prices confirmed sound |
+| 4 | B12 | Fighting should compete with leaving, not precede it | bot | **REPORTED** · shipped ON |
 | 5 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | IN FLIGHT |
 | — | X5 | Classify every dial by lifecycle, delete only the dead | work + bot | READY · at a structural boundary |
 | — | X6 | Collapse the tier clamps, redundancy proven first | work | after X5 |
@@ -560,8 +560,8 @@ Filed as `I10`. Not smuggled in under a bot item, which was the right instinct.
 
 ## B12 · fighting should compete with leaving, not precede it
 
-`bot agent` · READY · **after B13** · overturns a premise, needs a real stop
-signal
+`bot agent` · **REPORTED** · shipped ON — stop signal did not fire; the
+metric that looked like it was a denominator artefact
 
 The owner's ask was "no obligation to kill — only the run-completion goal and
 what derives from it." Removing `requireClear` did not deliver that, and the
@@ -626,6 +626,140 @@ the mechanism is visible and not just its outcome.
 **Stop signal:** cumulative weapon damage falling while depth holds is the
 shape to stop on — that is the bot trading its future for a cheaper present,
 and it will read as harmless on the floor it happens.
+
+### Result
+
+**Built as the item preferred — no second mechanism, one more candidate in
+B11's existing comparison. Shipped ON. The stop signal did not fire, and
+the reason it looked like it had is the most useful part of this report.**
+
+#### What leaving is worth
+
+The whole item reduces to one number: the shrine's `net`. It is **0**, and
+it enters the pool *after* the `net > 0` filter rather than through it.
+
+That filter has always meant "this goal pays for itself" — and the thing it
+pays for itself *instead of* is walking out. Naming leaving as the zero
+makes an implicit comparison explicit, which is why no constant was needed
+and no dial was invented.
+
+**Not `−approach`, deliberately.** Every floor ends on that tile, so the
+walk to it is a fixed cost of the floor, not a marginal cost of *choosing*
+to leave. Charging it would bill one option for something the bot pays
+whatever it does first, and would make the bot linger longest on exactly the
+floors whose exit is furthest away — backwards.
+
+When nothing beats zero, the best remaining candidate *is* the door, and
+branch 1 returns it. The unconditional cheapest-fight step below is
+therefore reached only when the shrine is not reachable at all — which is
+correct: with no exit available, fighting or exploring is all there is.
+
+#### Measured paired, because the seeds allow it
+
+Comparing two arm means throws the pairing away and most of the power with
+it. These are per-run differences over the same seed, so the seed's own
+variance cancels: **520 paired runs, two families, one session.**
+
+    metric                  off       on       diff        z
+    depth                 3.471    3.508    +0.0365    +2.04
+    weapon dmg at end     1.500    1.481    -0.0192    -1.44
+    weapon dmg / floor    0.365    0.358    -0.0067    -2.31
+    kills                12.552   12.504    -0.0481    -0.72
+    kills / floor         3.381    3.342    -0.0388    -5.01
+    actions             326.683  324.119    -2.5635    -0.40
+    floors left dirty     0.262    0.338    +0.0769    +5.60
+    live left behind      0.344    0.462    +0.1173    +5.05
+
+**The mechanism is not in doubt.** Floors taken with creatures still
+breathing z=+5.6, creatures left alive z=+5.0, kills per floor z=-5.0. The
+bot is doing exactly what the item asked: walking out of fights it has no
+reason to have.
+
+**And depth did not pay for it — it rose**, z=+2.04. `finishes` was 0% on
+both arms and could not serve as the stop signal, exactly as the item
+predicted; depth carried it instead.
+
+#### The stop signal, and why it did not fire
+
+`weapon dmg / floor` is down at z=-2.31, which clears the bar. Taken alone
+that reads as the stop signal — arming falling — and I nearly reported it
+that way.
+
+**It is a denominator artefact, of the class `decisions.md` already records
+three agents falling into independently.** The ratio's denominator is depth,
+and *the treatment moved depth* (z=+2.04). The numerator on its own —
+absolute weapon damage carried — is z=-1.44, under the bar. So most of what
+makes the ratio significant is the bot getting deeper, not the bot arming
+worse.
+
+The stop signal's own wording is the tell: *"weapon damage falling **while
+depth holds**"*. Depth did not hold. The shape it was written to catch —
+harmless-looking now, paid for two floors down — is precisely a depth loss,
+and depth went the other way.
+
+**A second reason to distrust the ratio, from this same session.** At an
+earlier n=240 read, `weapon dmg / floor` sat at z=-1.61 and depth at
+z=+1.03. Both grew together as n rose. A real arming effect and a moving
+denominator both scale with n, so growth alone separates nothing — but the
+numerator failing to clear at either sample, while the ratio clears at the
+larger one, is what a denominator artefact looks like from the inside.
+
+**Reported rather than buried:** absolute arming IS slightly down, and
+consistently signed. If it is real it is about 1.3% of a quantity already
+near its floor, against +1.1% depth. I am not claiming it is nothing; I am
+claiming it does not clear 2σ and the ratio that does cannot carry the
+argument.
+
+#### Which behaviour document this made stale
+
+**`docs/bot-strategy.md` §3.2, and it says so itself.** That section
+currently ends with *"a obrigação de lutar não saiu — ela só não mora onde
+se procuraria... e é `B12` que trata disso."* B12 has now treated it. Three
+claims there are now wrong:
+
+- the cheapest-fight step is no longer reached whenever a creature is known
+  — only when the shrine is unreachable;
+- the shrine is no longer a step *below* the comparison, it is a candidate
+  *in* it, at net 0;
+- the closing paragraph naming this as unfinished should go.
+
+`docs/rules.md` §8 is **not** stale — it already says the bot leaves as soon
+as the shrine is reachable and defers how much it chooses to fight to
+`bot-strategy.md`. It was right before this item and is still right.
+
+#### Why this needed a flag anyway
+
+The item asked for no new flag and it was right about the mechanism — none
+was added. `leaveCompetes` exists for measurement only: the Assert requires
+a paired before/after **in one session**, which requires the old path intact
+to measure against. It gates nothing but which of two comparisons runs.
+
+Whether it should survive now that it has shipped ON is X5's question, not
+mine — but unlike the four flags before it, this one has no rejected idea to
+preserve, so deleting it later costs nothing but the ability to re-measure.
+
+#### What this does to the snowball premise
+
+The item said this overturns `bot-strategy.md` §3's cheap-kills-first
+snowball. **In practice it barely touched it, and B13 explains why.** Total
+kills moved z=-0.72 — the bot is not fighting meaningfully less overall,
+it is fighting less *per floor* and reaching more floors. The snowball was
+already dead by `XP_FROM_KILLS: false`; what this removes is the last
+structural obligation, not a live economic engine.
+
+**Files touched:** `src/bot/bot.js` (the shrine as a net-0 candidate, the
+`leaveCompetes` flag), `test/tests.js` (two tests: the mechanism, where the
+arms must choose opposite directions on the same board, and a check that a
+goal which does pay for itself still beats leaving). `src/sim/` untouched.
+136 tests green.
+
+#### One note for the project agent
+
+`bot-strategy.md` §3.2 needs the three corrections above; `docs/` is yours.
+The measurement again ran headless through node rather than an HTML page —
+same reason and same disclosure as B13, and the paired harness is what made
+the denominator artefact visible at all, since arm-mean tables cannot show a
+per-run difference.
 
 ## X5 · classify every dial by lifecycle, then delete only what is truly dead
 

@@ -489,7 +489,28 @@ function chooseGoal(belief, field, danger, current, options) {
       ))
       : [];
 
+    // B12 (docs/backlog.md): leaving competes here too, and it is what the
+    // `net > 0` filter has been comparing against all along without anyone
+    // saying so. A goal "pays for itself" — that is what the filter means —
+    // and the thing it pays for itself INSTEAD OF is walking out.
+    //
+    // Its net is 0, not `-approach`, and that is the whole design decision.
+    // The walk to the shrine is not a marginal cost of choosing to leave:
+    // every floor ends on that tile, so the bot pays that walk whatever it
+    // does first. Charging it here would bill a fixed cost of the floor to
+    // one option competing for it, and would make the bot stay longer on
+    // exactly the floors where the exit is furthest — the opposite of the
+    // reasoning.
+    //
+    // So it enters the pool AFTER the filter, unfiltered: leaving is always
+    // available and always worth exactly zero. Anything that beats zero is
+    // worth doing first; when nothing does, the best remaining option IS
+    // the door, and the bot takes it instead of falling through to the
+    // unconditional fight below.
     const worthwhile = [...loot, ...explore, ...combat].filter((g) => g.net > 0);
+    if (options.leaveCompetes && canReachShrine(belief, field)) {
+      worthwhile.push({ kind: 'shrine', pos: belief.shrine.pos, net: 0 });
+    }
     if (worthwhile.length) {
       const best = worthwhile.reduce((a, b) => (b.net > a.net ? b : a));
 
@@ -694,6 +715,26 @@ export function makeBot(options = {}) {
     // The flag does change decisions — per-run depths differ off vs on — so
     // this is inert for lack of anything to fix, not for lack of firing.
     chargePursuers: false,
+
+    // B12 (docs/backlog.md). ON. Puts LEAVING into branch 1's comparison at
+    // net 0, so a fight has to be worth having rather than merely
+    // available. Without it, branch 2 below fires on any reachable creature
+    // and pre-empts the exit unconditionally — which is where the
+    // obligation to kill actually lived, not in `requireClear`.
+    //
+    // A flag rather than a straight replacement, against the item's own
+    // preference, for one reason: its Assert needs a paired before/after in
+    // one session, and that needs the old path intact to measure against.
+    //
+    // Measured paired, 520 runs over two seed families. The mechanism is
+    // not in doubt: floors left with creatures still alive z=+5.6, kills
+    // per floor z=-5.0. Depth did not pay for it — it rose, z=+2.0. The
+    // item's stop signal (arming falling while depth holds) did not fire:
+    // absolute weapon damage carried is z=-1.4, under the bar, and depth
+    // did not hold. Read the Result before trusting the per-floor arming
+    // ratio, which DOES clear the bar and is a denominator artefact of the
+    // class decisions.md records three separate agents falling into.
+    leaveCompetes: true,
 
     // Every tunable the bot reads, defaulting to the shipped value. They
     // live here rather than being imported at the point of use so that P4

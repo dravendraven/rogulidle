@@ -2433,6 +2433,61 @@ test('chargePursuers off leaves the bot untouched with a pursuer present', () =>
     `the shipped default changed with a pursuer on the map: ${off.actions.join(',')}`);
 });
 
+// ***** B12: leaving competes with fighting ***** //
+//
+// docs/backlog.md B12. The obligation to kill lived in chooseGoal's
+// cheapest-fight step firing on any reachable creature, with the shrine
+// step below it and only reached when that found nothing. This is the
+// mechanism check, and it is a real one rather than a no-op guard: the two
+// arms must choose OPPOSITE DIRECTIONS on the same board.
+//
+// The rat sits well outside its own chase radius, so it never wakes and
+// the tactical veto never has a say — what is being tested is the goal
+// comparison, not the reflex layer on top of it.
+test('a reachable exit beats a fight that does not pay for itself', () => {
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const build = () => makeState({
+    map,
+    playerPos: [10, 1],
+    monsters: [dummy('rat', [3, 1], { activation: 8 })],
+    shrine: { id: 's', emoji: '⛩️', pos: [16, 1] },
+  });
+
+  const off = driveBot(build(), 1, { monsterCount: 1, leaveCompetes: false });
+  const on = driveBot(build(), 1, { monsterCount: 1, leaveCompetes: true });
+
+  assertEq(off.actions[0], 'left',
+    'with leaving out of the comparison the bot should still go and fight');
+  assertEq(on.actions[0], 'right',
+    'the bot fought a creature it had no reason to fight, with the exit open');
+});
+
+test('a fight worth having still beats leaving', () => {
+  // Same board, but the hero is hurt and a potion sits the other way. The
+  // exit competes at net 0, so anything that genuinely pays for itself is
+  // still taken first — leaving is the floor of the comparison, not a
+  // shortcut past it.
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [10, 1],
+    hp: 3,
+    items: [item('health', [8, 1], { heal: 5 })],
+    shrine: { id: 's', emoji: '⛩️', pos: [16, 1] },
+  });
+
+  const { actions } = driveBot(state, 1, { monsterCount: 0, leaveCompetes: true });
+  assertEq(actions[0], 'left', 'the bot walked out past a potion it needed');
+});
+
 // ***** run it ***** //
 
 export function runAll() {
