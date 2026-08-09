@@ -78,7 +78,7 @@ session, skip it.
 |---|---|---|---|---|
 | 1 | U6e | The shop screen | ui | **DONE** |
 | 2 | U6f | Watch a full loop, integration check | ui | IN FLIGHT |
-| 3 | B13 | Charge a pursuer where it actually collects — before B12 | bot | READY |
+| 3 | B13 | Charge a pursuer where it actually collects — before B12 | bot | **REPORTED** · shipped OFF |
 | 4 | B12 | Fighting should compete with leaving, not precede it | bot | after B13 |
 | 5 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | READY |
 | — | X5 | Classify every dial by lifecycle, delete only the dead | work + bot | READY · at a structural boundary |
@@ -263,7 +263,8 @@ day comes.
 
 ## B13 · charge a pursuer where it actually collects
 
-`bot agent` · READY · **do this BEFORE B12 — see the ordering note in both**
+`bot agent` · **REPORTED** · shipped OFF, inert — but see what the diagnostic
+says about B12
 
 Bot agent proposal. Verified before filing: the mechanism is real and the
 reasoning is right.
@@ -327,6 +328,147 @@ B12 asks the bot to decide whether a fight is worth having. **That decision is
 made with this cost model.** Fix the model first and B12 is measured against
 prices that reflect the game; run B12 first and it decides using a model that
 undercharges exactly the case where fighting is genuinely necessary.
+
+### Result
+
+**Built, measured, shipped OFF — inert. But the diagnostic is the most
+useful number this series has produced, and it changes what B12 should
+expect.**
+
+**The premise is confirmed, and it is bigger than the item claimed.**
+Instrumented directly from the engine — a turn is stationary when it passed
+(`state.turn` advanced) and the hero did not move, so a wall bump is
+correctly never counted:
+
+    blows the hero takes while standing still ....... 90.9%
+
+Nine blows in ten. Damage in this game is very nearly *defined* as what
+lands while the hero is not walking away. `dangerField`'s proximity rent
+was modelling the wrong thing, exactly as the item said.
+
+**And that is why the fix does nothing.** The second cut is the answer:
+
+    of those stationary blows, share with 2+ creatures in contact
+      seed 800000 ..... 13.1%
+      seed 910000 .....  8.6%
+
+The other ~88% come from the single creature the hero is already trading
+with — and **`duelCost` has priced those since P3**. What was genuinely
+unpriced is a second creature swinging during a duel, or one swinging
+during a chest's two turns: about **two to three blows a run out of
+twenty-five**. Charging correctly for a small population moves a small
+amount.
+
+**n=60, paired seeds, two families, one session:**
+
+    chargePursuers            seed 800000        seed 910000
+                            off      on        off      on
+    finishes                 0%      0%         0%      0%
+    median depth              3       3          3       3
+    mean depth             3.62    3.55       2.93    3.00
+    actions per run         358     353        255     257
+    stationary blows/run  25.35   25.10      23.70   23.88
+    kills per run         13.18   13.07      10.20   10.52
+
+**Every moving number disagrees in direction between the two families**, at
+about one percent. Mean depth down on one, up on the other; stationary
+blows down on one, up on the other. That is noise, and calling it anything
+else would be the mistake `decisions.md` already records twice.
+
+**`finishes` could not serve as the guard, exactly as the item predicted** —
+0% on all four arms. Median depth was the real signal and it is identical
+everywhere. Median weapon damage at the deepest floor was also identical
+(1 on all four arms), so the descent is not arming the hero differently
+either.
+
+**Checked before calling it inert: the flag does change decisions.** Per-run
+depth arrays differ off vs on (a run reaching 4 becomes 3, another 5 becomes
+7). This is inert for lack of anything left to fix, not for lack of firing —
+the distinction B10 could not make about its own tie-breaker.
+
+**One shortcut, disclosed.** The charge lands on the *ranking* (`cost` in
+`priceMonsters`, `net` in `lootGoals`), not on `worthStarting`. So the
+survivability gate can still call a duel safe while this term says a second
+creature will be swinging throughout it. That split copies B9's own
+precedent — worthwhile is not the same question as survivable — and closing
+it is a different item, not a tweak to this one.
+
+**What this means for B12, which is the real output.** B12 has to decide
+whether a fight is worth having. It will make that decision with a cost
+model that, per the numbers above, is **already essentially correct for the
+1v1 case that is 88% of all damage taken** — `duelCost` was carrying more
+weight than anyone credited it with. The ordering rationale ("fix the model
+first") turned out to be right for a reason nobody stated: the model did not
+need fixing, and now that is measured rather than assumed. B12 can proceed
+on the existing prices.
+
+**Files touched:** `src/bot/threat.js` (`pursuerCost`, and `dangerField` now
+keeps each creature's bite and activation for it), `src/bot/bot.js` (the
+`chargePursuers` flag, threaded into `lootGoals` and `priceMonsters`; the
+chest's two stationary turns given the name `CHEST_TURNS` since two places
+now depend on agreeing about it), `test/tests.js` (four tests). `src/sim/`
+untouched. 134 tests green.
+
+### Which behaviour document this made stale
+
+**None.** The flag ships OFF, so no shipped behaviour moved. Checked rather
+than assumed: `bot-strategy.md` §3.1 describes `dangerField` as "o preço de
+ameaça por tile" without claiming *when* that threat is collected, so the
+rent-versus-event finding does not contradict anything written there.
+`rules.md` §3 and §6 already state the three rules the finding rests on
+(adjacency is not an attack, creatures act after the hero, stationary
+resolutions) — this item read them, it did not change them.
+
+**One suggestion rather than an edit, since `docs/` is not mine.** The 91%
+figure is not a bot fact, it is a *game* fact — nine of every ten blows the
+hero takes land while it is standing still. Nothing in `rules.md` says that,
+and it is the kind of thing that would save the next person a measurement.
+Worth a line in §4 if you agree.
+
+### Why this needed a new flag
+
+Per the last-resort rule. `chargePursuers` gates a cost term no existing
+parameter can express: `threat` switches the entire danger field on or off,
+`guardPricing` charges creatures *asleep near the destination* — the
+opposite population from one already chasing — and `crowdPenalty` is a flat
+surcharge on a tile, not a per-turn charge over a goal's duration. Reusing
+any of the three would have changed what it already means for every other
+caller.
+
+**Whether it should survive now that it measured inert is your call, and
+X5 is where it belongs.** Precedent says keep a rejected idea with its
+numbers attached (`chokepoint`, `exposurePricing`, B4's pair, B10's). The
+counter-argument is that this is the fifth such flag and the file is
+accumulating them. I have left it in rather than pre-empt X5's own criteria.
+
+`CHEST_TURNS` is not a new parameter — it names the literal `2` that was
+already inline in `lootGoals`, because a second site now has to agree with
+it. It is a rule of the engine (open, then step on), not a tunable.
+
+### Two notes for the project agent
+
+**A mistake this caught in itself, worth keeping.** The first version of
+`pursuerCost` guarded on "does it reach the tile before the hero does" —
+`standoffTile`'s test, inverted. Writing the test for it showed that returns
+*zero* for a creature standing directly behind the hero, which is the exact
+case the item exists to charge for: it arrives one step late and then swings
+for every remaining stationary turn. The guard became "how many of the
+stationary turns is it present for". A whole-bot fixture would not have
+caught this — the unit test did, because for once the mechanism was a pure
+function worth testing directly.
+
+**The browser tooling dropped mid-session, and the measurement ran headless
+instead.** Node 22 runs the project's modules unchanged with
+`--experimental-default-type=module`, which avoids adding a `package.json`
+and so does not break the no-npm/no-build rule; the only obstacle is
+`mapgen.js`'s CDN import of ROT.js, redirected to a local copy by a resolver
+hook living entirely in scratchpad. Same modules, deterministic engine, same
+seeds — the numbers are what an HTML page would have shown. **No page was
+shipped for this item**, deliberately: writing an instrument I could not
+open and verify would have been worse than not writing one. If a supported
+headless runner is wanted, that is a decision for you and the metrics role,
+not something to smuggle in under a bot item — but it works today and it is
+much faster than clicking through a page.
 
 ## B12 · fighting should compete with leaving, not precede it
 

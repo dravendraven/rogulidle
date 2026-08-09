@@ -35,6 +35,7 @@ export function dangerField(belief, tuning = {}) {
   const crowd = new Map();        // tile -> how many could reach it at once
   const exposedTiles = new Map(); // tile -> ways in, worked out on demand
   const reach = new Map();        // monster id -> its step count to each tile
+  const pursuers = new Map();     // monster id -> { bite, activation }, for B13
 
   for (const monster of belief.monsters.values()) {
     if (monster.dead) continue;
@@ -49,6 +50,7 @@ export function dangerField(belief, tuning = {}) {
     // and contributes nothing, so there is no reason to keep walking.
     const spread = flood(monster.pos, passable, monster.activation);
     reach.set(monster.id, spread.dist);
+    pursuers.set(monster.id, { bite, activation: monster.activation });
 
     for (const [tile, distance] of spread.dist) {
       if (!isAwakeAt(monster, distance)) continue;
@@ -94,6 +96,64 @@ export function dangerField(belief, tuning = {}) {
       // rare enough that this term is not what steers the bot.
       if ((crowd.get(tile) || 0) >= 2) price += crowdPenalty;
       return price;
+    },
+
+    // B13 — docs/backlog.md. What a pursuer collects while the hero STANDS
+    // STILL, which is the only time it collects at all.
+    //
+    // `menace` above is rent: hp charged per turn of proximity. The rules
+    // are not rent. Adjacency is not an attack — the attack is a creature
+    // moving ONTO the hero (rules.md §3) — and creatures act after the hero
+    // (§6). So a same-speed pursuer chased off a tile lands adjacent, never
+    // on top, and fleeing it costs nothing. What costs is stopping:
+    // `resolveEncounters` returning true passes the turn WITHOUT moving the
+    // hero, so attacking and opening a chest are both stationary, and
+    // everything glued to the hero gets a free swing on each of those turns.
+    // Nothing charged for that before this.
+    //
+    // A creature is charged for the stationary turns it is actually PRESENT
+    // for, not all of them. It has `botSteps` turns of the walk plus the
+    // stationary turns themselves to arrive, so:
+    //
+    //   late   = max(0, its steps to `pos` − the hero's)   turns it misses
+    //   swings = turns − late                              turns it collects
+    //
+    // Both ends matter. A creature already at the hero's heels
+    // (`late` 0) collects every stationary turn; one that arrives halfway
+    // through collects the rest; one that cannot make it before the hero
+    // moves on collects nothing and is correctly free. Comparing only
+    // "does it get there first" — `standoffTile`'s test, inverted — would
+    // have said free for the pursuer standing right behind the hero, which
+    // is the exact case this item exists to charge for.
+    //
+    // Still gated on `isAwakeAt`, the same test the menace loop uses:
+    // standing at `pos` has to be inside the creature's chase radius, or it
+    // is provably motionless and never comes at all.
+    //
+    // `exclude` skips the creature being fought: its blows are already in
+    // `duelCost`, and charging them twice would price every fight as if a
+    // second copy of the target were watching.
+    //
+    // Deliberately NOT symmetric with fleeing: this only ever ADDS cost to
+    // standing still. It does not claim fleeing is free — cornered, or
+    // pinched from two sides, some step closes distance to something, and
+    // that case is left to the tactical veto, which simulates it properly.
+    pursuerCost(pos, botSteps, turns, exclude = null) {
+      if (!(turns > 0) || !Number.isFinite(botSteps)) return 0;
+
+      const tile = key(pos);
+      let total = 0;
+      for (const [id, { bite, activation }] of pursuers) {
+        if (id === exclude) continue;
+        const theirs = reach.get(id);
+        const gap = theirs ? theirs.get(tile) : undefined;
+        if (gap === undefined) continue;              // never gets there
+        if (!isAwakeAt({ activation }, gap)) continue;
+
+        const swings = turns - Math.max(0, gap - botSteps);
+        if (swings > 0) total += bite * swings;
+      }
+      return total;
     },
   };
 }

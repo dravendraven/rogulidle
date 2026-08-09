@@ -78,7 +78,8 @@ function liveMonsters(belief) {
 // the expensive monster at the end is met with double the starting damage.
 // Nothing here encodes that — it falls out of repricing every turn against
 // current xp and gear.
-function priceMonsters(belief, field, safetyMargin, mode = 'spine', dropValues = null) {
+function priceMonsters(belief, field, safetyMargin, mode = 'spine', dropValues = null,
+  danger = null) {
   const out = [];
   for (const monster of liveMonsters(belief)) {
     const approach = priceOfReaching(field, monster.pos);
@@ -111,6 +112,23 @@ function priceMonsters(belief, field, safetyMargin, mode = 'spine', dropValues =
       if (!activated && drop - approach - duel.hpLost <= 0) continue;
     }
 
+    // B13: a fight is stationary too — `resolveEncounters` passes the turn
+    // without moving the hero — so every OTHER creature that keeps up with
+    // the walk over there swings freely for the whole duel. `duel.turns` is
+    // how long that lasts, and the target itself is excluded because its
+    // own blows are already inside `duel.hpLost`.
+    //
+    // Ranking only, deliberately: `worthStarting` above stays untouched,
+    // matching B9's own split between what makes a fight WORTHWHILE and
+    // what makes it SURVIVABLE. That leaves a known gap — the gate can call
+    // a duel safe while this term says the hero will eat a second creature's
+    // blows throughout it — and closing it is a separate question from the
+    // one this item was filed to answer.
+    const chased = (danger && Number.isFinite(duel.turns))
+      ? danger.pursuerCost(monster.pos, field.steps.get(key(monster.pos)),
+        duel.turns, monster.id)
+      : 0;
+
     out.push({
       kind: 'monster',
       id: monster.id,
@@ -122,7 +140,7 @@ function priceMonsters(belief, field, safetyMargin, mode = 'spine', dropValues =
       // Unaffected by the drop: loot makes a fight more WORTHWHILE, not
       // more SURVIVABLE, and this gate is about survival.
       worthStarting: duel.hpLost <= effectiveHp(belief.player) * safetyMargin,
-      cost: duel.hpLost + approach - drop,
+      cost: duel.hpLost + approach - drop + chased,
     });
   }
   return out;
@@ -323,7 +341,13 @@ function guardCost(belief, pos, enabled) {
   return total;
 }
 
-function lootGoals(belief, field, danger, values, stepCost, guards = true) {
+// Turns a chest costs standing still: one to open it (it blocks, so the
+// hero does not move), one to step onto the tile and take what fell. A rule
+// of the engine, not a dial — see the `lingering` comment below.
+const CHEST_TURNS = 2;
+
+function lootGoals(belief, field, danger, values, stepCost, guards = true,
+  chargePursuers = false) {
   const chestValue = expectedChestValue(values);
   const out = [];
 
@@ -346,12 +370,22 @@ function lootGoals(belief, field, danger, values, stepCost, guards = true) {
     // player, then stepping onto the tile costs another (spec §6). Those
     // two turns are spent standing where the chest is, so they are charged
     // at that tile's danger, not at the flat walking rate.
-    const lingering = 2 * (stepCost + danger.priceAt(chest.pos[0], chest.pos[1]));
+    const lingering = CHEST_TURNS * (stepCost + danger.priceAt(chest.pos[0], chest.pos[1]));
     const guard = guardCost(belief, chest.pos, guards);
+    // B13: and what follows the hero HERE. `lingering` above charges the
+    // chest tile's own menace, which is a snapshot of where creatures stand
+    // now — a pursuer five tiles back contributes almost nothing to it, then
+    // arrives and swings twice for free. That is the gap this closes. The
+    // two terms overlap only when the pursuer is already on top of the
+    // chest, where being charged twice for a genuinely bad idea is not the
+    // failure worth engineering around.
+    const chased = chargePursuers
+      ? danger.pursuerCost(chest.pos, field.steps.get(key(chest.pos)), CHEST_TURNS)
+      : 0;
     out.push({
       kind: "chest", id: chest.id, pos: chest.pos, distance: approach,
       gross: chestValue,
-      net: chestValue - approach - lingering - guard,
+      net: chestValue - approach - lingering - guard - chased,
     });
   }
   return out;
@@ -368,6 +402,7 @@ function lootGoals(belief, field, danger, values, stepCost, guards = true) {
 function preparationGoals(belief, field, danger, options, values) {
   const useful = lootGoals(
     belief, field, danger, values, options.stepCost, options.guardPricing,
+    options.chargePursuers,
   ).filter((g) => g.gross > 0);
   if (useful.length) {
     return useful.reduce((a, b) => {
@@ -407,7 +442,7 @@ function chooseGoal(belief, field, danger, current, options) {
   // ever paid once, in branch 2, exactly as before this item.
   const pricedEarly = options.combatCompetes
     ? priceMonsters(belief, field, options.safetyMargin, options.requireClear,
-      options.priceDrops ? values : null)
+      options.priceDrops ? values : null, options.chargePursuers ? danger : null)
     : null;
 
   // 1. Anything free worth having? Rule 1: stock up before fighting. Loot
@@ -416,7 +451,8 @@ function chooseGoal(belief, field, danger, current, options) {
   //    and now the walk is priced in danger too, so a shield guarded by a
   //    wolf is correctly no longer free.
   if (options.loot) {
-    const loot = lootGoals(belief, field, danger, values, options.stepCost, options.guardPricing);
+    const loot = lootGoals(belief, field, danger, values, options.stepCost,
+      options.guardPricing, options.chargePursuers);
 
     // B4: the dark competes here, in the same net-value comparison, instead
     // of being the fallback it used to be at branch 3. `expectedChestValue`
@@ -482,7 +518,8 @@ function chooseGoal(belief, field, danger, current, options) {
   // 2. Something alive and known? Take the cheapest fight, not the closest.
   //    Walking into it is the attack, so combat needs no special case.
   const priced = pricedEarly ?? priceMonsters(belief, field, options.safetyMargin,
-    options.requireClear, options.priceDrops ? values : null);
+    options.requireClear, options.priceDrops ? values : null,
+    options.chargePursuers ? danger : null);
   if (priced.length) {
     // `pick` exists so P4 can ablate one rule at a time and measure what it
     // is actually worth, rather than trusting that it helped.
@@ -637,6 +674,26 @@ export function makeBot(options = {}) {
     // failure mode in either family. Not checked against a formal 2-sigma
     // bar; see docs/backlog.md's Result before re-tuning anything here.
     combatCompetes: true,
+
+    // B13 (docs/backlog.md). Charges what a pursuer collects while the hero
+    // stands still — the only time it collects at all — against the goals
+    // that actually stand still: opening a chest, and having a fight. See
+    // `pursuerCost` in threat.js for why proximity rent was the wrong model.
+    //
+    // OFF: measured inert, and the diagnostic says why in one number.
+    // **91% of every blow the hero takes lands while it is standing still**,
+    // so the item's premise is not just right, it is nearly the whole story
+    // of how the hero dies. But only ~9-13% of those land with a SECOND
+    // creature in contact — the rest come from the one creature the hero is
+    // already trading with, whose blows `duelCost` has always priced. The
+    // unpriced population is about two or three blows a run out of twenty-
+    // five, and moving it does not move the run: median depth identical on
+    // both seed families, and mean depth, stationary blows and kills all
+    // disagree in DIRECTION between the two families at about a percent.
+    //
+    // The flag does change decisions — per-run depths differ off vs on — so
+    // this is inert for lack of anything to fix, not for lack of firing.
+    chargePursuers: false,
 
     // Every tunable the bot reads, defaulting to the shipped value. They
     // live here rather than being imported at the point of use so that P4

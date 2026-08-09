@@ -23,6 +23,7 @@ import {
 } from '../src/sim/difficulty.js';
 import { expectedMonsterDropValue, monstersAhead, valueByItemName } from '../src/bot/loot.js';
 import { makeBot } from '../src/bot/bot.js';
+import { dangerField } from '../src/bot/threat.js';
 import { growthOf, summarise, ITEM_VALUE } from '../src/analysis/shape.js';
 import { campaignCost, crowdOverhead, duelCost } from '../src/bot/duel.js';
 
@@ -2309,6 +2310,104 @@ test('combatCompetes off leaves a chest in hand beating a fight further off', ()
   const { actions } = driveBot(state, 4, { monsterCount: 1, combatCompetes: false });
   assert(actions.every((a) => a === 'right'),
     `the bot fought or wavered instead of opening the chest: ${actions.join(',')}`);
+});
+
+// ***** B13: a pursuer is charged where it actually collects ***** //
+//
+// docs/backlog.md B13. Unlike B9/B10/B11, the mechanism here is a pure
+// function with no dependence on the item table or the live roster, so it
+// can be checked directly instead of through a fragile whole-bot fixture.
+// Both halves are worth locking: what it charges, and that the flag is a
+// true no-op when off.
+//
+// `activation` is passed explicitly because the shared `dummy()` fixture
+// sets it to 0 — a creature that provably never acts, which is the right
+// default there and exactly wrong here.
+function beliefOf(state) {
+  return foldBelief(emptyBelief(), observe(state));
+}
+
+test('a pursuer at the hero\'s heels is charged for every stationary turn', () => {
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [10, 1],
+    monsters: [dummy('rat', [11, 1], { activation: 8 })],
+  });
+  const danger = dangerField(beliefOf(state));
+
+  // Standing still where the hero already is: the rat is one step behind,
+  // so it lands on the hero on the first stationary turn and swings on the
+  // second as well.
+  const two = danger.pursuerCost([10, 1], 0, 2);
+  const one = danger.pursuerCost([10, 1], 0, 1);
+  assert(two > 0, 'a rat one step behind was charged nothing for two stationary turns');
+  assert(two > one, 'the charge did not scale with the number of stationary turns');
+  assertEq(danger.pursuerCost([10, 1], 0, 0), 0, 'charged for standing still zero turns');
+});
+
+test('a pursuer that cannot arrive in time is free', () => {
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  // Far enough that it needs more steps to arrive than the hero will spend
+  // standing there, but still inside its own chase radius so `isAwakeAt`
+  // is not what is doing the filtering.
+  const state = makeState({
+    map,
+    playerPos: [10, 1],
+    monsters: [dummy('rat', [16, 1], { activation: 20 })],
+  });
+  const danger = dangerField(beliefOf(state));
+
+  assertEq(danger.pursuerCost([10, 1], 0, 2), 0,
+    'a creature six steps away was charged for two stationary turns it cannot reach');
+  assert(danger.pursuerCost([10, 1], 0, 8) > 0,
+    'the same creature was still free over enough turns for it to arrive');
+});
+
+test('the creature being fought is not charged twice', () => {
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [10, 1],
+    monsters: [dummy('rat', [11, 1], { id: 'm-target', activation: 8 })],
+  });
+  const danger = dangerField(beliefOf(state));
+
+  assert(danger.pursuerCost([10, 1], 0, 3) > 0, 'fixture is wrong: nothing was charged at all');
+  assertEq(danger.pursuerCost([10, 1], 0, 3, 'm-target'), 0,
+    'the excluded target was charged anyway — its blows are already in duelCost');
+});
+
+test('chargePursuers off leaves the bot untouched with a pursuer present', () => {
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const build = () => makeState({
+    map,
+    playerPos: [10, 1],
+    chests: [
+      { id: 'c-right', name: 'chest', emoji: '📦', pos: [14, 1], side: false, edge: false, drop: null },
+    ],
+    monsters: [dummy('rat', [6, 1], { activation: 8 })],
+  });
+
+  const off = driveBot(build(), 4, { monsterCount: 1, chargePursuers: false });
+  assert(off.actions.every((a) => a === 'right'),
+    `the shipped default changed with a pursuer on the map: ${off.actions.join(',')}`);
 });
 
 // ***** run it ***** //
