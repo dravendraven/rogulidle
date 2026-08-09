@@ -22,6 +22,26 @@ The task list. Everything needed to pick up a task and finish it.
 `bot-strategy.md` or `map-design.md` — or says plainly that none moved. See
 `CLAUDE.md`. "None" is a valid answer that still has to be written.
 
+**Before filing anything, ask: if this changes, does a previous measurement
+become invalid?** Yes → it is STRUCTURE, and it is worth deciding early and
+cheaply. No, it only moves a value → it is a NUMBER, and it should be tuned
+late, expecting to be redone.
+
+The evidence for taking this seriously is expensive and already paid:
+`balance.md`'s "Where the current numbers live" section exists to say the
+tables were **deleted**, because they were measured before xp was frozen,
+before weapons widened the roll, before armour became a spent bar, before
+passive regeneration went, before the collectibles went, before growth turned
+exponential and before the map grew a spine. Seven structural changes. The
+instruments survived all seven; not one table survived any.
+
+**The project has inverted these two in both directions**, which is why the
+test is worth applying explicitly. `STEP_COST_IN_HP` reads as a number and is
+structure — it decides whether time is a real resource, which decides whether
+the coin formula means anything. The nine tier clamps read as structure and
+are numbers — they have names, files and backlog items, but changing them only
+re-reads the same curve and invalidates nothing.
+
 **Watch the game. Fix what is wrong.** That is where items come from.
 
 One item, one commit, and a test asserting the thing the item was for — "a
@@ -52,10 +72,12 @@ session, skip it.
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
 | 1 | U6e | The shop screen | ui | **DONE** |
-| 2 | U6f | Watch a full loop, integration check | ui | READY · needs the persist flag |
+| 2 | U6f | Watch a full loop, integration check | ui | IN FLIGHT |
 | 3 | B13 | Charge a pursuer where it actually collects — before B12 | bot | READY |
 | 4 | B12 | Fighting should compete with leaving, not precede it | bot | after B13 |
 | 5 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | READY |
+| — | X5 | Classify every dial by lifecycle, delete only the dead | work + bot | READY · at a structural boundary |
+| — | X6 | Collapse the tier clamps, redundancy proven first | work | after X5 |
 | 6 | I9 | Conditional survival table, so coin can be priced in hp | metrics | BLOCKED on finishes > 0 |
 | 7 | M21 | Deep floors put a creature where the hero lands | work | READY |
 | 8 | X1 | Delete what nothing references | work | READY |
@@ -360,6 +382,148 @@ the mechanism is visible and not just its outcome.
 **Stop signal:** cumulative weapon damage falling while depth holds is the
 shape to stop on — that is the bot trading its future for a cheaper present,
 and it will read as harmless on the floor it happens.
+
+## X5 · classify every dial by lifecycle, then delete only what is truly dead
+
+`work agent` + `bot agent` · READY · **two waves, two commits, zero behaviour
+change in either**
+
+Brainstorm proposal, adopted with two corrections. The reframe it brings is
+the valuable part and the project does not have it: the question is not *"does
+this dial do something today"* but **"what would have to change for it to
+matter again"**. Five classes, different destinies:
+
+| class | definition | destiny |
+|---|---|---|
+| **LIVE** | drives the game that runs | keep, measure |
+| **INSTRUMENT** | exists for ablation, never was a feature | **always keep** |
+| **DORMANT** | built and correct, inert because a precondition is unmet | keep, **with the trigger written next to it** |
+| **ARCHIVED** | measured negative | keep the flag, **write the reopen condition** |
+| **DEAD** | superseded, no path back | delete, fix call sites |
+
+**Orthogonal to X3, not a replacement.** X3 separates game-dial from bot-dial
+(who is affected); this separates by life stage (whether it still drives
+anything). A dial carries both marks.
+
+### Correction 1: ARCHIVED keeps the flag. Only DEAD gets deleted.
+
+The proposal wants archived flags deleted, arguing a live flag costs
+combinatorial interaction in every future measurement. **That cost is
+overstated** — a flag defaulting to false enters no measurement unless
+someone sets it, and nothing here sweeps flag combinations.
+
+**And this session supplies the counter-example.** B9's first reading looked
+harmful and it shipped OFF. Under the proposal it would have been ARCHIVED and
+deleted. The reading was then found to have been taken against a
+mid-edit `src/sim/`, re-run clean, and **flipped ON** — where it ships today.
+Deleting on a first negative would have meant rebuilding it to discover that.
+
+`CLAUDE.md`'s existing practice — keep the flag with the number that killed it
+in the comment — is right and stays. What the proposal correctly identifies as
+missing is not the deletion, it is **the reopen condition**, which exists
+nowhere today. Add that; keep the code.
+
+### Correction 2: `MONSTER_COUNT` and `CHEST_COUNT` are not DEAD
+
+The proposal classifies them DEAD on the grounds that a real run always
+overrides them. Checked: they are also **live defaults** in `bot.js`'s settings
+(`monsterCount`, `chestCount`) and default parameters in `loot.js`
+(`monstersStillToFight`, `valueByItemName`). Deleting them breaks a bare
+`makeBot()` and any `valueByItemName` call without a total — paths the tests
+use. They are LIVE-as-fallback, which is a real class the taxonomy should
+admit rather than a mistake to delete.
+
+### The inconsistency that justifies the item — verified
+
+The project **refused one extra term** in the crowd correction for lack of
+samples, in writing, in two places: `balance.js` records that the structure
+"would need either a second term or far more seeds", and `balance.md` that it
+"would need meaningfully more seeds to fit without overfitting". **And it
+accepted nine dials in the tier system.** At the sample sizes and the 2σ
+discipline in use, nine clamps cannot be told apart honestly. Most were set by
+argument, not measurement.
+
+### Wave 1 — classify
+
+Marking only. Same shape as X3: a comment saying which class, and a column in
+`docs/balance.md`'s table. **For DORMANT and ARCHIVED the trigger or reopen
+condition must be written, and that is the actual product of this wave** —
+today it is oral knowledge, and a dormant dial without a written trigger is
+indistinguishable from junk to whoever arrives next.
+
+Starting classification from the proposal, worth keeping: `pick: 'nearest'`,
+`requireClear: 'all'/'none'`, `threat`, `loot`, `crowdCost` are INSTRUMENT and
+should stop being counted as configuration. `CHEST_QUALITY_BY_DEPTH` and
+`EARLY_CHEST_QUALITY_BOOST` wake when `ITEM_TABLE` gains a second armour or
+potion. `XP_FROM_KILLS`/`KILLS_PER_XP` wake if xp stops being frozen.
+`exploreValue` is the sharpest DORMANT case — it measured zero **because the
+frontier goal is never re-evaluated, so the question is never asked**, not
+because the answer was bad.
+
+**Assert.** No value changes anywhere. Every DORMANT and ARCHIVED entry has a
+written trigger.
+
+### Wave 2 — delete DEAD
+
+`MONSTER_GROWTH` / `STRENGTH_GROWTH` / `DIFFICULTY_REBALANCED` are a migration
+that never finished: if the rebalanced pair is what runs, the old one is
+history, not an option. `chestCount` in the bot is read only by flags that are
+off. **Not** `MONSTER_COUNT`/`CHEST_COUNT` — see correction 2.
+
+**Assert.** Paired seeds, no number moves. Tests green with the call sites
+fixed.
+
+### Do NOT cut
+
+`SCARCITY` / `POTION_SCARCITY` / `WEAPON_SCARCITY` look redundant and are not —
+M27 split them deliberately so they could move without colliding, and M27's own
+Result records what happened when they shared one value. Genuinely independent
+pools.
+
+## X6 · collapse the tier clamps, once redundancy is proven rather than assumed
+
+`work agent` · **after X5** · the one wave that touches behaviour
+
+Three independent clamp systems decide which of eleven table rows a creature
+comes from: the tier floor (M13), the tier ceiling (M24), and the early-floor
+cut (M30) — nine dials in three base/per-level/cap trios.
+
+**The confession is already in the code:** all three learned the same lesson
+separately, that clamping the centre limits nothing and the clamp has to be on
+the drawn slot. Three times the same finding, three new systems, no
+consolidation.
+
+### The proposal understates how cheap this is — supplied by review
+
+**The floor and ceiling clamps are configured identically.** Base 0,
+per-level 0.08, cap 0.5 — the same three values twice. Six dials carrying
+three distinct numbers, and two systems that have never been set apart from
+each other. That is the strongest argument for collapsing them and the
+proposal did not notice it.
+
+The early-floor cut is a different case, and M30 measured why: the applied cut
+is an integer number of indices, so **every value in the open interval gives an
+identical result** and only three outcomes exist at all. Three dials carrying
+about one bit.
+
+### One thing the proposal cannot have both ways
+
+It claims nine dials become two or three **and** byte-identical results. Those
+are compatible only where the nine are provably redundant. Where they are not,
+collapsing removes expressiveness and the curve moves.
+
+**So the order is: prove redundancy first, then collapse.** For floor and
+ceiling the proof is above and nearly free. For the early cut, M30's
+three-outcomes finding is the proof. Anything left over after those two is a
+real reduction in what is tunable and needs measuring, not asserting.
+
+**Assert.** Byte-identical creature placement on fixed seeds — the same proof
+E1 needs. `expectedFloorMass` unchanged at every level. If any of it cannot be
+made byte-identical, that part is not a refactor and gets its own measurement.
+
+**Timing.** Not during a measurement campaign — it invalidates paired
+comparison. And before new structural features, not after: each one adds dials,
+and adding to an untidy taxonomy is worse.
 
 ## M31 · the M7 budget check has a blind spot
 
@@ -941,8 +1105,8 @@ around with the persist flag, the second is an owner decision.
 
 ## U6f · watch a full loop, coins to gear to next run to death to reset
 
-`ui agent` · READY · **sixth of six, the integration check — closes the
-arc**
+`ui agent` · **IN FLIGHT** · sixth of six, the integration check — closes
+the arc
 
 Not new logic — confirms U6a through U6e agree with each other end to end,
 which none of the individual items can prove alone.
