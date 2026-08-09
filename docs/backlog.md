@@ -300,6 +300,14 @@ proportional to the turns that action spends not moving away, and only for
 creatures that would not fall behind on the way — which is finally a
 consumer for `danger.reach`, unused since `chokepoint` was switched off.
 
+**"Rather than", not "as well as" — and the minimum-change rule makes this a
+requirement, not a preference.** If the per-tile proximity charge stays and a
+stationary charge is added beside it, a pursuer adjacent while the hero opens
+a chest is **billed twice**, and the two terms then have to be tuned against
+each other. This is a correction to what `dangerField` already means, not a
+new term next to it. Reuse `DANGER_FALLOFF` and `CROWD_PENALTY` if a
+coefficient is needed; add one only if neither can carry it, and say why.
+
 Entirely `src/bot/` (`threat.js`, `bot.js`). No engine change.
 
 ### Two qualifications the proposal did not state
@@ -495,10 +503,19 @@ against a rule that no longer exists.**
 ### Do
 
 Make the fight compete with leaving in one comparison rather than preceding
-it — the same shape B11 used to make combat compete with loot. B11's
-precedent is close enough to follow: a new flag, default OFF pending
-measurement, and the existing survivability filter left untouched as a hard
-pre-filter.
+it — the same shape B11 used to make combat compete with loot.
+
+**And under the minimum-change rule, probably without a new flag.** B11
+already built the machinery: a fight gets a `net` in the same currency and
+joins branch 1's comparison. What this item wants is **the shrine getting a
+`net` and joining the same list** — one mechanism, one more candidate in it,
+rather than a second flag that has to be measured in combination with the
+first. Try that before adding `leaveCompetes` alongside `combatCompetes`; if a
+separate flag turns out to be necessary to measure the two apart, say why in
+one line.
+
+The existing survivability filter stays untouched as a hard pre-filter either
+way.
 
 ### What this overturns, and the specific risk
 
@@ -693,6 +710,13 @@ this class of dial, or replace the check's formula with a direct read of
 is the more complete one — so the check tracks the quantity that actually
 matters instead of a proxy formula that can drift out of step with it.
 
+**The minimum-change rule picks the second.** Folding the dial into the ratio
+formula means that formula must be taught about every future clamp — it grows
+a dependency on each new dial, which is complexity added to compensate for
+complexity. Reading `expectedFloorMass` directly *deletes* the proxy: one
+quantity, no list to maintain, and it cannot go blind to a dial nobody
+remembered to add. Prefer it unless measuring shows it cannot work.
+
 **Do not silently re-widen the band to make M30's 1.3955 pass.** That would
 launder the exact finding this item exists to act on. If the band itself
 needs revisiting, that is a separate, explicit decision — same discipline
@@ -724,6 +748,14 @@ perfectly linear in weapon points (`5/6 × (xp + weapons − 1) / 2`), but hp
 turn`. Measured: dagger (1 point) 15.75 hp, axe (2 points) 23.6 hp — **the
 second point is worth 7.85, half the first.** No flat-damage weapon avoids
 this.
+
+**One cheaper thing to measure before building a ladder.**
+`WEAPONS_WIDEN_ROLL` already exists as a flag, and flipping it makes each
+weapon point worth a full point of expected damage instead of half — doubling
+the value of every weapon with zero new machinery. It does **not** fix the
+1/dps shape, so it is not a substitute for this item; but it changes the
+coefficient the shape sits on, and the minimum-change rule says measure the
+existing flag before adding item rows and changing `weaponDamage`.
 
 So the fix is structural. Weapons stop stacking and become a ladder: one
 weapon slot, tiers, each tier strictly better, price rising with tier. That
@@ -923,8 +955,18 @@ the band's own check is blind to what M30 actually cost. Size this
 against whatever the M7 check reads once M31 fixes it, not against a
 number that may currently be wrong.
 
-`SIDE_ROOM_DEPTH_BONUS = 0.35` is fixed, so the only structural variance in
-the game is constant across the descent.
+`SIDE_ROOM_DEPTH_BONUS` is fixed, so the only structural variance in the game
+is constant across the descent.
+
+**This item is the exact shape that produced the nine tier clamps, and the
+minimum-change rule now applies to it directly.** "Make a fixed dial scale
+with depth" has an obvious implementation — a base/per-level/cap trio — and
+that is how the tier system got three copies of one expression. **Do not add
+the trio.** The existing dial is a single number that already means "how much
+deeper a side room is treated as being"; make *that* depth-aware, or give it a
+signed reach, before adding anything alongside it. If a trio really is
+unavoidable, the report says in one line why the existing dial could not
+carry it.
 
 **Why it matters.** It reuses machinery that already exists and was already
 measured, and side rooms are the one place where risk and reward already
