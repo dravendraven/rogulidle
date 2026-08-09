@@ -178,9 +178,14 @@ explícita por tipo de entidade, não cópia do objeto inteiro.
 **Pisar no santuário encerra o andar. O motor permite isso a qualquer
 momento** — nada obriga a limpar nada.
 
-**A obrigação de limpar é do bot, não do motor.** Hoje: as criaturas da
-espinha precisam morrer. A versão antiga exigia tudo. Está no bot de
-propósito, para que se possa medir o custo de relaxar.
+**Nenhuma morte é exigida por regra de jogo, em nenhum momento.** O motor
+nunca obrigou a limpar nada — quem já obrigou foi o bot, e de propósito, para
+que se pudesse medir o custo de relaxar. Hoje o bot também não obriga: sai
+assim que o santuário estiver alcançável.
+
+Quanto o bot escolhe lutar é decisão dele e vive em
+`docs/bot-strategy.md`, não aqui — este arquivo descreve o que o jogo
+permite, e o jogo permite sair de mãos vazias no primeiro turno.
 
 **Morte quando o hp chega a zero.** Há também limite de turnos, que encerra o
 andar sem conclusão.

@@ -105,9 +105,17 @@ caminhada pontua negativo e é ignorado.
 custo — não a mais próxima. Andar contra ela *é* o ataque, então combate não
 precisa de caso especial.
 
-**O santuário.** Legal quando o critério de limpeza do andar foi cumprido
-(hoje: as criaturas da espinha precisam morrer; a regra antiga de matar tudo
-foi relaxada por decisão do dono).
+**O santuário.** Assim que estiver **alcançável**. Nenhuma morte é exigida —
+a regra que pedia a espinha limpa, e antes dela a que pedia tudo morto, foram
+relaxadas por decisão do dono. O que sobrou de `requireClear` não guarda mais
+a saída: ele só filtra quais criaturas de sala lateral entram na comparação,
+o que é oportunidade e não obrigação.
+
+**Mas a obrigação de lutar não saiu — ela só não mora onde se procuraria.**
+A comparação acima roda antes do santuário, e a etapa da luta mais barata
+dispara sempre que existe qualquer criatura conhecida e alcançável, sem
+comparar "ter esta luta" contra "simplesmente ir embora". Então o bot ainda
+luta por construção, e é `B12` que trata disso.
 
 **Fronteira.** Explorar, como último recurso.
 

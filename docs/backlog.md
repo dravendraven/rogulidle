@@ -51,18 +51,20 @@ session, skip it.
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | U6e | The shop screen | ui | **NEEDS FIX** · Math.random breaks session replay |
+| 1 | U6e | The shop screen | ui | REPORTED · fix applied, awaiting re-review |
 | 2 | U6f | Watch a full loop, integration check | ui | after U6e · needs the persist flag |
-| 3 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | READY |
-| 4 | I9 | Conditional survival table, so coin can be priced in hp | metrics | BLOCKED on finishes > 0 |
-| 5 | M21 | Deep floors put a creature where the hero lands | work | READY |
-| 6 | X1 | Delete what nothing references | work | READY |
-| 7 | X2 | 25 comments cite bot-strategy sections that no longer exist | work + bot | READY |
-| 8 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
-| 9 | D1 | The crowd-correction fit is overdue for its own redo | work | after M31 |
-| 10 | M4 | Side-room risk/reward spread scales with depth | work | after M31 |
-| 11 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
-| 12 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
+| 3 | B13 | Charge a pursuer where it actually collects — before B12 | bot | READY |
+| 4 | B12 | Fighting should compete with leaving, not precede it | bot | after B13 |
+| 5 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | READY |
+| 6 | I9 | Conditional survival table, so coin can be priced in hp | metrics | BLOCKED on finishes > 0 |
+| 7 | M21 | Deep floors put a creature where the hero lands | work | READY |
+| 8 | X1 | Delete what nothing references | work | READY |
+| 9 | X2 | Comments in src/ that lie: 25 stale refs + 3 false claims | work + bot | READY |
+| 10 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
+| 11 | D1 | The crowd-correction fit is overdue for its own redo | work | after M31 |
+| 12 | M4 | Side-room risk/reward spread scales with depth | work | after M31 |
+| 13 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
+| 14 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -232,6 +234,133 @@ then bot decisions — and `U6e`'s own notes already carry the standing warning
 not to feed the coin formula into `chooseGoal` as a decision price when that
 day comes.
 
+## B13 · charge a pursuer where it actually collects
+
+`bot agent` · READY · **do this BEFORE B12 — see the ordering note in both**
+
+Bot agent proposal. Verified before filing: the mechanism is real and the
+reasoning is right.
+
+### The mispricing
+
+Three shipped rules combine into something the bot does not know. Adjacency
+alone is not an attack — the attack is a creature *moving onto* the hero.
+Creatures act after the hero. Creatures block each other but never the hero.
+
+**Therefore fleeing a same-speed pursuer costs nothing.** Step away and its
+next step lands adjacent, not on you; it never collects. Traced in
+`monsters.js`: the blow only fires when the chosen step equals the hero's
+tile.
+
+**Damage from a pursuer is an event, not rent.** It is paid exactly when the
+hero stops increasing the distance. And `step.js` makes that precise —
+`resolveEncounters` returning true **passes the turn without moving the
+hero**, so attacking, opening a chest and taking the shrine are all
+stationary. A creature glued to the hero collects a free blow for every one
+of those turns.
+
+**Nothing charges for it.** `dangerField` prices proximity per tile of
+occupancy, decayed by distance — a proxy that errs in a known direction (it
+over-avoids creatures the hero could walk past for free) and misses the case
+that actually costs hp. `guardCost` charges creatures *sleeping* near a
+chest; nothing charges the one already chasing.
+
+### Do
+
+Price a pursuer against **stationary actions** rather than tiles:
+proportional to the turns that action spends not moving away, and only for
+creatures that would not fall behind on the way — which is finally a
+consumer for `danger.reach`, unused since `chokepoint` was switched off.
+
+Entirely `src/bot/` (`threat.js`, `bot.js`). No engine change.
+
+### Two qualifications the proposal did not state
+
+**"Fleeing is free" holds for one pursuer with an escape route.** Cornered,
+or with two pursuers from different sides, some move closes distance to
+something. The pricing should not assume escape is always available.
+
+**It may measure inert, for B10's reason.** The existing proximity proxy may
+already capture much of this by accident. That is a real possible outcome and
+not a failure — `decisions.md` records that a safe-sized tie-breaker on this
+cost field had nothing left to decide.
+
+### Assert
+
+Same discipline as B9/B10/B11: paired seeds, two families, before/after in one
+session. This makes the bot fight **more**, so depth and `finishes` are what
+to watch — **and `finishes` reads ~0%, so a guard written against it cannot
+fire.** Use median depth and cumulative weapon damage by floor 10 as the real
+signals, and say plainly that `finishes` could not serve. Also report blows
+taken while stationary, which is the quantity this item exists to reduce.
+
+### Why this goes before B12
+
+B12 asks the bot to decide whether a fight is worth having. **That decision is
+made with this cost model.** Fix the model first and B12 is measured against
+prices that reflect the game; run B12 first and it decides using a model that
+undercharges exactly the case where fighting is genuinely necessary.
+
+## B12 · fighting should compete with leaving, not precede it
+
+`bot agent` · READY · **after B13** · overturns a premise, needs a real stop
+signal
+
+The owner's ask was "no obligation to kill — only the run-completion goal and
+what derives from it." Removing `requireClear` did not deliver that, and the
+bot agent found why: **the obligation is not in `requireClear`.**
+
+### Where it actually lives
+
+`chooseGoal`'s cheapest-fight step fires whenever any known creature is
+priced, with **no test of whether the fight is worth having and no comparison
+against simply leaving.** The shrine step sits below it and is only reached
+when that step finds nothing. Verified: any reachable live creature pre-empts
+the exit.
+
+`requireClear` is now nearly vestigial — its one live effect is filtering
+which side-room creatures are eligible, which is opportunity, not obligation.
+**Any item planning against `requireClear` as the exit gate is planning
+against a rule that no longer exists.**
+
+### Do
+
+Make the fight compete with leaving in one comparison rather than preceding
+it — the same shape B11 used to make combat compete with loot. B11's
+precedent is close enough to follow: a new flag, default OFF pending
+measurement, and the existing survivability filter left untouched as a hard
+pre-filter.
+
+### What this overturns, and the specific risk
+
+**It removes the premise `bot-strategy.md` §3 was built on** — the
+cheap-kills-first snowball, where killing the cheap creature first lowers the
+cost of everything after. That premise is already weaker than when it was
+written: `XP_FROM_KILLS` ships false, so a kill grants no xp and the snowball
+has less to roll.
+
+**But the risk is concrete and it is not the snowball.** Since M26, weapons
+come from creatures. Skipping fights means skipping drops, and
+`docs/rules.md` establishes weapons as the only thing that makes the hero
+permanently stronger. **A bot that leaves early leaves unarmed, and pays for
+it two floors down** — where the damage will not look like this change's
+fault.
+
+So the failure mode is delayed and displaced. Watch cumulative weapon damage
+by floor 10, not just depth on the floor where the behaviour changed.
+
+### Assert
+
+Paired seeds, two families, before/after in one session. **Median depth and
+cumulative weapon damage by floor 10 first and loudest.** `finishes` reads
+~0% and cannot serve as the stop signal — say so rather than reporting it as
+a pass. Also report kills per floor and floors left with creatures alive, so
+the mechanism is visible and not just its outcome.
+
+**Stop signal:** cumulative weapon damage falling while depth holds is the
+shape to stop on — that is the bot trading its future for a cheaper present,
+and it will read as harmless on the floor it happens.
+
 ## M31 · the M7 budget check has a blind spot
 
 `work agent` · READY · **found by M30's own review, not requested by the
@@ -396,9 +525,33 @@ than by reference at all — that is a better outcome than a pointer.
 `placeholder.js` is on X1's delete list, so its reference may resolve by
 deletion.
 
-**Assert.** No `bot-strategy` reference in `src/` cites a section number.
-Tests green — this is comments only, and a diff that touches anything but
-comments has gone wrong.
+### Three comments that are false, not just misaddressed — added by review
+
+Same file family, same agent, same pass. The bot agent flagged the first;
+the other two turned up checking it.
+
+**`FRONTIER_REVEAL_WEIGHT`'s comment restates two OTHER dials' values.** It
+quotes `VISIBLE_DIST`'s value to justify a tile count, then states the
+product is "half of one `STEP_COST_IN_HP`" — true only while that dial holds
+its current value. Move either and the comment is silently false. This is
+exactly what `CLAUDE.md`'s never-restate-a-value rule exists to stop, and the
+worse version of it, because the values borrowed are not even this dial's.
+State the bound as a relationship, or point at `balance.md`.
+
+**`GOAL_STICKINESS`'s comment is already false.** It says the hysteresis
+check "only applies to `monster` targets, chest/item goals have no hysteresis
+at all". **B11 unified them** — the shipped check is keyed by `current.kind`
+and includes item and chest.
+
+**`docs/balance.md` around the `GOAL_STICKINESS` section repeats it**, and
+goes further: it proposes "the real fix there would be extending the
+hysteresis check to loot goals — not attempted here". B11 did exactly that.
+A stale claim plus a stale to-do for work already done.
+
+**Assert.** No `bot-strategy` reference in `src/` cites a section number. No
+comment in `balance.js` restates another dial's value. The two hysteresis
+claims match what `bot.js` actually does. Tests green — this is comments and
+docs only, and a diff touching anything else has gone wrong.
 
 ## X1 · delete what nothing uses
 
@@ -478,7 +631,7 @@ spread widened. Measured on the probes.
 
 ## U6e · the shop screen
 
-`ui agent` · **NEEDS FIX** — see the review at the end — U6d's shield gap is fixed, see its Fix section · fifth of six
+`ui agent` · **REPORTED** — fix applied below, awaiting re-review — U6d's shield gap is fixed, see its Fix section · fifth of six
 
 Three purchase options at run end, priced per the table already fixed
 (shield 1, dagger 5, axe 8 — `docs/project/candidates.md`'s old U6 has the
