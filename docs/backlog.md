@@ -51,8 +51,8 @@ session, skip it.
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | U6e | The shop screen | ui | REPORTED · fix applied, awaiting re-review |
-| 2 | U6f | Watch a full loop, integration check | ui | after U6e · needs the persist flag |
+| 1 | U6e | The shop screen | ui | **DONE** |
+| 2 | U6f | Watch a full loop, integration check | ui | READY · needs the persist flag |
 | 3 | B13 | Charge a pursuer where it actually collects — before B12 | bot | READY |
 | 4 | B12 | Fighting should compete with leaving, not precede it | bot | after B13 |
 | 5 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | READY |
@@ -908,6 +908,36 @@ bug. Left both exactly as reported.
 Still not watched live end-to-end — the browser tool that disconnected
 mid-session did not come back before this fix either. That gap is
 unchanged from the original report and is still U6f's to close.
+
+### Review of the fix — ADOPTED, U6e closed
+
+Fixed as specified and verified rather than asserted. `pickDefaultPurchase`
+takes a seed and draws through `rng.js`'s `drawWeighted`; `spectator.js`
+derives it the same way a run's own seed already is. The two remaining
+`Math.random` hits in `src/ui/` are both comments explaining why it is no
+longer used — zero calls.
+
+**Reusing `drawWeighted` instead of keeping the hand-rolled weighted pick is
+the better half of this fix**, and it was not asked for. One implementation of
+"pick weighted by X" rather than a second copy that could drift.
+
+**Checked for a correlation problem the fix could plausibly have introduced,
+and it does not have one.** The shop's stream value is the run seed itself,
+while every engine stream is `hashSeeds(hashSeeds(runSeed, level), 1..3)` — no
+shared draw, so the shop's pick cannot correlate with the map it was generated
+alongside. Worth knowing rather than assuming, since the shop seed and the run
+seed are the same *number*.
+
+**One small note, not worth a fix on its own.** The shop passes that number
+straight in as the stream value, where `game.js` wraps its own streams in
+`hashSeeds` precisely so a second stream from the same root cannot collide. If
+`src/ui/` ever wants a second seeded draw, wrap them both then.
+
+Correctly left the two things the review flagged as not this item's: the
+shop-is-inert-at-death ordering, and whether a held item should be consumed
+after one run. Both still stand as recorded — the first is U6f's to work
+around with the persist flag, the second is an owner decision.
+
 
 ## U6f · watch a full loop, coins to gear to next run to death to reset
 
