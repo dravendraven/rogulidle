@@ -8,10 +8,12 @@ and dropped. Nothing here is scheduled. The task list is
 
 Ideas with a reason attached, waiting for a slot. Nothing here has an
 acceptance number yet; several would not survive contact with one. They sit
-here rather than in the queue because **I5 is unresolved** — it may show the
-ruler cannot answer the questions these would be judged by, and scheduling
-work against a suspect instrument is the mistake the buffer target already
-made once.
+here rather than in the queue because the instrument question is unresolved —
+today that is **`I11`**: whether the ruler still reads true once the starting
+hero changes, which the shop already makes it do. Scheduling work against a
+suspect instrument is the mistake the buffer target already made once. (`I5`
+asked an earlier version of this and was deleted in a documentation cut; only
+its live half was refiled.)
 
 Ids keep the feature prefix they would have anywhere else. Whether an item
 is scheduled is what the section and the status say, not what it is called —
