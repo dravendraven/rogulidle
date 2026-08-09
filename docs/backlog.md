@@ -85,15 +85,16 @@ session, skip it.
 | — | X6 | Collapse the tier clamps, redundancy proven first | work | after X5 |
 | — | I9 | Conditional survival table = the "hope" instrument | metrics | BLOCKED on finishes > 0 |
 | 6 | I10 | A supported headless runner for measurements | metrics | READY |
-| 7 | M34 | Nothing measures what a direct run can skip | metrics | READY |
-| 8 | M21 | Deep floors put a creature where the hero lands | work | READY |
-| 9 | X1 | Delete what nothing references | work | READY |
-| 10 | X2 | Comments in src/ that lie: 25 stale refs + 3 false claims | work + bot | READY |
-| 11 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
-| 12 | D1 | The crowd-correction fit is overdue for its own redo | work | after M31 |
-| 13 | M4 | Side-room risk/reward spread scales with depth | work | after M31 |
-| 14 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
-| 15 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
+| 7 | I11 | Does the ruler read true when the starting hero changes? | metrics | READY |
+| 8 | M34 | Nothing measures what a direct run can skip | metrics | READY |
+| 9 | M21 | Deep floors put a creature where the hero lands | work | READY |
+| 10 | X1 | Delete what nothing references | work | READY |
+| 11 | X2 | Comments in src/ that lie: 25 stale refs + 3 false claims | work + bot | READY |
+| 12 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
+| 13 | D1 | The crowd-correction fit is overdue for its own redo | work | after M31 |
+| 14 | M4 | Side-room risk/reward spread scales with depth | work | after M31 |
+| 15 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
+| 16 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -873,6 +874,41 @@ And the shop question that started this: with a ladder, is there a real
 choice between shields and the next weapon tier, or does one still
 dominate?
 
+
+## I11 · does the ruler still read true when the starting hero changes?
+
+`metrics agent` · READY · **already live — the shop changes the starting hero**
+
+The instruments are implicitly anchored to a hero that starts at
+`PLAYER_HP`'s value with nothing in hand. `docs/project/decisions.md` records
+why that matters: **growth rates are not scale-invariant** — the same hp grant
+reads ×1.011 per floor on a 400 hp probe and around ×1.20 on a real hero's ten.
+Move the starting point and a rate measured against the old one may not
+describe anything.
+
+**This is not hypothetical and it is not waiting on a future feature.** U6d
+shipped `startingItems` and U6e spends coin on it: **a hero can already begin a
+run holding gear**, and once the shop has money the anchor moves every run. Any
+reading taken across that boundary is comparing two different heroes.
+
+**Where this came from.** `I5` asked a version of this and was deleted in a
+documentation cut. Its original framing — the ruler cannot see the buffer where
+the target lives — is genuinely obsolete, since buffer targets are gone. The
+question underneath is not, and this refiles only that half rather than
+restoring the item.
+
+**Do.** Take a reading that already exists, re-take it with a hero starting
+armed, and say whether the shape holds or only the level moves. If the shape
+holds, the instruments generalise and that is worth knowing in one line. If it
+does not, every instrument needs its anchor stated alongside its number.
+
+**Assert.** The same quantity at two different starting heroes, same seeds.
+Report whether the *shape* survives, not whether the numbers match — they will
+not, and that is not the question.
+
+**Blocks two unscheduled features** (`U8`/`U9` in `candidates.md`) which need a
+ruler that survives a changed starting hero, but it is worth doing on the
+shop's account alone.
 
 ## M34 · nothing measures how much of a floor a direct run can skip
 

@@ -257,6 +257,136 @@ Four fixes have already been implemented against this and none moved the
 ratio, which is itself a reason to establish the effect exists before
 attempting a fifth.
 
+## U8 · Estratos — blocks of ten floors inside one run
+
+`owner idea` · **UNSCHEDULED, outside P4** · recorded so the hard part is not
+lost
+
+A fifty-floor run as five blocks of ten, each recalibrated, so entering a new
+block is a fresh start without leaving the run.
+
+### The "naive version fails" argument survives, but not as written
+
+**One of its two pillars is wrong.** The proposal says `HP_FROM_KILLS` is on
+and counts kills across the whole run. It ships **false** — `balance.md`'s own
+line reads "BUILT, NOT ADOPTED — briefly on, then reverted by the owner". Max
+hp does not grow with kills at all, so that pillar carries nothing.
+
+**The other pillar is right, and the corrected version is stronger than the
+original.** Gear persists across floors, chests are flat per floor, and
+`docs/rules.md` establishes that **weapons are the only thing that makes the
+hero permanently stronger** — and `weaponDamage` sums the inventory with no
+cap. So the unbounded accumulator is not hp, it is weapon damage, and it is
+unbounded by construction rather than by a flag setting. A hero entering block
+three carries twenty floors of it.
+
+The conclusion holds: block one calibrated, later blocks progressively easier
+at the opening, which is the opposite of encapsulated difficulty.
+
+### The minimum-change question the proposal does not ask
+
+`k_tier` is a new parameter. `CLAUDE.md`'s rule says say why an existing one
+cannot carry it — and here one plausibly can. A stratum is a **restart of the
+floor index**, and what already sets the count curve against that index is
+`MONSTERS_BASE` with its growth. "Entering block three is like floor one with a
+bigger base" is the same statement as "multiply the count by `k_tier`", but
+expressed in a dial that exists and is already measured, sweptable and
+documented.
+
+Not a refusal — a question to answer before building. If a multiplier really is
+different from a rebased count, one line saying how.
+
+**Count rather than strength is correct** and does not need re-arguing: cost
+tracks count linearly and strength superlinearly, which `balance.md` derives.
+
+**Measured rather than derived is also correct**, and for the recorded reason:
+nothing predicts outcome from map attributes — correlations top out near 0.3
+and a fitted model reached 64% against a 59% base rate. Controlling generation
+works; predicting from it does not.
+
+### The dependency is real, and the item it names is gone
+
+The proposal blocks this on `I5`. **`I5` was a real filed item and was deleted**
+in a documentation cut (`e05b878`), and its framing — the ruler cannot see the
+buffer where the target lives — is obsolete anyway, since buffer targets no
+longer exist.
+
+**The live question inside it survives and is now `I11`**, refiled: does the
+ruler still read true when the starting hero changes? That matters here because
+a stratum boundary is exactly a changed starting hero — and it is already live
+for a reason that has nothing to do with this feature. See `I11`.
+
+### The cheaper alternative, honestly stated by the proposal
+
+Full hero reset at the boundary reproduces the curve exactly, because it
+recreates the conditions the curve was calibrated under, at almost no cost —
+but it makes the run five concatenated runs with a shared scoreboard, which
+gives up the point. Correctly recorded rather than quietly preferred.
+
+## U9 · Extração — the decision at a stratum boundary
+
+`owner idea` · **UNSCHEDULED** · blocked on U8, and on the same mid-run balance
+U7's Pawa needs
+
+Push-your-luck at each block boundary: hold the gear and go deeper, or extract
+and bank the gain, starting the next block harder but clean.
+
+### The best thing in the proposal is a dependency nobody had spotted
+
+Extraction needs a balance that is **readable and spendable mid-run**. U6c
+settles only at run boundaries. **U7's Pawa needs exactly the same thing** —
+that was recorded in U7's own review and nobody connected the two. One piece of
+work unblocks both features, and finding that before either was scheduled is
+worth more than either.
+
+**And the banking machinery mostly exists.** U6c already does bank-or-clear at
+a boundary; this adds a decision point mid-run to a machine that runs, rather
+than a new system.
+
+### The load-bearing argument is not established, and its own source says so
+
+The proposal is right that **the asymmetry is what stops this collapsing into a
+no-brainer** — if the rescale is perfect, both paths are equally hard by
+construction and there is no choice. It then argues the asymmetry already
+exists: gear is flat and rots against exponential growth, so holding is better
+now and worse later, while experience compounds between runs.
+
+**Checked, and the cited source says something different.** `balance.md`
+measures the arc as **a hump, not a decay**: *"Capacity rises to 20.7 by floor 6
+then grinds down to 10.8 by floor 10 — the hero builds up and is worn away."*
+
+That is not "gear rots". It accumulates through the first half and is ground
+down in the second — which means **at a boundary the hero arrives at the bottom
+of the wear-down, not the top**. The choice may still be interesting (keep
+depleted gear, or reset clean) but it is a *different* choice than the one
+argued, and the proposal cites the same passage for two incompatible readings:
+"capacity rises" as a problem to contain, and "gear rots" as the engine of the
+feature.
+
+**And the figure carries a warning the proposal did not carry over.**
+`balance.md` flags immediately below it that the ruler changed **twice** and
+every cost figure above that point was measured with the superseded model. So
+the number is pre-change on top of not saying what it was cited for.
+
+**What this does not mean.** The feature is not dead — the asymmetry might be
+real at the new scale, and a hump repeating per block is arguably a *better*
+rhythm than monotone decay. It means the asymmetry is **an open measurement,
+not an established fact**, and it is the piece the whole design rests on. It
+cannot be settled before U8 exists, since it is about behaviour across a
+boundary that does not exist yet.
+
+### The rest checks out
+
+**Experience as the currency**, with what it buys deferred, avoids inventing
+content and is cheap — a counter and a bar.
+
+**Non-blocking by default**, with a pre-set policy applied automatically at the
+boundary and any live override optional. Same rule U5, U6e and U7 already
+follow, and correctly cited rather than reinvented.
+
+**The bot decides for now.** Spectator control is deferred territory and
+swapping who presses the button later does not change the mechanic underneath.
+
 ## U7 · a hero picker, persisting across deaths
 
 `owner idea` · **UNSCHEDULED — spectator control, the territory already
