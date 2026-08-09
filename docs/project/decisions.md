@@ -250,3 +250,87 @@ they asserted a property rather than a number.
 **A shadow implementation drifts.** Grouping logic built in `src/analysis/`
 to measure grouping stopped describing the engine the moment the engine's
 own version landed.
+
+## From the shop and loot arc (M26-M30, U5-U6d, B4/B10/B11)
+
+**A channel that already carries an unrevealed answer has failed the fog
+rule, regardless of who reads it.** `observe`'s `copyEntity` deep-cloned a
+monster's rolled `drop` into Belief the moment it was seen. Nothing read it
+— B9 deliberately computed an expectation from tier instead — but the field
+sat there for the next feature to pick up by accident. The rule is about the
+channel, not the reader. Fixed by an explicit allow-list per entity kind,
+because a deep clone of a growing object leaks whatever field is added next.
+
+**A test that asserts "field X is absent" proves nothing unless it first
+proves X was populated upstream.** Otherwise a green test only means the
+fixture was empty. M28's tests search seeds for a monster that really
+carries a drop, and fail loudly if none is found, before checking Belief
+lacks the key.
+
+**Verify against real engine output at least once, not only against numbers
+the test chose itself.** U4's lifetime score read `run.levels[last].xpEarned`,
+a field that never existed — every award computed `NaN`, stored as `null`,
+and compounded on that forever. Its own verification only ever called
+`award()` with synthetic values and never traced one real `playDungeon()`
+result end to end. Found months later by an unrelated display item.
+
+**Two copies of a rule is how they drift; test that both callers run the
+SAME function.** `startingItems` wrote inventory and stopped, so a bought
+shield granted zero armour — `player.armour` is what `effectiveHp` reads,
+and only the pickup path credited it. The fix shares one `grantArmour`, and
+the test asserts both paths produce the same value *from the same function*,
+not merely that both produce the right number.
+
+**`itemWeights` splits mass evenly across a source's kinds, so removing a
+kind doubles what is left.** Pulling `potion` off the monster source left
+`weapon` alone there and silently doubled weapon supply (9.59 to 19.31) for
+a reason unrelated to the change being made. Any edit to which kinds a
+source draws has to re-check the survivors' shares.
+
+**Pricing a delayable reward as if it decays lets it outbid what is in
+hand.** `exploreCompetes` let a slightly-better dark region beat a chest in
+plain sight, because the dark loses nothing by being visited later. Chests
+opened per floor fell ~23% on two seed families. A monster does not have
+this problem — it is a real, decaying opportunity — which is why the same
+shape worked for combat (B11) and failed for exploration.
+
+**A tie-breaker sized small enough to be safe has nothing left to decide.**
+`frontierRouting` weighted route cost by revealed fog, capped under half a
+`STEP_COST_IN_HP` so it could never justify a detour. Result: inert on both
+families, to three figures. Weighted shortest paths on a procedural map
+essentially never tie, and the constraint that made it safe is what made it
+powerless.
+
+**A sandbox default is not the shipped default.** `DEFAULT_MODEL` carries
+pre-M7 values (no clustering, flat strength growth, no out-of-depth tail),
+so a sweep that overrode only the dials it cared about measured a strictly
+easier game on three unrelated axes and invalidated a whole round of
+candidates. Diff a swept model against real `floorParams()` field by field
+BEFORE trusting any result.
+
+**A formal test passing is not the invariant holding.** The M7 budget check
+reads a ratio formula that `earlyTierCapShare` never enters, so it stayed
+green while the actual end-to-end growth rate moved outside the band the
+check exists to protect. Same shape as the fog leak: the letter of a rule
+satisfied while its purpose is not.
+
+**Weapon value falls as 1/dps; armour is linear by construction.** Damage
+per turn is perfectly linear in weapon points, but hp *saved* goes as
+1/dps because turns-to-kill is `hp ÷ damage per turn` — measured, the first
+damage point is worth 15.75 hp and the second only 7.85. Armour is
+`effectiveHp = hp + armour` with no cap, so N shields is exactly 3N. The bot
+already encodes this correctly: weapons priced as a marginal delta against
+live inventory, armour at fixed face value. Any weapon redesign must keep
+that marginal computation intact.
+
+**A branch chain with early return is not a comparison.** `chooseGoal`
+returned the moment any chest scored positive, so the bot could not prefer
+combat over loot at any price — B9's whole drop-pricing mechanism never ran
+on a turn with loot on offer. Proved by scaling believed weapon value 2x and
+5x and watching nothing move at either.
+
+**A safety rule that reads a metric stuck at zero is decorative.** Two
+consecutive bot items shipped with "stop if `finishes` falls" as their
+guard, while `finishes` read 0% on every arm. See M33 — the drop was never
+measured when it happened, because the item that caused it reported two
+other numbers instead.
