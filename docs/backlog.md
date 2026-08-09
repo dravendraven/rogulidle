@@ -78,12 +78,13 @@ session, skip it.
 |---|---|---|---|---|
 | 1 | U6e | The shop screen | ui | **DONE** |
 | 2 | U6f | Watch a full loop, integration check | ui | REPORTED · not watched live, see Result |
-| 3 | B13 | Charge a pursuer where it actually collects — before B12 | bot | **REPORTED** · shipped OFF |
-| 4 | B12 | Fighting should compete with leaving, not precede it | bot | after B13 |
-| 5 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | READY |
+| 3 | B13 | Charge a pursuer where it actually collects | bot | **DONE** · shipped OFF, inert |
+| 4 | B12 | Fighting should compete with leaving, not precede it | bot | READY · prices confirmed sound |
+| 5 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | IN FLIGHT |
 | — | X5 | Classify every dial by lifecycle, delete only the dead | work + bot | READY · at a structural boundary |
 | — | X6 | Collapse the tier clamps, redundancy proven first | work | after X5 |
-| 6 | I9 | Conditional survival table, so coin can be priced in hp | metrics | BLOCKED on finishes > 0 |
+| — | I9 | Conditional survival table = the "hope" instrument | metrics | BLOCKED on finishes > 0 |
+| 6 | I10 | A supported headless runner for measurements | metrics | READY |
 | 7 | M34 | Nothing measures what a direct run can skip | metrics | READY |
 | 8 | M21 | Deep floors put a creature where the hero lands | work | READY |
 | 9 | X1 | Delete what nothing references | work | READY |
@@ -487,6 +488,75 @@ headless runner is wanted, that is a decision for you and the metrics role,
 not something to smuggle in under a bot item — but it works today and it is
 much faster than clicking through a page.
 
+### Review — ADOPTED as a finding, flag stays off, and it settled a question I
+### had only assumed
+
+**The diagnostic is worth more than the item, and the second cut is what makes
+it a finding rather than a number.** 90.9% of blows land while the hero is
+standing still — so the proximity rent really was modelling the wrong thing.
+But of those, only ~9-13% involve a second creature in contact. The other ~88%
+come from the creature already being traded with, **which `duelCost` has priced
+since P3.** The genuinely unpriced population is two or three blows a run out of
+twenty-five. Correct pricing of a small population moves a small amount, which
+is exactly what happened.
+
+**Correctly called noise.** Every moving number disagrees in direction between
+the two families at about one percent. Calling that a result is the mistake
+`decisions.md` records twice, and the report did not make it.
+
+**Inert for lack of anything left to fix, not for lack of firing** — verified by
+showing per-run depths change off versus on. That is precisely the distinction
+B10 could not make about its own tie-breaker, and making it here is what turns
+"no effect" into "no headroom".
+
+### It corrected my sequencing rationale, which is the more useful outcome
+
+I put B13 before B12 arguing the cost model had to be fixed before anything
+decided against it. **The measurement says the model did not need fixing** — for
+the 1v1 case that is 88% of all damage, `duelCost` was already carrying it.
+
+So my stated reason was wrong and the ordering was still right, for a reason I
+did not give: it converted an assumption about the model into a measurement.
+B12 can now proceed on the existing prices *knowing* they are sound, rather
+than on my guess that they were not. Worth recording plainly — a right call for
+a wrong reason is not the same as a right call.
+
+### On the three judgement calls, all three correct
+
+**The new flag is justified and the justification is the right shape.** It
+names why `threat`, `guardPricing` and `crowdPenalty` each could not carry the
+term — different populations, different granularity — rather than asserting
+necessity. That is exactly what the minimum-change rule asks for.
+
+**`CHEST_TURNS` is not a new parameter** and the reasoning holds: it names a
+literal two that was already inline, now that a second site must agree with it.
+A rule of the engine, not a tunable.
+
+**Leaving the survivability split open was right.** The charge lands on ranking,
+not on `worthStarting`, so the gate can still call a duel safe while this term
+says a second creature swings throughout. That copies B9's own precedent and
+closing it is a different item.
+
+### The suggested `rules.md` line — declined as offered, added in a better form
+
+The offer was to record the 91% figure in `rules.md` §4 as a game fact. **It is
+not a game fact.** It measures how often *this bot* stops moving, and a bot that
+fled more would take fewer stationary blows. Putting it in `rules.md` would
+install exactly the kind of bot-dependent measurement that rotted
+`map-design.md`.
+
+**But the consequence underneath it is a game fact, it was missing, and it is
+now in §4:** damage is an event rather than a rent, so fleeing a same-speed
+pursuer costs nothing and the blow is paid when the hero stops increasing the
+distance. That is derivable from §3 and §6 and nobody had derived it — **which
+is why this same agent modelled it wrong once.** Stating it should stop the next
+person paying for it again.
+
+### The headless runner is a real problem and gets its own item
+
+Filed as `I10`. Not smuggled in under a bot item, which was the right instinct.
+
+
 ## B12 · fighting should compete with leaving, not precede it
 
 `bot agent` · READY · **after B13** · overturns a premise, needs a real stop
@@ -835,6 +905,43 @@ mandatory path is not mandatory and there is a defect to find.
 `CLAUDE.md`'s minimum-change rule, if the reading comes out wrong the fix is
 likely in activation radii or shrine placement, both of which already have
 dials.
+
+## I10 · a supported headless runner for measurements
+
+`metrics agent` · READY · **the browser tooling has now dropped mid-measurement
+twice in a row**
+
+U6e's report and B13's both had to work around losing the browser mid-session.
+U6e ended up unable to verify its own overlay end to end; B13 measured headless
+instead and got numbers, but through a resolver hook living in a scratchpad
+directory that nothing supports and nobody else can reuse.
+
+**Two failures in consecutive items is an infrastructure problem, not bad luck.**
+
+**What B13 established already works.** Node 22 runs the project's modules
+unchanged with `--experimental-default-type=module`, so no `package.json` is
+needed and the no-npm/no-build rule is intact. The single obstacle is
+`mapgen.js` importing ROT.js from a CDN, which a resolver hook can point at a
+local copy.
+
+**Do.** Make that a supported entry point rather than a scratchpad trick, so any
+agent can run a measurement without a browser and get numbers identical to the
+page's. Whatever form it takes, it has to be obvious how to run and obvious that
+it runs the same modules.
+
+**The risk to design against, and it is the whole risk.** A second way to run
+the game is a second thing that can drift from the first — which is precisely
+what `E1` exists to fix for the descent loop and what `clustering.js` already
+did after M7. **This must not become a reimplementation.** It loads the shipped
+modules or it is not worth having.
+
+**Assert.** A measurement that exists on a page produces the same numbers
+headless, same seeds — checked, not assumed. And the mechanism is documented
+where an agent will find it, not in a commit message.
+
+**Not a licence to stop verifying visually.** U6f exists because a page has to
+be watched by someone; headless numbers are for sweeps and regressions, not for
+"does the overlay appear".
 
 ## M21 · deep floors have something waiting where you land
 

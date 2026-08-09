@@ -112,6 +112,17 @@ armadura — qualquer coisa que julgue sobrevivência tem que somar as duas.
 
 **Escudo reabastece a barra. O hp máximo nunca se move.**
 
+**Consequência das regras acima, e ela não é óbvia: dano é um evento, não um
+aluguel.** Como adjacência sozinha não ataca, o ataque é o movimento, e as
+criaturas agem depois do herói, **fugir de um perseguidor de mesma velocidade
+não custa nada** — ele cola e nunca acerta. O golpe é pago exatamente quando o
+herói deixa de aumentar a distância: atacar, abrir baú, pisar no santuário, ou
+estar encurralado.
+
+Isto está escrito porque já foi modelado errado uma vez, como custo por turno
+de proximidade, e o erro sobrevive a leitura atenta da fórmula — só não
+sobrevive a ler §3 e §6 juntos.
+
 ### O que NÃO cresce
 
 **O xp do herói não cresce com as mortes.** Divergência do original, que dava
