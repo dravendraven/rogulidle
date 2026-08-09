@@ -189,19 +189,7 @@ export function renderHud(elements, state, session) {
     : '—';
 
   elements.run.textContent = `run ${session.runNumber}`;
-}
-
-// The lifetime score — U4. Shown even before this session has cleared a
-// run itself, since it reads what's already in localStorage.
-export function renderScore(element, score) {
-  if (!score || score.clears === 0) {
-    element.textContent = 'no clears yet';
-    return;
-  }
-  const plural = score.clears === 1 ? '' : 's';
-  const total = Number.isFinite(score.total) ? score.total.toFixed(2) : '—';
-  const last = Number.isFinite(score.last) ? score.last.toFixed(2) : '—';
-  element.textContent = `${total} lifetime · ${score.clears} clear${plural} · last +${last}`;
+  elements.seed.textContent = 'seed ' + state.seed;
 }
 
 // Recent runs, newest first: how far each one got and how it ended.

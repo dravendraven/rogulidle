@@ -16,6 +16,7 @@
       <button id="playPause" type="button">⏸ pause</button>
       <button id="speed" type="button">1×</button>
       <button id="debug" type="button">🔎 debug</button>
+      <button id="resetSession" type="button">↻ reset</button>
     </div>
   </header>
 
@@ -54,6 +55,7 @@
       <footer>
         <span id="run"></span>
         <span id="tally"></span>
+        <span id="seed" class="seed"></span>
       </footer>
     </aside>
   </main>
@@ -61,14 +63,6 @@
   <div class="box">
     <label>recent runs — how far the descent got</label>
     <div id="history" class="history"></div>
-  </div>
-
-  <div class="box">
-    <label>lifetime score — xpEarned / (turns × 0.01), full clears only</label>
-    <div class="score-row">
-      <span id="score"></span>
-      <button id="resetScore" type="button">reset</button>
-    </div>
   </div>
 
   <p class="note">

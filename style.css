@@ -249,10 +249,6 @@ main {
   color: #8a7f6c;
   margin-bottom: .25rem;
 }
-.score-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
-.score-row button { font-size: .65rem; padding: .15rem .4rem; border-bottom-width: 3px; }
-.score-row button:active { border-bottom-width: 1px; }
-
 .inventory { display: flex; flex-wrap: wrap; gap: 2px; }
 .inventory svg { width: 20px; height: 20px; }
 
@@ -281,6 +277,7 @@ footer {
   border-top: 1px solid var(--line);
   padding-top: .6rem;
 }
+.seed { flex-basis: 100%; }
 
 .box {
   background: var(--panel);

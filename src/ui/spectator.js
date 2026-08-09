@@ -12,9 +12,9 @@ import { hashSeeds, seedFromString } from '../sim/rng.js';
 import { difficultyToParams } from '../sim/difficulty.js';
 import { makeBot } from '../bot/bot.js';
 import { dangerField } from '../bot/threat.js';
-import { buildGrid, renderFrame, renderHud, renderHistory, renderScore } from './render.js';
+import { buildGrid, renderFrame, renderHud, renderHistory } from './render.js';
 import { tileSvg } from './tiles.js';
-import { award, readScore, resetScore } from './score.js';
+import { award, resetScore } from './score.js';
 import { getBalance, setBalance, resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
 import { SHOP_ITEMS, pickDefaultPurchase } from './shop.js';
 
@@ -59,9 +59,9 @@ const el = {};
 function grab() {
   for (const id of [
     'grid', 'hp', 'xpEarned', 'xpRate', 'steps', 'kills', 'inventory',
-    'run', 'tally', 'summary', 'summaryTitle', 'summaryBody',
-    'playPause', 'speed', 'debug', 'floor', 'history',
-    'score', 'resetScore', 'coins', 'coinPopup',
+    'run', 'tally', 'seed', 'summary', 'summaryTitle', 'summaryBody',
+    'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
+    'coins', 'coinPopup',
     'shop', 'shopBalance', 'shopItems', 'shopSkip',
   ]) {
     el[id] = document.getElementById(id);
@@ -280,14 +280,15 @@ function tallyDescent(run, finalState) {
     // from the replayed end-of-run state, not from run.levels — see the
     // note on xpEarnedThisFloor below for why.
     const totalTurns = run.levels.reduce((sum, level) => sum + level.turns, 0);
-    const score = award(finalState.player.xpEarned, totalTurns);
-    if (el.score) renderScore(el.score, score);
+    // U4's lifetime score keeps a background record even though nothing
+    // displays it any more — the coin balance below is the on-screen
+    // "how am I doing" number now, and award() is cheap to leave running
+    // in case the display ever comes back.
+    award(finalState.player.xpEarned, totalTurns);
 
     // U6c — docs/backlog.md. A clear banks the run's unbanked coin into
-    // the persisted wallet balance. Separate from U4's lifetime score
-    // above: that's a read-only record of performance, this is spendable
-    // (once U6e's shop exists) — different formulas, different purpose,
-    // deliberately not the same number.
+    // the persisted wallet balance — the spendable, on-screen record of
+    // performance now that U4's score display is gone.
     setBalance(getBalance() + session.unbankedCoins);
   } else {
     // U6c's death rule. session.unbankedCoins is already 0 here — U5's
@@ -454,9 +455,14 @@ function wireControls() {
     el.speed.textContent = session.speed + '×';
   });
 
-  el.resetScore.addEventListener('click', () => {
-    if (!confirm('Reset the lifetime score? This cannot be undone.')) return;
-    renderScore(el.score, resetScore());
+  // General reset, not tied to any one display: wipes both localStorage
+  // stores this page keeps (score.js's lifetime record, wallet.js's coin
+  // balance and held items). The next run picks up an empty wallet the
+  // same way a fresh visitor would.
+  el.resetSession.addEventListener('click', () => {
+    if (!confirm('Reset your coin balance, held items, and lifetime total? This cannot be undone.')) return;
+    resetScore();
+    resetOnDeath(false);
   });
 }
 
@@ -468,10 +474,6 @@ export function start() {
   // Half speed by default — easier to follow than the old 1x default.
   session.speed = 0.5;
   el.speed.textContent = '0.5×';
-
-  // Read before the first run so a returning visitor sees their past
-  // total immediately, not just after their next clear.
-  renderScore(el.score, readScore());
 
   // ?seed=whatever makes a whole session reproducible, which is how you go
   // back and look at a run the bot played badly.
