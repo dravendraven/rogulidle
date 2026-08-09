@@ -188,7 +188,12 @@ export const DIFFICULTY_REBALANCED = true;
 // (`MONSTER_GROWTH_REBALANCED x STRENGTH_GROWTH_REBALANCED^2.356 /
 // MONSTER_GROWTH`) was already at 9.4% of its 15% band after M25: this
 // raises it to 12.15%, leaving 2.85 points — real headroom spent, not the
-// last of it. See docs/backlog.md M29 for why count rather than a further
+// last of it. M31 LATER FOUND THAT ARITHMETIC TOO PESSIMISTIC: that proxy
+// formula overstated the drift in every state it was read, and the check
+// now reads `expectedFloorMass` directly instead — M25 was at 1.1% and
+// M29 at 4.3%, so the headroom this comment budgeted against was never as
+// tight as it looked. See docs/balance.md, M31 section.
+// See docs/backlog.md M29 for why count rather than a further
 // cut to `MONSTER_STRENGTH`: M25's own sweep already found values below
 // 0.28 score WORSE on curve smoothness despite cutting floor 1 just as
 // hard, so pushing that lever further was not the fresh option it looked
@@ -261,6 +266,12 @@ export const MONSTER_GROWTH_REBALANCED = 1.0801;
 // MONSTERS_BASE/MONSTER_GROWTH_REBALANCED change, the M7 budget check
 // lands at 14.35% of its 15% band — 0.65 points of headroom left, checked
 // before shipping, not after.
+//
+// M31 RE-READ THAT: the 14.35% came from a proxy formula, and the check now
+// reads the generated mass curve itself, where M29 sits at 4.3% and today's
+// shipped state at 6.0%. The headroom was never 0.65 points; it is closer
+// to 9. Anything sequenced to spend that band should read the M31 section
+// of docs/balance.md rather than this line's number.
 export const STRENGTH_GROWTH_REBALANCED = 1.1452;
 
 // How many creatures share one placement anchor. 1 means every monster

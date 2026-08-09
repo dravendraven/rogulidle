@@ -348,15 +348,13 @@ export const TIER_CEILING_SHARE_CAP = 0.5;
 //
 // MEASURED against `expectedFloorMass`, exact, no sampling (docs/backlog.md
 // M30 has the full table): floor 1 mass 14.0 -> 10.385, floor 1 now ~70% of
-// floor 2's 14.845 (was 94%). The M7 RATIO check
-// (`MONSTER_GROWTH_REBALANCED × STRENGTH_GROWTH_REBALANCED^2.356 /
-// MONSTER_GROWTH`) is untouched by this dial and stays at M29's 14.35% —
-// this constant does not appear in that formula. But the same closed form
-// read as an OVERALL growth rate (floor 1 to floor 10, geometric mean) DOES
-// move: 1.3499 -> 1.3955, outside the 1.34 ±0.03 band the ratio check exists
-// to protect. Disclosed, not hidden: the ratio check and the direct growth
-// reading disagree here because they measure different things, and the
-// direct one is the one this item asked to trust more.
+// floor 2's 14.845 (was 94%). The M7 RATIO check was untouched by this dial
+// and stayed at M29's reading — this constant did not appear in that
+// formula. But the same closed form read as an OVERALL growth rate DOES
+// move: 1.3499 -> 1.3955. Disclosed rather than hidden, and M31 acted on it:
+// that check no longer uses the proxy formula at all, it reads
+// `expectedFloorMass` fitted over all ten floors, so it can no longer go
+// blind to a dial it does not name. See docs/balance.md, M31 section.
 export const EARLY_TIER_CAP_SHARE_BASE = 0.5;
 export const EARLY_TIER_CAP_SHARE_PER_LEVEL = -0.5;
 export const EARLY_TIER_CAP_SHARE_CAP = 0.5;

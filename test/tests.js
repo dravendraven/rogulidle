@@ -1406,20 +1406,43 @@ test('the rebalance is adopted at its shipped value', () => {
   }
 });
 
-test('the rebalanced constants hold the challenge budget, in the currency they were fit against', () => {
+test('the rebalanced constants hold the challenge budget, read from the generator itself', () => {
   // Not a claim that CHALLENGE (measured hp) is unchanged — that needs the
   // observed ruler and a real play-through, done separately and reported in
-  // docs/backlog.md M7. This is the cheaper, always-available check: the
-  // count->strength trade was derived from a MEASURED exponent (2.356, not
-  // 2 — see the archived sweep in balance.md), so the two rebalanced
-  // constants should roughly cancel against each other in that currency.
-  // A gross mismatch here would mean the constants were mistyped, not just
-  // imperfectly tuned.
-  const K = 2.356;
-  const ratio = MONSTER_GROWTH_REBALANCED * Math.pow(STRENGTH_GROWTH_REBALANCED, K)
-    / MONSTER_GROWTH;
+  // docs/backlog.md M7. This is the cheaper, always-available check: has the
+  // per-floor climb drifted from what the pre-M7 baseline shipped?
+  //
+  // This used to be a PROXY —
+  // `MONSTER_GROWTH_REBALANCED * STRENGTH_GROWTH_REBALANCED^2.356` — and a
+  // formula that names two dials is blind to every dial it does not name.
+  // M30 added a floor-1 tier clamp, the real climb moved, and this test did
+  // not budge by a digit. docs/backlog.md M31; the fix is to stop
+  // approximating and read the quantity itself.
+  //
+  // `expectedFloorMass` is the exact closed form the rest of this suite
+  // already trusts, and it reads `floorParams` — so it sees EVERY dial,
+  // including the ones nobody has written yet. Nothing to keep up to date,
+  // and the fitted 2.356 exponent is no longer needed at all.
+  //
+  // Fitted over all ten floors rather than taken as
+  // `expectedFloorMass(9) / expectedFloorMass(0)`: an endpoint ratio is
+  // blind to anything that only lifts the MIDDLE of the ladder, and M13's
+  // tier floor and M24's ceiling are exactly that. Measured while building
+  // this — raising `TIER_FLOOR_SHARE_PER_LEVEL` from 0.08 to 0.30 changes
+  // nine of the ten floor masses and leaves the endpoint reading identical
+  // to four decimals, while the fit moves. Same quantity on a clean
+  // geometric ladder; strictly more of the ladder read.
+  //
+  // Reference and band are UNCHANGED from the proxy version. `MONSTER_GROWTH`
+  // is the pre-M7 per-floor cost growth — strength was flat then, so cost
+  // growth WAS count growth — and the tolerance is the same 15% M7 shipped
+  // with. Only the numerator got honest.
+  const mass = [];
+  for (let level = 0; level < 10; level++) mass.push(expectedFloorMass(level));
+  const growth = growthOf(mass).perFloor;
+  const ratio = growth / MONSTER_GROWTH;
   assert(Math.abs(ratio - 1) < 0.15,
-    `rebalanced growth*strength^${K} drifted ${(100 * (ratio - 1)).toFixed(0)}% from the shipped budget`);
+    `generated mass climbs x${growth.toFixed(4)}/floor, ${(100 * (ratio - 1)).toFixed(1)}% off the shipped budget`);
 });
 
 test('the rebalanced strength ramp does not saturate before floor 10', () => {
