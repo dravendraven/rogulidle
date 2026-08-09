@@ -1,10 +1,29 @@
 # Map design — the spine and its detours
 
-The goal, in the owner's words: a floor should offer **one mostly-linear
-mandatory path holding at least 70% of the threat mass**, plus **side rooms
-worth about 30%** that can be skipped — fewer but nastier creatures, better
-chests. Take the safe road, or gamble for gear you will want three floors
-down.
+**Why the map is shaped the way it is.** The mechanism and the reasoning; not
+the numbers, and not a snapshot of what was measured once.
+
+**No measured values here, deliberately.** `CLAUDE.md` already says it:
+numbers come from the instruments, run on demand, and a written-down
+measurement goes stale and gets compared against anyway. The previous version
+of this file carried a table of spine-mass readings that drifted about twenty
+points below reality while nobody noticed — the dials it quoted stayed
+accurate, because `docs/balance.md`'s table has an owner and a rule, and the
+measurements rotted because they had neither. **Dial values live in
+`balance.md`. Readings come from `run-check.html` and `run-shape.html`.
+Findings live in `docs/project/decisions.md`.**
+
+---
+
+## The bargain
+
+A floor should offer **one mostly-linear mandatory path holding most of the
+threat**, plus **side rooms that can be skipped** — fewer but nastier
+creatures, better chests. Take the safe road, or gamble for gear you will want
+three floors down.
+
+That is the whole design. Everything below is how it is arranged and what went
+wrong on the way.
 
 ## Nothing new is dug
 
@@ -13,200 +32,110 @@ hanging off it. We simply never read that structure. `src/sim/spine.js` is a
 **classification pass over a finished map**: a room is *spine* when the
 hero→shrine path crosses its rectangle, *side* otherwise.
 
-Because it only reads, it cannot fail to produce a floor, and it consumes no
-randomness. The one generation change is `MAP_DUG_PERCENTAGE = 0.15` (ROT's
-default is 0.2), which digs fewer and smaller rooms so that a mandatory path
-exists at all — at 0.2 there were usually several equivalent ways through.
+Because it only reads, **it cannot fail to produce a floor and it consumes no
+randomness** — a property worth protecting, since it means the classification
+can never desync a seed.
 
-## One constant does the whole bargain
+The one generation change the bargain needed was digging less than ROT's
+default, so that a mandatory path exists at all. Dig too much and there are
+several equivalent ways through, and "mandatory" stops meaning anything.
 
-`SIDE_ROOM_DEPTH_BONUS = 0.35`. A side room is treated as if it sat that much
-deeper than it is.
+## One dial does the whole risk/reward trade
 
-That single number is the entire risk/reward design, because **depth already
-drives both halves**: it picks the monster tier *and* sets chest quality. Push
-it up and detours get more dangerous and better paid, together. Set it to zero
-and side rooms become ordinary.
+A side room is treated as if it sat deeper than it is
+(`SIDE_ROOM_DEPTH_BONUS`).
 
-Supporting dials:
+That single dial is the entire risk/reward design, and it works because
+**depth already drives both halves**: it picks the creature tier *and* sets
+chest quality. Push it up and detours get more dangerous and better paid,
+together. Set it to zero and side rooms become ordinary.
 
-| Constant | Value | What it does |
-|---|---|---|
-| `SPINE_THREAT_SHARE` | 0.7 | Share of threat **mass** on the mandatory route |
-| `MIN_ROSTER_FOR_SIDE` | 4 | Below this, everything goes on the spine |
-| `SIDE_CHEST_BIAS` | 3 | How much likelier a chest lands in a side room |
-| `CHEST_QUALITY_BY_DEPTH` | true | Depth buys better loot, not just more |
+Supporting dials, all in `balance.md`: `SPINE_THREAT_SHARE` (how much of the
+threat belongs on the mandatory route), `MIN_ROSTER_FOR_SIDE` (below this the
+whole roster goes on the spine), `SIDE_CHEST_BIAS` (how much likelier a chest
+lands in a side room), `CHEST_QUALITY_BY_DEPTH`.
 
-**Mass, not headcount.** Cost tracks `hp × (xp − 1)`, so a floor can put 70% of
-its *bodies* on the spine and still hide the dangerous half in a side room.
-Placement is greedy against a running mass share, which converges without
-needing to know the roster total in advance. Combined with the depth bonus this
+**Mass, not headcount.** Cost tracks hp against damage output, so a floor can
+put most of its *bodies* on the spine and still hide the dangerous half in a
+side room. Placement is greedy against a running mass share, which converges
+without needing the roster total in advance. Combined with the depth bonus this
 produces the intended shape by itself: side rooms fill a smaller mass budget
 with fewer, heavier creatures.
 
-**Chest quality** is `value^(2·depth − 1)` within a kind — rare-strong at the
-entrance, flat half way, and inverted at the shrine. At depth 0 it reproduces
-the old `1/value` rule exactly, so the feature can be switched off and the pool
-is provably unchanged.
+**`MIN_ROSTER_FOR_SIDE` exists because the split is too coarse on small
+floors.** With two creatures, putting one in a side room is already half the
+mass. So the shallowest floors deliberately do not attempt the split at all —
+which means **the roster size and this threshold interact**, and changing the
+creature count silently changes which floors have side rooms.
 
-`MIN_ROSTER_FOR_SIDE` exists because the split is too coarse on small floors:
-with two creatures, one in a side room is already half the mass, which measured
-68% and 63% spine on floors 1 and 3 against the 70% target.
+## Risk and reward have to roll separately
 
-## Measured — the structure is right
+This is the part worth understanding before touching anything here.
 
-25 maps per floor:
+The first version gave every side room the same depth bonus, which meant
+**risk and reward were perfectly correlated**. Every detour offered the same
+ratio — and a gamble with a fixed favourable ratio is not a gamble, it is a
+free lunch, always correct to take. That is why forbidding, requiring and
+permitting the detour all produced identical dungeons: there was no decision
+in any of them.
 
-| floor | spine mass | side rooms | side creatures | chests in side rooms |
-|---|---|---|---|---|
-| 1 | 100% | 29% | 0% | 45% |
-| 3 | 100% | 29% | 0% | 45% |
-| 5 | 70% | 29% | 23% | 45% |
-| 7 | 73% | 29% | 22% | 45% |
-| 10 | 74% | 29% | 18% | 45% |
+Each side room now draws **two independent numbers**, one feeding the creature
+tier and one feeding chest quality. The average side room sits where it always
+did; individual ones range from a den of ogres guarding a dagger to a lone bat
+sitting on an axe. `edge = reward − risk` is recorded on everything placed in
+the room, so a measurement can ask the only question that matters.
 
-Every floor meets the ≥70% requirement. Side rooms are 29% of rooms, holding
-18–23% of the *bodies* but ~30% of the mass — fewer, stronger, as designed.
-Chest drops shifted from 43% axes to 60% axes.
+**The bot needed a longer ruler for this to mean anything.** It priced gear
+against the current floor alone, so it was structurally incapable of valuing
+"useful three floors from now" — the exact thing this design is about.
+`LOOT_CAMPAIGN_HORIZON` now counts the creatures still ahead, discounted by
+the chance of living to meet them, because counting all of them at face value
+assumes the hero survives to swing the sword.
 
-## Risk and reward roll separately
+**Variance alone made things worse; the horizon is what made it a decision.**
+The bot walked into the bad rooms without noticing until it could price the
+future. That pairing is the finding, not either half on its own.
 
-The first version gave every side room the same `SIDE_ROOM_DEPTH_BONUS`, which
-meant **risk and reward were perfectly correlated**. Every detour offered the
-same ratio, and a gamble with a fixed favourable ratio is not a gamble — it is
-a free lunch, always correct to take. That is why forbidding, requiring and
-permitting the detour all produced identical dungeons.
+## What is still open: there is no choice, in either direction
 
-Each side room now draws two independent numbers over `[0, 2 × bonus]`: one
-feeds the monster tier, one feeds chest quality. The **average** side room is
-exactly where it was; individual ones range from a den of ogres guarding a
-dagger to a lone bat sitting on an axe. `edge = reward − risk` is recorded on
-everything placed in the room, so a measurement can ask the only question that
-matters.
+The honest half, and it has survived being re-measured.
 
-**The bot also needed a longer ruler.** It priced gear against the current
-floor alone, so it was structurally incapable of valuing "useful three floors
-from now" — the exact thing the design is about. `LOOT_CAMPAIGN_HORIZON = 0.5`
-now counts the creatures still ahead in the descent, discounted by roughly the
-measured clear rate, because counting all of them at face value assumes the
-hero lives to swing the sword.
+**The bot opens nearly everything** — good room, bad room, spine room alike.
+An earlier reading suggested it opened *more* bad rooms than good ones, which
+would have been an inversion worth explaining. It was not real: those runs
+dropped a fresh unarmed hero onto deep floors in isolation, where it dies
+early, so "chests opened" was mostly measuring how far it got before dying.
+Measured over real descents, the two rates are the same within noise.
 
-Both together, against the single-bonus version:
+**So the gamble is still a free lunch.** The variance made individual rooms
+differ without making any of them worth refusing. That is the thing to attack,
+and it is about the **level** of the reward rather than its spread: while a
+chest is worth its walk almost always, no amount of varying the odds produces
+a decision.
 
-```
-                    single bonus   +variance   +variance +horizon
-cleared                 9/20          2/20          5/20
-net challenge, floor 10  0.54          0.74          0.98
-capacity, floor 10      12.5          15.5          11.4
-```
+`M4` is the scheduled attempt at the spread; the level is the unaddressed
+question.
 
-Variance alone just punished the bot — it walked into the bad rooms without
-noticing. The horizon is what turned it into something the bot could weigh, and
-the pair finally produce the curve the difficulty work has been chasing: floor
-10 costs essentially everything the hero brought, and capacity **falls**.
+## Two things to check whenever this area changes
 
-## Measured — the CHOICE still does not exist
+**The shallowest floors and `MIN_ROSTER_FOR_SIDE`.** Changing the creature
+count moves which floors attempt a split at all, which moves spine share on
+exactly the floors most sensitive to it. This has bitten before.
 
-This is the honest half, and it is a **negative result with a diagnosis**.
+**Spine share against its band.** It has been broken and restored more than
+once — by clustering, and again by shrine placement — and it is not
+self-correcting. `run-shape.html` reads it; `docs/project/decisions.md` records
+why it and CV pull against each other, and that the fix is never to widen the
+band or edit the test.
 
-Measuring which chests actually get opened, split by whether the room's roll
-was favourable (`edge > 0`) or not, over ~340 side chests on floors 5–8:
+## What was tried here and did not work
 
-```
-                        spine   favourable   unfavourable
-chests opened            71%       46%           53%
-```
+Not repeated here. Corridor-seeking, exposure pricing, the activation cap,
+threat-scaled crowd penalty, and the retracted mass-quota diagnosis are all in
+`docs/project/decisions.md` with the numbers that killed them.
 
-The bot opens **more of the bad rooms than the good ones**. Not indifference —
-inversion.
-
-Four candidate fixes were implemented and measured. **None moved the ratio:**
-
-| attempt | favourable | unfavourable |
-|---|---|---|
-| baseline | 47% | 60% |
-| campaign horizon | 47% | 60% |
-| + guard pricing (charge the detour for the guards it wakes) | 45% | 53% |
-| + side activation capped to 4 ("a guard guards") | 54% | 68% |
-| + crowd penalty scaled by threat instead of flat | 46% | 53% |
-
-Guard pricing helped slightly and was kept. The activation cap made it worse
-and is off. The crowd scaling changed literally nothing and was reverted.
-
-### Settled: there was no inversion, and the choice is simply always taken
-
-Measured properly — 50 full descents, `descentCurve().discrimination`:
-
-```
-favourable   87%  (n = 538)
-unfavourable 86%  (n = 449)
-gap 1.4 points, z = 0.64        => within noise
-```
-
-**The inversion was not real.** The earlier 46% / 53% was noise, and it was
-also measured wrong: those runs dropped a *fresh, unarmed* hero onto floors 5
-to 8 in isolation, where they die early — so "chests opened" was mostly
-measuring how far the hero got before dying, not what they chose. In a real
-descent, with a hero carrying what the floors above gave them, the two rates
-are the same.
-
-**What is true is duller and more useful: the bot opens 87% of everything.**
-Good room, bad room, spine room — it takes the lot. There is no discrimination
-to explain because there is no discrimination at all, in either direction. The
-gamble is still a free lunch; the variance made individual rooms differ without
-making any of them worth refusing.
-
-That is the thing to attack next, and it is about the *level* of the reward
-rather than its spread: while a chest is worth its walk 87% of the time, no
-amount of varying the odds will produce a decision.
-
-Two other readings from the same run, both worth watching:
-
-```
-floor         1     3     4     5     7    10
-spine share  1.00  1.00  0.58  0.71  0.68  0.73
-side cleared   0%    0%   82%   65%   74%   86%
-```
-
-Floor 4 comes out at **0.58**, under the 0.70 the design calls for — it is the
-first floor to attempt the split (`MIN_ROSTER_FOR_SIDE`) and four creatures is
-still coarse. And `side cleared` sits at 65–86%: the hero kills most of the
-optional threat too, which is the same finding from the monsters' side.
-
-### An earlier wrong answer, kept on purpose
-
-A first diagnosis was written and is **retracted**. It claimed the mass budget
-inverts headcount — a low-risk room needing more bodies to fill its share —
-and that summed menace therefore prices the safe room above the deadly one.
-The room composition is real:
-
-```
-side room       creatures   mean xp   bite each   SUMMED MENACE   mass
-favourable        2.05       2.72       0.72          1.47        13.0
-unfavourable      1.88       3.13       0.89          1.67        16.3
-```
-
-But the last column kills the story. The unfavourable rooms carry **more**
-summed menace, not less, so the bot is not being fooled into thinking they are
-safer. Whatever draws it in, it is not that.
-
-**The bot's threat maths is sound and was checked directly.** A rat has xp 1,
-so its die has a single face at zero: `expectedDamage(1, 0) = 0`, threat.js
-skips it from the danger field entirely, and `duelCost` returns exactly 0. The
-bot genuinely knows two rats are cheaper than one wolf. There is no
-weak-crowd blind spot to fix.
-
-**And the gap may not be real.** At n = 196 favourable and 148 unfavourable,
-the standard error on the difference is about 5.4 points. The measured gaps —
-13, 13, 8, 14, 7, 7 across the five variants — sit between 1.3 and 2.6 standard
-errors, and those variants share seeds, so they are not independent replays.
-The direction was consistent, which is suggestive, but the effect was reported
-above with far more confidence than the sample supports.
-
-**That measurement has since been taken** (above): z = 0.64, no effect. The
-mass-quota change it recommended was never justified and is not needed.
-
-The lesson worth keeping: the gap was reported as a finding at 1.3 standard
-errors, and a causal story was built on top of it within the same session.
-`descentCurve().discrimination` now returns `z` alongside the rates so the
-next such gap has to clear the bar before it gets a story.
+The one lesson worth restating because it was learned in this file: a gap was
+reported as a finding at 1.3 standard errors and a causal story was built on it
+within the same session. It later measured at nothing.
+`descentCurve().discrimination` returns `z` alongside its rates now, so the
+next such gap has to clear the bar before it earns an explanation.
