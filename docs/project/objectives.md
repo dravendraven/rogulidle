@@ -14,20 +14,56 @@ the next one.
 That is a much more useful goal than "worth watching", because it names
 properties a design can actually have or lack:
 
-- **A reversal has to be possible.** A run whose outcome is settled by floor 2
-  is not a race. This is the one that matters most and it is the hardest to
-  measure.
-- **The outcome has to stay uncertain for as long as possible.** Not
-  balanced — *uncertain*. A coin flip at floor 9 beats a foregone conclusion at
-  floor 3.
-- **Winning has to feel like it was worth it.** Which is why `finishes` reading
-  near zero is not just a difficulty problem: nobody sees the payoff at all.
-- **It has to make you want the next one.** Runs loop with no gate, so this is
-  about each run ending in a way that is worth restarting from — not about
-  retention mechanics.
+- **Hope must never reach zero.** This is the sharpest form of the goal and it
+  subsumes "a reversal is possible". Hope can be *low* — your horse is last —
+  or high, but it has to exist, because a run whose outcome is already
+  determined is not a race even while it is still moving. A hero with 2 hp
+  standing on floor 8 that would cost forty is watching a result, not running a
+  race.
+- **The outcome stays uncertain for as long as possible.** Not balanced —
+  *uncertain*. A coin flip at floor 9 beats a foregone conclusion at floor 3.
+- **Winning rewards doing well, and stays rare enough to matter.** A band with
+  two named failures: too common and the win loses its charm, too rare and hope
+  goes with it. No number is set for the band; the two failure directions are
+  what to steer by.
+- **It has to make you want the next one.**
 
-**Still judged by watching.** None of the four is measured, and the project has
-already paid once for pretending a proxy was the thing.
+### Hope is measurable, and the instrument is already specified
+
+"Hope" is `P(finish | state now)` — the conditional chance of completing from
+where the hero actually stands. That is exactly what `I9` was filed to build.
+**It was filed as a tool for pricing coin; this makes it the instrument for the
+primary objective**, which is a much stronger reason to want it.
+
+It also means the current state fails this objective on its own terms rather
+than merely being hard: with finishes near zero, hope is near zero for most of
+most runs — the **"too rare, hope goes with it"** failure, named above by the
+owner and now diagnosed.
+
+And it explains why `I9` being blocked matters more than it looked. It is
+blocked on finishes being non-zero — the same thing the objective needs.
+
+### Cycles — a hypothesis, with a mechanism that already exists
+
+The owner's suggestion: alternating stretches of winning, of failing, and of
+trading wins and losses would make a better experience than a flat rate.
+
+**Worth recording that nothing needs building for this, and that it is already
+gated on the same thing.** Runs are independent draws — each seed is derived
+from the session seed and the run number, so nothing in the engine creates a
+cycle. But the shop does: coins bank on a clear, buy gear, make the next run
+easier, which earns more coins. **That is a ratchet.** And the owner's own death
+rule — lose the balance and the held items — is the crash that resets it. A
+ratchet with a reset is a sawtooth, which is the cycle structure described.
+
+**Two honest caveats.** The ratchet only engages once runs are winnable at all,
+so today the mechanism is inert for the same reason everything else is. And if
+compounding outruns the reset, cycles become a runaway instead — win once,
+snowball, win always, which is the *other* named failure. The death reset is
+the only brake, and nobody has checked it is strong enough.
+
+**Still judged by watching.** None of these is measured today, and the project
+has already paid once for treating a proxy as the thing.
 
 ## The bot's objectives
 

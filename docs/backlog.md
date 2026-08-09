@@ -179,6 +179,14 @@ hold
 
 Metrics agent proposal, filed with the reasoning intact. Nothing implemented.
 
+**Reframed after the owner refined the primary objective — this is worth more
+than it was filed as.** `P(finish | state now)` is not just a discount factor
+for pricing coin: it **is** "hope", which `docs/project/objectives.md` now names
+as the property that must never reach zero. Whatever else this table is for, it
+is the only proposed instrument for the game's primary objective. That does not
+unblock it — it still needs a non-zero finish rate to have signal — but it
+raises what it is worth building once that lands.
+
 ### What the proposal establishes, and it holds up
 
 **Coin's price in hp is settled and was not guessed.** The shipped table

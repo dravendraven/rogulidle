@@ -812,6 +812,10 @@ budget check (`MONSTER_GROWTH_REBALANCED × STRENGTH_GROWTH_REBALANCED^2.356
 15% band its test allows, but two thirds of the way to the edge. If a
 later item wants to spend that band, this is where it went.
 
+> **Superseded by M31 — the proxy was overstating this.** Read from the
+> generator, the same two states are −1.1% and +1.1%; almost none of the
+> band was spent here. See the M31 section for the corrected history.
+
 **Mid floors hold genuinely weaker creatures**, which is what "smoother
 up to floor 10" means and was accepted explicitly: ceiling index drops
 4 → 3 at floor 3, 5 → 4 at floor 5, 7 → 6 at floor 8. Only floor 10 was
@@ -1205,6 +1209,12 @@ ratio check exists to protect. The item's own instruction was to trust the
 direct reading over the indirect one here — both numbers are reported
 rather than only the one that looks fine.
 
+> **Corrected by M31 on two counts.** The ratio check now reads the
+> generator, so it is no longer frozen: it reads +6.0% here. And the
+> 1.34 ±0.03 band was never this check's — it bounds the observed ruler's
+> CHALLENGE growth, from M25's report, and applied to the closed form it
+> fails M24 from below as well. See the M31 section.
+
 **Confirmed with real play, n=80, same seeds as M29's own baseline**
 (`playDungeon`, zero overrides — literally shipped):
 
@@ -1231,6 +1241,67 @@ what floor 1 actually costs, and the same undercount applies to every
 other floor's own guardian too, so the floor-1-vs-floor-2 RATIO this item
 was built around should still be roughly fair even though neither
 absolute number is exact.
+
+## M31 — the budget check reads the generator instead of approximating it
+
+**No constant moved and no game behaviour changed.** This is a change to
+one test: the M7 budget check now reads `expectedFloorMass`, fitted over
+all ten floors with `growthOf`, instead of the proxy formula
+`MONSTER_GROWTH_REBALANCED × STRENGTH_GROWTH_REBALANCED^2.356 /
+MONSTER_GROWTH`. Reference (`MONSTER_GROWTH`) and tolerance (15%) are
+untouched — only the numerator changed. The fitted 2.356 exponent is no
+longer used by anything.
+
+**Why a formula was the wrong shape for this check.** It names two dials,
+so it is blind to every dial it does not name — and nine dials now decide
+which table row a creature comes from. `expectedFloorMass` reads
+`floorParams`, so it sees all of them, including ones not written yet.
+There is no list to maintain and no way for it to go quietly out of date.
+
+**Fitted over ten floors, not read at the endpoints.** M31 proposed
+`expectedFloorMass(9) / expectedFloorMass(0)`. Measured while building it,
+that reading has its own blind spot: it cannot see anything that only
+lifts the MIDDLE of the ladder. Raising `TIER_FLOOR_SHARE_PER_LEVEL` from
+0.08 to 0.30 changes nine of the ten floor masses and leaves the endpoint
+reading identical to four decimals; the fit moves. Same quantity on a
+clean geometric ladder, strictly more of the ladder read.
+
+**The proxy was not merely blind — it was overstating the drift, in every
+state it was ever read.** Measured across the shipped history:
+
+| shipped state | proxy | real climb/floor | real drift |
+|---|---|---|---|
+| M24 | +3.2% | 1.2856 | **−1.1%** |
+| M25–M28 | +9.4% | 1.3146 | **+1.1%** |
+| M29 | +14.35% | 1.3557 | **+4.3%** |
+| M30 (current) | +14.35% | 1.3779 | **+6.0%** |
+
+Two things fall out of that table. The proxy sat frozen across M30 while
+the real climb moved — the finding M31 was filed for. And every historical
+reading of "how much of the 15% band is left" was too pessimistic: M25's
+report put itself "two thirds of the way to the edge" at 9.4% when the
+generator was at 1.1%, and **M29 did not leave 0.65 points of band — it
+left about 11.** Items sequenced behind this one to learn how much budget
+they may spend (D1, M4) should read the corrected number.
+
+**The 1.34 ±0.03 band was not this check's band, and cannot be adopted as
+written.** M30 disclosed its growth as outside it, and M31 asked for that
+breach to be confirmed. Traced: that band comes from M25's report, where it
+bounds CHALLENGE growth measured by the observed ruler on real play
+(Sonda A read 1.317 ±0.016). It has never been the closed form's band, and
+applying it to the closed form fails **M24 as well**, from below (1.2856
+against a 1.31 lower edge) — so the premise that pre-M30 states were never
+near this edge does not hold for it. Whether the closed form should carry
+a band that tight is an owner decision, deliberately not taken here; the
+15% the check has always enforced is what shipped.
+
+**What the fix costs.** A mistyped `STRENGTH_GROWTH_REBALANCED` reads
+quieter than it used to (1.1452 → 1.30 moves the proxy to +54% but the real
+climb only to +13.8%), because the monster table has eleven rows and a
+strength ramp that overshoots saturates against them. That is the closed
+form being right and the formula describing a climb the game cannot
+deliver — and the existing no-saturation test is what catches that failure
+mode directly. A mistyped count growth still fails loudly (+22.9%).
 
 ## A guardian at the shrine (M14) — structural, on unconditionally
 
