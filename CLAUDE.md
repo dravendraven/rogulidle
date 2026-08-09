@@ -6,11 +6,16 @@ run starts the moment the last one ends.
 
 ## Before any work
 Read, in this order:
-1. `docs/rogule-spec.md` — the rules of Rogule, reverse-engineered from the
-   original ClojureScript source. This is the source of truth for game
-   behaviour. Deliberate divergences are in its §13.
-2. `docs/bot-strategy.md` — what the bot is trying to do and why.
+1. `docs/rules.md` — **what THIS game does. The source of truth for game
+   behaviour.** States rules, never values, so it cannot drift into being
+   wrong the way a document that restates numbers does.
+2. `docs/bot-strategy.md` — the bot's objectives and how it currently
+   pursues them.
 3. `docs/balance.md` — the single source of truth for ALL tuning numbers.
+4. `docs/rogule-spec.md` — **provenance, not behaviour.** The original
+   Rogule reverse-engineered, plus the deliberate divergences in its §13.
+   Read it to judge whether a change is legitimate, never to learn what the
+   code does — several of its pre-§13 sections are now false for this game.
 
 Design questions get answered from those docs or by asking the owner, never
 by inventing defaults.
@@ -26,9 +31,10 @@ by inventing defaults.
 
 P4 work is measurement-first: change one thing, measure it, write down what
 the measurement said even when it says the change did nothing. Several
-changes have been reverted on that basis and the reasons are kept in the
-files rather than deleted — see `SIDE_ACTIVATION_CAP` in balance.js and
-§2.1 of bot-strategy.md.
+changes have been reverted on that basis and the reasons are kept rather than
+deleted — every measured-and-rejected attempt is in
+`docs/project/decisions.md`, and the flags that carry one are left in the
+code with the number that killed them in the comment.
 
 ## Sessions and roles
 
@@ -55,7 +61,7 @@ item in full and report against what it asks for. Only the project agent
 adds or reorders items — if one looks wrong, say so instead of editing it.
 
 **Priority order right now**, owner-set:
-1. **The shop** — `docs/backlog.md`'s U6 arc (U6d's fix, then U6e, U6f).
+1. **The shop** — `docs/backlog.md`'s U6 arc: U6e, then U6f.
 2. **The lab** — `docs/lab-backlog.md`, the manual dungeon simulator.
 3. The rest of `docs/backlog.md`.
 
@@ -85,11 +91,16 @@ exists and what the alternative cost.
   and what was measured, and those numbers age into history the moment the
   dial moves. That is what let this file drift for months.
 - **The bot may only read `Observation` / `Belief`, never `GameState`.**
-  Fog of war is a design decision, not decoration — see spec §12.
-- The engine stays faithful to Rogule. Bot rules (like "kill everything
-  before the shrine") are enforced in the bot, not in the engine, so that
-  P4 can measure what relaxing them would cost. That rule has since been
-  relaxed by owner decision — see bot-strategy.md §0.
+  Fog of war is a design decision, not decoration — see `docs/rules.md` §7.
+  The rule is about the CHANNEL: a field that carries an unrevealed answer
+  has leaked it even if nothing reads that field.
+- **Bot rules live in the bot, engine rules live in the engine.** "Kill
+  everything before the shrine" was never an engine rule — the engine lets
+  the shrine be taken at any time — precisely so P4 could measure what
+  relaxing it costs. It has since been relaxed to spine-only by owner
+  decision. The engine is no longer faithful to Rogule in general: the
+  deliberate divergences are listed in `docs/rules.md` and reasoned in
+  `docs/rogule-spec.md` §13.
 
 ## Running it
 `python tools/dev-server.py` then open:

@@ -1,5 +1,33 @@
 # Especificação de regras do Rogule (Fase 0)
 
+> ## Este arquivo NÃO descreve o Rogulidle
+>
+> **Para saber o que o nosso jogo faz, leia `docs/rules.md`.**
+>
+> Isto é o **Rogule original**, revertido do ClojureScript na Fase 0, mais as
+> divergências deliberadas no §13. Serve para procedência — julgar se uma
+> mudança é legítima, achar o raciocínio e os números de uma decisão passada.
+>
+> **Várias seções antes do §13 são hoje FALSAS para este jogo**, e um agente
+> que as leia como regra vai errar. As conhecidas:
+>
+> | seção | o que ela diz | o que o jogo faz |
+> |---|---|---|
+> | §3 | tabela de monstros com os valores originais | a linha 0 mudou (M18); valores atuais só em `balance.md` |
+> | §5 Ganho de XP | +1 xp a cada duas mortes | **o xp do herói nunca cresce** |
+> | §5 Regeneração | +1 hp a cada 100 turnos | **não existe regeneração passiva** (§13.1) |
+> | §5 Combate | arma soma depois do dado | **arma alarga o dado** — metade do valor por ponto |
+> | §13.14 | arma garantida perto do herói | **desligada** desde o M29 |
+> | §9, §10 | "decidir: replicar ou corrigir", "decisões em aberto" | resolvidas; são artefatos da Fase 0 |
+>
+> Faltam entradas no §13 para M28, M29 e M30.
+>
+> **Isto não vai ser consertado seção por seção.** O documento tem valor como
+> registro do que era o original; reescrevê-lo para descrever o nosso jogo
+> destruiria as referências de linha que são a única coisa que ele guarda de
+> único. `docs/rules.md` existe para o outro trabalho.
+
+
 Engenharia reversa de <https://github.com/chr15m/rogule.com> (ClojureScript),
 commit `HEAD` em 2026-08-05. Este documento é a fonte da verdade para a
 reimplementação em `rogulidle`.
