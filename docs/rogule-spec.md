@@ -534,7 +534,22 @@ graça de olhar.
 
 ---
 
-## 13. Divergências deliberadas do original
+## 13. Divergências deliberadas do original — **FECHADO**
+
+> **Esta lista está congelada e não recebe entradas novas.** Ela registra as
+> divergências decididas enquanto o projeto ainda se media contra o original,
+> e vale por isso: o raciocínio e os números de cada uma estão aqui.
+>
+> **Divergência nova não vira §13.18.** A regra em si vai para
+> `docs/rules.md`, o raciocínio e o que foi medido vão para
+> `docs/project/decisions.md`, e o valor vai para a tabela do
+> `docs/balance.md`. Somar remendos a uma lista de remendos foi como este
+> arquivo passou a exigir que se lesse 17 exceções para saber o que o jogo
+> faz.
+>
+> Por isso **M28, M29 e M30 não estão aqui, de propósito**, e o §13.14 abaixo
+> descreve a arma garantida como se estivesse ligada — ela foi desligada pelo
+> M29. Não corrigido no lugar: o estado atual é `docs/rules.md`.
 
 Diferente de §9, que lista prováveis bugs a corrigir. Aqui são mudanças de
 regra conscientes.

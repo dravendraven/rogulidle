@@ -51,17 +51,18 @@ session, skip it.
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | U6e | The shop screen | ui | IN FLIGHT |
+| 1 | U6e | The shop screen | ui | REPORTED |
 | 2 | U6f | Watch a full loop, integration check | ui | READY |
 | 3 | M33 | `finishes` has gone to zero and nothing measures it | work | READY |
 | 4 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | READY |
 | 5 | M21 | Deep floors put a creature where the hero lands | work | READY |
 | 6 | X1 | Delete what nothing references | work | READY |
 | 7 | X2 | 25 comments cite bot-strategy sections that no longer exist | work + bot | READY |
-| 8 | D1 | The crowd-correction fit is overdue for its own redo | work | after M31 |
-| 9 | M4 | Side-room risk/reward spread scales with depth | work | after M31 |
-| 10 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
-| 11 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
+| 8 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
+| 9 | D1 | The crowd-correction fit is overdue for its own redo | work | after M31 |
+| 10 | M4 | Side-room risk/reward spread scales with depth | work | after M31 |
+| 11 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
+| 12 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -76,6 +77,44 @@ Closed work is in `docs/project/decisions.md`. Parked and unscheduled is in
 
 
 
+
+## X3 · mark which dials change the GAME and which change only THIS bot
+
+`work agent` · READY · **small, comments and one doc column — no behaviour**
+
+Sixteen constants in `src/sim/balance.js` are purely bot behaviour: step cost,
+goal stickiness, reversal penalty, duel safety margin, crowd penalty, danger
+falloff, exposure weight, hold range, the tactical dials, the frontier reveal
+weight, the unknown-monster estimate, the loot horizon, the bot's chest-loot
+belief, and whether the bot is told the monster count.
+
+**They are in the work agent's directory and they are not the work agent's
+concern.** B8 was a bot finding the work agent had to commit for that reason.
+
+**This item does NOT move them.** Moving them would split the one thing
+currently working: `docs/balance.md`'s top table is the project's defence
+against value drift — spot-checked accurate, including dials changed the same
+day — and it holds because every tunable lives in one of two known files. A
+third source risks that to buy tidiness.
+
+**The distinction worth making visible instead.** A game dial changes the
+game: every player meets it, bot and both probes alike. A bot dial changes one
+player's judgement while the game is identical — `makeSondaPolicy` does not
+read `DUEL_SAFETY_MARGIN` at all. **A bot dial is not part of the game's
+definition**, and nothing in the file or the table says so today.
+
+**Do.** Group the sixteen under a header in `balance.js` saying plainly that
+they tune the bot and not the game, and mark them in `docs/balance.md`'s top
+table (a column, or a separate table — reader's clarity decides). Then a
+crossing is legible in advance rather than discovered: "this is a bot dial
+living in a work file, expect the bot agent to need a hand."
+
+**Assert.** No value changes and no import moves — a diff touching anything
+but comments and the doc has gone wrong. Tests green.
+
+**If moving them ever becomes right** — frequent collisions on `balance.js`
+would be the signal — the refactor has a clean proof available that most do
+not: byte-identical bot traces on fixed seeds, the same proof E1 needs.
 
 ## D1 · the crowd-correction fit is overdue for the redo it asked for
 
