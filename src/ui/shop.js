@@ -12,6 +12,7 @@
 // what keeps a shop purchase indistinguishable from a chest find.
 
 import { ITEM_TABLE } from '../sim/balance.js';
+import { drawWeighted } from '../sim/rng.js';
 
 const byName = (name) => ITEM_TABLE.find((item) => item.name === name);
 
@@ -30,14 +31,20 @@ export const SHOP_ITEMS = [
 // pricier purchase wins more often without being deterministic — keeps
 // what's watched varying run to run rather than converging on one answer
 // either way once the balance clears the shield price.
-export function pickDefaultPurchase(balance) {
+//
+// `seed` — caller-supplied, derived the same way a run's own seed is
+// (hashSeeds(sessionSeed, runNumber)). This used to draw from
+// Math.random(), which was the one thing in src/ui/ that broke "?seed=
+// makes the whole session reproducible": the default purchase becomes
+// the next run's startingItems, so an unseeded draw meant the same
+// ?seed= produced a different loadout, and therefore a different run,
+// on replay — found in review, not by this file's own testing.
+// drawWeighted (src/sim/rng.js) rather than a hand-rolled weighted pick,
+// so this shares the one implementation of "pick weighted by X" instead
+// of carrying a second copy that could drift from it.
+export function pickDefaultPurchase(balance, seed) {
   const affordable = SHOP_ITEMS.filter((entry) => entry.price <= balance);
   if (affordable.length === 0) return null;
-  const totalWeight = affordable.reduce((sum, entry) => sum + entry.price, 0);
-  let roll = Math.random() * totalWeight;
-  for (const entry of affordable) {
-    roll -= entry.price;
-    if (roll <= 0) return entry;
-  }
-  return affordable[affordable.length - 1];
+  const state = { rng: { shop: seed } };
+  return drawWeighted(state, 'shop', affordable.map((entry) => [entry, entry.price]));
 }

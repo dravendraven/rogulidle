@@ -156,7 +156,7 @@ function renderShopItems(balance) {
 // applies — and per the item's own warning that IS what happens most
 // runs, since nobody is guaranteed to be watching a spectator that never
 // pauses for input.
-async function showShop() {
+async function showShop(defaultSeed) {
   if (!el.shop) return;
   const balance = getBalance();
   if (el.shopBalance) el.shopBalance.textContent = `balance: ${balance} 🪙`;
@@ -183,7 +183,7 @@ async function showShop() {
   el.shopItems.removeEventListener('click', onItemClick);
   if (el.shopSkip) el.shopSkip.removeEventListener('click', onSkipClick);
 
-  if (chosen === undefined) chosen = pickDefaultPurchase(balance);
+  if (chosen === undefined) chosen = pickDefaultPurchase(balance, defaultSeed);
 
   if (chosen) {
     setBalance(getBalance() - chosen.price);
@@ -430,7 +430,10 @@ async function runDescentForever(sessionSeed) {
 
     tallyDescent(run, finalState);
     await showDescentSummary(run, finalState);
-    await showShop();
+    // The default-purchase draw needs its own seed, same derivation as the
+    // run's own (hashSeeds(sessionSeed, runNumber)) — see shop.js's own
+    // comment for why this can't be Math.random().
+    await showShop(hashSeeds(sessionSeed, session.runNumber));
   }
 }
 
