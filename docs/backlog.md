@@ -51,18 +51,17 @@ session, skip it.
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | U6e | The shop screen | ui | REPORTED |
-| 2 | U6f | Watch a full loop, integration check | ui | READY |
-| 3 | M33 | `finishes` has gone to zero and nothing measures it | work | READY |
-| 4 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | READY |
-| 5 | M21 | Deep floors put a creature where the hero lands | work | READY |
-| 6 | X1 | Delete what nothing references | work | READY |
-| 7 | X2 | 25 comments cite bot-strategy sections that no longer exist | work + bot | READY |
-| 8 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
-| 9 | D1 | The crowd-correction fit is overdue for its own redo | work | after M31 |
-| 10 | M4 | Side-room risk/reward spread scales with depth | work | after M31 |
-| 11 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
-| 12 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
+| 1 | U6e | The shop screen | ui | **NEEDS FIX** · Math.random breaks session replay |
+| 2 | U6f | Watch a full loop, integration check | ui | after U6e · needs the persist flag |
+| 3 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | READY |
+| 4 | M21 | Deep floors put a creature where the hero lands | work | READY |
+| 5 | X1 | Delete what nothing references | work | READY |
+| 6 | X2 | 25 comments cite bot-strategy sections that no longer exist | work + bot | READY |
+| 7 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
+| 8 | D1 | The crowd-correction fit is overdue for its own redo | work | after M31 |
+| 9 | M4 | Side-room risk/reward spread scales with depth | work | after M31 |
+| 10 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
+| 11 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -231,52 +230,6 @@ And the shop question that started this: with a ladder, is there a real
 choice between shields and the next weapon tier, or does one still
 dominate?
 
-## M33 · `finishes` has gone to zero, and nothing is measuring it any more
-
-`work agent` · READY · **found by B11's review; blocks nothing, breaks
-everything downstream that reads a finish rate**
-
-`finishes` — the share of runs clearing all ten floors, the product's one
-headline success metric — reads **0% on every arm of every recent
-measurement**. B11's own safety rule ("stop if finishes falls") was
-therefore incapable of firing, and it is the second item in a row where
-that guard was decorative.
-
-**This is not sampling noise.** Traced through this session's own reports:
-
-    B3 / B4 era        5.0% -> 6.7%
-    B9 (post-M29)      1.3%  /  0.0%
-    B11                0%  on all four arms
-
-The drop lands on **M29**, which turned `GUARANTEE_FIRST_WEAPON` off.
-**M29 reported mean death floor and share-dying-by-floor-2 — never
-`finishes`.** Its review adopted the change as "ties baseline" on those two
-numbers, and the owner accepted parity on that basis. Nobody checked what
-it did to the metric the whole product is judged by, so the trade was
-accepted without its largest cost on the table. That is the finding, and it
-is a review failure as much as an item one.
-
-**Why it matters beyond bookkeeping.** A metric stuck at 0 cannot
-discriminate between changes — every future item's safety check against it
-is vacuous, exactly as B11's was. And `docs/lab-backlog.md`'s **L9 reports
-finish rate as a dashboard headline**, so the lab would ship with a number
-that is always zero unless this is resolved first.
-
-**Do.** Establish what `finishes` actually is at a sample big enough to
-read a low rate at all — a rate near 1% needs far more than n=60 to
-distinguish from 0. Then decide, explicitly and with the owner: is ~0%
-acceptable as the shipped difficulty, or is this the point where the
-M29 parity decision gets revisited with the missing number in hand?
-
-**Do not quietly re-tune to make the number move.** The decision about how
-hard the game should be is the owner's, and M29's own review recorded the
-options (spend past the M7 band, revisit floor 10's pin, restore the
-guarantee). This item's job is to put the measurement on the table, not to
-pick.
-
-**Assert.** `finishes` at a sample that can actually resolve a low rate,
-on both seed families, against the pre-M29 state as a reference point.
-Report the sample size needed rather than assuming n=60 was ever enough.
 
 ## M21 · deep floors have something waiting where you land
 
@@ -433,7 +386,7 @@ spread widened. Measured on the probes.
 
 ## U6e · the shop screen
 
-`ui agent` · **IN FLIGHT** — U6d's shield gap is fixed, see its Fix section · fifth of six
+`ui agent` · **NEEDS FIX** — see the review at the end — U6d's shield gap is fixed, see its Fix section · fifth of six
 
 Three purchase options at run end, priced per the table already fixed
 (shield 1, dagger 5, axe 8 — `docs/project/candidates.md`'s old U6 has the
@@ -554,6 +507,134 @@ xp/gold within a run — filed here as the note to find when one does, per
 the sequencing metrics itself proposed: persistence and shop first (this
 arc), measure real purchased-gear effect second, decide whether the bot
 should spend hp chasing gold third.
+
+### Result
+
+Built: `src/ui/shop.js` (SHOP_ITEMS from the real `ITEM_TABLE`, priced
+1/5/8; `pickDefaultPurchase`, weighted by price among what's affordable —
+deliberately not "cheapest affordable", per the item's own warning that
+would make every unwatched run buy shields forever). `src/ui/wallet.js`'s
+held item became a held-item **list** (`getHeldItems`/`setHeldItems`/
+`addHeldItem`), the one structural change the item called out for
+multi-buy. `index.html`/`style.css`: a `#shop` overlay reusing `.summary`'s
+fade/centering, three item buttons (afford/cannot-afford state via
+`disabled` + a dimmed class) and a skip button. `src/ui/spectator.js`:
+`startingItems: getHeldItems()` threaded into `playDungeon`'s options each
+run; `showShop()` after the run summary, non-blocking like `showCoinPopup`
+— a click (buy or explicit skip) resolves it immediately, otherwise
+`pickDefaultPurchase` applies when the timer runs out, same
+pause-respecting poll loop as every other timed overlay in this file.
+
+**Verification note, upfront.** The browser tool disconnected mid-session
+and did not come back, so this was **not** watched live end-to-end — the
+gap U6f is explicitly for. What follows is what could be done without it,
+and it's real but it isn't the same thing.
+
+Checked what Node could reach without a browser: `node --check` on every
+touched file (syntax only). `src/sim/mapgen.js` imports ROT.js from a CDN
+URL (the project's own only-external-library rule), which this Node's
+ESM loader can't fetch, so the engine itself couldn't run here — but
+`shop.js` and `wallet.js` don't import the engine, so their actual code
+(not a reimplementation) ran directly: `pickDefaultPurchase(10)` over
+20000 draws split 57%/35%/7% axe/dagger/shield (matches the intended
+weighting), `balance=3` always picked the shield (only one affordable),
+`balance=0` returned null; the wallet's balance/held-items round-trip,
+multi-buy (two shields both stored), the purchase-deduction formula
+(20 − 5 = 15), and both `resetOnDeath` branches all matched by hand.
+`startingItems`'s actual engine behavior (armour granted, multi-buy
+stacking, `carry` winning on floor 2+) is U6d's own tested ground, not
+re-proven here.
+
+**What's unverified as a result:** the shop overlay actually appearing
+and clearing itself on screen, a real click resolving a purchase, and a
+purchased item showing up in the next run's inventory in a live page.
+Flagging rather than claiming it, per this file's own instruction not to
+report a wrong answer by omission.
+
+**Stale-doc check.** None of `docs/rules.md`, `docs/bot-strategy.md` or
+`docs/map-design.md` move. The shop decides what a run *starts holding*
+through the `startingItems` entry point U6d already built, tested and
+documented — it changes no engine rule, no bot objective or
+decision-making (the bot's existing marginal-value pricing already
+handles a pre-held item correctly, per U6e's own "checked, not assumed"
+section above), and no map dial.
+
+### Review — NOT DONE. One real defect, and the shop is inert for a reason
+### that is not this item's fault
+
+**The weighted default is the best decision in this item.** The warning said
+"cheapest affordable" would make every unwatched run buy shields forever, and
+the obvious reading of that was "so pick something else". Instead it weights
+by price among what is affordable, so the pricier purchase wins more often
+without being deterministic — the screen keeps varying rather than converging
+on any single answer. That is the harder correct thing, not the easy
+compliant thing.
+
+Reusing `ITEM_TABLE` rather than redefining the items is right, and for the
+stated reason: a purchase has to be indistinguishable from a chest find for
+U6d's entry point to accept it. The held-item slot became a list, which was
+the one structural change multi-buy needed. The overlay follows the same
+pause-respecting poll every other timed overlay here uses.
+
+**And the verification is honest in the way that matters.** The browser tool
+died mid-session and the report says so upfront, names exactly what is
+therefore unproven (the overlay appearing, a real click, a purchased item
+showing up in the next run), and does not dress the Node-level checks up as
+the same thing. It is also the first item to use the stale-doc requirement,
+and answered "none moved" with reasoning rather than as a formality.
+
+### The defect: `Math.random()` breaks session reproducibility
+
+`shop.js:37` draws the default purchase with `Math.random()`.
+
+**The letter of the rule is intact — it is `src/ui/`, not `src/sim/`. The
+guarantee is not.** `CLAUDE.md` states "Determinism is sacred: same seed =
+same run, always" and "`?seed=anything` makes the whole session
+reproducible". Checked: `shop.js:37` is the **only** `Math.random()` in
+`src/ui/`, so that guarantee held right up until this item.
+
+It breaks because the default purchase is not cosmetic — it becomes the next
+run's `startingItems`. Same seed, different loadout, different run. And since
+the default is what fires in most runs, this is the common path, not an edge.
+
+**Fix.** Draw it from the session's own seeded stream, exactly the way run
+seeds already derive: `hashSeeds(sessionSeed, session.runNumber)` and
+`rng.js`'s `drawWeighted`. The weighting stays exactly as designed — this
+changes where the randomness comes from, not what it does.
+
+### The shop cannot be reached at current difficulty, and that is upstream
+
+Traced the ordering: `tallyDescent` (which calls `resetOnDeath` on anything
+short of a clear) → `showDescentSummary` → `showShop`. So **on a death the
+balance is already zero by the time the shop opens**, nothing is affordable,
+and `pickDefaultPurchase` correctly returns null.
+
+Only a full clear leaves money to spend. `finishes` reads ~0%.
+
+**This is not a U6e bug — it is the owner's death rule, correctly
+implemented**, and the consequence was flagged when that rule was chosen. The
+number has since got worse (5–6.7% then, ~0% now). The ordering is also
+defensible on its own terms: the run settles, then you shop with what you
+actually have.
+
+**What follows from it:** U6e ships correct and inert, and **U6f cannot
+observe a purchase end-to-end** without either a clear or temporarily
+flipping `PERSIST_BALANCE_ACROSS_DEATH`. U6f should use the flag and say it
+did. The real unblocker is the owner's current work on `finishes` with the
+metrics agent.
+
+### One decision that was made by accident and should be made on purpose
+
+**A held item is never consumed.** `addHeldItem` appends, `getHeldItems()`
+feeds `startingItems`, and nothing removes it once the run starts. So a
+bought dagger arms every subsequent run until a death clears it — it is not
+a one-run purchase.
+
+Practically moot while deaths are near-universal, which is exactly why it
+would go unnoticed and then surprise someone later. Worth one line of owner
+decision: is a purchase permanent-until-death, or spent on the run it buys?
+Either is defensible; only "nobody chose" is not.
+
 
 ## U6f · watch a full loop, coins to gear to next run to death to reset
 

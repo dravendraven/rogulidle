@@ -334,3 +334,13 @@ consecutive bot items shipped with "stop if `finishes` falls" as their
 guard, while `finishes` read 0% on every arm. See M33 — the drop was never
 measured when it happened, because the item that caused it reported two
 other numbers instead.
+
+**A safety rule that reads a metric stuck at zero is decorative.** B9 and B11
+both shipped with "stop if `finishes` falls" as their guard while `finishes`
+read 0% on every arm, so neither guard could fire. It fell from 5-6.7% to
+~0% around M29, whose own report gave mean death floor and
+share-dying-by-floor-2 and never mentioned `finishes` — so the parity trade
+was accepted without its largest cost on the table. **Before writing a guard,
+check the metric can currently move.** A rate near zero also needs a far
+larger sample than the n=60 these items used to be distinguished from zero at
+all.
