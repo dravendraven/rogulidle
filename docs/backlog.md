@@ -54,14 +54,15 @@ session, skip it.
 | 1 | U6e | The shop screen | ui | **NEEDS FIX** · Math.random breaks session replay |
 | 2 | U6f | Watch a full loop, integration check | ui | after U6e · needs the persist flag |
 | 3 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | READY |
-| 4 | M21 | Deep floors put a creature where the hero lands | work | READY |
-| 5 | X1 | Delete what nothing references | work | READY |
-| 6 | X2 | 25 comments cite bot-strategy sections that no longer exist | work + bot | READY |
-| 7 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
-| 8 | D1 | The crowd-correction fit is overdue for its own redo | work | after M31 |
-| 9 | M4 | Side-room risk/reward spread scales with depth | work | after M31 |
-| 10 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
-| 11 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
+| 4 | I9 | Conditional survival table, so coin can be priced in hp | metrics | BLOCKED on finishes > 0 |
+| 5 | M21 | Deep floors put a creature where the hero lands | work | READY |
+| 6 | X1 | Delete what nothing references | work | READY |
+| 7 | X2 | 25 comments cite bot-strategy sections that no longer exist | work + bot | READY |
+| 8 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
+| 9 | D1 | The crowd-correction fit is overdue for its own redo | work | after M31 |
+| 10 | M4 | Side-room risk/reward spread scales with depth | work | after M31 |
+| 11 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
+| 12 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -139,6 +140,97 @@ law as `2 × 1.3^(N-1)`, stale since M17. M25 flagged it rather than
 rewriting someone else's record. Fix it here.
 
 
+
+## I9 · a conditional survival table, so coin can be priced in hp
+
+`metrics agent` · **BLOCKED on `finishes` being non-zero** — see below; the
+proposal said "can be done now" and that is the one thing in it that does not
+hold
+
+Metrics agent proposal, filed with the reasoning intact. Nothing implemented.
+
+### What the proposal establishes, and it holds up
+
+**Coin's price in hp is settled and was not guessed.** The shipped table
+(shield 1, dagger 5, axe 8) lands within 5% of the same exchange rate against
+what `loot.js` really charges via `campaignCost` with and without the item —
+three items agreeing on one rate is a validation, not a coincidence.
+
+**Coin only has value if the run banks it, so it must be discounted by the
+chance of finishing — and by the CONDITIONAL chance from where the hero
+actually is, not the overall run rate.** This is the strongest part of the
+proposal and it avoids a trap this project has already been burned by:
+`decisions.md` records that depth does not make the game more forgiving, it
+makes the surviving sample more exclusive, and that buffer's sign flips
+between floors 1-6 and 1-10 purely from selection. A hero on floor 8 is not an
+average hero. Using the global rate would misprice every deep decision, in the
+direction that matters most.
+
+**The marginal-turn derivative is correct.** With coins per floor as
+`10 × xp / turns`, the derivative with respect to turns is `−10 × xp / turns²`,
+so the cost of a turn is that times hp-per-coin times the conditional success
+chance. The algebra checks.
+
+### Three corrections before this gets built
+
+**1. It prices a WASTED turn, not a turn.** The derivative holds xp constant
+while turns rise, which describes walking, dithering, and pacing. A combat turn
+raises xp *and* turns — the full change is `(t·dxp − xp·dt) / t²`, and a fight
+that pays enough xp is net positive. Applied blindly to every turn this would
+tell the bot that fighting is expensive, which is the opposite of what it
+means. State the scope in the code or the next reader will misuse it.
+
+**2. Weapon belongs in the first cut of the axes, not deferred.** The proposal
+suggests floor × effective hp first, weapon as a later binary. But
+`docs/rules.md` establishes that **weapons are the only thing in this game that
+makes the hero permanently stronger** — and the M29 measurement puts one
+dagger at roughly half a floor of survival (mean death floor 3.5 against 2.95
+with the guarantee off). Two heroes on floor 5 with identical effective hp, one
+holding an axe and one unarmed, do not have the same prospects, and blurring
+them is blurring the axis that carries the most signal. Sample size is not the
+obstacle it looks like: the table is precomputed offline, so more cells is a
+compute cost, not a data-availability one.
+
+**3. A precomputed table is a measurement snapshot, and this project just
+deleted two of those for rotting.** `map-design.md` carried spine-mass readings
+that drifted about twenty points from reality; `rogule-spec.md` still asserts a
+monster table the game abandoned. Both rotted for the same reason: no owner and
+no rule. **A survival table baked into the bot's pricing has exactly that
+shape** — dials move (they are moving this week) and it silently misprices
+without anything failing. It needs one of: regeneration as a step in the
+balance workflow, or a test that re-measures a few cells and fails when the
+stored table drifts past a tolerance. Pick one deliberately rather than
+discovering the need later.
+
+### Why it is blocked, and on what
+
+`finishes` reads **0% to 1.3%** across every recent measurement. That starves
+the table from both ends at once:
+
+- **Shallow cells have plenty of samples and no signal** — almost nobody
+  finishes from floor 1, so `P(success | floor 1, any hp)` is indistinguishable
+  from zero, and a rate near zero needs a far larger sample than anything run
+  so far to separate from zero at all.
+- **Deep cells have signal and almost no samples** — `P(finish | reached floor
+  8)` is genuinely interesting, but few runs get there to measure it.
+
+**And the deep cells are the ones that matter**, because they are where coin
+plausibly banks. The table would be mostly noise exactly where it needs to be
+sharp.
+
+**The unblocker is already in hand:** the owner is working on `finishes`
+directly with this same agent. Build the table against that, not against
+today's numbers — and record the finish rate it was measured at, because the
+table is only valid for the difficulty it was measured under.
+
+### What it still does not resolve
+
+The table gives a price. It does not let the bot act on one: no coin term
+exists in the bot, and there is nothing to buy until the shop is real. The
+sequencing the proposal itself gives is right — table, then a working economy,
+then bot decisions — and `U6e`'s own notes already carry the standing warning
+not to feed the coin formula into `chooseGoal` as a decision price when that
+day comes.
 
 ## M31 · the M7 budget check has a blind spot
 
