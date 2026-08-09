@@ -86,7 +86,7 @@ session, skip it.
 | — | I9 | Conditional survival table = the "hope" instrument | metrics | BLOCKED on finishes > 0 |
 | 6 | I10 | A supported headless runner for measurements | metrics | READY |
 | 7 | I11 | Does the ruler read true when the starting hero changes? | metrics | READY |
-| 8 | M34 | Nothing measures what a direct run can skip | metrics | READY |
+| 8 | M34 | Nothing measures what a direct run can skip | metrics | **DONE** |
 | 9 | M21 | Deep floors put a creature where the hero lands | work | READY |
 | 10 | X1 | Delete what nothing references | work | READY |
 | 11 | X2 | Comments in src/ that lie: 25 stale refs + 3 false claims | work + bot | READY |
@@ -912,7 +912,22 @@ shop's account alone.
 
 ## M34 · nothing measures how much of a floor a direct run can skip
 
-`metrics agent` · READY · **an objective is currently unverifiable**
+`metrics agent` · **DONE** — built as `topologyShape`, ahead of being read
+
+Built before this item was picked up, in the same pass that added the tail
+statistic. `topologyShape` (`observed-ruler.js`) takes the shortest
+hero→shrine route and, per creature, compares BFS distance to that route
+against its own activation radius — **the same rule `monsters.js` applies in
+play**, not an approximation of it. That is exactly the quantity this item said
+nothing measured. It is a Map KPI on the panel with a stated band.
+
+**Two things it got right that the item asked for.** It is geometry over freshly
+generated state, so it costs nothing and cannot be confounded by how the bot
+happens to play. And it added no dial — the item said not to, and the fix if the
+reading comes out wrong lives in activation radii or shrine placement, both of
+which already have one.
+
+Kept below as filed, for the reasoning.
 
 `docs/project/objectives.md` states four map properties. The fourth — most of
 the threat on the fast route — is the only one with **no way to check it.**

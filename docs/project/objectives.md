@@ -95,18 +95,25 @@ variance between side rooms was built and works; what is missing is a *level*
 of reward at which refusing is ever correct.
 
 **3. A tail of randomness — rare floors that come out harder than expected,
-and the tail thickens with depth.** Built and shipped: a creature can come from
-above the floor's band, with the chance growing as the descent goes on.
+and the tail thickens with depth.** The mechanism is built and shipped: a
+creature can come from above the floor's band, with the chance growing with
+depth.
+**But the shape is measured as not met.** The metrics agent built a one-sided
+tail statistic (p90 over mean — CV could not answer this, being symmetric and
+treating "easier than average" the same as "harder") and the peak does not grow
+smoothly from floor 1 to 10. It is uneven and peaks around the middle of the
+ladder rather than the bottom. Diagnosed rather than merely observed — see
+`X6`, which now owns the cause.
 
 **4. Most of the threat on the fast route.** If a direct run to the portal can
 skip most of the floor, the mandatory path is not mandatory. The intended shape:
 a direct run wakes well over half the floor, and only a modest fraction is left
 standing afterwards.
-**Partly unverifiable today.** The dial that exists (`SPINE_THREAT_SHARE`)
-controls where threat is *placed*. This property is about what a direct run
-*wakes*, which depends on activation radii and route geometry — a different
-quantity, and **nothing measures it.** The one module that came close is dead
-code on X1's delete list.
+**Now measured, and it is a KPI on the panel.** `topologyShape` walks the
+shortest hero→shrine route and, for every creature, compares its real distance
+to that route against its own activation radius — the same rule `monsters.js`
+uses in play. That is the woken quantity, not the placed one. `SPINE_THREAT_SHARE`
+still only controls placement; the two are different numbers and both now exist.
 
 ## How work gets found
 
