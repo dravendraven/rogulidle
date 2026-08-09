@@ -22,6 +22,11 @@ The task list. Everything needed to pick up a task and finish it.
 `bot-strategy.md` or `map-design.md` — or says plainly that none moved. See
 `CLAUDE.md`. "None" is a valid answer that still has to be written.
 
+**A new parameter is the last resort, not the first.** Change an existing
+value, or what an existing parameter means, or delete what is fighting you —
+before adding. A report that adds one says in a line why an existing one could
+not carry it. See `CLAUDE.md`; the nine tier clamps are why the rule exists.
+
 **Before filing anything, ask: if this changes, does a previous measurement
 become invalid?** Yes → it is STRUCTURE, and it is worth deciding early and
 cheaply. No, it only moves a value → it is a NUMBER, and it should be tuned

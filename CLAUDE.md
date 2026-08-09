@@ -137,6 +137,34 @@ exists and what the alternative cost.
   **Never restate a value in prose** — the prose records why a dial exists
   and what was measured, and those numbers age into history the moment the
   dial moves. That is what let this file drift for months.
+- **Fix a problem with the fewest moving parts you can, and never add a
+  parameter to compensate for a parameter.** In order of preference:
+  change an existing value; change what an existing parameter *means* or how
+  far it can reach; delete the thing that is fighting you; and only then add
+  something new. Adding is the last option, not the first.
+
+  **The test, because "keep it simple" is not actionable:** does the new
+  parameter express a distinction that already exists in the game, or does it
+  express a concept the code already has? Splitting one scarcity dial into
+  weapon/armour/potion was right — those are genuinely separate pools that
+  needed to move independently. Three tier-clamp systems were not: they all
+  say "bound the drawn slot", and `tierCeilingShare` and `earlyTierCapShare`
+  are **literally the same expression** with different constants —
+  `Math.max(0, Math.min(cap, base + perLevel * level))` in both. M30's own
+  comment says "same shape as tierCeilingShare" and then duplicated it. The
+  `Math.max(0, ...)` is the only thing making a second function necessary; a
+  signed share in the first one would have covered both directions with zero
+  new dials.
+
+  Nine dials now decide which of eleven table rows a creature comes from, and
+  at the sample sizes here they cannot be told apart — while a single extra
+  term in the crowd correction was refused, in writing, for exactly that
+  reason. See X5 and X6.
+
+  **This does not conflict with the rule above it.** "No hardcoded balance
+  value" means a number you need must be a named dial; it does not mean a
+  change needs a *new* one. When a report adds a parameter, it says in one
+  line why an existing one could not carry it.
 - **The bot may only read `Observation` / `Belief`, never `GameState`.**
   Fog of war is a design decision, not decoration — see `docs/rules.md` §7.
   The rule is about the CHANNEL: a field that carries an unrevealed answer
