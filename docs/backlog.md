@@ -77,21 +77,22 @@ session, skip it.
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
 | 1 | U6e | The shop screen | ui | **DONE** |
-| 2 | U6f | Watch a full loop, integration check | ui | IN FLIGHT |
+| 2 | U6f | Watch a full loop, integration check | ui | REPORTED · not watched live, see Result |
 | 3 | B13 | Charge a pursuer where it actually collects — before B12 | bot | **REPORTED** · shipped OFF |
 | 4 | B12 | Fighting should compete with leaving, not precede it | bot | after B13 |
 | 5 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | READY |
 | — | X5 | Classify every dial by lifecycle, delete only the dead | work + bot | READY · at a structural boundary |
 | — | X6 | Collapse the tier clamps, redundancy proven first | work | after X5 |
 | 6 | I9 | Conditional survival table, so coin can be priced in hp | metrics | BLOCKED on finishes > 0 |
-| 7 | M21 | Deep floors put a creature where the hero lands | work | READY |
-| 8 | X1 | Delete what nothing references | work | READY |
-| 9 | X2 | Comments in src/ that lie: 25 stale refs + 3 false claims | work + bot | READY |
-| 10 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
-| 11 | D1 | The crowd-correction fit is overdue for its own redo | work | after M31 |
-| 12 | M4 | Side-room risk/reward spread scales with depth | work | after M31 |
-| 13 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
-| 14 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
+| 7 | M34 | Nothing measures what a direct run can skip | metrics | READY |
+| 8 | M21 | Deep floors put a creature where the hero lands | work | READY |
+| 9 | X1 | Delete what nothing references | work | READY |
+| 10 | X2 | Comments in src/ that lie: 25 stale refs + 3 false claims | work + bot | READY |
+| 11 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
+| 12 | D1 | The crowd-correction fit is overdue for its own redo | work | after M31 |
+| 13 | M4 | Side-room risk/reward spread scales with depth | work | after M31 |
+| 14 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
+| 15 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -795,6 +796,38 @@ choice between shields and the next weapon tier, or does one still
 dominate?
 
 
+## M34 · nothing measures how much of a floor a direct run can skip
+
+`metrics agent` · READY · **an objective is currently unverifiable**
+
+`docs/project/objectives.md` states four map properties. The fourth — most of
+the threat on the fast route — is the only one with **no way to check it.**
+
+**The dial that exists measures the wrong thing.** `SPINE_THREAT_SHARE`
+controls where threat mass is *placed* at generation. The objective is about
+what a direct run to the portal actually *wakes*, which depends on activation
+radii and route geometry. Placing 70% on the spine does not mean a direct run
+meets 70% of it — a creature sitting on the mandatory path with a small
+activation radius can be walked straight past.
+
+**Nothing measures the woken quantity.** The only module that came close
+(`features.js`'s `sumActivation`/`aggroPerTile`) is static map geometry, not a
+played route, and it is dead code on X1's delete list.
+
+**Do.** Walk the hero→portal path without fighting and count what activates.
+The probes already exist for exactly this kind of question — Sonda A collects
+nothing, which is close to the "direct run" this needs. Report the share of the
+floor's creatures woken, and the share left standing after arrival.
+
+**This is a tripwire, not a target** — see `objectives.md`. It fires or it does
+not; it is not a number to push. If a direct run can skip most of a floor, the
+mandatory path is not mandatory and there is a defect to find.
+
+**Do not add a dial for this.** It is a measurement, not a knob — and per
+`CLAUDE.md`'s minimum-change rule, if the reading comes out wrong the fix is
+likely in activation radii or shrine placement, both of which already have
+dials.
+
 ## M21 · deep floors have something waiting where you land
 
 `work agent` · **BLOCKED on M19**
@@ -1294,7 +1327,7 @@ around with the persist flag, the second is an owner decision.
 
 ## U6f · watch a full loop, coins to gear to next run to death to reset
 
-`ui agent` · **IN FLIGHT** · sixth of six, the integration check — closes
+`ui agent` · **REPORTED** · sixth of six, the integration check — closes
 the arc
 
 Not new logic — confirms U6a through U6e agree with each other end to end,
@@ -1312,6 +1345,47 @@ armed, die, confirm balance/item both reset to zero (flag off, default).
 Repeat with the flag on and confirm the opposite. If any step disagrees
 with what its own item asserted, the bug is in the seam between two items,
 not in either one — say which seam.
+
+### Result
+
+**Not played in a browser — the tool disconnected mid-U6e and never came
+back, across two sessions now.** What follows is the closest substitute
+found, and it is a real step up from U6e's own Node checks: those ran
+`shop.js`/`wallet.js` alone because `src/sim/mapgen.js` imports ROT.js
+from a CDN this Node's default loader can't fetch. This time a Node
+`module.register()` hook redirected that one specifier to a locally
+downloaded copy of the same ROT.js bundle — `src/sim/mapgen.js` itself
+untouched, nothing shipped — which let the **real, unmodified engine**
+run here too. Confirmed the substitution is faithful, not just
+non-crashing: seed 1 through `playDungeon` gave the identical
+`cleared:false, depth:2` this session had already observed live in-browser
+earlier in this arc.
+
+**Every step of the assert, run for real, against a real seed found by
+searching (not hand-picked):** a search from a fresh session seed hit a
+genuine 10-floor clear at run 377 (~1-in-400 here, consistent with
+`finishes` reading near zero) — 26 coins earned and banked, matching
+`tallyDescent`'s own bank line. Bought the dagger (5 coins) through
+`shop.js`'s real `SHOP_ITEMS`, balance 21. Started run 378 with
+`getHeldItems()` as `startingItems`: replayed its first floor and the
+dagger is in `state.player.inventory` at turn 0. That run died at depth 8.
+Ran `wallet.resetOnDeath()` (default flag, no override) exactly as
+`tallyDescent` calls it: balance 0, held items `[]`. Separately, seeded a
+balance of 42 plus an axe and called `resetOnDeath(true)`: both survived
+unchanged, confirming the flip side.
+
+**No seam disagreed with what its own item asserted.** Every number
+matched what U5/U6b/U6c/U6d/U6e each claimed for themselves, run together
+rather than in isolation.
+
+**What this does not prove.** The DOM layer — `showShop`'s click
+listeners, the timer racing a real click, the overlay's CSS transitions,
+`renderShopItems`'s disabled-button styling. Those need the actual page
+and remain unverified for exactly the reason stated at the top.
+
+**Stale-doc check.** None of `rules.md`, `bot-strategy.md` or
+`map-design.md` move — this item ran existing code together, it changed
+none of it.
 
 ## E1 · expose a resumable turn loop from src/sim
 
