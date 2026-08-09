@@ -8,7 +8,8 @@ blocked on nothing here.
 
 Same rules as `docs/backlog.md`: one item, one commit, one test asserting
 its own property. Only the project agent adds or reorders items. Report
-against what the item asks for.
+against what the item asks for, and name which behaviour document the change
+made stale (or that none moved) — see `CLAUDE.md`.
 
 ## What is being built
 

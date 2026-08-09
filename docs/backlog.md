@@ -18,6 +18,10 @@ The task list. Everything needed to pick up a task and finish it.
 
 ## How this works
 
+**Every report names which behaviour document it made stale** — `rules.md`,
+`bot-strategy.md` or `map-design.md` — or says plainly that none moved. See
+`CLAUDE.md`. "None" is a valid answer that still has to be written.
+
 **Watch the game. Fix what is wrong.** That is where items come from.
 
 One item, one commit, and a test asserting the thing the item was for — "a

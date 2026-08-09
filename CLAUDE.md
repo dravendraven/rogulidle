@@ -56,6 +56,53 @@ Work outside your role gets reported, not done. The one boundary worth
 keeping strictly: **whoever built a change does not decide whether it
 worked** — that is what a review is for.
 
+## Every report says what it made stale
+
+Three documents describe behaviour, and each rots the moment code moves under
+it. This has already happened twice: `bot-strategy.md` was organised around a
+"Rule 1" that B11 falsified, and `rogule-spec.md` still states rules this game
+stopped following.
+
+| document | describes | goes stale when |
+|---|---|---|
+| `docs/rules.md` | what the GAME does | an engine or generation rule changes |
+| `docs/bot-strategy.md` | what the BOT does and why | the bot's objectives or decision-making change |
+| `docs/map-design.md` | why the map is shaped as it is | the spine/side bargain or its dials change |
+
+**Every report ends with a line naming which of the three its change made
+false, or saying plainly that none of them moved.** Not optional, and "none"
+is a valid answer that still has to be written — the failure mode is never a
+wrong answer, it is the question never being asked.
+
+**Who updates it.** A purely descriptive correction — "the bot now ranks a
+fight against loot instead of only after it" — update it yourself in the same
+commit; you have the detail fresh and it needs no judgement. Anything that
+needs restructuring, or that only makes sense against other items, report and
+leave to the project agent. When unsure, report: a locally-correct paragraph
+that contradicts the rest of the file is worse than a flagged gap.
+
+**Two things that make "who owns which doc" the wrong question.**
+
+**Bot dials do not live in the bot's directory.** Sixteen constants that are
+purely bot behaviour — step cost, goal stickiness, reversal penalty, duel
+safety margin, crowd penalty, the tactical dials — live in
+`src/sim/balance.js`, which is the work agent's. B8 was a bot finding the work
+agent had to commit. **Which document to update follows what CHANGED, never
+whose directory the file sits in.**
+
+**A change can make someone else's document stale.** M26 moved weapons onto
+creatures and thereby changed what the bot should value, without touching
+`src/bot/` at all — B9 exists because of that. And going the other way, B9
+found a fog-of-war leak in the engine, which became M28. So the work agent can
+invalidate `bot-strategy.md`, and the bot agent can find something wrong in
+`rules.md`. Declare what your change made false, not what your role owns.
+
+**Never restate a value in any of the three.** They state rules, orderings and
+causes; `docs/balance.md`'s top table is the one place current values are
+written. `rogule-spec.md` restated the monster table and now asserts numbers
+the game abandoned — that is the disease, and it is avoidable by construction.
+
+
 `docs/backlog.md` is the task list. Your prompt names your task; read that
 item in full and report against what it asks for. Only the project agent
 adds or reorders items — if one looks wrong, say so instead of editing it.
