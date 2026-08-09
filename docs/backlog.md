@@ -880,6 +880,34 @@ would go unnoticed and then surprise someone later. Worth one line of owner
 decision: is a purchase permanent-until-death, or spent on the run it buys?
 Either is defensible; only "nobody chose" is not.
 
+### Fix
+
+Exactly the fix specified. `pickDefaultPurchase(balance, seed)` now draws
+through `src/sim/rng.js`'s `drawWeighted` against a minimal
+`{ rng: { shop: seed } }` stream state, instead of `Math.random()` — same
+weighting, sourced from the session's own seeded stream rather than an
+unseeded one. `src/ui/spectator.js` derives `seed` the same way a run's
+own seed already is (`hashSeeds(sessionSeed, session.runNumber)`) and
+passes it into `showShop(defaultSeed)`.
+
+**Verified in Node**, same constraint as before (the engine itself
+doesn't load here, but `shop.js` doesn't import it): the same seed picks
+the same item 5/5 times; different run numbers under one session seed
+still vary (an axe/dagger mix over 10 runs, not a constant); the weighted
+distribution across 20000 distinct seeds is unchanged from the
+`Math.random()` version (57/36/7 axe/dagger/shield); `balance=0` still
+returns `null` regardless of seed; `grep` confirms zero remaining
+`Math.random()` in `src/ui/`.
+
+**The other two review findings were not touched**, because the review
+named them as not this item's to fix: the shop-inert-at-death-time
+ordering is the owner's death rule working as chosen, and whether a held
+item should be consumed after one run is an open owner decision, not a
+bug. Left both exactly as reported.
+
+Still not watched live end-to-end — the browser tool that disconnected
+mid-session did not come back before this fix either. That gap is
+unchanged from the original report and is still U6f's to close.
 
 ## U6f · watch a full loop, coins to gear to next run to death to reset
 
