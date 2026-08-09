@@ -737,6 +737,30 @@ separately, that clamping the centre limits nothing and the clamp has to be on
 the drawn slot. Three times the same finding, three new systems, no
 consolidation.
 
+### The metrics agent found the cause of a failing objective, and it lands here
+
+The randomness-tail objective is measured as not met: the one-sided peak does
+not grow smoothly with depth, it is uneven and peaks mid-ladder. **The cause is
+a mismatch this family of dials has by construction.**
+
+`MONSTER_WEIGHTS` spreads by **absolute** offsets — a fixed ±2 indices, the same
+at every depth. The clamps that contain it are **proportional** — a share of the
+floor's ceiling index. So compensation is weak exactly where that index is small
+(shallow floors) and only reaches full strength deep, leaving the middle of the
+ladder under-protected. Verified: the offsets are literal constants, and the
+shares are multiplied by the ceiling index.
+
+**The suggested fix — raise the per-level rate — is the symptom.** It moves
+where the ramp completes without addressing why an absolute spread is contained
+by a proportional clamp. Per `CLAUDE.md`'s minimum-change rule that is the exact
+shape to avoid: tuning a parameter to compensate for a parameter.
+
+**The root fix is a change to what an existing dial means**, the rung above
+adding: make the clamp absolute (a count of indices rather than a share), or
+make the spread proportional. **This is an argument for doing X6, not for
+deferring it** — consolidation is the moment to fix the mismatch rather than
+carry it into fewer dials.
+
 ### The proposal understates how cheap this is — supplied by review
 
 **The floor and ceiling clamps are configured identically.** Base 0,
