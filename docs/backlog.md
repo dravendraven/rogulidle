@@ -53,10 +53,11 @@ session, skip it.
 | 4 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | READY |
 | 5 | M21 | Deep floors put a creature where the hero lands | work | READY |
 | 6 | X1 | Delete what nothing references | work | READY |
-| 7 | D1 | The crowd-correction fit is overdue for its own redo | work | after M31 |
-| 8 | M4 | Side-room risk/reward spread scales with depth | work | after M31 |
-| 9 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
-| 10 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
+| 7 | X2 | 25 comments cite bot-strategy sections that no longer exist | work + bot | READY |
+| 8 | D1 | The crowd-correction fit is overdue for its own redo | work | after M31 |
+| 9 | M4 | Side-room risk/reward spread scales with depth | work | after M31 |
+| 10 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
+| 11 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -273,6 +274,44 @@ zero.
 
 
 
+## X2 · 25 code comments point at bot-strategy sections that no longer exist
+
+`work agent` + `bot agent` · READY · **small, mechanical, and my fault —
+filed by the project agent that caused it**
+
+`docs/bot-strategy.md` was rewritten from "formalisation of the 3 rules" into
+a description of what the bot actually does. The old section numbers went with
+it, and **25 comments across `src/` still cite them** — `§1`, `§2`, `§2.1`,
+`§3`, `§4.0`, `§4.3`, `§4.4`, `§4.5`, plus "rule 1" by name.
+
+Spread: `src/bot/` (bot.js, duel.js, nav.js, tactics.js, threat.js,
+placeholder.js), `src/sim/` (balance.js, combat.js, monsters.js, observe.js),
+`src/analysis/` (observed-ruler.js, winnable.js).
+
+**Do not repoint them at new section numbers.** They would break again on the
+next rewrite, which is exactly how this happened. Two better targets
+depending on what the comment is actually citing:
+
+- **Reasoning about something that failed or was measured** → point at
+  `docs/project/decisions.md`, which is where that now lives permanently and
+  is organised by finding rather than by section.
+- **Reasoning about what the bot currently does** → point at
+  `docs/bot-strategy.md` with no section number, or name the function
+  (`worthStarting`, `campaignCost`) instead. A named function survives
+  reorganisation; a section number does not.
+
+Some may turn out to cite something worth stating inline in two lines rather
+than by reference at all — that is a better outcome than a pointer.
+
+**Split by role:** `src/bot/` is the bot agent's; `src/sim/` and
+`src/analysis/` are the work agent's. Either can go first, no ordering.
+`placeholder.js` is on X1's delete list, so its reference may resolve by
+deletion.
+
+**Assert.** No `bot-strategy` reference in `src/` cites a section number.
+Tests green — this is comments only, and a diff that touches anything but
+comments has gone wrong.
+
 ## X1 · delete what nothing uses
 
 **`run-zigzag.html` and `run-b9.html` are both clear to delete now** —
@@ -351,7 +390,7 @@ spread widened. Measured on the probes.
 
 ## U6e · the shop screen
 
-`ui agent` · **READY** — U6d's shield gap is fixed, see its Fix section · fifth of six
+`ui agent` · **IN FLIGHT** — U6d's shield gap is fixed, see its Fix section · fifth of six
 
 Three purchase options at run end, priced per the table already fixed
 (shield 1, dagger 5, axe 8 — `docs/project/candidates.md`'s old U6 has the
