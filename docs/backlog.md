@@ -161,10 +161,10 @@ of what to do next, which is the only job it has.
 
 | theme | items | where it stands |
 |---|---|---|
-| **A run has to be completable** | M38 done · M37 and M36 stood down | phase A bought 10x from one value; what is left is more of the same, not these two |
+| **A run has to be completable** | M38 · M39 · B16 all done | **overshot — see below.** 0.25% → 25% finishes in three items; the opening has stopped filtering |
 | **The return — floors 11 to 20** | R1 · R2 · R3 · R4 · R5 | phase B/C. Specs in the roadmap above; no item bodies yet |
 | **The potion arc** | B16 · B17 · B15 · I12 · I12b | M35 and B14 shipped; the policy and the verdict are left |
-| **What the map still has to do** | C1 · C2 · C3 · M4 · M21 · X6 · M32 | the curve arc (C1–C3) states the shape in two lines and solves for it; the rest each own a property measured as NOT met |
+| **What the map still has to do** | M40 · C1 · C2 · C3 · M4 · M21 · X6 · M32 | the curve arc (C1–C3) states the shape in two lines and solves for it; the rest each own a property measured as NOT met |
 | **The player's choice** | U10 · U7 | phase D. The only theme the player touches |
 | **Instruments** | I11 · I9 | I11 reported; I9 blocked, and the return moved its target |
 | **Debt** | X1 · X2 · X3 · X5 · E1 | changes no behaviour; makes the next change cheaper |
@@ -177,10 +177,38 @@ of what to do next, which is the only job it has.
 | — | M37 | Do runs contain survivable setbacks? | metrics | **not a change** · answer from descentCheck |
 | — | M36 | A detour has to be able to cost the run | work | **deferred until after R3** |
 
-**Measured, and it decides the order:** three quarters of runs are over by
-floor 3. The ramp's top decides floors that 96% of runs never see, so tuning
-it is work spent where nothing happens. M38 is the cheapest single value that
-moves the binding constraint.
+**Phase A is over, and it went further than intended. This is an owner
+decision, not an item.**
+
+Three changes landed in sequence, each individually justified, all pushing the
+same direction:
+
+| | share ending by floor 3 | runs clearing all ten |
+|---|---|---|
+| before M38 | 0.645 | ~0.25% |
+| after M38 (starting dagger) | 0.370 | 2.5% |
+| after M39 (chests pay out half the time) | 0.130 | 20% |
+| after B16 (no more accidental exits) | **0.115** | **25%**, verified in review at n=200 |
+
+**A hundredfold in three items.** M39's own report said it plainly and did not
+reach for a dial to hide it: **the opening has stopped filtering.**
+`map-design.md` says the opening is hard on purpose and that a hard opening
+needs a poor hero — M38 and M39 both made the hero richer at exactly that
+point, and B16 then stopped throwing floors away.
+
+**`objectives.md` names both failure directions**, and the risk has swapped
+ends: winning has to stay rare enough to matter, and "too common and the win
+loses its charm" is now the live one. Nothing here says 25% is wrong. It says
+the number moved a hundredfold without anyone choosing where it should land.
+
+**Nothing in this file decides that**, deliberately. It is the owner's call
+whether to give some of it back, and where from — the opening, the chest rate,
+or the starting kit are three different games at the same win rate.
+
+**The original reasoning, kept because it is still why M38 went first:** three
+quarters of runs were over by floor 3, so the ramp's top decided floors that
+96% of runs never saw. The binding constraint was the opening, and the cheapest
+single value that moved it was the starting kit.
 
 ### The return — floors 11 to 20
 
@@ -197,8 +225,8 @@ moves the binding constraint.
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
 | — | I12b | Split drunk into useful and wasted | metrics | **DONE** · shipped inside the heal-delivered commit |
-| 1 | B16 | The shrine is a trapdoor and the router treats it as floor | bot | **REPORTED** · 27.4% of ascends were accidental |
-| 2 | B17 | Loot on the way is free, and the router does not know it | bot | after B16 · same routing price |
+| — | B16 | The shrine is a trapdoor and the router treats it as floor | bot | **DONE** · 27.5% of ascends were accidental |
+| 1 | B17 | Loot on the way is free, and the router does not know it | bot | READY · B16 landed |
 | 3 | B15 | A drink policy that reads the danger field | bot | READY · B14 left a number to beat |
 | 3 | I12 | Did the potion change move anything? | metrics | baseline recorded · comparison owed |
 
@@ -206,10 +234,11 @@ moves the binding constraint.
 
 | id | what gets done | agent | status |
 |---|---|---|---|
-| M39 | Chests pay out half the time, 25% potion / 25% armour | work | REPORTED |
+| — | M39 | Chests pay out half the time, 25% potion / 25% armour | work | **DONE** · target hit with existing dials |
 | C1 | The two lines, read per floor from one hero | metrics | READY · head of the curve arc |
 | C2 | The target curve, in numbers rather than adjectives | work | after C1 |
 | C3 | Solve the dials for a pressure curve instead of sweeping | work | after C2 · the only one that changes the game |
+| M40 | `blocked` is computed and then ignored | work | READY · **engine bug**, two instances |
 | M4 | Side-room risk/reward spread scales with depth | work | READY |
 | M21 | Deep floors put a creature where the hero lands | work | READY · read its own warning on `finishes` |
 | X6 | Collapse the tier clamps, redundancy proven first | work | after X5 · owns the tail-shape cause |
@@ -732,6 +761,88 @@ the shrine. Corrected in this commit, since it is descriptive and needed no
 restructuring. `rules.md` did not move: the engine was not touched and §8 is
 still exactly right. `map-design.md` did not move.
 
+#### Review — adopted. The number is far larger than anyone guessed.
+
+**Verified: more than one completed floor in four was ending by mistake.**
+Paired, two seed families, n=120 each: accidental exits 206 → 3 and 205 → 3,
+**27.5% of all ascends → 0.38%**, present in 78–84% of runs. Chests left
+behind 564 → 15. **That is not an edge case, it is a background rate every
+recent measurement was averaging over** — exactly the contamination this
+review flagged when filing the item, and worse than the flag claimed.
+
+**A sink, not a price, and the reasoning is right.** Crossing the shrine on the
+way elsewhere is not expensive, it is *impossible* — the floor is over before
+the route's second half happens. A price would say "avoid unless the prize is
+big enough", which is wrong at every weight; that is why the item forbade a
+dial, and the report reached the same conclusion from the mechanism rather than
+from the instruction.
+
+**The three places deliberately NOT sunk are the part worth keeping.**
+`threat.js`'s flood (the shrine stops the hero, not the wolves), the tactical
+`costToGoal` (it floods outward FROM the goal, so sinking it would make every
+tile unreachable whenever the shrine IS the goal — breaking the veto precisely
+on the approach to the exit), and the origin (a hero already standing on one
+can still leave). Each is a place the obvious fix would have broken something,
+found by asking what the flood means rather than by testing.
+
+**Nothing regressed in the direction the item warned about.** Floors ascended
+rose and mean depth rose; the bot did not become shy of the exit.
+
+#### The engine bug it found is real, and it is one instance of a wider defect
+
+**Confirmed in `src/sim/step.js`.** `resolveEncounters` computes `blocked` from
+the monster and chest branches and then **neither the pickup loop nor the
+shrine branch respects it**. So attacking a creature that stands on the shrine
+ends the floor although the hero never moved there — all six residuals
+reproduce it, and `rules.md` §3 puts a guardian on the shrine by design, so the
+placement and this resolution order have probably never been considered
+together.
+
+**The same shape has a second instance nobody has reported:** a live monster
+standing on a loose item also leaves `blocked` set, and the pickup loop runs
+anyway — **the hero collects the item without ever entering the tile.**
+Reachable in ordinary play, since monsters walk over items and never pick them
+up (`rules.md` §3).
+
+So this is not "the shrine branch needs a guard"; it is that `blocked` is
+computed and then ignored. Filed as `M40`, engine, work agent — correctly
+reported rather than patched from the bot, which would have papered over an
+engine rule.
+
+### M40 · `blocked` is computed and then ignored
+
+`work agent` · READY · **engine bug, found by B16 and confirmed in review** ·
+`src/sim/step.js`
+
+`resolveEncounters` sets `blocked = true` when a live monster or a chest stops
+the hero entering the target tile. Two later branches in the same function
+never read it:
+
+- **the shrine.** `if (shrineHere)` fires unconditionally, so **attacking a
+  creature standing on the shrine ends the floor** with the hero still on its
+  own tile. `rules.md` §3 places a guardian at the shrine by design, so this is
+  reachable by construction rather than by accident.
+- **the pickup loop.** A live monster standing on a loose item does not stop
+  the item being collected, so **the hero takes it without entering the tile**.
+  Monsters walk over items and never pick them up (`rules.md` §3), so this is
+  ordinary play, not a corner.
+
+**The fix is one idea, not two patches.** `blocked` already means "the hero
+does not enter this tile". Everything downstream of it should be conditioned on
+it — that is a change to what an existing variable governs, which is the second
+preference in `CLAUDE.md`'s minimum-change order and needs no new parameter.
+
+**Check the chest case before assuming it is the same.** A chest sets `blocked`
+too, and the documented two-turn cost of opening one depends on the drop NOT
+being collected the same turn — which today works because `itemsHere` is
+snapshotted before the chest opens, not because of `blocked`. Do not break that
+while fixing this.
+
+**Assert.** Attacking a creature on the shrine leaves the floor running.
+Attacking a creature standing on an item leaves the item on the floor. The
+chest still costs two turns. Then re-run B16's accidental-exit count — its
+three residuals per family should go to zero.
+
 ### B17 · loot on the way is free, and the router does not know it
 
 `bot agent` · READY · **design gap, found by watching** · same seed and floor
@@ -1124,6 +1235,37 @@ did not — the contaminated read said +5 points where the clean one says −1.
 Everything above is the clean run.
 
 None of `rules.md`, `bot-strategy.md`, `map-design.md` went stale.
+
+#### Review — adopted, and it corrected this item on the point that mattered
+
+**The target was hit with existing dials and nothing was added.** 49.7% of
+chests hold something, 25.6% potion, 24.1% armour, over 12000 chests at an SE
+of 0.4 points.
+
+**The way the positional gate was established is the best part.** Forcing both
+scarcities to 0.5 gives the template gate zero empty weight, so every non-empty
+draw is a `hasLoot` success and the observed rate **is** the gate — 0.6584
+±0.0043. Measured rather than inferred, on a quantity that had only ever been
+guessed at.
+
+**And it corrected my item.** I wrote that `CHEST_LOOT_CHANCE` stands in for
+the positional gate. It does not: `loot.js`'s `ITEM_MIX` calls
+`itemWeights({}, 'chest')` with an **empty scarcity object**, so the template
+gate is absent from the bot's model entirely and that constant stands for the
+whole payout rate. **Setting it to the `hasLoot` mean, as my item implied,
+would have reintroduced the error pointing the other way.** It is exact now
+only because 25/25 makes the kinds equally likely, which is what `ITEM_MIX`
+already assumes — and a test pins that invariant.
+
+**A contaminated measurement was caught and redone**, in a worktree carrying
+only this item's two files, after a concurrent session's `src/bot/` changes
+turned up in the tree. `descentCheck` came back byte-identical; chest-seeking
+did not (+5 points contaminated against −1 clean). The clean run is what was
+reported. That is the discipline this project has paid to learn, applied
+without being asked.
+
+**The stated expectation was wrong and the report says so.** Chest-seeking did
+NOT visibly move: 0.7503 → 0.7404, z = −0.74, and neither half moves it alone.
 
 ### C1 · the two lines, read per floor from one hero
 
