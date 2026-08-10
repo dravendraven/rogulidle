@@ -549,6 +549,12 @@ function driveDescent(seed, makePolicy, startHero, maxTurns, levels, dungeonOpti
       hpFromKills: dungeonOptions.hpFromKills,
       attackWhenAdjacent: dungeonOptions.attackWhenAdjacent,
       weaponsWidenRoll: dungeonOptions.weaponsWidenRoll,
+      // I11 — what the hero brings INTO the run, the shop's own channel
+      // (U6d/U6e). Forwarded to every floor exactly as `playDungeon`
+      // does; `carry` wins from floor 2 on, so it only ever arms floor
+      // 1. Undefined by default, so every number taken before this
+      // reproduces unchanged.
+      startingItems: dungeonOptions.startingItems,
       noPickup: dungeonOptions.noPickup,
     };
 
@@ -657,6 +663,12 @@ function driveDescentSuppressed(seed, makePolicy, startHero, maxTurns, levels, d
       hpFromKills: dungeonOptions.hpFromKills,
       attackWhenAdjacent: dungeonOptions.attackWhenAdjacent,
       weaponsWidenRoll: dungeonOptions.weaponsWidenRoll,
+      // I11 — what the hero brings INTO the run, the shop's own channel
+      // (U6d/U6e). Forwarded to every floor exactly as `playDungeon`
+      // does; `carry` wins from floor 2 on, so it only ever arms floor
+      // 1. Undefined by default, so every number taken before this
+      // reproduces unchanged.
+      startingItems: dungeonOptions.startingItems,
     };
 
     const arrivedWith = carry

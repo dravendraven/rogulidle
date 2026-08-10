@@ -604,6 +604,8 @@ const OPPOSITE4 = {
 export function descentCheck(options = {}) {
   const {
     runs = 8, firstSeed = 800000, maxTurns = 1500, levels = LEVELS, hpFromKills = false,
+    // I11 — see the counts block below.
+    startingItems,
   } = options;
 
   const depths = [];
@@ -673,6 +675,11 @@ export function descentCheck(options = {}) {
         outOfDepthChance: plan.outOfDepthChance,
         carry,
         hpFromKills,
+        // I11 — the shop's channel (U6d/U6e): what the hero brings INTO the
+        // run. Same forwarding `playDungeon` does, and `carry` wins from
+        // floor 2 on, so it only ever arms floor 1. Undefined by default,
+        // so every reading taken before this reproduces unchanged.
+        startingItems,
       };
       const seed = hashSeeds(firstSeed + i, level);
       let state = newGame(seed, counts);
