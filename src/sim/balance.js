@@ -407,25 +407,35 @@ export const ITEM_TABLE = [
   { name: 'axe',    emoji: '🪓',  value: 4, dmg: 2, kind: 'weapon' },
 ];
 
-// ***** M38 — the hero starts the run armed, docs/backlog.md M38 ***** //
-// What every run begins holding, before the shop adds anything.
+// ***** M38 — what every run begins holding, docs/backlog.md M38 ***** //
+// Applied before the shop's own `startingItems`, which adds on top of it.
 //
-// THE BOOTSTRAP THIS BREAKS. Since M26 a weapon only drops from a creature,
-// so the one way to get armed is to win a fight — which is the thing an
-// unarmed hero does badly. Nothing in the first floors breaks that loop, and
-// three quarters of runs end inside it.
+// EMPTY since M41 (owner decision, 2026-08-10): the hero starts the run with
+// nothing. M38 wrote this case in on purpose — "empty is a legal value here
+// and turns the feature off" — so switching it off is the value change that
+// item designed for, not a revert of its machinery. None of the rest of M38
+// moved: `startingItems` still means "on top of the kit", which with an empty
+// kit reduces to the old behaviour on its own.
 //
-// Drawn from ITEM_TABLE by name rather than written out again: what a dagger
-// IS stays in one place, so a change to its damage reaches the starting kit
-// without anyone remembering to look here. Same reason `src/ui/shop.js`
-// reuses the table instead of redefining its rows.
+// M38'S FINDING STILL STANDS AND IS STILL UNOWNED. Since M26 a weapon only
+// drops from a creature, so the one way to get armed is to win a fight, which
+// is what an unarmed hero does badly. That bootstrap is real. The owner's
+// decision is that the OPENING SHOULD BE HARD, and the starting dagger was
+// the largest single thing making it easy — M38 and M39 together took the
+// share of runs ending by floor 3 from 0.645 to 0.130. Turning this off is a
+// judgement about difficulty, not a correction of the measurement.
 //
-// Once per run BY CONSTRUCTION, with no guard anywhere: game.js applies this
-// before `carry`, and `carry` overwrites the inventory outright. Floor 1 has
-// no carry and gets the kit; every floor below has one and takes whatever
-// the hero actually holds by then — including nothing, if the dagger was
-// somehow lost. Empty is a legal value here and turns the feature off.
-export const STARTING_ITEMS = ITEM_TABLE.filter((item) => item.name === 'dagger');
+// TO PUT IT BACK, name items from ITEM_TABLE rather than writing rows out
+// again — what a dagger IS stays in one place, so a change to its damage
+// reaches the kit without anyone remembering to look here:
+//
+//     ITEM_TABLE.filter((item) => item.name === 'dagger')
+//
+// Once per run BY CONSTRUCTION, with no guard anywhere, and that holds at any
+// value: game.js applies this before `carry`, and `carry` overwrites the
+// inventory outright. Floor 1 has no carry and gets the kit; every floor
+// below has one and takes whatever the hero actually holds by then.
+export const STARTING_ITEMS = [];
 
 // ***** M26 — weapons come off creatures, docs/backlog.md M26 ***** //
 // GUESS — the minimum MONSTER_TABLE index (0 = rat, 10 = t-rex) a killed
@@ -681,6 +691,24 @@ export const STEP_COST_IN_HP = 0.01;
 // EQUAL length, never a reason to prefer a longer one; if it ever needs
 // raising, re-check that bound first.
 export const FRONTIER_REVEAL_WEIGHT = 0.00002;
+
+// GUESS — B17, docs/backlog.md. How much less a tile costs to cross when a
+// WANTED loose item is lying on it. Walking over one collects it for free
+// (no action, no turn — see step.js's pickup path), so among routes that
+// cost the same, the one that grazes an item is strictly better.
+//
+// The lower bound is "anything above zero": ties here are EXACT equalities,
+// because on a floor with nothing awake every tile costs exactly
+// STEP_COST_IN_HP, so any positive discount decides them.
+//
+// The upper bound is the whole design, and it is what keeps this a routing
+// preference rather than goal selection by the back door: the total
+// discount along a route must never buy one extra step. At 1/25th of
+// STEP_COST_IN_HP a route would have to cross 25 wanted items to pay for a
+// single tile of detour, against a floor that generates CHEST_COUNT of
+// them at most. Raise it and `chooseGoal` stops being the only thing
+// choosing goals — two things in charge of one decision.
+export const ROUTE_ITEM_DISCOUNT = 0.0004;
 
 // GUESS — a new target must beat the current one by this factor before the
 // bot switches. Without it, two near-equal targets make it dither on the

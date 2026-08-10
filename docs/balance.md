@@ -42,6 +42,7 @@ statement about today. Only this table is current.
 | `FLOOR_SPREAD_PER_LEVEL` | `0.09` | balance.js |
 | `FRONTIER_REVEAL_WEIGHT` | `0.00002` | balance.js |
 | `GOAL_STICKINESS` | `1.4` | balance.js |
+| `ROUTE_ITEM_DISCOUNT` | `0.0004` | balance.js |
 | `GUARANTEE_FIRST_WEAPON` | `false` | balance.js |
 | `HIT_CHANCE` | `5 / 6` | balance.js |
 | `HOLD_RANGE` | `5` | balance.js |
@@ -82,7 +83,7 @@ statement about today. Only this table is current.
 | `SIDE_CHEST_BIAS` | `3` | balance.js |
 | `SIDE_ROOM_DEPTH_BONUS` | `0.35` | balance.js |
 | `SPINE_THREAT_SHARE` | `0.7` | balance.js |
-| `STARTING_ITEMS` | `[dagger]` | balance.js |
+| `STARTING_ITEMS` | `[]` | balance.js |
 | `STEP_COST_IN_HP` | `0.01` | balance.js |
 | `STRENGTH_GROWTH` | `1.0` | difficulty.js |
 | `STRENGTH_GROWTH_REBALANCED` | `1.1452` | difficulty.js |
@@ -1381,15 +1382,38 @@ in three arms, neither half moves it: belief alone z=−1.22, generator alone
 z=0.60. Consistent with the crowd-correction section's finding that gear-taking
 was already saturated, so there was little decision left for either to change.
 
-## M38 — the hero starts the run armed
+## M38 — the hero starts the run armed (SWITCHED OFF by M41)
 
 | Name | Value | Status |
 |---|---|---|
-| `STARTING_ITEMS` | `[dagger]` | **MEASURED** — the depth histogram below |
+| `STARTING_ITEMS` | `[]` | **EMPTIED at M41** — owner decision, the opening should be hard |
 
-Drawn from `ITEM_TABLE` by name rather than written out again, so what a
-dagger is stays in one place. Empty is a legal value and turns the feature
-off.
+> **M41, owner decision.** The kit is empty and the hero starts the run with
+> nothing. This is the value M38 designed for — its own comment reads "empty
+> is a legal value here and turns the feature off" — so nothing about the
+> machinery moved: `startingItems` still means "on top of the kit", which
+> with an empty kit reduces to the pre-M38 behaviour on its own.
+>
+> **M38's finding is not retracted, only outranked.** The bootstrap below is
+> real and still unowned. The owner's decision is that the opening should be
+> hard, and the starting weapon was the largest single thing making it easy.
+>
+> **Everything measured between M38 and M41 was taken against a hero that no
+> longer exists** — this section's own histogram, M39's before/after arms,
+> C1's pressure curve, I11's two-anchor comparison. No re-measurement is
+> scheduled and none should be; the point is that no figure from that window
+> gets quoted without saying which hero it belonged to.
+>
+> **The `--selftest` passes across this boundary, and the reason is worth
+> knowing rather than reassuring.** The generation fingerprint covers map,
+> rooms, spawn, shrine and roster — not the hero's inventory — and
+> `rewardShape` drives `PROBE_HERO` in through `carry`, which overwrites the
+> kit outright. The starting kit is invisible to both halves of the anchor by
+> construction, so the selftest was never able to see this change either way.
+
+Named from `ITEM_TABLE` rather than written out again when it holds anything,
+so what a dagger is stays in one place. Empty is a legal value and turns the
+feature off.
 
 **The bootstrap it breaks.** Since M26 a weapon drops only from a creature,
 so the one route to being armed is winning a fight — which is what an

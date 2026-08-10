@@ -164,20 +164,28 @@ desperdiça poção achada com saúde, o motor se recusava a pegá-la com hp
 cheio e a deixava no chão. Beber sob comando apaga as duas regras de uma
 vez.
 
-**Toda run começa armada.** O herói entra no andar 1 com um kit fixo — o que
-resolve um travamento: desde que arma só cai de criatura, o único jeito de se
-armar é vencer luta, que é exatamente o que um herói desarmado faz mal.
+**A run começa de mãos vazias.** O herói entra no andar 1 sem nada, e a
+abertura é difícil de propósito. Como arma só cai de criatura, o único jeito
+de se armar é vencer luta — que é exatamente o que um herói desarmado faz
+mal. Esse travamento é real e está aceito: é o preço de uma abertura que
+filtra.
+
+**Existe um kit inicial, e hoje ele está vazio.** É um valor, não uma
+máquina: o motor sempre aplica o kit, e o kit não conter nada é o que faz o
+herói começar desarmado.
 
 **O kit é uma vez por run, e isso vem da ordem, não de uma guarda.** Ele é
 aplicado antes do que desce a escada (§1), e o que desce sobrescreve o
 inventário inteiro. O andar 1 não tem nada descendo e recebe o kit; todo
-andar abaixo tem, e fica com o que o herói de fato carrega — inclusive nada,
-se a arma tiver sido perdida. Herói não reganha kit ao descer.
+andar abaixo tem, e fica com o que o herói de fato carrega. Herói não
+reganha kit ao descer.
 
 **O herói também pode começar com itens comprados** (o que a loja usa), e
 eles **somam ao kit** em vez de substituí-lo — comprar nunca pode deixar o
-herói pior do que não comprar. Item que entra assim credita a barra de
-armadura pela mesma regra do item pego do chão — uma função, não duas cópias.
+herói pior do que não comprar. Com o kit vazio isso equivale a "a compra é
+tudo que o herói tem", sem regra separada para esse caso. Item que entra
+assim credita a barra de armadura pela mesma regra do item pego do chão —
+uma função, não duas cópias.
 
 ## 6. O turno
 

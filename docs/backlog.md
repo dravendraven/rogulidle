@@ -174,7 +174,7 @@ of what to do next, which is the only job it has.
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
 | — | M38 | The hero starts the run armed | work | **DONE** · finishes 0.25% -> 2.5% |
-| 1 | M41 | Take the starting weapon back out | work | READY · owner: the opening should be hard |
+| 1 | M41 | Take the starting weapon back out | work | REPORTED |
 | — | M37 | Do runs contain survivable setbacks? | metrics | **not a change** · answer from descentCheck |
 | — | M36 | A detour has to be able to cost the run | work | **deferred until after R3** |
 
@@ -478,7 +478,7 @@ rather than an argument, the same way this one was.
 
 ### M41 · take the starting weapon back out
 
-`work agent` · READY · **owner decision, 2026-08-10** · one value
+`work agent` · **REPORTED** · owner decision, 2026-08-10 · one value
 
 **Do.** `STARTING_ITEMS` goes empty. M38 wrote that case in deliberately —
 "empty is a legal value here and turns the feature off" — so this is the value
@@ -510,6 +510,40 @@ a figure from this window without saying which hero it belonged to.
 **Assert.** The hero starts empty-handed. `startingItems` still adds a shop
 purchase on top. `--selftest` passes — and if it does not, say so, because the
 recorded anchors were captured across this boundary.
+
+#### Report
+
+`STARTING_ITEMS` is `[]`. One value; no machinery moved, and `game.js` was not
+touched at all.
+
+All three asserts hold, checked directly rather than only through the suite:
+a run with no options starts with an empty inventory, zero weapon damage and
+zero armour; a shop purchase still arrives on top and still credits the
+armour bar through the same `grantArmour` rule; and the spectator's
+"nothing bought" path — an empty truthy array — still leaves the hero
+correctly empty rather than throwing the concat off.
+
+**`--selftest` passes, and the reason is worth stating rather than taking as
+reassurance.** The generation fingerprint covers map, rooms, spawn, shrine and
+roster — not the hero's inventory — and `rewardShape` drives `PROBE_HERO` in
+through `carry`, which overwrites the kit outright. **The starting kit is
+invisible to both halves of the anchor by construction**, so the selftest
+could not have failed here and could not have caught M38 either. It is not
+evidence that this change is inert.
+
+**One test had to be rewritten, because it asserted the feature was on.**
+M38's "a run with no options at all starts holding the kit" now asserts the
+opposite. The other three kit tests still pass but two of them go quiet: with
+an empty kit there is nothing for a purchase to displace and nothing to grant
+twice, so "adds rather than replaces" and "once per run" are no longer
+observable from the shipped value. Flagged in place and written against
+`STARTING_ITEMS.length` rather than deleted, so they tighten again by
+themselves if the kit is ever refilled — deleting live coverage because
+today's value makes it quiet is how a guard goes missing.
+
+**Nothing was measured, per the item.** Suite 149/149.
+
+Stale and fixed here: `rules.md` §5.
 
 ### M37 · a setback needs room between "no effect" and "dead"
 

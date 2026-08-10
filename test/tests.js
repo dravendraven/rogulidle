@@ -259,18 +259,28 @@ test('startingItems does not multiply if the hero already carries something', ()
   assertEq(state.player.inventory[0].name, 'axe', 'carry should have won over startingItems');
 });
 
-// ***** M38 — every run starts armed ***** //
+// ***** M38's starting kit, emptied by M41 ***** //
+//
+// Three of the four tests below are written against `STARTING_ITEMS` rather
+// than against a dagger, so they follow the dial instead of pinning a value.
+// With the kit EMPTY they still pass but two of them prove less than they
+// did — flagged in place rather than deleted, because they come back to full
+// strength the moment the kit is repopulated, and deleting live coverage
+// because today's value makes it quiet is how a guard goes missing.
 
-test('a run with no options at all starts holding the kit', () => {
-  // The shipped default, not something a caller opts into. Before M38 this
-  // asserted the opposite — a hero with no `startingItems` started empty —
-  // and that is exactly the bootstrap the item removed: since M26 a weapon
-  // only drops from a creature, so an unarmed hero has to win a fight to
-  // get the thing that wins fights.
+test('a run with no options at all starts empty-handed', () => {
+  // M41, owner decision: the opening should be hard, and the starting weapon
+  // was the largest single thing making it easy. M38's own comment wrote this
+  // case in — "empty is a legal value here and turns the feature off" — so
+  // this is the value that item designed for, not a revert of it.
+  //
+  // M38's FINDING is untouched and still unowned: since M26 a weapon only
+  // drops from a creature, so an unarmed hero has to win a fight to get the
+  // thing that wins fights. This test asserts the shipped difficulty
+  // decision, not that the bootstrap stopped existing.
   const state = newGame(4242);
-  assertEq(state.player.inventory.length, STARTING_ITEMS.length,
-    'a fresh run did not start with the kit');
-  assert(weaponDamage(state.player) > 0, 'the hero started the run unarmed');
+  assertEq(state.player.inventory.length, 0, 'a fresh run started holding something');
+  assertEq(weaponDamage(state.player), 0, 'the hero started the run armed');
 });
 
 test('the shop adds to the starting kit instead of replacing it', () => {
@@ -278,13 +288,20 @@ test('the shop adds to the starting kit instead of replacing it', () => {
   // what a run brings ON TOP of the kit — if it replaced the kit, buying a
   // shield would cost the hero their dagger and make buying strictly worse
   // than not buying.
+  //
+  // WEAKENED BY M41, deliberately not rewritten. With the kit empty there is
+  // nothing left for a purchase to displace, so "adds rather than replaces"
+  // is no longer observable from the shipped value — only "the purchase
+  // arrives, credited, on top of whatever the kit holds" is. Written against
+  // `STARTING_ITEMS.length` so it tightens again by itself if the kit ever
+  // refills.
   const shield = ITEM_TABLE.find((i) => i.name === 'shield');
   const bought = newGame(4242, { startingItems: [shield] });
 
   assertEq(bought.player.inventory.length, STARTING_ITEMS.length + 1,
     'buying an item changed how much the hero starts with, rather than adding to it');
-  assertEq(weaponDamage(bought.player), weaponDamage(newGame(4242).player),
-    'buying a shield disarmed the hero');
+  assertEq(bought.player.armour, shield.armour,
+    'the bought shield did not credit the armour bar on top of the kit');
 });
 
 test('an empty startingItems does not disarm the hero', () => {
@@ -292,6 +309,10 @@ test('an empty startingItems does not disarm the hero', () => {
   // was bought — truthy, so any default resolved with `??` would be defeated
   // in exactly the path a person watches. Asserted here because that failure
   // would be invisible to every headless measurement.
+  //
+  // QUIET UNDER M41: with the kit empty both sides of this read zero, so it
+  // cannot currently fail. Kept because the `??`-versus-concat distinction it
+  // guards is still in `game.js` and still load-bearing the day a kit exists.
   const empty = newGame(4242, { startingItems: [] });
   assertEq(empty.player.inventory.length, STARTING_ITEMS.length,
     'an empty purchase list wiped the starting kit');
@@ -302,6 +323,9 @@ test('the kit is granted once per run, not once per floor', () => {
   // every floor past the first has one. Asserted through a carry that is
   // POORER than the kit, so a second grant would show up as the hero
   // arriving on floor 2 better armed than they left floor 1.
+  //
+  // QUIET UNDER M41 for the same reason as above: an empty kit cannot be
+  // granted twice. The ordering it protects is unchanged in `game.js`.
   const carry = {
     hp: 8, hpMax: 10, armour: 0, xp: 3, inventory: [], kills: [], xpEarned: 0,
   };
