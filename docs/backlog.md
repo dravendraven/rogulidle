@@ -174,6 +174,7 @@ can be measured against anything.
 | 12 | M4 | Side-room risk/reward spread scales with depth | work | READY · M31 landed |
 | 13 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
 | 14 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
+| 1 | M38 | The hero starts the run armed — cheapest test of phase A | work | READY · head of phase A |
 | — | R1 | Twenty traversals, victory on returning to floor 1 | work | **NEW** · phase B |
 | — | R2 | The return repopulates: same map seed, new creature seed | work | **NEW** · after R1 |
 | — | R3 | The return has no chests | work | **NEW** · after R1 |
@@ -2776,6 +2777,85 @@ toward.
 **Sequence.** Independently of `M4` or after it, but **never in the same
 commit** — two changes to the same bargain inside one measurement cannot be
 told apart.
+
+## M38 · the hero starts the run armed — the cheapest test of phase A
+
+`work agent` · READY · **head of phase A** · owner-approved, and it is one
+value, not a mechanism
+
+### Why this one and not the ramp
+
+Measured while placing this item, `descentCheck` n=200 on seeds 3000000+,
+deepest floor reached:
+
+| floor | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| runs | 16 | 59 | 54 | 24 | 14 | 14 | 8 | 7 | 3 | 1 |
+
+**Three quarters of runs are over by floor 3.** So the ramp's top decides the
+difficulty of floors that 96% of runs never see, and tuning it is work spent
+where nothing happens. The binding constraint is the opening.
+
+**The mechanism, which is a bootstrap and not a tuning miss.** Since M26 a
+weapon only drops from a creature. The hero starts with none, so kills come
+slowly and cost more hp — and the way to get a weapon is to win a fight, which
+is the thing being done badly. Nothing in the first two floors breaks that
+loop.
+
+**Also measured and rejected before proposing this:** flipping
+`WEAPONS_WIDEN_ROLL` doubles what each weapon point is worth and needs no new
+machinery — but with zero weapons carried, both modes are the same roll. It
+cannot help where the runs actually end. Recorded so nobody reaches for it as
+the obvious cheap lever.
+
+### Do
+
+**Give the hero one dagger at the start of a run.** `startingItems` already
+does exactly this and needs no code: it is applied before `carry` and loses to
+it ([game.js:80](../src/sim/game.js:80)), so floor 1 gets the item and floors
+2–10 come through `carry` with whatever the hero actually has. **Once per run,
+by construction** — that property is already true, do not add a guard for it.
+
+It is the same path the shop uses (U6d/U6e), which is the point: a starting
+weapon is not a new kind of thing, it is the thing the shop already grants.
+
+### Measure — this is half the item, not a formality
+
+**The comparison is the table above, not `finishes`.** At 0.25% the finish
+rate cannot resolve a change at any sample this project will run, but the
+depth distribution moves visibly at n=200. Report the same histogram, before
+and after, on the same seed family.
+
+**The one number that decides whether this worked:** the share of runs ending
+by floor 3. It is 0.745 today.
+
+**Two traps, named because both have caught this project.**
+
+**The denominator.** A hero that survives longer plays more floors and more
+turns, so every per-turn and per-floor rate moves for that reason alone. Totals
+and outcomes first; if a ratio is unavoidable, say what its denominator did.
+
+**Do not stop at "it got better".** A starting dagger also makes early
+creatures cheap, which is the other failure direction: if runs now die at floor
+6 instead of floor 3 because floors 1–3 became trivial, the opening stopped
+being a filter and `map-design.md`'s property 1 says the opening is hard on
+purpose. Report the whole histogram so that shows up instead of hiding behind
+a better median.
+
+**Also report `potionsDrunk`, `healDelivered` and `deathsHoldingPotion`.** B14
+shipped hours ago and priced potions against a ten-floor horizon; a hero who
+survives deeper is the first real test of that pricing.
+
+### What this does NOT settle
+
+**It does not make a twenty-traversal run completable**, and it is not meant
+to. It is the cheapest single value that moves the binding constraint, chosen
+so the next decision is taken against a measurement rather than an argument.
+M37 and M36 still own the shape of the problem.
+
+**If it barely moves,** that is the useful outcome: it means the opening is not
+a gear bootstrap and the hp buffer or floor 1–3 mass is the next candidate.
+Say so plainly rather than reaching for a second dial in the same commit.
 
 ## M37 · a setback needs room between "no effect" and "dead"
 
