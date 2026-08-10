@@ -297,9 +297,23 @@ export const STRENGTH_GROWTH_REBALANCED = 1.1452;
 // work the item's own theory expected it to.
 export const CLUSTER_SIZE = 10;
 
-// One draw in three yields something; the rest come up empty. Equal across
-// armour and potions.
-export const SCARCITY = 3;
+// The ARMOUR share of a chest draw: `0.5 / SCARCITY`, the rest going to the
+// empty slot. Weapon (M26) and potion (M27) have their own dials now.
+//
+// SOLVED for M39's owner target — a chest holds something half the time,
+// 25% potion and 25% armour — and solved rather than guessed because THE
+// TARGET IS A PRODUCT OF TWO GATES, not this one alone. `spawn.js` draws
+// `hasLoot` from position first (`CHEST_DIFFICULTY_SCALE`), and only a chest
+// that clears it looks at this dial at all. Setting this to 2 to "get 50%"
+// yields about 34%, which is the mistake the item was written to prevent.
+//
+// MEASURED first, then solved: with the template gate forced open (scarcity
+// 0.5 on both kinds, so the empty slot has zero weight and every non-empty
+// draw is a hasLoot success), the realised `hasLoot` mean is 0.6584 +-0.0043
+// over 12000 chests. `scarcity = 2 x hasLoot` puts each kind on 0.25, hence
+// this value. Two decimals because that is the precision the +-0.0043
+// supports; more digits would be false.
+export const SCARCITY = 1.32;
 
 // ***** M26 — weapons come off creatures, docs/backlog.md M26 ***** //
 // SWEPT — weapon split off from the shared SCARCITY once weapons moved
@@ -357,7 +371,18 @@ export const WEAPON_SCARCITY = 4;
 // more" rather than "a little more". Split into its own dial anyway, per
 // the item's own suggestion, so it can move independently of `armour`
 // later without colliding with it the way weapon and armour used to.
-export const POTION_SCARCITY = 3;
+//
+// LOWERED to 1.32 by M39, the owner asking for 25% potion by direct
+// observation — well past the "a lot more" the sweep above declined to take
+// on its own authority, and taken now because it was asked for. Solved from
+// the same measured `hasLoot` mean as `SCARCITY`; see that constant for the
+// arithmetic and for why the two gates cannot be set independently of each
+// other. It lands where the sweep above never went: between 1.2 and 1.5.
+//
+// It equals `SCARCITY` again, which is what a symmetric 25/25 target means —
+// NOT a re-merge. The dials stay separate because the day the owner asks for
+// more potions than shields, one value has to move without the other.
+export const POTION_SCARCITY = 1.32;
 
 // Chance a corpse leaves a potion behind.
 export const DROP_CHANCE = 0.5;

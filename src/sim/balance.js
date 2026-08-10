@@ -696,9 +696,31 @@ export const GOAL_STICKINESS = 1.4;
 // median of MONSTER_TABLE, which happens to be the ogre.
 export const UNKNOWN_MONSTER_ESTIMATE = { xp: 4, hp: 7 };
 
-// GUESS — measured at 0.60 over 150 generated maps. What the bot assumes
-// when deciding whether opening a chest is worth the two turns.
-export const CHEST_LOOT_CHANCE = 0.60;
+// What the bot assumes when deciding whether opening a chest is worth the
+// two turns. A BOT belief about a GENERATOR fact, which is the whole reason
+// it can be wrong on its own — and it was.
+//
+// CORRECTED by M39, from 0.60. The old comment claimed 0.60 was measured
+// over 150 maps; against the generator that shipped alongside it, a chest
+// paid out 0.226 of the time. The bot was pricing every chest at about 2.6x
+// what it was worth.
+//
+// READ THE FORMULA BEFORE MOVING THIS. `loot.js` computes
+// `CHEST_LOOT_CHANCE x sum(ITEM_MIX)`, and its `ITEM_MIX` calls
+// `itemWeights({}, 'chest')` — an EMPTY scarcity object, so both kinds keep
+// their full 0.5 share and the empty slot gets weight zero. The generator's
+// own template gate is therefore absent from the bot's model entirely, and
+// this constant is standing in for the WHOLE payout rate, not for
+// `spawn.js`'s positional `hasLoot` gate that shares its shape. Setting this
+// to the hasLoot mean would reintroduce the same 1.3x error pointing the
+// other way.
+//
+// So: this is the product the generator produces, which M39 put on the
+// owner's 0.5 target. It is exact today only because 25/25 makes the two
+// kinds equally likely, which is the mix `ITEM_MIX` already assumes. Split
+// the kinds unevenly and the bot's mix goes wrong again, silently — flagged
+// to the bot agent rather than fixed here, since `loot.js` is theirs.
+export const CHEST_LOOT_CHANCE = 0.50;
 
 // GUESS — what share of the REMAINING descent the bot prices gear against.
 //

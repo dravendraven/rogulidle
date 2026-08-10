@@ -17,7 +17,7 @@ statement about today. Only this table is current.
 | `CHEST_COUNT` | `15` | balance.js |
 | `CHEST_DIFFICULTY_SCALE` | `0.9` | balance.js |
 | `CHEST_GUARD_RADIUS` | `8` | balance.js |
-| `CHEST_LOOT_CHANCE` | `0.60` | balance.js |
+| `CHEST_LOOT_CHANCE` | `0.50` | balance.js |
 | `CHEST_LOOT_RICHER_FAR` | `true` | balance.js |
 | `CHEST_QUALITY_BY_DEPTH` | `true` | balance.js |
 | `CHEST_TABLE` | `(table — see the file)` | balance.js |
@@ -72,11 +72,11 @@ statement about today. Only this table is current.
 | `PLAYER_HP` | `10` | balance.js |
 | `PLAYER_XP` | `3` | balance.js |
 | `POTION_HEAL` | `3` | balance.js |
-| `POTION_SCARCITY` | `3` | difficulty.js |
+| `POTION_SCARCITY` | `1.32` | difficulty.js |
 | `REVERSAL_PENALTY` | `6` | balance.js |
 | `ROOM_HEIGHT` | `[4, 7]` | balance.js |
 | `ROOM_WIDTH` | `[5, 9]` | balance.js |
-| `SCARCITY` | `3` | difficulty.js |
+| `SCARCITY` | `1.32` | difficulty.js |
 | `SHRINE_DISTANCE_SHARE` | `0.65` | balance.js |
 | `SIDE_ACTIVATION_CAP` | `99` | balance.js |
 | `SIDE_CHEST_BIAS` | `3` | balance.js |
@@ -1301,6 +1301,86 @@ other floor's own guardian too, so the floor-1-vs-floor-2 RATIO this item
 was built around should still be roughly fair even though neither
 absolute number is exact.
 
+## M39 — chests pay out half the time, split evenly
+
+| Name | Value | Status |
+|---|---|---|
+| `SCARCITY` | 1.32 | **SOLVED** from the measured `hasLoot` mean |
+| `POTION_SCARCITY` | 1.32 | **SOLVED**, same arithmetic |
+| `CHEST_LOOT_CHANCE` | 0.50 | **CORRECTED** — the bot's belief, wrong by 2.6x |
+
+Owner target: a chest holds something half the time, 25% potion and 25%
+armour.
+
+**Two gates multiply, and that is why this was not a one-line change.**
+`spawn.js` draws a positional `hasLoot` first (`CHEST_DIFFICULTY_SCALE`);
+only a chest that clears it consults the scarcity dials, and the rest of that
+second draw becomes the empty slot. Setting scarcity to 2 to "get 50%" yields
+about 34%.
+
+**Measured before solving, and measured directly rather than inferred.**
+Forcing both scarcities to 0.5 gives the template gate zero empty weight, so
+every non-empty draw is a `hasLoot` success and the observed rate *is* the
+gate: **0.6584 ±0.0043 over 12000 chests**. `scarcity = 2 × hasLoot` puts each
+kind on 0.25. Two decimals is what that error bar supports.
+
+**Re-sampled at generation, 12000 chests:** 49.7% hold something — 25.6%
+potion, 24.1% armour, against a 50/25/25 target and an SE of 0.4 points per
+share. No third gate was needed and none was added.
+
+### The bot's belief was wrong, and not for the obvious reason
+
+`loot.js` computes `CHEST_LOOT_CHANCE × Σ ITEM_MIX`, and its `ITEM_MIX` calls
+`itemWeights({}, 'chest')` — an **empty** scarcity object. Both kinds keep
+their full 0.5 share and **the empty slot gets weight zero**, so the
+generator's template gate is absent from the bot's model entirely and this
+constant stands in for the *whole* payout rate, not for the positional gate
+whose shape it resembles. Setting it to the `hasLoot` mean would have
+reintroduced the same error pointing the other way.
+
+At 0.60 against a generator paying 0.226, the bot priced every chest at about
+**2.6×** its worth. At 0.50 against a generator paying 0.497 it is now exact —
+but exact *only because* a 25/25 split makes the kinds equally likely, which
+is the mix `ITEM_MIX` already assumes. Split them unevenly and the bot goes
+wrong again silently. A test pins that invariant; the fix, if it is ever
+needed, belongs to the bot agent.
+
+### Measured, `descentCheck` n=200, seeds 3000000+, same seeds both arms
+
+| floor | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| before | 8 | 23 | 43 | 32 | 21 | 21 | 14 | 17 | 11 | 10 |
+| after | 8 | 7 | 11 | 14 | 16 | 16 | 21 | 23 | 26 | 58 |
+
+Runs ending by floor 3 **0.370 → 0.130** (McNemar z=6.93; 48 escaped, 0 newly
+trapped). Paired depth **+2.29 ±0.17**, z=13.65 — 135 deeper, 60 unchanged, 5
+shallower. Median depth 4 → 8. **Cleared all ten: 5 → 40 of 200.**
+
+**The opening stopped being a filter, and that is a decision to take rather
+than a result to celebrate.** Across M38 and M39 the share of runs ending by
+floor 3 went 0.645 → 0.370 → **0.130**. This file's own map-design section
+says the opening is hard on purpose and that a hard opening needs a poor hero
+— both items made the hero richer at exactly that point. The mass has moved
+to the bottom of the ladder: 58 of 200 runs now end on floor 10.
+
+**Denominator, named.** Floors played 975 → 1432. `potionsGenerated` 635 →
+2101 and `potionsDrunk` 412 → 1259 both rise about 3.2×, which is the 2.2×
+payout times the 1.47× floors. The rate moves the other way —
+`potionShareDrunk` 0.649 → **0.599** — because supply outgrew what the hero
+can spend.
+
+**`deathsHoldingPotion` 3.72% → 19.08% of deaths, z=4.42.** Deaths fell 188 →
+152, so that denominator did not carry it. Nearly one death in five now
+happens with an unspent potion. `drinksWasted` and `healOverheal` are still
+exactly zero, so B14's policy is not wasting them — it is not reaching them.
+That is B15's problem and I12's tripwire, named here and not fixed.
+
+**The bot's chest-seeking did NOT visibly move**, against the item's own
+expectation. Share of offered chests opened 0.7503 → 0.7404, z=−0.74. Isolated
+in three arms, neither half moves it: belief alone z=−1.22, generator alone
+z=0.60. Consistent with the crowd-correction section's finding that gear-taking
+was already saturated, so there was little decision left for either to change.
+
 ## M38 — the hero starts the run armed
 
 | Name | Value | Status |
@@ -1795,7 +1875,7 @@ Not used until P3. Listed here so there is one place to look.
 | `STEP_COST_IN_HP` | 0.01 | **INITIAL GUESS** |
 | `GOAL_STICKINESS` | 1.4 | **INITIAL GUESS** — raised from 1.15, see below |
 | `UNKNOWN_MONSTER_ESTIMATE` | `{ xp: 4, hp: 7 }` | **INITIAL GUESS** |
-| `CHEST_LOOT_CHANCE` | 0.60 | measured over 150 maps |
+| `CHEST_LOOT_CHANCE` | 0.50 | **CORRECTED at M39** — the old 0.60 was 2.6x the generator |
 | `LOOT_CAMPAIGN_HORIZON` | 0.5 | **INITIAL GUESS** |
 | `HOLD_RANGE` | 5 | **INITIAL GUESS** |
 | `EXPOSURE_WEIGHT` | 0.5 | **INITIAL GUESS** |

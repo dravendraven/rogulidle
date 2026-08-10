@@ -206,7 +206,7 @@ moves the binding constraint.
 
 | id | what gets done | agent | status |
 |---|---|---|---|
-| M39 | Chests pay out half the time, 25% potion / 25% armour | work | READY · owner decision, from watching |
+| M39 | Chests pay out half the time, 25% potion / 25% armour | work | REPORTED |
 | C1 | The two lines, read per floor from one hero | metrics | READY · head of the curve arc |
 | C2 | The target curve, in numbers rather than adjectives | work | after C1 |
 | C3 | Solve the dials for a pressure curve instead of sweeping | work | after C2 · the only one that changes the game |
@@ -876,8 +876,8 @@ The open half of `map-design.md`'s four properties. Each of these owns a propert
 
 ### M39 · chests pay out half the time, split evenly between potion and armour
 
-`work agent` · READY · **owner decision, 2026-08-10, from watching the game**
-· values only, no mechanism
+`work agent` · **REPORTED** · owner decision, 2026-08-10, from watching the
+game · values only, no mechanism
 
 **Target, owner-stated:** a chest holds something **50%** of the time — **25%
 potion, 25% armour**, and nothing the other half.
@@ -941,6 +941,75 @@ and outcomes first.
 same lever M38 pulled, and `map-design.md` says the opening is hard on purpose.
 Two changes in the same direction, days apart, is exactly how a filter
 disappears without anyone deciding to remove it.
+
+#### Report
+
+**Hit with existing values; no third gate, no new dial.** `SCARCITY` and
+`POTION_SCARCITY` both 3 → 1.32, `CHEST_LOOT_CHANCE` 0.60 → 0.50.
+
+**Measured the gate directly rather than inferring it.** Forcing both
+scarcities to 0.5 gives the template gate zero empty weight, so every
+non-empty draw is a `hasLoot` success and the observed rate *is* the gate:
+**0.6584 ±0.0043 over 12000 chests**. `scarcity = 2 × hasLoot` follows.
+Re-sampled at generation, 12000 chests: **49.7% hold something — 25.6%
+potion, 24.1% armour**, against an SE of 0.4 points per share.
+
+**The bot's belief was wrong for a subtler reason than the item states, and
+it changes how the constant must be read.** `loot.js`'s `ITEM_MIX` calls
+`itemWeights({}, 'chest')` — an empty scarcity object — so both kinds keep
+their full share and **the empty slot gets weight zero**. The generator's
+template gate is absent from the bot's model entirely, which means
+`CHEST_LOOT_CHANCE` stands in for the whole payout rate, not for the
+positional gate whose shape it resembles. Setting it to the `hasLoot` mean
+would have reintroduced the error pointing the other way. It is exact now
+only because 25/25 makes the kinds equally likely — the mix `ITEM_MIX`
+already assumes. A test pins that invariant; `loot.js` is the bot agent's.
+
+**`descentCheck` n=200, seeds 3000000+, same seeds both arms:**
+
+| floor | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| before | 8 | 23 | 43 | 32 | 21 | 21 | 14 | 17 | 11 | 10 |
+| after | 8 | 7 | 11 | 14 | 16 | 16 | 21 | 23 | 26 | 58 |
+
+Ending by floor 3 **0.370 → 0.130** (McNemar z=6.93, 48 escaped, 0 newly
+trapped). Paired depth **+2.29 ±0.17**, z=13.65. Median depth 4 → 8.
+**Cleared all ten: 5 → 40 of 200.**
+
+**Yes, the opening got easier — and it has stopped filtering.** Across M38
+and M39 the share ending by floor 3 went 0.645 → 0.370 → **0.130**.
+`map-design.md` says a hard opening needs a poor hero; both items made the
+hero richer at exactly that point. The mass is now at the bottom: 58 of 200
+runs end on floor 10. **This is the "filter disappears without anyone
+deciding to remove it" case the item named, and it is a decision for review,
+not something to fix by reaching for a third dial.** I did not touch
+`map-design.md` — it states design intent, and reconciling intent with this
+is the project agent's call.
+
+**Denominator, named.** Floors played 975 → 1432. `potionsGenerated` 635 →
+2101 and `potionsDrunk` 412 → 1259 rise about 3.2× — the 2.2× payout times
+1.47× floors. `potionShareDrunk` moves the *other* way, 0.649 → **0.599**:
+supply outgrew what the hero can spend.
+
+**`deathsHoldingPotion` 3.72% → 19.08% of deaths, z=4.42**, with deaths
+falling 188 → 152 so the denominator did not carry it. `drinksWasted` and
+`healOverheal` are still exactly zero — B14's policy is not wasting potions,
+it is not reaching them. B15's problem, I12's tripwire.
+
+**The bot's chest-seeking did NOT visibly move**, against this item's stated
+expectation. Share of offered chests opened 0.7503 → 0.7404, z=−0.74. Split
+into three arms, neither half moves it alone: belief only z=−1.22, generator
+only z=0.60. Consistent with `balance.md`'s crowd section, which already found
+gear-taking saturated — there was little decision left for either to change.
+
+**A contaminated measurement, caught and redone.** The first after-arm ran
+while a concurrent session had `src/bot/bot.js` and `nav.js` modified in the
+working tree. Re-run in a worktree at HEAD carrying only this item's two
+`src/sim` files: `descentCheck` came back byte-identical, but chest-seeking
+did not — the contaminated read said +5 points where the clean one says −1.
+Everything above is the clean run.
+
+None of `rules.md`, `bot-strategy.md`, `map-design.md` went stale.
 
 ### C1 · the two lines, read per floor from one hero
 

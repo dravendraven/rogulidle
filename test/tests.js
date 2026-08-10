@@ -1360,6 +1360,26 @@ test('potion has its own scarcity dial, independent of armour', () => {
     `potion's total mass is ${potionMass}, expected shareEach/POTION_SCARCITY (${expected})`);
 });
 
+test('the bot chest mix carries no emptiness, so CHEST_LOOT_CHANCE is the whole payout', () => {
+  // M39 found this and it decides how CHEST_LOOT_CHANCE must be read.
+  // `loot.js`'s ITEM_MIX calls `itemWeights({}, 'chest')` — an EMPTY scarcity
+  // object — so both kinds keep their full share and the empty slot gets
+  // weight ZERO. The generator's template gate is therefore absent from the
+  // bot's model, and CHEST_LOOT_CHANCE stands in for the whole payout rate
+  // rather than for the positional `hasLoot` gate whose shape it resembles.
+  //
+  // Two things break silently if this stops holding, which is why it is
+  // pinned: the constant would start meaning something else, and the bot's
+  // kind mix would stop matching a generator whose kinds are unevenly scarce.
+  const mix = itemWeights({}, 'chest');
+  const empty = mix.find(([item]) => item === null);
+  assertEq(empty ? empty[1] : 0, 0, 'the bot mix grew an empty slot; CHEST_LOOT_CHANCE now double-counts emptiness');
+
+  const kindMass = (kind) => mix.reduce((s, [item, w]) => s + (item && item.kind === kind ? w : 0), 0);
+  assert(Math.abs(kindMass('armour') - kindMass('potion')) < 1e-9,
+    'the bot assumes armour and potion are equally likely; the generator no longer agrees');
+});
+
 // ***** the bot's campaign horizon ***** //
 
 test('monsters ahead sums the floors still to come', () => {
