@@ -161,7 +161,7 @@ of what to do next, which is the only job it has.
 
 | theme | items | where it stands |
 |---|---|---|
-| **A run has to be completable** | M38 · M39 · B16 all done | **overshot — see below.** 0.25% → 25% finishes in three items; the opening has stopped filtering |
+| **A run has to be completable** | M41 · M38 · M39 · B16 | **overshot — see below.** 0.25% → 25% finishes in three items; the opening has stopped filtering |
 | **The return — floors 11 to 20** | R1 · R2 · R3 · R4 · R5 | phase B/C. Specs in the roadmap above; no item bodies yet |
 | **The potion arc** | B16 · B17 · B15 · I12 · I12b | M35 and B14 shipped; the policy and the verdict are left |
 | **What the map still has to do** | M40 · C1 · C2 · C3 · M4 · M21 · X6 · M32 | the curve arc (C1–C3) states the shape in two lines and solves for it; the rest each own a property measured as NOT met |
@@ -174,6 +174,7 @@ of what to do next, which is the only job it has.
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
 | — | M38 | The hero starts the run armed | work | **DONE** · finishes 0.25% -> 2.5% |
+| 1 | M41 | Take the starting weapon back out | work | READY · owner: the opening should be hard |
 | — | M37 | Do runs contain survivable setbacks? | metrics | **not a change** · answer from descentCheck |
 | — | M36 | A detour has to be able to cost the run | work | **deferred until after R3** |
 
@@ -257,7 +258,6 @@ single value that moved it was the starting kit.
 | — | C1 | The two lines, read per floor from one hero | metrics | **DONE** · falsified the hard-opening claim |
 | — | C2 | The target curve, in numbers rather than adjectives | work | **NOT NOW** · owner: structure first |
 | — | C3 | Solve the dials for a pressure curve instead of sweeping | work | **NOT NOW** · after C2, later work |
-| — | M41 | Take the starting weapon back out | work | READY · owner decision, one value |
 | M40 | `blocked` is computed and then ignored | work | READY · **engine bug**, two instances |
 | M4 | Side-room risk/reward spread scales with depth | work | READY |
 | M21 | Deep floors put a creature where the hero lands | work | READY · read its own warning on `finishes` |
@@ -476,6 +476,41 @@ whether the same lever has a second pull, or whether M37 and M36 are what is
 left, is the next decision — and it should be taken against a measurement
 rather than an argument, the same way this one was.
 
+### M41 · take the starting weapon back out
+
+`work agent` · READY · **owner decision, 2026-08-10** · one value
+
+**Do.** `STARTING_ITEMS` goes empty. M38 wrote that case in deliberately —
+"empty is a legal value here and turns the feature off" — so this is the value
+change that item designed for, not a revert of its machinery.
+
+**Everything else M38 built stays.** In particular `startingItems` still means
+"on top of the kit" rather than "instead of it", which M38 changed because
+`spectator.js` passes an empty truthy array and because a hero buying a shield
+would otherwise lose the dagger. With the kit empty that reduces to the old
+behaviour on its own, and no code should move to make it do so.
+
+**Why, and it is not a reversal of M38's finding.** M38 measured the bootstrap
+correctly: an unarmed hero cannot get armed, because since M26 a weapon only
+drops from a creature. That is still true and still unowned. The owner's
+decision is that **the opening should be hard**, and the dagger was the largest
+single thing making it easy.
+
+#### What this does to the measurement record, stated so nobody is surprised
+
+The hero starting armed was the anchor for everything measured since M38 —
+`C1`'s pressure curve, `M39`'s before/after arms, `I11`'s two-anchor
+comparison. **All of it was taken against a hero that will no longer exist.**
+
+**No re-measurement is scheduled and none should be.** The owner's standing
+direction is structure and instrumentation first, results later; the numbers
+will be re-taken when something needs them. What matters is that nobody quotes
+a figure from this window without saying which hero it belonged to.
+
+**Assert.** The hero starts empty-handed. `startingItems` still adds a shop
+purchase on top. `--selftest` passes — and if it does not, say so, because the
+recorded anchors were captured across this boundary.
+
 ### M37 · a setback needs room between "no effect" and "dead"
 
 `metrics agent` · **NOT SCHEDULED — it is a question, not a change** · owner
@@ -667,7 +702,7 @@ the number is knowing how much of the recent measurement record it touched.
 Watch one run through and confirm the bot still takes the shrine deliberately.
 The failure direction is a bot that now refuses to path anywhere near the exit.
 
-### Result
+#### Result
 
 **Fixed as a graph sink, not a price. And the number the item asked for is
 much bigger than "rare": 27.4% of every completed floor was ending by
@@ -828,75 +863,6 @@ So this is not "the shrine branch needs a guard"; it is that `blocked` is
 computed and then ignored. Filed as `M40`, engine, work agent — correctly
 reported rather than patched from the bot, which would have papered over an
 engine rule.
-
-### M41 · take the starting weapon back out
-
-`work agent` · READY · **owner decision, 2026-08-10** · one value
-
-**Do.** `STARTING_ITEMS` goes empty. M38 wrote that case in deliberately —
-"empty is a legal value here and turns the feature off" — so this is the value
-change that item designed for, not a revert of its machinery.
-
-**Everything else M38 built stays.** In particular `startingItems` still means
-"on top of the kit" rather than "instead of it", which M38 changed because
-`spectator.js` passes an empty truthy array and because a hero buying a shield
-would otherwise lose the dagger. With the kit empty that reduces to the old
-behaviour on its own, and no code should move to make it do so.
-
-**Why, and it is not a reversal of M38's finding.** M38 measured the bootstrap
-correctly: an unarmed hero cannot get armed, because since M26 a weapon only
-drops from a creature. That is still true and still unowned. The owner's
-decision is that **the opening should be hard**, and the dagger was the largest
-single thing making it easy.
-
-#### What this does to the measurement record, stated so nobody is surprised
-
-The hero starting armed was the anchor for everything measured since M38 —
-`C1`'s pressure curve, `M39`'s before/after arms, `I11`'s two-anchor
-comparison. **All of it was taken against a hero that will no longer exist.**
-
-**No re-measurement is scheduled and none should be.** The owner's standing
-direction is structure and instrumentation first, results later; the numbers
-will be re-taken when something needs them. What matters is that nobody quotes
-a figure from this window without saying which hero it belonged to.
-
-**Assert.** The hero starts empty-handed. `startingItems` still adds a shop
-purchase on top. `--selftest` passes — and if it does not, say so, because the
-recorded anchors were captured across this boundary.
-
-### M40 · `blocked` is computed and then ignored
-
-`work agent` · READY · **engine bug, found by B16 and confirmed in review** ·
-`src/sim/step.js`
-
-`resolveEncounters` sets `blocked = true` when a live monster or a chest stops
-the hero entering the target tile. Two later branches in the same function
-never read it:
-
-- **the shrine.** `if (shrineHere)` fires unconditionally, so **attacking a
-  creature standing on the shrine ends the floor** with the hero still on its
-  own tile. `rules.md` §3 places a guardian at the shrine by design, so this is
-  reachable by construction rather than by accident.
-- **the pickup loop.** A live monster standing on a loose item does not stop
-  the item being collected, so **the hero takes it without entering the tile**.
-  Monsters walk over items and never pick them up (`rules.md` §3), so this is
-  ordinary play, not a corner.
-
-**The fix is one idea, not two patches.** `blocked` already means "the hero
-does not enter this tile". Everything downstream of it should be conditioned on
-it — that is a change to what an existing variable governs, which is the second
-preference in `CLAUDE.md`'s minimum-change order and needs no new parameter.
-
-**Check the chest case before assuming it is the same.** A chest sets `blocked`
-too, and the documented two-turn cost of opening one depends on the drop NOT
-being collected the same turn — which today works because `itemsHere` is
-snapshotted before the chest opens, not because of `blocked`. Do not break that
-while fixing this.
-
-**Assert.** Attacking a creature on the shrine leaves the floor running.
-Attacking a creature standing on an item leaves the item on the floor. The
-chest still costs two turns. Then re-run B16's accidental-exit count — its
-three residuals per family should go to zero.
 
 ### B17 · loot on the way is free, and the router does not know it
 
@@ -1321,6 +1287,40 @@ without being asked.
 
 **The stated expectation was wrong and the report says so.** Chest-seeking did
 NOT visibly move: 0.7503 → 0.7404, z = −0.74, and neither half moves it alone.
+
+### M40 · `blocked` is computed and then ignored
+
+`work agent` · READY · **engine bug, found by B16 and confirmed in review** ·
+`src/sim/step.js`
+
+`resolveEncounters` sets `blocked = true` when a live monster or a chest stops
+the hero entering the target tile. Two later branches in the same function
+never read it:
+
+- **the shrine.** `if (shrineHere)` fires unconditionally, so **attacking a
+  creature standing on the shrine ends the floor** with the hero still on its
+  own tile. `rules.md` §3 places a guardian at the shrine by design, so this is
+  reachable by construction rather than by accident.
+- **the pickup loop.** A live monster standing on a loose item does not stop
+  the item being collected, so **the hero takes it without entering the tile**.
+  Monsters walk over items and never pick them up (`rules.md` §3), so this is
+  ordinary play, not a corner.
+
+**The fix is one idea, not two patches.** `blocked` already means "the hero
+does not enter this tile". Everything downstream of it should be conditioned on
+it — that is a change to what an existing variable governs, which is the second
+preference in `CLAUDE.md`'s minimum-change order and needs no new parameter.
+
+**Check the chest case before assuming it is the same.** A chest sets `blocked`
+too, and the documented two-turn cost of opening one depends on the drop NOT
+being collected the same turn — which today works because `itemsHere` is
+snapshotted before the chest opens, not because of `blocked`. Do not break that
+while fixing this.
+
+**Assert.** Attacking a creature on the shrine leaves the floor running.
+Attacking a creature standing on an item leaves the item on the floor. The
+chest still costs two turns. Then re-run B16's accidental-exit count — its
+three residuals per family should go to zero.
 
 ### C1 · the two lines, read per floor from one hero
 
