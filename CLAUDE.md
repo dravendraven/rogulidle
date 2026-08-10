@@ -107,13 +107,17 @@ the game abandoned — that is the disease, and it is avoidable by construction.
 item in full and report against what it asks for. Only the project agent
 adds or reorders items — if one looks wrong, say so instead of editing it.
 
-**Priority order right now**, owner-set:
-1. **The shop** — `docs/backlog.md`'s U6 arc: U6e, then U6f.
-2. **The lab** — `docs/lab-backlog.md`, the manual dungeon simulator.
-3. The rest of `docs/backlog.md`.
+**`docs/backlog.md` is grouped by THEME, not by agent** — each item names its
+own agent in its first line. It opens with the roadmap, which is the thing to
+read before picking anything up.
 
-The **bot agent** is outside this ordering entirely and works its own lane
-in `docs/backlog.md` (B11 onward) in parallel.
+**Priority order right now**, owner-set:
+1. **Phase A — make a run completable.** Three quarters of runs are over by
+   floor 3 and victory is about to require twenty traversals instead of ten.
+   Nothing else is worth measuring until this moves.
+2. **Phase B/C — the return**, floors 11–20.
+3. **The lab** — `docs/lab-backlog.md`, the manual dungeon simulator.
+4. The rest of `docs/backlog.md`.
 
 Numbers come from `run-check.html`, run on demand. Nothing records them —
 a written-down measurement goes stale and gets compared against anyway.
