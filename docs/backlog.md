@@ -1327,9 +1327,15 @@ The three that carry the potion feature are: a chest yielded X, the hero drank
 for N, and the run ended holding N potions. Beyond that, use judgement — this
 item does not enumerate a design.
 
-**One decision worth taking deliberately:** an event feed and a floating cue
-on the map solve different halves. A feed answers "what just happened"; a cue
-answers "where". Pick one and say why in a line rather than building both.
+**This is a PLAYER feature, and that settles the design.** Asked and answered
+by the owner: the player does nothing but watch, so being unable to tell what
+just happened is the product failing at its only job — not a diagnostic
+inconvenience that happens to also affect the player.
+
+**So: cues on the map, not a text feed.** A scrolling log is developer UI. What
+a watcher needs is the item visibly leaving the chest and a `+3` rising off the
+hero when it drinks — the event where the event happened. Build that. If a feed
+turns out to be needed as well, that is a second item with its own reason.
 
 #### Assert
 
