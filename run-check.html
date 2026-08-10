@@ -81,11 +81,10 @@
 
 <script type="module">
 import {
-  rewardShape, capacityShape, builtShape, mortalCoinShape, topologyShape,
+  rewardShape, builtShape, mortalCoinShape, topologyShape,
 } from './src/analysis/observed-ruler.js';
 import { descentCheck } from './src/analysis/clustering.js';
 import { floorPlan, LEVELS } from './src/sim/dungeon.js';
-import { PLAYER_HP } from './src/sim/balance.js';
 
 const $ = (id) => document.getElementById(id);
 const f = (x, d = 1) => (x === null || x === undefined || !Number.isFinite(x) ? '—' : x.toFixed(d));
@@ -136,7 +135,7 @@ function levelSection(title, kpiCells, diagCells, flagNode, detailNode) {
   return s;
 }
 
-function render(reward, counts, dc, cap, sonda, coins, topo) {
+function render(reward, counts, dc, sonda, coins, topo) {
   $('out').innerHTML = '';
 
   // ***** Product *****
@@ -161,16 +160,36 @@ function render(reward, counts, dc, cap, sonda, coins, topo) {
   reward.forEach((r, i) => {
     if (i > 0 && r.challenge.mean < reward[i - 1].challenge.mean) drops.push(r.level);
   });
-  // hp spent as a multiple of a hero's EXPECTED effectiveHp (hp + armour)
-  // on arrival, not flat PLAYER_HP — hp never grows, only armour does.
-  // Source: capacityShape({ suppressDeath: true, startHero: null }) — sonda,
-  // real base, death suppressed so deep floors aren't survivor-biased.
-  const capByLevel = new Map(cap.rows.map((r) => [r.level, r.effectiveHp.mean]));
-  const expectedHp = (level) => capByLevel.get(level) ?? PLAYER_HP;
+  // hp spent as a multiple of the hp+armour a hero actually ARRIVES with.
+  //
+  // I11 — this used to come from `capacityShape({ suppressDeath: true,
+  // startHero: null })`, on the theory that suppressing death removed
+  // survivor bias. It removed the hero instead: with no regen, a suppressed
+  // hero's hp pins at 0 and never recovers, so from floor 4 on that series
+  // read ~0 and this ratio divided by zero. At the page's own defaults it
+  // printed `Infinity` on floors 5, 7, 9 and 10, and flagged nearly every
+  // floor as over budget. Measured, not inferred: 60 of 60 runs had died by
+  // floor 4, and mean hp+armour there was 0.22 with a CV of 3.8.
+  //
+  // The mortal series is the honest source and the page already runs it for
+  // the Bot section, so this costs nothing extra. SURVIVOR-SELECTED by
+  // construction — a hero who never reached floor 9 has no arrival state
+  // there — which makes the reading "what floor 9 costs someone who gets to
+  // floor 9". That is the question the ratio is asking, and it is stated on
+  // the page rather than left implicit.
+  // NO FALLBACK. `builtShape` drops floors nothing reached, and the obvious
+  // `?? PLAYER_HP` fills those holes with a number that was never measured —
+  // it printed a confident 10.00 on floors zero runs had ever seen. A blank
+  // is the honest reading: if nobody arrived, there is no arrival hp. The
+  // `of runs reaching` row below carries the support so the blank is legible
+  // rather than mysterious.
+  const capByLevel = new Map(sonda.rows.map((r) => [r.level, r.effectiveHp.mean]));
+  const reachedByLevel = new Map(sonda.rows.map((r) => [r.level, r.reached]));
+  const expectedHp = (level) => (capByLevel.has(level) ? capByLevel.get(level) : NaN);
   const lethal = [];
   reward.forEach((r) => {
     const ratio = r.challenge.mean / expectedHp(r.level);
-    if (ratio >= 1) lethal.push({ level: r.level, ratio });
+    if (Number.isFinite(ratio) && ratio >= 1) lethal.push({ level: r.level, ratio });
   });
   const costTable = el('table');
   costTable.innerHTML = '<thead><tr><th>floor</th>' + reward.map((r) => `<th>${r.level}</th>`).join('') + '</tr></thead>'
@@ -178,11 +197,13 @@ function render(reward, counts, dc, cap, sonda, coins, topo) {
       const cheaper = i > 0 && r.challenge.mean < reward[i - 1].challenge.mean;
       return `<td class="${cheaper ? 'no' : ''}">${f(r.challenge.mean, 1)}</td>`;
     }).join('') + '</tr>'
-    + '<tr><td class="direction">× expected hp+armour</td>' + reward.map((r) => {
+    + '<tr><td class="direction">× hp+armour on arrival</td>' + reward.map((r) => {
       const ratio = r.challenge.mean / expectedHp(r.level);
-      return `<td class="direction ${ratio >= 1 ? 'no' : ''}">${f(ratio, 1)}×</td>`;
+      const shown = Number.isFinite(ratio) ? `${f(ratio, 1)}×` : '—';
+      return `<td class="direction ${Number.isFinite(ratio) && ratio >= 1 ? 'no' : ''}">${shown}</td>`;
     }).join('') + '</tr>'
-    + '<tr><td class="direction">expected hp+armour</td>' + reward.map((r) => `<td class="direction">${f(expectedHp(r.level), 1)}</td>`).join('') + '</tr></tbody>';
+    + '<tr><td class="direction">hp+armour on arrival</td>' + reward.map((r) => `<td class="direction">${f(expectedHp(r.level), 1)}</td>`).join('') + '</tr>'
+    + '<tr><td class="direction">of runs reaching</td>' + reward.map((r) => `<td class="direction">${reachedByLevel.get(r.level) ?? 0}</td>`).join('') + '</tr></tbody>';
   const costCard = el('div');
   costCard.append(costTable);
   const flagParts = [];
@@ -304,19 +325,14 @@ $('run').addEventListener('click', async () => {
     await new Promise((r) => setTimeout(r, 20));
     const dc = descentCheck({ runs: descentRuns, firstSeed: pairedSeed });
 
-    $('status').textContent = 'playing full descents with the sonda, death suppressed (map difficulty)…';
-    await new Promise((r) => setTimeout(r, 20));
-    // Its own, larger, non-configurable sample: this descent is cheap
-    // (~0.3s/run, no danger-field/pricing math, unlike the bot) and the
-    // number it feeds is noisy at small n in a specific way worth avoiding
-    // — the death-suppressed probe often sits at exactly 0 hp+armour for
-    // stretches (no regen by default), so 2-3 samples can average to a
-    // near-zero that is real noise, not the actual expectation. 15 tames
-    // it for a few seconds instead of tying it to the expensive bot dial.
-    // Not seed-paired with the bot — this one measures the MAP, on purpose.
-    const cap = capacityShape({
-      runs: 15, firstSeed: firstSeed + 1400000, suppressDeath: true, startHero: null,
-    });
+    // I11 — a `capacityShape({ suppressDeath: true, startHero: null })`
+    // descent used to run here purely to feed the cost table's denominator.
+    // It is gone: suppressing death does not remove survivor bias, it
+    // removes the hero — hp pins at 0 with no regen, so the series read ~0
+    // from floor 4 and the ratio printed Infinity. The mortal sonda below
+    // supplies an arrival hp+armour that is nonzero by construction, and
+    // this page was already paying for that descent. One fewer descent per
+    // click, and the number it feeds is real.
 
     $('status').textContent = 'playing full descents with the sonda, mortal (bot vs sonda)…';
     await new Promise((r) => setTimeout(r, 20));
@@ -339,7 +355,7 @@ $('run').addEventListener('click', async () => {
     // play-based dials on this page).
     const topo = topologyShape({ runs: 100, firstSeed: firstSeed + 1800000 });
 
-    render(reward, counts, dc, cap, sonda, coins, topo);
+    render(reward, counts, dc, sonda, coins, topo);
     $('status').textContent = `done in ${((performance.now() - started) / 1000).toFixed(1)}s`;
   } catch (error) {
     $('status').textContent = 'failed: ' + error.message;

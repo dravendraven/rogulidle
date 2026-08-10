@@ -449,7 +449,7 @@ export function builtShape(options = {}) {
   } = options;
 
   const rows = Array.from({ length: levels }, (_, i) => ({
-    level: i + 1, power: [], buffer: [], damage: [], reached: 0,
+    level: i + 1, power: [], buffer: [], damage: [], effHp: [], reached: 0,
   }));
   const depths = [];
   let cleared = 0;
@@ -470,6 +470,19 @@ export function builtShape(options = {}) {
       // spend anything. Same descents, same survivor selection as
       // power/buffer above — carried, not removed, see I5.
       row.damage.push(lvl.damage);
+      // I11 — hp + armour ON ARRIVAL, from the MORTAL series. This is the
+      // honest "what a hero plausibly has by here" figure, and it replaces
+      // the death-suppressed probe's version, which was not one: with no
+      // regen and death suppressed, that hero's hp pins at 0 and every
+      // floor past the third reads ~0, so a cost/capacity ratio built on it
+      // divided by zero. Measured at the panel's own defaults: exp hp+armour
+      // 10.00, 4.93, 1.67, 0.40, 0.00, ... and the panel printed Infinity.
+      //
+      // SURVIVOR-SELECTED, intrinsically and on purpose — a hero who never
+      // reached floor 9 has no arrival state there to average. That makes
+      // this "what floor 9 costs someone who gets to floor 9", which is the
+      // question the ratio is actually asking. Say so wherever it is shown.
+      row.effHp.push(effectiveHp(lvl.arrivedWith));
     }
   }
 
@@ -480,6 +493,7 @@ export function builtShape(options = {}) {
       power: summarise(r.power),
       buffer: summarise(r.buffer.filter(Number.isFinite)),
       damage: summarise(r.damage),
+      effectiveHp: summarise(r.effHp),
     })),
     cleared,
     runs,
