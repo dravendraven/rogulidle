@@ -163,7 +163,7 @@ of what to do next, which is the only job it has.
 |---|---|---|
 | **A run has to be completable** | M38 done · M37 and M36 stood down | phase A bought 10x from one value; what is left is more of the same, not these two |
 | **The return — floors 11 to 20** | R1 · R2 · R3 · R4 · R5 | phase B/C. Specs in the roadmap above; no item bodies yet |
-| **The potion arc** | B15 · I12 · I12b | M35 and B14 shipped; the policy and the verdict are left |
+| **The potion arc** | B16 · B17 · B15 · I12 · I12b | M35 and B14 shipped; the policy and the verdict are left |
 | **What the map still has to do** | C1 · C2 · C3 · M4 · M21 · X6 · M32 | the curve arc (C1–C3) states the shape in two lines and solves for it; the rest each own a property measured as NOT met |
 | **The player's choice** | U7 | phase D. The only theme the player touches |
 | **Instruments** | I11 · I9 | I11 reported; I9 blocked, and the return moved its target |
@@ -196,8 +196,10 @@ moves the binding constraint.
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | I12b | Split drunk into useful and wasted | metrics | READY |
-| 2 | B15 | A drink policy that reads the danger field | bot | READY · B14 left a number to beat |
+| — | I12b | Split drunk into useful and wasted | metrics | READY |
+| 1 | B16 | The shrine is a trapdoor and the router treats it as floor | bot | READY · **bug**, confirmed in code |
+| 2 | B17 | Loot on the way is free, and the router does not know it | bot | after B16 · same routing price |
+| 3 | B15 | A drink policy that reads the danger field | bot | READY · B14 left a number to beat |
 | 3 | I12 | Did the potion change move anything? | metrics | baseline recorded · comparison owed |
 
 ### What the map still has to do
@@ -561,6 +563,105 @@ Phase B and C. `R1` is the spine and is playable on its own; `R2`–`R4` are dif
 # The potion arc
 
 M35 and B14 shipped. What is left is the policy that reads danger, and the measurement that says whether any of it helped.
+
+### B16 · the shrine is a trapdoor and the router treats it as floor
+
+`bot agent` · READY · **bug, found by watching** · seed 2367838680, floor 2 ·
+**confirmed in code during review, not merely reported**
+
+**Observed:** the bot walked ACROSS the shrine to reach loot on the far side
+and ended the floor by accident.
+
+**Confirmed.** `believedWalkable` (`src/bot/nav.js:23`) decides passability
+from the tile KIND alone. The shrine is not a tile kind — it is an entity on
+`belief.shrine` — so its tile is ordinary floor to every `dijkstra` and
+`flood` call in `src/bot/`. Nothing in the router knows that stepping there
+ends the floor.
+
+**Not an engine bug.** `rules.md` §8 is explicit that the shrine can be taken
+at any time and the engine imposes no requirement to clear anything first.
+The engine is behaving as designed; the bot is routing through a one-way door
+because it cannot see the door.
+
+#### Why this is worse than it looks
+
+**It is silent, and it corrupts measurements rather than just costing loot.**
+An accidental exit ends a floor early, which shortens runs, lowers coin,
+leaves chests unopened, and does all of it while appearing in the log as an
+ordinary `ascend`. Every recent measurement — M38's depth histogram, M39's
+chest sampling, I12's potion shares — has been reading a population that
+contains some unknown number of floors that ended by mistake.
+
+**And it interacts with B12.** Since B12 the shrine is a candidate *inside*
+the comparison, with `net` 0, so leaving competes with staying. That is a
+decision the bot now makes deliberately — and this bug lets it be made
+accidentally by a route, bypassing the comparison entirely.
+
+#### Do
+
+**The fix is in the price, not in a new planner.** The shrine is walkable and
+must stay walkable — it is the goal on most floors. What it must not be is a
+**pass-through**. Make it impassable to routing when it is not the chosen
+goal, or price it so no route crosses it, and say in one line which and why.
+
+**Do not add a dial for this.** It is not a cost to be traded off; crossing
+the shrine when the goal is elsewhere is never wanted, at any weight.
+
+#### Assert
+
+**Count accidental exits before and after** — floors ending in `ascend` while
+the bot's chosen goal was not the shrine. That number is the item, and it has
+never been measured. Report it even if it turns out to be rare: the value of
+the number is knowing how much of the recent measurement record it touched.
+
+Watch one run through and confirm the bot still takes the shrine deliberately.
+The failure direction is a bot that now refuses to path anywhere near the exit.
+
+### B17 · loot on the way is free, and the router does not know it
+
+`bot agent` · READY · **design gap, found by watching** · same seed and floor
+as `B16`
+
+**Observed:** the bot walked to a distant creature past loot it could have
+collected on the way.
+
+**The correction that changes the fix.** Loot exactly on the path is
+**already free** — `step.js` picks up a loose item when the hero walks over
+it, no action and no turn. So this is not "the bot ignores free loot"; it is
+that the bot will not deviate two tiles for something beside the path.
+
+**Where it comes from.** `chooseGoal` (`bot-strategy.md` §3.2) compares
+candidates individually by `net` from where the hero stands now, and commits
+to the winner. Nothing in it asks what lies along the route to that winner.
+That is by construction, not by oversight — it is a one-goal chooser.
+
+**Not the same as the ping-pong note.** `bot-strategy.md` §5's routing gap is
+about reversals, going back and forth. This is about sequencing several
+targets, and the two have different causes.
+
+#### Do — and the minimum-change rule points somewhere specific
+
+**Do not build a multi-target planner.** The cheap version is already
+available: the Dijkstra that prices the board is a cost function, and a tile
+holding a wanted item is worth slightly less to cross than an empty one.
+Bending the route toward loot costs a term in an existing price, not a new
+layer — and because pickup is free on arrival, a route that passes over an
+item has collected it with no further decision.
+
+**The trap.** Make the discount large and it stops being a route preference
+and becomes goal selection by the back door, which is `chooseGoal`'s job and
+would put two things in charge of one decision. It has to be small enough to
+break ties between routes of equal length and no more.
+
+**Sequence after `B16`.** They touch the same routing price, and two changes
+to it inside one measurement cannot be told apart. `B16` is a bug and goes
+first.
+
+#### Assert
+
+Items collected per floor, and the depth histogram, on the baseline seed
+family. **Also report route length** — if the bot walks materially further to
+sweep up loot, the discount is too large and is choosing goals.
 
 ### B15 · a drink policy that reads the danger field
 
