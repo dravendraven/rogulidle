@@ -220,6 +220,21 @@ a bar instead.
 Bigger rooms push the share up. Raising `dugPercentage` to ROT's own 0.20
 dropped floor 7 to 0.70.
 
+**A rule that needs a second rule to protect it is usually the wrong rule.**
+The original consumed a potion on contact, which wastes one found at full hp,
+so the engine grew a second rule refusing to pick it up while healthy — a
+workaround for its own first rule, and the reason a potion could sit on the
+floor as a deliberate resource. M35 made drinking an action and both rules
+went at once: nothing has to decide whether taking a potion is a good idea,
+because taking it is free and spending it is the decision. The deletion is
+the feature, not a side effect of it.
+
+**Drinking costs a turn on purpose, and the cost is not a constant.** Because
+damage is an event rather than rent (`rules.md` §4), drinking with nothing in
+pursuit costs zero and drinking cornered costs a blow. That is what makes it
+a decision worth watching instead of a button pressed at the perfect moment
+every time.
+
 **Arithmetic beat the bisect.** A batch of five changes took finishes from
 31% to zero, and a bisect was opened to find which. It was never run: the
 floor-1 arithmetic found it first — the hero starts with no weapon dealing

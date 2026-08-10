@@ -552,17 +552,91 @@ test('picking up an item moves the player onto its tile', () => {
   assertEq(after.items.length, 0, 'the item is still on the floor');
 });
 
-test('a potion at full health is not consumed', () => {
+// ***** M35 — potions are carried and drunk on command ***** //
+
+test('a potion walked over at full health is carried, not wasted', () => {
+  // The rule this replaces: the engine drank it on contact and, at full hp,
+  // refused to pick it up at all so it would not be thrown away. Both halves
+  // are gone — a potion is an item like any other.
   const potion = item('health', [1, 2], { heal: 3 });
   const full = makeState({ map: ROOM_5x5, playerPos: [2, 2], items: [potion] });
-  const afterFull = step(full, 'left').state;
-  assertEq(afterFull.items.length, 1, 'the potion was wasted at full health');
-  assertEq(afterFull.player.hp, PLAYER_HP, 'hp went above the maximum');
+  const after = step(full, 'left').state;
 
-  const hurt = makeState({ map: ROOM_5x5, playerPos: [2, 2], hp: 4, items: [potion] });
-  const afterHurt = step(hurt, 'left').state;
-  assertEq(afterHurt.items.length, 0, 'the potion was not consumed');
-  assertEq(afterHurt.player.hp, 7, 'the potion healed the wrong amount');
+  assertEq(after.items.length, 0, 'the potion was left on the floor');
+  assertEq(after.player.inventory.length, 1, 'the potion did not reach the inventory');
+  assertEq(after.player.hp, PLAYER_HP, 'walking over a potion healed, which is now the drink action\'s job');
+});
+
+test('drinking heals, empties the inventory slot and passes the turn', () => {
+  const potion = item('health', [2, 2], { heal: 3 });
+  const state = makeState({ map: ROOM_5x5, playerPos: [2, 2], hp: 4, inventory: [potion] });
+  const after = step(state, 'drink').state;
+
+  assertEq(after.player.hp, 7, 'the potion healed the wrong amount');
+  assertEq(after.player.inventory.length, 0, 'the potion was not spent');
+  assertEq(after.turn, state.turn + 1, 'drinking did not pass the turn');
+});
+
+test('drinking is capped at hpMax and wastes the remainder', () => {
+  // Decision 4 of the item: the engine permits, the bot decides. Drinking
+  // with nothing missing is allowed and throws the potion away.
+  const potion = item('health', [2, 2], { heal: 3 });
+  const state = makeState({ map: ROOM_5x5, playerPos: [2, 2], inventory: [potion] });
+  const after = step(state, 'drink').state;
+
+  assertEq(after.player.hp, PLAYER_HP, 'hp went past the ceiling');
+  assertEq(after.player.inventory.length, 0, 'a wasted drink kept the potion');
+  const heals = after.log.filter((e) => e.type === 'heal');
+  assertEq(heals.length, 1, 'the drink did not log');
+  assertEq(heals[0].amount, 0, 'a wasted drink logged hp it did not restore');
+});
+
+test('the creatures act on the turn spent drinking', () => {
+  // This is the whole feature. A free drink is no decision at all — the
+  // cost is that standing still is exactly when a pursuer collects
+  // (rules.md §4).
+  //
+  // Asserted against `rest`, the other action that passes a turn without
+  // moving: same fixture, same seeds, so the world must land in the same
+  // place. Comparing against a known turn-passer rather than against a
+  // hardcoded tile keeps this honest if monster routing ever changes, and
+  // it survives the skip roll, which both branches draw identically.
+  const build = (inventory) => makeState({
+    map: ROOM_5x5, playerPos: [2, 2], hp: 4, inventory,
+    monsters: [dummy('rat', [3, 3], { activation: 9 })],
+  });
+  const potion = item('health', [2, 2], { heal: 3 });
+
+  const drunk = step(build([potion]), 'drink').state;
+  const rested = step(build([]), 'rest').state;
+
+  assert(posKey(rested.monsters[0].pos) !== '3,3',
+    'fixture is wrong: the creature did not move on a turn that plainly passes');
+  assertEq(posKey(drunk.monsters[0].pos), posKey(rested.monsters[0].pos),
+    'the creature did not get its turn while the hero drank');
+});
+
+test('drinking with no potion is a no-op that does not pass the turn', () => {
+  // Same shape as walking into a wall (rules.md §6), so a policy asking for
+  // a potion it does not hold cannot burn turns on it.
+  const state = makeState({ map: ROOM_5x5, playerPos: [2, 2], hp: 4 });
+  const after = step(state, 'drink').state;
+
+  assertEq(after.turn, state.turn, 'an empty drink passed the turn');
+  assertEq(after.player.hp, 4, 'an empty drink healed');
+  assertEq(after.log.length, state.log.length, 'an empty drink logged');
+});
+
+test('a potion carried down the stairs is still there', () => {
+  // rules.md §1's carry list already includes `inventory`; this asserts the
+  // item did not need new code for it, rather than that it added any.
+  const potion = item('health', [2, 2], { heal: 3 });
+  const carried = newGame(4242, {
+    carry: { hp: 5, hpMax: 10, armour: 0, xp: 3, inventory: [potion], kills: [], xpEarned: 0 },
+  });
+
+  assertEq(carried.player.inventory.filter((i) => i.heal > 0).length, 1,
+    'the potion did not survive the descent');
 });
 
 test('reaching the shrine ends the run', () => {

@@ -149,8 +149,20 @@ tornada improvável.
 **Nem todo baú tem algo.** A chance varia com a posição no mapa, e a
 profundidade compra qualidade melhor, não só mais quantidade.
 
-**Poção cura na hora e é desperdiçada com hp cheio** — por isso o motor a
-deixa no chão em vez de gastá-la, e o herói pode voltar.
+**Poção é carregada, não consumida ao pisar.** Entra no inventário como
+qualquer outro item, viaja entre andares, e beber é uma ação à parte (§6).
+Não há teto de quantas o herói guarda; a oferta já é limitada pela escassez
+do sorteio.
+
+**Beber com hp cheio é permitido e desperdiça a poção.** O motor permite;
+decidir não desperdiçar é do bot. É a mesma divisão de sempre — o motor
+define o que é possível, a política define o que é sensato.
+
+Isto é **divergência do original**, que consumia no contato. A regra antiga
+precisava de um segundo remendo para funcionar: como consumir no contato
+desperdiça poção achada com saúde, o motor se recusava a pegá-la com hp
+cheio e a deixava no chão. Beber sob comando apaga as duas regras de uma
+vez.
 
 **O herói pode começar com itens** (o que a loja usa). Item que entra assim
 credita a barra de armadura pela mesma regra do item pego do chão — uma
@@ -161,7 +173,17 @@ função, não duas cópias.
 **Andar contra parede não passa turno.** Nada acontece, e as criaturas não
 agem. Isso torna esbarrão barato em turnos e caro em ações.
 
-**Atacar, abrir baú e pisar no santuário resolvem no lugar** em vez de mover.
+**Pedir uma ação impossível também não passa turno.** Beber sem poção tem a
+mesma forma do esbarrão: nada acontece, e as criaturas não agem.
+
+**Atacar, abrir baú, pisar no santuário e beber resolvem no lugar** em vez de
+mover.
+
+**Beber custa o turno, e esse custo é a decisão.** Como as criaturas agem
+depois do herói, o turno gasto bebendo é um turno em que quem persegue
+alcança — e §4 diz o que isso significa: o golpe é pago exatamente quando o
+herói deixa de aumentar a distância. Beber sem ninguém atrás custa zero;
+beber encurralado custa um golpe. Quem escolhe o momento é o bot.
 
 **As criaturas agem depois do herói.**
 
@@ -236,8 +258,8 @@ no M32, não numa mudança de preço.
 As divergências deliberadas, com o raciocínio e o que foi medido, estão em
 `docs/rogule-spec.md §13` e em `docs/project/decisions.md`. As de maior
 consequência para desenho estão marcadas acima como "divergência":
-regeneração, crescimento de xp e hp, armadura como barra, e arma alargando o
-dado.
+regeneração, crescimento de xp e hp, armadura como barra, arma alargando o
+dado, e poção carregada em vez de consumida no contato.
 
 **Nada em `§13` é lei.** É registro de decisões tomadas com números na mão. Se
 uma delas parecer errada, o caminho é medir de novo, não restaurar

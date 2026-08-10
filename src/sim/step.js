@@ -9,7 +9,15 @@ import { playerAttacks } from './combat.js';
 import { updateMonsters } from './monsters.js';
 import { observe } from './observe.js';
 
-// The five actions the bot chooses between, every turn.
+// The actions the BOT chooses between, every turn — its menu, not the full
+// set the engine accepts. `tactics.js` and `placeholder.js` enumerate this
+// list, so anything added here changes bot behaviour immediately.
+//
+// M35 added `drink`, which `step` accepts but which is deliberately NOT
+// here: that item is engine-only and putting it on this list would have
+// silently rewritten every bot decision under the banner of an engine
+// change. B14 is the item that teaches the bot to drink, and adding it to
+// this list is that item's call to make.
 export const ACTIONS = ['up', 'down', 'left', 'right', 'rest'];
 
 const DIRECTIONS = {
@@ -100,20 +108,21 @@ function resolveEncounters(state, pos) {
   // Loose items do not block — the player walks on and takes them. Skipped
   // entirely under `noPickup`: the item is left exactly where it lies, as if
   // the player had not stepped there at all.
+  //
+  // M35 — every item takes the same path, potions included. There used to be
+  // a branch here that drank a potion on contact and, at full hp, refused to
+  // pick it up at all. The second rule only existed to work around the first:
+  // consume-on-contact makes a potion found healthy a potion wasted. Drinking
+  // is its own action now (see `drinkPotion`), so there is nothing left for a
+  // special case to protect against. Diverges from the original, which
+  // consumed on pickup (engine.cljs:204) — rules.md §5 and §10 carry the
+  // rule, decisions.md the reasoning. NOT filed under rogule-spec.md §13:
+  // that list is frozen and takes no new entries.
   for (const item of (state.noPickup ? [] : itemsHere)) {
-    if (item.heal > 0) {
-      // A potion at full health is NOT consumed and stays on the map.
-      // FAITHFUL engine.cljs:204.
-      if (state.player.hp >= state.player.hpMax) continue;
-      state.player.hp = Math.min(state.player.hpMax, state.player.hp + item.heal);
-      state.items.splice(state.items.indexOf(item), 1);
-      state.log.push({ type: 'heal', amount: item.heal, turn: state.turn });
-    } else {
-      state.player.inventory.push(item);
-      state.items.splice(state.items.indexOf(item), 1);
-      grantArmour(state.player, item);
-      state.log.push({ type: 'pickup', item: item.name, turn: state.turn });
-    }
+    state.player.inventory.push(item);
+    state.items.splice(state.items.indexOf(item), 1);
+    grantArmour(state.player, item);
+    state.log.push({ type: 'pickup', item: item.name, turn: state.turn });
   }
 
   // The shrine ends the run. The engine lets this happen at any time; the
@@ -128,10 +137,37 @@ function resolveEncounters(state, pos) {
   return blocked;
 }
 
+// M35 — drink the first potion carried. Returns whether the turn passes.
+//
+// Costs a turn, like every other in-place action, and that IS the feature:
+// a turn spent drinking is a turn the creatures act, and rules.md §4 says a
+// blow lands exactly when the hero stops increasing the distance. Free
+// drinking would leave no decision to make.
+//
+// NOT guarded at full hp. The engine permits and the bot decides — drinking
+// with nothing missing simply wastes the potion. `amount` is what the hero
+// actually gained, not the potion's face value, so a wasted drink logs 0 and
+// stays readable as "a heal event means hp moved".
+//
+// Nothing to drink is a no-op that does NOT pass the turn — the same shape
+// as walking into a wall (rules.md §6), so a policy that asks for one it
+// does not have cannot burn turns on it.
+function drinkPotion(state) {
+  const index = state.player.inventory.findIndex((i) => i.heal > 0);
+  if (index < 0) return false;
+
+  const [potion] = state.player.inventory.splice(index, 1);
+  const before = state.player.hp;
+  state.player.hp = Math.min(state.player.hpMax, before + potion.heal);
+  state.log.push({ type: 'heal', amount: state.player.hp - before, turn: state.turn });
+  return true;
+}
+
 // Returns whether the turn passes. Walking into a wall does NOT pass it —
 // nothing happens at all and the monsters do not act. Spec §6.
 function resolvePlayerAction(state, action) {
   if (action === 'rest') return true;
+  if (action === 'drink') return drinkPotion(state);
 
   const dir = DIRECTIONS[action];
   if (!dir) throw new Error('unknown action: ' + action);
