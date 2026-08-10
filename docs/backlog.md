@@ -201,9 +201,11 @@ ends: winning has to stay rare enough to matter, and "too common and the win
 loses its charm" is now the live one. Nothing here says 25% is wrong. It says
 the number moved a hundredfold without anyone choosing where it should land.
 
-**Nothing in this file decides that**, deliberately. It is the owner's call
-whether to give some of it back, and where from — the opening, the chest rate,
-or the starting kit are three different games at the same win rate.
+**Owner decision, 2026-08-10: leave it. Fine tuning comes later; structural
+features first.** The win rate is not to be traded back at this stage, and no
+item should propose doing so. What this section exists for now is the record
+that the number moved a hundredfold and that the opening stopped filtering —
+both of which change what other items mean, `C2` most immediately.
 
 **The original reasoning, kept because it is still why M38 went first:** three
 quarters of runs were over by floor 3, so the ramp's top decided floors that
@@ -235,8 +237,8 @@ single value that moved it was the starting kit.
 | id | what gets done | agent | status |
 |---|---|---|---|
 | — | M39 | Chests pay out half the time, 25% potion / 25% armour | work | **DONE** · target hit with existing dials |
-| C1 | The two lines, read per floor from one hero | metrics | READY · head of the curve arc |
-| C2 | The target curve, in numbers rather than adjectives | work | after C1 |
+| — | C1 | The two lines, read per floor from one hero | metrics | **DONE** · falsified the hard-opening claim |
+| 1 | C2 | The target curve, in numbers rather than adjectives | work | READY · but see C1's review first |
 | C3 | Solve the dials for a pressure curve instead of sweeping | work | after C2 · the only one that changes the game |
 | M40 | `blocked` is computed and then ignored | work | READY · **engine bug**, two instances |
 | M4 | Side-room risk/reward spread scales with depth | work | READY |
@@ -1329,6 +1331,65 @@ which floors have too little support to carry either number.
 table's last row is the return, which is not measurable until the run inverts.
 Four rows of five — opening, build-up, wear-down, turn — are what this item
 covers.
+
+#### Review — adopted. The instrument is right and it falsified a design claim.
+
+**Built as specified, and the item's own test for "no new machinery" passed:**
+both lines are arithmetic over `summarise` output that predates this item — no
+new statistic, no new dial. One source for both halves, which was the only real
+design decision: `damage` and `effHp` were already computed by the descent
+drivers on the same floor of the same run, and `capacityShape` simply never
+collected the first. Dividing `rewardShape`'s isolated 400-hp probe by a
+descended hero's capacity would have mixed two heroes, and it does not.
+
+**The anchor is stated in the code and on the page**, which `I11` established
+was necessary because the two anchors move in *opposite* directions rather than
+by a level shift.
+
+#### The acceptance test failed, and the failure is the finding
+
+The item said: **the opening must read HIGH pressure while holding the run's
+lowest mass** — that is `map-design.md`'s own proof that normalising is what
+makes two lines enough. Measured, n=40:
+
+| floor | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| pressure | **0.595** | 0.643 | 0.706 | 0.773 | 0.714 | 0.875 |
+| support | 40 | 33 | 19 | 9 | 3 | 1 |
+
+**The opening reads the LOWEST pressure in the run, not the highest.**
+
+The item told the agent that a reading which fails this has the line wrong
+rather than the game. **That instruction is now out of date and the reading is
+right.** It was written when 64.5% of runs ended by floor 3; M38 and M39 have
+since taken that to 11.5%, and M39 reported in as many words that the opening
+has stopped filtering. **The line is correctly reporting that
+`map-design.md`'s hard opening no longer exists.**
+
+That is the instrument doing its job on its first use, and it is worth more
+than a confirmation would have been.
+
+#### One thing the report frames in a way that will mislead the next reader
+
+**"Support collapses within a few floors" is true of the SONDA, not of the
+game.** `capacityShape` drives `makeSondaPolicy` — a fixed reference player —
+while the game is played by the bot, which now reaches floor 10 in 67 runs of
+200 and clears 50. The frontier at floor 5 is a property of the probe, not
+evidence that the deep floors are unreachable.
+
+Both readings are legitimate and they answer different questions, which is
+exactly the distinction `I11` closed on. **The page has to say whose support it
+is** — otherwise the deep-half blanks will be read as "the game ends at floor
+5", which is now false by a wide margin.
+
+#### What this hands to C2
+
+`C2` was to turn the qualitative target table into numbers. It now starts from
+a measured curve that **contradicts the target's first row**. That is not a
+reason to delay it; it is the reason to do it, and it moves the question from
+"what numbers express this shape" to "is this still the shape we want, now that
+the opening is not hard". Recorded here rather than rewritten into `C2`,
+because it is a design question and the owner owns it.
 
 ### C2 · the target curve, in numbers rather than adjectives
 
