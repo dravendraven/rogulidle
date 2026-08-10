@@ -640,6 +640,9 @@ export function descentCheck(options = {}) {
   // point: it measures the size of the hole the feature fills.
   let potionsGenerated = 0;
   let potionsDrunk = 0;
+  let healDelivered = 0;
+  let healOverheal = 0;
+  let drinksWasted = 0;
   let deaths = 0;
   let deathsHoldingPotion = 0;
   const refusedPotionIds = new Set();
@@ -711,6 +714,14 @@ export function descentCheck(options = {}) {
         }
 
         const beforeLog = state.log.length;
+        // hp entering the step, and the ceiling it heals against. Both are
+        // read BEFORE `step` because a heal always resolves inside the
+        // player's own action, before any monster acts — so this is the hp
+        // the engine's own `Math.min(hpMax, hp + heal)` sees. See the heal
+        // accounting below for why the logged amount cannot be trusted on
+        // its own. hpMax cannot move mid-step here: `hpFromKills` is off.
+        const hpBefore = state.player.hp;
+        const hpCeiling = state.player.hpMax;
         const result = step(state, action);
         state = result.state;
         observation = result.observation;
@@ -727,8 +738,43 @@ export function descentCheck(options = {}) {
           }
         }
 
+        // Heal delivered, reconstructed rather than read off the log — the
+        // one number that is NOT comparable across the M35 boundary if you
+        // trust `amount`.
+        //
+        // Pre-M35 the engine logged `amount: item.heal`, the potion's FACE
+        // value, while actually giving `min(hpMax, hp + heal) - hp`. A potion
+        // walked over 1 hp short of full delivered 1 and logged 3. That
+        // overheal is precisely the waste M35 recovers, so a baseline that
+        // reads the log overstates the "before" by every point of it and
+        // hides the feature's main effect. Post-M35 `amount` IS the real
+        // gain.
+        //
+        // Applying the engine's own cap to the logged amount is correct on
+        // BOTH sides, which is why there is one implementation and not two:
+        // pre-M35 it recovers the true gain from the face value; post-M35
+        // `hp + gain` never exceeds hpMax by construction, so the cap is a
+        // no-op and it returns the gain unchanged.
+        let hpRunning = hpBefore;
         for (const e of state.log.slice(beforeLog)) {
-          if (e.type === 'heal') potionsDrunk++;
+          if (e.type === 'heal') {
+            const delivered = Math.min(hpCeiling, hpRunning + e.amount) - hpRunning;
+            hpRunning += delivered;
+            potionsDrunk++;
+            healDelivered += delivered;
+            // Logged minus delivered. Pre-M35 this is real waste to the cap.
+            // Post-M35 it is structurally 0 — NOT because overheal stopped
+            // happening, but because the log no longer carries face value,
+            // so the instrument cannot see it. Reading a 0 here after M35 as
+            // "no overheal" would be wrong; measuring it would need the
+            // engine to log both numbers, which is not worth an engine
+            // change for a quantity B14's policy exists to drive to zero.
+            healOverheal += e.amount - delivered;
+            // I12b. A drink that gained nothing. Pre-M35 unreachable (the
+            // engine refuses a potion at full hp instead of wasting it), so
+            // a 0 in the baseline is the shipped rule, not a dead counter.
+            if (delivered === 0) drinksWasted++;
+          }
           if (e.type === 'attack' && e.target === 'player') totalDamage += e.damage;
           const isEvent = e.type === 'ascend' || e.type === 'open'
             || (e.type === 'attack' && e.by === 'player' && e.killed);
@@ -803,6 +849,21 @@ export function descentCheck(options = {}) {
     potionsDrunk,
     potionsRefusedAtFullHp: refusedPotionIds.size,
     potionShareDrunk: potionsGenerated ? potionsDrunk / potionsGenerated : null,
+    // The number M35 moves most directly, and the only heal figure that
+    // means the same thing on both sides of that change. Per GENERATED
+    // potion, not per drunk one: "what the floor's supply is worth to a
+    // hero", which is what the feature is trying to raise. Totals sit
+    // beside it because runs that stop wasting potions last longer, and a
+    // longer run reaches more potions — the denominator moves too.
+    healDelivered,
+    healPerPotionGenerated: potionsGenerated ? healDelivered / potionsGenerated : null,
+    // Pre-M35 only — see the accounting above for why this reads 0 after
+    // M35 whether or not overheal is still happening.
+    healOverheal,
+    // I12b — a tripwire, not a scoreboard. Fires when a drink policy drinks
+    // at the wrong moment; `deathsHoldingPotion` catches the opposite error.
+    drinksWasted,
+    drinksUseful: potionsDrunk - drinksWasted,
     deaths,
     deathsHoldingPotion,
     depths,
