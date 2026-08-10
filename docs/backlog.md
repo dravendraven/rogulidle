@@ -86,7 +86,7 @@ session, skip it.
 | — | I9 | Conditional survival table = the "hope" instrument | metrics | BLOCKED on finishes > 0 |
 | 1 | M35 | Potions become carried items, drunk on command | work | READY · owner feature, head of queue |
 | 2 | B14 | The dumbest defensible drink policy, and potions repriced | bot | after M35 |
-| 3 | I12 | Did it move anything? finishes, and died-holding-a-potion | metrics | after B14 |
+| 3 | I12 | Did it move anything? finishes, and died-holding-a-potion | metrics | **baseline READY NOW**, parallel to M35 · comparison after B14 |
 | 4 | B15 | A drink policy that reads the danger field | bot | after I12 |
 | 5 | I10 | A supported headless runner for measurements | metrics | READY |
 | 6 | I11 | Does the ruler read true when the starting hero changes? | metrics | READY |
@@ -247,7 +247,30 @@ Stale after this: `bot-strategy.md` §4's pricing table and §5's gaps list.
 
 ## I12 · did it move anything — finishes, and died-holding-a-potion
 
-`metrics agent` · **after B14** · the measurement the owner asked for
+`metrics agent` · **the baseline half is READY NOW and runs in parallel
+with M35; the comparison half is after B14** · the measurement the owner
+asked for
+
+### Take the baseline BEFORE M35 ships. This half is time-sensitive.
+
+Once the engine change lands there is no "before" to measure — it can only
+be reconstructed by checking out an older commit, which is possible and
+which nobody does. **Run it now, against shipped `main`, while M35 is being
+built.** Nothing about it depends on M35 existing.
+
+What to record, at a sample big enough to resolve a quarter of a percent:
+`finishes`, and whatever else the panel gives for free at that sample. The
+same seeds get replayed after B14, so **write the seeds down** — that is the
+one thing here worth persisting, against the project's usual rule that
+measurements are not recorded. A rate compared across different seed
+families is a weaker comparison than one compared across the same ones.
+
+**Also record what a potion is worth today, and it is not obvious.** Under
+the shipped rule a potion is refused at full hp, so some heal supply is
+never collected at all. Count what share of generated potions are drunk in a
+run — that is the number M35 is supposed to move most directly, and it is
+the cleanest evidence the feature did anything, independent of `finishes`
+moving at all.
 
 **The headline number is `finishes`.** It reads ~0.25% (U6f, n=377), so
 **this needs hundreds of runs, not dozens** — the runs that read 0% were
