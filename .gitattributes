@@ -1,0 +1,6 @@
+# The vendored ROT.js bundle is checked by sha256 (tools/measure.mjs
+# --selftest) against the exact bytes jsDelivr serves. `core.autocrlf=true` is
+# on here, so without this git would rewrite its line endings on checkout and
+# the hash would fail on every machine but the one that vendored it — a
+# confusing failure that looks like a corrupted download.
+tools/vendor/** -text

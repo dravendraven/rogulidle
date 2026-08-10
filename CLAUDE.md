@@ -217,6 +217,32 @@ effect. Opening the file directly will not work — ES modules need `http://`.
 
 `?seed=anything` makes the whole session reproducible.
 
+## Measuring without a browser
+`node tools/measure.mjs` runs the **same** `src/analysis/` functions
+`run-check.html` calls, headless. For sweeps, regressions and any session
+whose browser tooling is unavailable — three items in a row lost theirs, which
+is why it exists (I10).
+
+```
+node tools/measure.mjs --selftest
+node tools/measure.mjs --list observed-ruler
+node tools/measure.mjs observed-ruler rewardShape '{"runs":6,"firstSeed":500000}'
+```
+
+Node 22, no npm, no build, nothing in `src/` modified: the only obstacle was
+`mapgen.js` importing ROT.js over https, and `tools/rot-cdn-hook.mjs`
+redirects that one specifier to a vendored copy of the identical bundle.
+
+**Run `--selftest` before trusting a number from it**, and again after
+touching `src/sim/`, the hook or the vendored bundle. It checks the
+substitution is FAITHFUL, not merely non-crashing — generation fingerprints
+and a real `rewardShape` call, both recorded from a browser, at fixed seeds.
+A runner that quietly produces different numbers is worse than no runner.
+
+**It is not a licence to stop watching the game.** Headless numbers are for
+sweeps and regressions; whether the overlay appears, the click lands or the
+run reads well still needs a person and a page.
+
 ## Measuring note — read before reporting a difference
 A proportion measured over a few hundred samples has a standard error of
 several points. A gap of 1.3 sigma was once reported here as a finding and
