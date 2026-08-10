@@ -164,9 +164,20 @@ desperdiça poção achada com saúde, o motor se recusava a pegá-la com hp
 cheio e a deixava no chão. Beber sob comando apaga as duas regras de uma
 vez.
 
-**O herói pode começar com itens** (o que a loja usa). Item que entra assim
-credita a barra de armadura pela mesma regra do item pego do chão — uma
-função, não duas cópias.
+**Toda run começa armada.** O herói entra no andar 1 com um kit fixo — o que
+resolve um travamento: desde que arma só cai de criatura, o único jeito de se
+armar é vencer luta, que é exatamente o que um herói desarmado faz mal.
+
+**O kit é uma vez por run, e isso vem da ordem, não de uma guarda.** Ele é
+aplicado antes do que desce a escada (§1), e o que desce sobrescreve o
+inventário inteiro. O andar 1 não tem nada descendo e recebe o kit; todo
+andar abaixo tem, e fica com o que o herói de fato carrega — inclusive nada,
+se a arma tiver sido perdida. Herói não reganha kit ao descer.
+
+**O herói também pode começar com itens comprados** (o que a loja usa), e
+eles **somam ao kit** em vez de substituí-lo — comprar nunca pode deixar o
+herói pior do que não comprar. Item que entra assim credita a barra de
+armadura pela mesma regra do item pego do chão — uma função, não duas cópias.
 
 ## 6. O turno
 

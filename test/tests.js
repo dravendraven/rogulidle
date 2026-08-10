@@ -4,7 +4,7 @@
 import {
   CHEST_GUARD_RADIUS, EARLY_CHEST_QUALITY_BOOST, HP_GRANT_AMOUNT, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_TAIL,
-  PLAYER_HP, SHRINE_DISTANCE_SHARE, WEAPON_AXE_MIN_TIER,
+  PLAYER_HP, SHRINE_DISTANCE_SHARE, STARTING_ITEMS, WEAPON_AXE_MIN_TIER,
 } from '../src/sim/balance.js';
 import { newGame, playGame, replayGame } from '../src/sim/game.js';
 import { step, ACTIONS, grantArmour } from '../src/sim/step.js';
@@ -191,16 +191,23 @@ test('a replay of a non-default floor rebuilds the same floor', () => {
 // ***** U6d — the engine accepts a starting loadout ***** //
 
 test('a hero started with startingItems carries it from turn 1', () => {
-  const dagger = ITEM_TABLE.find((i) => i.name === 'dagger');
-  const state = newGame(4242, { startingItems: [dagger] });
+  // M38 gave every run a starting kit, so this now asserts the granted item
+  // arrives ON TOP of it rather than being the whole inventory — the count
+  // and the damage are both kit-relative for that reason.
+  const axe = ITEM_TABLE.find((i) => i.name === 'axe');
+  const state = newGame(4242, { startingItems: [axe] });
+  const kitDamage = STARTING_ITEMS.reduce((sum, i) => sum + (i.dmg || 0), 0);
+
   assertEq(state.turn, 0, 'this should be the very start of the run');
-  assertEq(state.player.inventory.length, 1, 'the starting item did not arrive');
-  assertEq(state.player.inventory[0].name, 'dagger', 'the wrong item arrived');
-  assert(state.player.inventory[0].id, 'the starting item has no id');
+  assertEq(state.player.inventory.length, STARTING_ITEMS.length + 1,
+    'the granted item did not arrive alongside the starting kit');
+  assert(state.player.inventory.some((i) => i.name === 'axe'), 'the wrong item arrived');
+  assert(state.player.inventory.every((i) => i.id), 'a starting item has no id');
 
   // weaponDamage (combat.js) is genuinely live — resolveAttack calls it —
   // so this confirms real behaviour, not just that a pure function runs.
-  assertEq(weaponDamage(state.player), dagger.dmg, 'weaponDamage did not read the starting item');
+  assertEq(weaponDamage(state.player), kitDamage + axe.dmg,
+    'weaponDamage did not read the kit and the granted item together');
 });
 
 test('a starting shield actually grants armour, not just inventory', () => {
@@ -214,8 +221,10 @@ test('a starting shield actually grants armour, not just inventory', () => {
   // item's coverage leaned on, and which has zero production callers.
   const shield = ITEM_TABLE.find((i) => i.name === 'shield');
   const state = newGame(4242, { startingItems: [shield] });
-  assertEq(state.player.armour, shield.armour, 'the starting shield did not credit the armour bar');
-  assertEq(effectiveHp(state.player), state.player.hp + shield.armour,
+  const kitArmour = STARTING_ITEMS.reduce((sum, i) => sum + (i.armour || 0), 0);
+  assertEq(state.player.armour, kitArmour + shield.armour,
+    'the starting shield did not credit the armour bar');
+  assertEq(effectiveHp(state.player), state.player.hp + kitArmour + shield.armour,
     'effectiveHp does not reflect the starting shield');
 });
 
@@ -249,9 +258,56 @@ test('startingItems does not multiply if the hero already carries something', ()
   assertEq(state.player.inventory[0].name, 'axe', 'carry should have won over startingItems');
 });
 
-test('omitting startingItems leaves the hero unarmed, same as before this item', () => {
+// ***** M38 — every run starts armed ***** //
+
+test('a run with no options at all starts holding the kit', () => {
+  // The shipped default, not something a caller opts into. Before M38 this
+  // asserted the opposite — a hero with no `startingItems` started empty —
+  // and that is exactly the bootstrap the item removed: since M26 a weapon
+  // only drops from a creature, so an unarmed hero has to win a fight to
+  // get the thing that wins fights.
   const state = newGame(4242);
-  assertEq(state.player.inventory.length, 0, 'a hero with no startingItems option started carrying something');
+  assertEq(state.player.inventory.length, STARTING_ITEMS.length,
+    'a fresh run did not start with the kit');
+  assert(weaponDamage(state.player) > 0, 'the hero started the run unarmed');
+});
+
+test('the shop adds to the starting kit instead of replacing it', () => {
+  // The interaction that decided where the default lives. `startingItems` is
+  // what a run brings ON TOP of the kit — if it replaced the kit, buying a
+  // shield would cost the hero their dagger and make buying strictly worse
+  // than not buying.
+  const shield = ITEM_TABLE.find((i) => i.name === 'shield');
+  const bought = newGame(4242, { startingItems: [shield] });
+
+  assertEq(bought.player.inventory.length, STARTING_ITEMS.length + 1,
+    'buying an item changed how much the hero starts with, rather than adding to it');
+  assertEq(weaponDamage(bought.player), weaponDamage(newGame(4242).player),
+    'buying a shield disarmed the hero');
+});
+
+test('an empty startingItems does not disarm the hero', () => {
+  // `src/ui/spectator.js` passes `getHeldItems()`, which is `[]` when nothing
+  // was bought — truthy, so any default resolved with `??` would be defeated
+  // in exactly the path a person watches. Asserted here because that failure
+  // would be invisible to every headless measurement.
+  const empty = newGame(4242, { startingItems: [] });
+  assertEq(empty.player.inventory.length, STARTING_ITEMS.length,
+    'an empty purchase list wiped the starting kit');
+});
+
+test('the kit is granted once per run, not once per floor', () => {
+  // No guard does this — `carry` overwrites the inventory outright, and
+  // every floor past the first has one. Asserted through a carry that is
+  // POORER than the kit, so a second grant would show up as the hero
+  // arriving on floor 2 better armed than they left floor 1.
+  const carry = {
+    hp: 8, hpMax: 10, armour: 0, xp: 3, inventory: [], kills: [], xpEarned: 0,
+  };
+  const floor2 = newGame(4242, { carry });
+  assertEq(floor2.player.inventory.length, 0,
+    'the starting kit was granted again on a floor that carried nothing down');
+  assertEq(weaponDamage(floor2.player), 0, 'a hero who lost their weapon got it back for free');
 });
 
 test('step does not mutate the state it was given', () => {

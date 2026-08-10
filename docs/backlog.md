@@ -173,7 +173,7 @@ of what to do next, which is the only job it has.
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | M38 | The hero starts the run armed | work | READY · head of phase A |
+| 1 | M38 | The hero starts the run armed | work | REPORTED |
 | 2 | M37 | A setback needs room between "no effect" and "dead" | work | owner to place |
 | 3 | M36 | A detour has to be able to cost the run | work | owner to place |
 
@@ -246,7 +246,7 @@ Phase A of the roadmap. **Nothing else is worth measuring until this moves** —
 
 ### M38 · the hero starts the run armed — the cheapest test of phase A
 
-`work agent` · READY · **head of phase A** · owner-approved, and it is one
+`work agent` · **REPORTED** · head of phase A · owner-approved, and it is one
 value, not a mechanism
 
 #### Why this one and not the ramp
@@ -322,6 +322,52 @@ M37 and M36 still own the shape of the problem.
 **If it barely moves,** that is the useful outcome: it means the opening is not
 a gear bootstrap and the hp buffer or floor 1–3 mass is the next candidate.
 Say so plainly rather than reaching for a second dial in the same commit.
+
+#### Report
+
+**It did not barely move.** `descentCheck` n=200, seeds 3000000+, same seeds
+both arms. The before arm reproduces this item's own histogram exactly.
+
+| floor | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| before | 16 | 59 | 54 | 24 | 14 | 14 | 8 | 7 | 3 | 1 |
+| after | 8 | 23 | 43 | 32 | 21 | 21 | 14 | 17 | 11 | 10 |
+
+Runs ending by floor 3 **0.645 → 0.370**, paired McNemar z=6.82 — 60 runs
+escaped the opening, 5 were newly trapped. Paired depth difference **+1.40
+±0.16**, z=8.55; 112 deeper, 67 unchanged, 21 shallower. Cleared all ten:
+**0 → 5**, on seeds where the before arm cleared nothing.
+
+**The item's headline number does not match its own table, and the table is
+the one that is right.** The item states the share ending by floor 3 as
+0.745; its histogram sums to 129/200 = **0.645**, and my before arm
+reproduces that histogram run for run. Measured against 0.645.
+
+**The opening still filters — the check that mattered more than the
+improvement.** Floors 1 and 2 still end 31 runs of 200 and 37% still end by
+floor 3. The mass did not relocate to a new wall further down: it left the
+2–3 pile and spread across the whole ladder, floors 7–10 going 19 → 52. The
+distribution got wider, not shifted, so `map-design.md` property 1 survives.
+
+**Denominator, named.** Floors played 695 → 975. `potionsDrunk` 275 → 412 and
+`healDelivered` 825 → 1236 rise about 40% with it; `potionShareDrunk` barely
+moves, 0.606 → 0.649. B14's policy behaves the same, there is just more game.
+
+**B14's pricing holds on its first real test.** `drinksWasted` and
+`healOverheal` are still exactly zero with heroes now reaching floor 10.
+`deathsHoldingPotion` reads 1.05% → 3.72% of deaths (deaths 190 → 188, so the
+denominator held) — **z=1.70, under the 2σ bar, not explained here.** I12's
+tripwire, I12's number.
+
+**One call the item did not cover.** `startingItems` now means "on top of the
+kit" rather than "instead of it". Forced by the callers: `spectator.js` passes
+`getHeldItems()`, which is `[]` and truthy when nothing was bought, so a `??`
+default would be silently defeated in the path a person watches — and a hero
+who bought a shield would otherwise lose the dagger for it, making a purchase
+strictly worse than none. Two U6d tests asserted the old meaning and were
+updated to the new one.
+
+Stale and fixed here: `rules.md` §5.
 
 ### M37 · a setback needs room between "no effect" and "dead"
 

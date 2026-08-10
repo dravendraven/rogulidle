@@ -1,7 +1,7 @@
 // Building and driving a whole run. Spec: docs/rogule-spec.md.
 
 import { generateMap } from './mapgen.js';
-import { MAP_SIZE } from './balance.js';
+import { MAP_SIZE, STARTING_ITEMS } from './balance.js';
 import { hashSeeds, seedFromString } from './rng.js';
 import { nextId, populate } from './spawn.js';
 import { grantArmour, step } from './step.js';
@@ -77,8 +77,17 @@ export function newGame(seed, counts = {}) {
   // `armourValue`, a function with no production callers. Fixed by
   // running every starting item through the one shared rule instead of a
   // second copy of it.
-  if (counts.startingItems) {
-    state.player.inventory = counts.startingItems.map((item) => {
+  // M38 — the kit comes FIRST and `startingItems` adds to it, rather than
+  // replacing it. Two reasons, both found by looking at the callers:
+  // `src/ui/spectator.js` passes `getHeldItems()`, which is `[]` when nothing
+  // was bought — truthy, so a default resolved with `??` would be silently
+  // defeated in exactly the path a person watches. And a hero who bought a
+  // shield would otherwise lose the dagger for it, which makes buying strictly
+  // worse than not buying. `startingItems` therefore means "what this run
+  // brings ON TOP of the kit"; STARTING_ITEMS empty restores the old meaning.
+  const startingKit = [...STARTING_ITEMS, ...(counts.startingItems ?? [])];
+  if (startingKit.length) {
+    state.player.inventory = startingKit.map((item) => {
       const owned = { ...item, id: nextId(state) };
       grantArmour(state.player, owned);
       return owned;

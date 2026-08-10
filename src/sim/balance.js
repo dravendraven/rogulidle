@@ -407,6 +407,26 @@ export const ITEM_TABLE = [
   { name: 'axe',    emoji: '🪓',  value: 4, dmg: 2, kind: 'weapon' },
 ];
 
+// ***** M38 — the hero starts the run armed, docs/backlog.md M38 ***** //
+// What every run begins holding, before the shop adds anything.
+//
+// THE BOOTSTRAP THIS BREAKS. Since M26 a weapon only drops from a creature,
+// so the one way to get armed is to win a fight — which is the thing an
+// unarmed hero does badly. Nothing in the first floors breaks that loop, and
+// three quarters of runs end inside it.
+//
+// Drawn from ITEM_TABLE by name rather than written out again: what a dagger
+// IS stays in one place, so a change to its damage reaches the starting kit
+// without anyone remembering to look here. Same reason `src/ui/shop.js`
+// reuses the table instead of redefining its rows.
+//
+// Once per run BY CONSTRUCTION, with no guard anywhere: game.js applies this
+// before `carry`, and `carry` overwrites the inventory outright. Floor 1 has
+// no carry and gets the kit; every floor below has one and takes whatever
+// the hero actually holds by then — including nothing, if the dagger was
+// somehow lost. Empty is a legal value here and turns the feature off.
+export const STARTING_ITEMS = ITEM_TABLE.filter((item) => item.name === 'dagger');
+
 // ***** M26 — weapons come off creatures, docs/backlog.md M26 ***** //
 // GUESS — the minimum MONSTER_TABLE index (0 = rat, 10 = t-rex) a killed
 // creature has to reach before `axe` is even a candidate in its drop pool.

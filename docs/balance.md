@@ -82,6 +82,7 @@ statement about today. Only this table is current.
 | `SIDE_CHEST_BIAS` | `3` | balance.js |
 | `SIDE_ROOM_DEPTH_BONUS` | `0.35` | balance.js |
 | `SPINE_THREAT_SHARE` | `0.7` | balance.js |
+| `STARTING_ITEMS` | `[dagger]` | balance.js |
 | `STEP_COST_IN_HP` | `0.01` | balance.js |
 | `STRENGTH_GROWTH` | `1.0` | difficulty.js |
 | `STRENGTH_GROWTH_REBALANCED` | `1.1452` | difficulty.js |
@@ -1300,7 +1301,67 @@ other floor's own guardian too, so the floor-1-vs-floor-2 RATIO this item
 was built around should still be roughly fair even though neither
 absolute number is exact.
 
-## M31 — the budget check reads the generator instead of approximating it
+## M38 — the hero starts the run armed
+
+| Name | Value | Status |
+|---|---|---|
+| `STARTING_ITEMS` | `[dagger]` | **MEASURED** — the depth histogram below |
+
+Drawn from `ITEM_TABLE` by name rather than written out again, so what a
+dagger is stays in one place. Empty is a legal value and turns the feature
+off.
+
+**The bootstrap it breaks.** Since M26 a weapon drops only from a creature,
+so the one route to being armed is winning a fight — which is what an
+unarmed hero does badly. Nothing in the opening breaks that loop.
+
+**Also measured and rejected first:** flipping `WEAPONS_WIDEN_ROLL` doubles
+what a weapon point is worth and needs no new machinery, but with zero
+weapons carried both modes are the same roll. It cannot reach where runs end.
+
+**Once per run by construction, with no guard.** `game.js` applies the kit
+before `carry`, and `carry` overwrites the inventory outright. Floor 1 has no
+carry; every floor below has one.
+
+**`startingItems` now means "on top of the kit", not "instead of it".** Two
+caller facts forced this: `src/ui/spectator.js` passes `getHeldItems()`,
+which is `[]` — truthy — when nothing was bought, so a `??` default would be
+defeated in exactly the path a person watches; and a hero who bought a shield
+would otherwise lose the dagger for it, making a purchase strictly worse than
+none.
+
+### Measured, `descentCheck` n=200, seeds 3000000+, same seeds both arms
+
+Deepest floor reached:
+
+| floor | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| before | 16 | 59 | 54 | 24 | 14 | 14 | 8 | 7 | 3 | 1 |
+| after | 8 | 23 | 43 | 32 | 21 | 21 | 14 | 17 | 11 | 10 |
+
+Runs ending by floor 3: **0.645 → 0.370**, paired McNemar z=6.82 (60 escaped
+the opening, 5 newly trapped). Paired depth difference **+1.40 ±0.16**,
+z=8.55 — 112 runs deeper, 67 unchanged, 21 shallower. Mean depth 3.48 → 4.88.
+Cleared all ten: 0 → 5.
+
+**The opening still filters, which is the check that mattered more than the
+improvement.** `map-design.md` property 1 wants a hard opening. Floor 1 and 2
+still end 31 runs of 200, and 37% still end by floor 3 — the mass moved out
+of the 2–3 pile and spread across the ladder rather than relocating to a new
+wall. The distribution got wider, not shifted.
+
+**The denominator, named because a deeper hero plays more of everything.**
+Floors played 695 → 975. `potionsDrunk` 275 → 412 and `healDelivered` 825 →
+1236 both rise about 40%, tracking that. The rate barely moves —
+`potionShareDrunk` 0.606 → 0.649 — which is the honest read: B14's policy
+behaves the same, there is simply more game.
+
+**B14's pricing survives its first real test.** It priced potions against a
+ten-floor horizon when almost nothing passed floor 3. With heroes now
+reaching floor 10, `drinksWasted` and `healOverheal` are still exactly zero.
+`deathsHoldingPotion` reads 1.05% → 3.72% of deaths (deaths 190 → 188, so
+that denominator held) — **z=1.70, under the 2σ bar, deliberately not
+explained here.** It is I12's tripwire and I12's number.
 
 **No constant moved and no game behaviour changed.** This is a change to
 one test: the M7 budget check now reads `expectedFloorMass`, fitted over
