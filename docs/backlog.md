@@ -76,25 +76,29 @@ session, skip it.
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | U6e | The shop screen | ui | **DONE** |
-| 2 | U6f | Watch a full loop, integration check | ui | **DONE** · DOM layer owed a click-through |
-| 3 | B13 | Charge a pursuer where it actually collects | bot | **DONE** · shipped OFF, inert |
-| 4 | B12 | Fighting should compete with leaving, not precede it | bot | **DONE** · shipped ON |
-| 5 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | **DONE** · proxy deleted, band history corrected |
+| — | U6e | The shop screen | ui | **DONE** |
+| — | U6f | Watch a full loop, integration check | ui | **DONE** · DOM layer owed a click-through |
+| — | B13 | Charge a pursuer where it actually collects | bot | **DONE** · shipped OFF, inert |
+| — | B12 | Fighting should compete with leaving, not precede it | bot | **DONE** · shipped ON |
+| — | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | **DONE** · proxy deleted, band history corrected |
 | — | X5 | Classify every dial by lifecycle, delete only the dead | work + bot | READY · at a structural boundary |
 | — | X6 | Collapse the tier clamps, redundancy proven first | work | after X5 |
 | — | I9 | Conditional survival table = the "hope" instrument | metrics | BLOCKED on finishes > 0 |
-| 6 | I10 | A supported headless runner for measurements | metrics | READY |
-| 7 | I11 | Does the ruler read true when the starting hero changes? | metrics | READY |
-| 8 | M34 | Nothing measures what a direct run can skip | metrics | **DONE** |
-| 9 | M21 | Deep floors put a creature where the hero lands | work | READY |
-| 10 | X1 | Delete what nothing references | work | READY |
-| 11 | X2 | Comments in src/ that lie: 25 stale refs + 3 false claims | work + bot | READY |
-| 12 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
-| 13 | D1 | The crowd-correction fit is overdue for its own redo | work | READY · M31 landed |
-| 14 | M4 | Side-room risk/reward spread scales with depth | work | READY · M31 landed |
-| 15 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
-| 16 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
+| 1 | M35 | Potions become carried items, drunk on command | work | READY · owner feature, head of queue |
+| 2 | B14 | The dumbest defensible drink policy, and potions repriced | bot | after M35 |
+| 3 | I12 | Did it move anything? finishes, and died-holding-a-potion | metrics | after B14 |
+| 4 | B15 | A drink policy that reads the danger field | bot | after I12 |
+| 5 | I10 | A supported headless runner for measurements | metrics | READY |
+| 6 | I11 | Does the ruler read true when the starting hero changes? | metrics | READY |
+| — | M34 | Nothing measures what a direct run can skip | metrics | **DONE** |
+| 7 | M21 | Deep floors put a creature where the hero lands | work | READY |
+| 8 | X1 | Delete what nothing references | work | READY |
+| 9 | X2 | Comments in src/ that lie: 25 stale refs + 3 false claims | work + bot | READY |
+| 10 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
+| 11 | D1 | The crowd-correction fit is overdue for its own redo | work | READY · M31 landed |
+| 12 | M4 | Side-room risk/reward spread scales with depth | work | READY · M31 landed |
+| 13 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
+| 14 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -109,6 +113,163 @@ Closed work is in `docs/project/decisions.md`. Parked and unscheduled is in
 
 
 
+
+## M35 · potions become carried items, drunk on command
+
+`work agent` · READY · **owner feature, head of the queue** · engine only,
+no bot change in this item
+
+Today a potion is consumed the instant the hero walks over it, and at full
+hp the engine refuses to pick it up at all — it stays on the floor and the
+hero can come back. That second rule exists *because* of the first: consume
+on contact means a potion found while healthy is a potion wasted, so the
+engine works around its own rule.
+
+**Do.** A potion goes into the inventory like every other item. Drinking is
+a new action.
+
+**This deletes more than it adds, and that is the point.** The full-hp
+special case in `step.js`'s pickup loop goes away — a potion at full hp is
+just an item you are carrying. Nothing has to decide whether picking it up
+is a good idea, which is exactly the branch that exists today.
+
+### Four decisions taken here, so the item is not ambiguous
+
+**1. Drinking costs a turn.** Every other in-place action does — attack,
+open chest, take the shrine. `rest` already establishes the shape: an action
+that passes a turn without moving, and `resolvePlayerAction` already has the
+branch. **Free drinking would delete the feature the owner asked for**:
+with no cost there is no decision, you simply drink at the perfect moment
+every time. A turn spent drinking is a turn the creatures act, and §4 of
+`rules.md` says what that means — standing still next to a pursuer is
+exactly when a blow lands. **That is the decision this feature is for.**
+
+**2. Carrying between floors is free and already works.** `rules.md` §1's
+carry list includes `inventory`. A potion found on floor 3 travels to floor
+9 with no new code. Do not write any.
+
+**3. No cap on how many can be held, in this item.** A cap is a new dial to
+compensate for a behaviour nobody has observed yet. Supply is already
+bounded by `POTION_SCARCITY`. If hoarding turns out to be degenerate, that
+is a finding with a number attached, and the dial can be argued for then.
+
+**4. Drinking at full hp is allowed and wastes the potion.** Do not guard
+it. The engine's job is to permit; deciding not to waste one is the bot's,
+and B14 is where that lives. A guard here would be an engine rule invented
+to protect the bot from itself — the exact split `CLAUDE.md` keeps.
+
+### What this is not
+
+**Not `rest` with a side effect.** `rest` stays — waiting for a pursuer to
+come to you is a real move and B13 is about that. Two actions, both passing
+a turn, doing different things.
+
+**Assert.** A potion walked over at full hp is now in the inventory and no
+longer on the map. Drinking raises hp by the heal amount, capped at hpMax,
+removes it from the inventory, passes a turn, and the creatures act on that
+turn. Drinking with no potion is a no-op that does not pass a turn — same
+shape as walking into a wall. A potion carried down the stairs is still
+there on the next floor. Determinism holds: same seed, same run.
+
+**Stale after this, and it is your commit that fixes them:** `rules.md` §5
+(the "wasted at full hp, so the engine leaves it on the floor" paragraph is
+simply false afterwards) and §6 (the list of actions that resolve in place).
+`rules.md` §10 and `rogule-spec.md` §13 gain a divergence — the original
+consumed on pickup; this does not.
+
+## B14 · the dumbest defensible drink policy, and potions repriced
+
+`bot agent` · **after M35** · deliberately unambitious — this item exists to
+make the engine change measurable, not to play well
+
+Two things, both small, and the second matters more than the first.
+
+**1. Drink when the missing hp is at least the heal.** That is the whole
+policy. It wastes nothing and it is trivially explainable when watching. It
+is also knowingly naive: it ignores danger entirely, so the bot will drink
+standing next to a wolf. **Leave it naive.** B15 is where a real policy
+goes, and it needs this one's numbers to beat.
+
+**2. Reprice the potion, which is the part that is easy to miss.** The bot
+values a potion today at what it heals *right now* — because that was the
+truth: pick it up healthy and it is gone. Deferred, a potion is never
+wasted, so it is worth its full heal for as long as the run lasts.
+`valueByItemName` and `expectedChestValue` both read that value, and chests
+are where potions come from, so **chest value rises and the bot should walk
+further for one.** If this half is skipped, the engine change ships with a
+bot that still undervalues exactly what changed.
+
+**The trap this item is most likely to fall into.** A held potion is worth
+its heal *if the run lasts long enough to spend it*. That is the same
+horizon discount `campaignCost` already applies to equipment — do not invent
+a second one. Use what is there.
+
+**Assert.** Watch a run: the bot picks up potions at full hp, carries them,
+and drinks when hurt rather than walking around at 2 hp holding two. Report
+whether it ever dies holding one — do not fix it if so, that is I12's
+number and B15's job. State whether chest-seeking visibly changed.
+
+Stale after this: `bot-strategy.md` §4's pricing table and §5's gaps list.
+
+## I12 · did it move anything — finishes, and died-holding-a-potion
+
+`metrics agent` · **after B14** · the measurement the owner asked for
+
+**The headline number is `finishes`.** It reads ~0.25% (U6f, n=377), so
+**this needs hundreds of runs, not dozens** — the runs that read 0% were
+n=60–80 and could not resolve it. Use `tools/measure.mjs`; this is the
+first item that genuinely needs I10 rather than merely liking it.
+
+**The diagnostic worth building, and it is a tripwire not a scoreboard:**
+the share of deaths that happened with an unused potion in the inventory.
+It does not reward being pushed in either direction — it fires, and when it
+fires there is a defect in the drink policy to find. That is the shape
+`objectives.md` asks for.
+
+**The denominator trap, named in advance because this item is a textbook
+setup for it.** Potions that never go to waste make runs last longer. Any
+per-turn or per-floor rate will move for that reason alone, and reading it
+as "the change helped" would be the fifth instance of this exact error in
+this project. Prefer totals and outcomes over ratios; where a ratio is
+unavoidable, say what its denominator did.
+
+**One confound to separate, not to explain away.** Two things changed at
+once: potions became strictly more valuable (never wasted) and the bot
+gained a decision it can get wrong. If `finishes` moves, this item cannot
+tell you which one did it. **Measure M35+B14 against the shipped baseline
+and say plainly that the two are entangled** — B15 is what separates them,
+by changing only the policy against a fixed engine.
+
+**Assert.** `finishes` before and after, with enough runs to resolve a
+quarter of a percent, and a z. Deaths-holding-a-potion. And, because this
+makes the game easier at a moment when almost nothing completes, say
+whether anything got *worse*.
+
+## B15 · a drink policy that reads the danger field
+
+`bot agent` · **after I12** · only worth doing once B14's naive policy has a
+number to beat
+
+B14 drinks whenever the arithmetic says nothing is wasted. That ignores the
+one thing the bot is best at knowing: `dangerField` already prices every
+tile in hp, which is the same currency a potion pays out in.
+
+**The real question is not "am I hurt" but "is the turn affordable".**
+Drinking costs a turn and the creatures act on it, so the right moment is
+when the hp bought exceeds the hp the turn costs — which is a comparison the
+bot already knows how to make, in the currency it already uses. **Do not add
+a threshold dial for this.** If it needs one, say why `dangerField` could not
+carry it.
+
+**The failure mode to steer away from, from the other direction.** A bot
+that only drinks when safe will die holding potions, which is I12's
+tripwire. Hoarding for a perfect moment that never comes is worse than
+drinking a little early.
+
+**Assert.** Beat B14 on `finishes` at the sample size I12 established, and
+move deaths-holding-a-potion down. If it does neither, say so and leave B14
+shipped — a policy that is more sophisticated and no better is a policy that
+does not ship.
 
 ## X3 · mark which dials change the GAME and which change only THIS bot
 
