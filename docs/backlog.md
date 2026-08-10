@@ -85,7 +85,7 @@ session, skip it.
 | — | X6 | Collapse the tier clamps, redundancy proven first | work | after X5 |
 | — | I9 | Conditional survival table = the "hope" instrument | metrics | BLOCKED on finishes > 0 |
 | — | M35 | Potions become carried items, drunk on command | work | **DONE** · drink left off ACTIONS, correctly |
-| 1 | B14 | The dumbest defensible drink policy, and potions repriced | bot | **RETURNED** · tactics drinks too, danger-aware by accident |
+| 1 | B14 | The dumbest defensible drink policy, and potions repriced | bot | **REPORTED** · fixed, healDelivered = 3 x potionsDrunk exactly |
 | 2 | I12b | Split drunk into useful and wasted, now that amount is honest | metrics | READY · with or before B14 |
 | 3 | I12 | Did it move anything? finishes, and died-holding-a-potion | metrics | baseline reviewed · **owes overheal, before B14 lands** |
 | 4 | B15 | A drink policy that reads the danger field | bot | after I12 |
@@ -324,8 +324,8 @@ not as useful. Totals alongside shares, per I12's own denominator warning.
 
 ## B14 · the dumbest defensible drink policy, and potions repriced
 
-`bot agent` · **REPORTED** · potion never wasted by construction, 1.0% of
-deaths held one unused, chest value +50% at full hp
+`bot agent` · **REPORTED** · returned once for a tactics-layer second drink
+policy, fixed, re-measured exact
 
 Two things, both small, and the second matters more than the first.
 
@@ -613,6 +613,51 @@ opposite case with a measurement.
 **Then re-measure** `healDelivered` against `3 × potionsDrunk`. They should
 be equal under the naive policy, and that equality is the cheapest possible
 check that no second policy is firing.
+
+### Fixed — excluded, not scored, and the equality now holds exactly
+
+**Excluded.** `tactics.js` filters `drink` out of `ACTIONS` into a local
+`SEARCHABLE_ACTIONS`, used at both places the search enumerates moves
+(`bestValue`'s recursion and `scoreActions`'s own top-level loop) — the
+recursion mattered too: leaving `drink` reachable only at depth > 0 would
+still let a hypothetical future drink inflate what the search thinks THIS
+turn's retreat or advance is worth, the same leak one level removed.
+
+**Why exclusion and not scoring it honestly.** `makeEvaluator` is a flat
+sum of hp terms built for movement trade-offs — retreat, advance, fight —
+and every term in it is a rate or a one-time delta the search can compare
+apples-to-apples. Drinking is neither: it converts a HELD ASSET (a potion,
+priced by B14's own horizon-discounted face value in `loot.js`) into
+immediate `effectiveHp`, and pricing that correctly means weighing the
+immediate gain against what the potion is worth NOT spent yet — an
+opportunity-cost comparison this evaluator has no term for and was never
+built to make. Adding one would mean importing `loot.js`'s potion pricing
+into `tactics.js` and reconciling it against `toGo`/`dealt` in the same
+currency, which is not a search fix, it is B15's whole job under a
+different name. Exclusion is the smaller change and does not pre-empt the
+item that owns this decision.
+
+**Re-measured, `descentCheck`, two independent seed families, n=120 each:**
+
+    seed base    potionsDrunk   healDelivered   3 x potionsDrunk
+    3000000           154            462              462
+    4100000           161            483              483
+
+**Exact equality on both, not merely close.** No second policy is firing.
+`drinksWasted` and `deathsHoldingPotion` both read 0 on both families at
+this sample — consistent with the earlier n=200 report (which read 2 deaths
+holding a potion; a different, larger sample, not a contradiction).
+
+**One more thing the numbers say, unprompted.** Drinks fell from the
+review's pre-fix 160 to 154 on the same seed family, while `healDelivered`
+rose from 414 to 462. Fewer drinks, more hp delivered — the tactical
+layer's extra, premature drinks are gone, and what remains is only the
+naive policy's own full-value drinks. That is the shape a correct fix
+should have, not just the equality.
+
+**Files touched:** `src/bot/tactics.js` (`SEARCHABLE_ACTIONS`, both loops).
+Nothing in the pricing half changed — the review said not to touch it, and
+141 tests still pass unmodified.
 
 ## B15 · a drink policy that reads the danger field
 

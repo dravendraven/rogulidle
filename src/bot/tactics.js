@@ -19,6 +19,24 @@ import { key } from './nav.js';
 
 const DEATH = -1000;
 
+// B14's review (docs/backlog.md): `ACTIONS` gained `drink`, and this search
+// enumerated `ACTIONS` for "every move the bot can make" — so drinking
+// became a second, live drink policy, running INSIDE a search that already
+// has its own decision-maker for it above (`decide()`'s naive check).
+//
+// Excluded here rather than scored honestly. `evaluate` below is a flat sum
+// of hp terms tuned for movement trade-offs (retreat vs advance vs fight);
+// drinking raises `effectiveHp` on the spot with nothing to weigh it
+// against what NOT drinking is worth — the potion held for later, priced
+// in `loot.js` by the same horizon discount B14 gave every other item.
+// Pricing that correctly here means importing that model and reconciling
+// it against `toGo`/`dealt` in one evaluator, which is not a search fix,
+// it is B15's whole job under a different name. Confirmed live rather than
+// theoretical: `descentCheck` at n=120 read `healDelivered` 66 over what
+// the stated top-level policy could have delivered — a lower, danger-blind
+// threshold firing underneath the declared one.
+const SEARCHABLE_ACTIONS = ACTIONS.filter((action) => action !== 'drink');
+
 function adjacentMonsters(state) {
   const [px, py] = state.player.pos;
   let count = 0;
@@ -68,7 +86,7 @@ function bestValue(state, depth, evaluate) {
   if (depth === 0 || state.outcome) return evaluate(state);
 
   let top = -Infinity;
-  for (const action of ACTIONS) {
+  for (const action of SEARCHABLE_ACTIONS) {
     const next = step(state, action).state;
     // Walking into a wall passes no turn at all, so the branch is identical
     // to its parent — expanding it only wastes the budget.
@@ -94,7 +112,7 @@ export function scoreActions(belief, costToGoal, depth = TACTICAL_DEPTH) {
   const evaluate = makeEvaluator(costToGoal, monsterHpLeft(root));
   const scores = new Map();
 
-  for (const action of ACTIONS) {
+  for (const action of SEARCHABLE_ACTIONS) {
     const next = step(root, action).state;
     if (next.turn === root.turn && action !== 'rest') continue;
     scores.set(action, bestValue(next, depth - 1, evaluate));
