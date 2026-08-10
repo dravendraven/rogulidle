@@ -204,6 +204,7 @@ moves the binding constraint.
 
 | id | what gets done | agent | status |
 |---|---|---|---|
+| M39 | Chests pay out half the time, 25% potion / 25% armour | work | READY · owner decision, from watching |
 | C1 | The two lines, read per floor from one hero | metrics | READY · head of the curve arc |
 | C2 | The target curve, in numbers rather than adjectives | work | after C1 |
 | C3 | Solve the dials for a pressure curve instead of sweeping | work | after C2 · the only one that changes the game |
@@ -770,6 +771,74 @@ not as useful. Totals alongside shares, per I12's own denominator warning.
 # What the map still has to do
 
 The open half of `map-design.md`'s four properties. Each of these owns a property that is measured as not met.
+
+### M39 · chests pay out half the time, split evenly between potion and armour
+
+`work agent` · READY · **owner decision, 2026-08-10, from watching the game**
+· values only, no mechanism
+
+**Target, owner-stated:** a chest holds something **50%** of the time — **25%
+potion, 25% armour**, and nothing the other half.
+
+#### Measured today, and the observation that produced this item
+
+Sampled at generation, 400 floors, ten levels: **6 chests per floor, 77.4%
+empty**, 11.5% potion, 11.1% armour. A potion turns up about once in nine
+chests, which is what "I am watching and no potions come out of chests" looks
+like from the outside. Nothing is broken; the payout is simply thin.
+
+#### The trap, and it is why this item exists rather than a one-line change
+
+**There are TWO independent gates and they multiply.** Setting the scarcity
+dials and assuming the result is the headline number will be wrong:
+
+```
+hasLoot   = 1 - CHEST_DIFFICULTY_SCALE * emptiness   -- position-based, sweeps across the map
+template  = 0.5 / scarcity[kind]                     -- per kind, the rest becomes EMPTY
+drop      = hasLoot AND template
+```
+
+`0.333 × ~0.68 = 0.226`, which is exactly the measured rate. **So
+`SCARCITY = 2` yields about 34%, not 50%.**
+
+**Do: measure `hasLoot`'s realised mean first, then solve the scarcity from
+it** so the *product* lands on the target. The share the owner stated is a
+statement about what a watcher sees, which is the product — not about either
+gate alone.
+
+**Minimum change applies and the order is not optional.** These dials already
+mean exactly what is being asked of them, so this is a value change:
+`docs/backlog.md`'s own preamble classes that as a NUMBER, tuned late and
+expected to be redone. **If it cannot be hit with the existing values, say so
+before adding anything** — in particular, do not add a third gate.
+
+#### One thing that must move in the same commit
+
+**`CHEST_LOOT_CHANCE` is the BOT's belief about this, and it is already
+wrong.** It reads 0.60 with a comment claiming it was measured over 150 maps;
+the generator produces 0.226. The bot has been overvaluing every chest by
+about 2.6x, which is a live pricing defect this item happens to expose.
+
+It lives in `src/sim/balance.js` and is read by the bot, so per `CLAUDE.md`
+it is the work agent's file and the change follows what moved, not whose
+directory it is in. **Update it to whatever the change actually produces, and
+say in the report whether the bot's chest-seeking visibly changed** — it will,
+and pretending otherwise makes the next measurement unreadable.
+
+#### Assert
+
+Re-sample at generation: about half of chests hold something, split evenly.
+Then `descentCheck` on the baseline seed family for `potionsGenerated`,
+`potionShareDrunk` and the depth histogram.
+
+**The denominator warning applies with force here.** More loot means longer
+runs, so every per-turn and per-floor rate moves for that reason alone. Totals
+and outcomes first.
+
+**Say whether the opening got easier.** More armour and potions early is the
+same lever M38 pulled, and `map-design.md` says the opening is hard on purpose.
+Two changes in the same direction, days apart, is exactly how a filter
+disappears without anyone deciding to remove it.
 
 ### C1 · the two lines, read per floor from one hero
 
