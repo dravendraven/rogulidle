@@ -201,9 +201,26 @@ ends: winning has to stay rare enough to matter, and "too common and the win
 loses its charm" is now the live one. Nothing here says 25% is wrong. It says
 the number moved a hundredfold without anyone choosing where it should land.
 
-**Owner decision, 2026-08-10: leave it. Fine tuning comes later; structural
-features first.** The win rate is not to be traded back at this stage, and no
-item should propose doing so. What this section exists for now is the record
+**Owner decision, 2026-08-10: structure and instrumentation first, results
+later.**
+
+Three parts, and they are a standing direction rather than a note on this
+section:
+
+- **No fine tuning now.** No item should propose moving a dial to chase a
+  measured number, and no report should treat a measured number as a verdict
+  on the game.
+- **The opening SHOULD be hard** — `map-design.md` is not wrong, the game
+  drifted away from it. `M41` takes the starting weapon back out on that
+  basis. What is deferred is *tuning* it, not the intent.
+- **What is wanted from a measurement right now is that it is possible and
+  that it mirrors reality**, not what it says. An instrument that reports a
+  number nobody likes has succeeded. `C1` is the model: it was built, it
+  contradicted a design claim on first use, and that was the value.
+
+**`C2` and `C3` are explicitly not now.** Pressure and spread exist so the
+shipped curve can eventually be brought toward the drawn one; approaching it
+is later work, and `C1` being done does not start it. What this section exists for now is the record
 that the number moved a hundredfold and that the opening stopped filtering —
 both of which change what other items mean, `C2` most immediately.
 
@@ -238,8 +255,9 @@ single value that moved it was the starting kit.
 |---|---|---|---|
 | — | M39 | Chests pay out half the time, 25% potion / 25% armour | work | **DONE** · target hit with existing dials |
 | — | C1 | The two lines, read per floor from one hero | metrics | **DONE** · falsified the hard-opening claim |
-| 1 | C2 | The target curve, in numbers rather than adjectives | work | READY · but see C1's review first |
-| C3 | Solve the dials for a pressure curve instead of sweeping | work | after C2 · the only one that changes the game |
+| — | C2 | The target curve, in numbers rather than adjectives | work | **NOT NOW** · owner: structure first |
+| — | C3 | Solve the dials for a pressure curve instead of sweeping | work | **NOT NOW** · after C2, later work |
+| — | M41 | Take the starting weapon back out | work | READY · owner decision, one value |
 | M40 | `blocked` is computed and then ignored | work | READY · **engine bug**, two instances |
 | M4 | Side-room risk/reward spread scales with depth | work | READY |
 | M21 | Deep floors put a creature where the hero lands | work | READY · read its own warning on `finishes` |
@@ -810,6 +828,41 @@ So this is not "the shrine branch needs a guard"; it is that `blocked` is
 computed and then ignored. Filed as `M40`, engine, work agent — correctly
 reported rather than patched from the bot, which would have papered over an
 engine rule.
+
+### M41 · take the starting weapon back out
+
+`work agent` · READY · **owner decision, 2026-08-10** · one value
+
+**Do.** `STARTING_ITEMS` goes empty. M38 wrote that case in deliberately —
+"empty is a legal value here and turns the feature off" — so this is the value
+change that item designed for, not a revert of its machinery.
+
+**Everything else M38 built stays.** In particular `startingItems` still means
+"on top of the kit" rather than "instead of it", which M38 changed because
+`spectator.js` passes an empty truthy array and because a hero buying a shield
+would otherwise lose the dagger. With the kit empty that reduces to the old
+behaviour on its own, and no code should move to make it do so.
+
+**Why, and it is not a reversal of M38's finding.** M38 measured the bootstrap
+correctly: an unarmed hero cannot get armed, because since M26 a weapon only
+drops from a creature. That is still true and still unowned. The owner's
+decision is that **the opening should be hard**, and the dagger was the largest
+single thing making it easy.
+
+#### What this does to the measurement record, stated so nobody is surprised
+
+The hero starting armed was the anchor for everything measured since M38 —
+`C1`'s pressure curve, `M39`'s before/after arms, `I11`'s two-anchor
+comparison. **All of it was taken against a hero that will no longer exist.**
+
+**No re-measurement is scheduled and none should be.** The owner's standing
+direction is structure and instrumentation first, results later; the numbers
+will be re-taken when something needs them. What matters is that nobody quotes
+a figure from this window without saying which hero it belonged to.
+
+**Assert.** The hero starts empty-handed. `startingItems` still adds a shop
+purchase on top. `--selftest` passes — and if it does not, say so, because the
+recorded anchors were captured across this boundary.
 
 ### M40 · `blocked` is computed and then ignored
 
