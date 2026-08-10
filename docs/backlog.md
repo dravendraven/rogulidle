@@ -164,7 +164,7 @@ of what to do next, which is the only job it has.
 | **A run has to be completable** | M38 done · M37 and M36 stood down | phase A bought 10x from one value; what is left is more of the same, not these two |
 | **The return — floors 11 to 20** | R1 · R2 · R3 · R4 · R5 | phase B/C. Specs in the roadmap above; no item bodies yet |
 | **The potion arc** | B15 · I12 · I12b | M35 and B14 shipped; the policy and the verdict are left |
-| **What the map still has to do** | M4 · M21 · X6 · M32 | each owns a map property measured as NOT met |
+| **What the map still has to do** | C1 · C2 · C3 · M4 · M21 · X6 · M32 | the curve arc (C1–C3) states the shape in two lines and solves for it; the rest each own a property measured as NOT met |
 | **The player's choice** | U7 | phase D. The only theme the player touches |
 | **Instruments** | I11 · I9 | I11 reported; I9 blocked, and the return moved its target |
 | **Debt** | X1 · X2 · X3 · X5 · E1 | changes no behaviour; makes the next change cheaper |
@@ -204,6 +204,9 @@ moves the binding constraint.
 
 | id | what gets done | agent | status |
 |---|---|---|---|
+| C1 | The two lines, read per floor from one hero | metrics | READY · head of the curve arc |
+| C2 | The target curve, in numbers rather than adjectives | work | after C1 |
+| C3 | Solve the dials for a pressure curve instead of sweeping | work | after C2 · the only one that changes the game |
 | M4 | Side-room risk/reward spread scales with depth | work | READY |
 | M21 | Deep floors put a creature where the hero lands | work | READY · read its own warning on `finishes` |
 | X6 | Collapse the tier clamps, redundancy proven first | work | after X5 · owns the tail-shape cause |
@@ -767,6 +770,122 @@ not as useful. Totals alongside shares, per I12's own denominator warning.
 # What the map still has to do
 
 The open half of `map-design.md`'s four properties. Each of these owns a property that is measured as not met.
+
+### C1 · the two lines, read per floor from one hero
+
+`metrics agent` · READY · **head of the curve arc** · owner-approved plan,
+2026-08-10 · `map-design.md`'s "Drawing the curve" section is the spec
+
+`map-design.md` states the descent in two ratios: **pressure**, what a
+traversal costs divided by what the hero has when it arrives, and **spread**,
+the traversal's upper tail over its own mean. This item makes both readable
+per floor. It changes no game behaviour.
+
+#### Most of this already exists — do not rebuild it
+
+| piece | where | state |
+|---|---|---|
+| one-sided p90 and mean | `summarise()`, `observed-ruler.js` | **done** — its own comment explains why it is not CV |
+| per-floor challenge, already summarised | `rewardShape()` → `challenge` | **done** |
+| per-floor capacity (`effHp` = hp + armour) | `capacityShape()` → `effHp` | **done** |
+| the closed form for mass | `expectedFloorMass(level)` | **done**, exact, no sampling |
+
+**Spread is computable today** as `challenge.p90 / challenge.mean` per floor,
+with no new statistic. That confirms the section's own claim that the language
+needs no new instrument and no new parameter — so if this item adds either,
+something has gone wrong.
+
+#### The only real design decision, and it is not statistical
+
+**The two halves currently describe different heroes.** `rewardShape` measures
+challenge with `PROBE_HERO` on an **isolated** floor; `capacityShape` measures
+capacity on a hero that actually **descended** to it. Dividing one by the other
+mixes two heroes and the ratio means nothing.
+
+**Do: one source for both halves — same seeds, same hero, same pass.**
+`capacityShape` already drives the full descent and already carries `effHp`
+per floor; what is missing is the traversal's cost attached to that same pass.
+Prefer that over teaching `rewardShape` about descent, and say in one line why
+if you go the other way.
+
+#### The risk that decides whether the number means anything
+
+**Survivor selection in the denominator.** Capacity "when the hero arrives" is
+only observable in heroes who arrived. At floor 9 that is a sample of
+exceptional heroes, so pressure there reads low **by construction**, and the
+line would say the deep floors are easy when they are merely selective.
+
+**This is the same defect `I11` just found in the Map cost table** — a
+denominator that quietly described a different hero than the numerator. That
+item is RETURNED and open on exactly this question. **State which anchor this
+reading uses, on the page and in the code.** Differing anchors are survivable;
+differing by accident is not.
+
+#### Assert
+
+Two columns per floor, from one pass. **The opening must read HIGH pressure
+while holding the run's lowest mass** — that is the section's own proof that
+normalising is what makes two lines enough, and a reading that does not show it
+has the line wrong, not the game. Report spread alongside, and say plainly
+which floors have too little support to carry either number.
+
+**Out of scope, and it is a boundary rather than an omission:** the target
+table's last row is the return, which is not measurable until the run inverts.
+Four rows of five — opening, build-up, wear-down, turn — are what this item
+covers.
+
+### C2 · the target curve, in numbers rather than adjectives
+
+`work agent` · **after C1** · owner-approved plan, 2026-08-10
+
+`map-design.md`'s target table is qualitative — high, falling, maximum, flat.
+Someone has to turn shape into number, and it cannot be done before `C1`
+establishes what scale the lines actually read on.
+
+**Everything lands in `docs/balance.md` marked INITIAL GUESS.** Not a
+formality: these are the first numbers this project will have written down for
+a curve since the programme that failed, and the label is what keeps them from
+being defended later as though they had been measured.
+
+**One anchor is already fixed by the document and is not a guess.** The turn
+approaches **1.0 without reaching it** — 1.0 means the traversal costs exactly
+everything the hero has. That is the one value `map-design.md` commits to; the
+rest of the column is a stated guess.
+
+**Spread gets a target too, and it is the one that carries the shape.** The
+middle's low challenge variance is a requirement rather than a defect — a noisy
+middle means nobody can read whether the hero is on track, which is that
+stretch's only job.
+
+**Assert.** The table exists, every row is labelled INITIAL GUESS, and `C1`'s
+measured curve can be laid over it. **Do not tune anything to fit it in this
+item** — stating the target and hitting the target are separate, and collapsing
+them is how a language becomes a scoreboard.
+
+### C3 · solve the dials for a pressure curve instead of sweeping for one
+
+`work agent` · **after C2** · owner-approved plan, 2026-08-10 · **the only
+item in this arc that changes the game**
+
+`map-design.md` claims the closed form allows the dials to be **solved** for a
+target pressure curve rather than swept. That is true and it does not exist.
+Sweeping for something a closed form can solve is wasted work — this item is
+the payoff that makes the other two worth having.
+
+**Scope, deliberately minimal.** Invert `expectedFloorMass` for the numerator
+given a target pressure per floor, with the denominator supplied by `C1`'s
+measurement. Nothing else.
+
+**Do not attempt to solve spread.** `map-design.md` states it directly:
+pressure is drawn and solved, spread is drawn and then measured. Expecting to
+solve for a spread curve is the opposite error, and `X6` already owns the case
+where the built tail does not do what it was asked.
+
+**Assert.** A stated target curve produces dial values, and the closed form
+re-read at those values reproduces the target. Then — and this is the part that
+is not arithmetic — **watch the game**. `map-design.md`'s guardrail is the
+acceptance criterion as much as the arithmetic is: when the drawn curve and the
+watched run disagree, the watched run wins.
 
 ### M4 · scale the side-room bonus with depth
 
