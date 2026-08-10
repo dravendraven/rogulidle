@@ -204,6 +204,40 @@ its heal *if the run lasts long enough to spend it*. That is the same
 horizon discount `campaignCost` already applies to equipment — do not invent
 a second one. Use what is there.
 
+### Face value here, turn cost at the drink decision — and they are not the same question
+
+Raised by the owner, and it is the right question to ask: M35 makes drinking
+cost a turn, so should the potion's value be the heal *minus* that turn?
+
+**No — not when valuing one to go and get.** The turn cost is not a
+constant to subtract. `rules.md` §4: damage is an event, not a rent.
+Drinking with nothing in pursuit costs **zero** — a turn passes, the
+creatures act, none of them reaches. Drinking cornered costs a blow.
+**And the bot picks the turn.** Charging a fixed cost at acquisition prices
+the worst case as though it were mandatory, and the visible symptom would be
+a bot that walks past chests over a cost it would almost always have
+avoided.
+
+So: **acquisition reads face value; the turn cost belongs to the drink
+decision, where the state is known and `dangerField` already prices it.**
+That is B15, and it is the same split the bot already runs everywhere else —
+`worthStarting` vetoes a fight from the real board, it does not discount
+every creature by an average fight.
+
+**Two honest caveats, neither of which is a reason to subtract a constant.**
+Face value is an upper bound: it holds only while a free moment is
+reachable, and a cornered hero or a run that ends first gets less. The
+run-ending half is already covered by the horizon discount above. The
+cornered half is real, rare, and B15's business.
+
+**And the asymmetry against armour is now genuine, so do not paper over
+it.** Armour applies passively and costs no action; a potion needs a turn.
+Same nominal points, slightly different worth. The correction is
+second-order and state-dependent, and a constant fudge factor to express it
+would be precisely the parameter-to-compensate-for-a-parameter move
+`CLAUDE.md` forbids. **State the asymmetry in the report; price it only if a
+measurement asks for it.**
+
 **Assert.** Watch a run: the bot picks up potions at full hp, carries them,
 and drinks when hurt rather than walking around at 2 hp holding two. Report
 whether it ever dies holding one — do not fix it if so, that is I12's
