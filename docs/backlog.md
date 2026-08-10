@@ -562,6 +562,58 @@ quarter of a percent, and a z. Deaths-holding-a-potion. And, because this
 makes the game easier at a moment when almost nothing completes, say
 whether anything got *worse*.
 
+### Review — RETURNED, one defect, everything else adopted
+
+**The pricing half is right and the measurement of it is the good kind:**
+potion 0 → 1.5 and chest 0.90 → 1.35 at full hp on floor 3, which answers
+"did chest-seeking change" with a number instead of an impression. Reusing
+`LOOT_CAMPAIGN_HORIZON` rather than inventing a second discount is exactly
+what the item asked for, and the asymmetry against the weapon path
+(unconditional, not gated on level) is disclosed rather than smoothed over.
+
+**The defect: a second drink policy shipped by accident, and it is
+danger-aware — which is B15's whole job.**
+
+Adding `drink` to `ACTIONS` was this item's call to make, correctly. But
+`tactics.js:71` enumerates `ACTIONS` for its lookahead, and its evaluator
+(`tactics.js:63`) returns `effectiveHp(player) + dealt - toGo - crowd`.
+Drinking raises `effectiveHp` directly, so in a depth-1 search **drink
+outscores stepping whenever more than about one hp is missing.** The report
+discloses that the veto "can now simulate drinking mid-duel" and calls it
+"not designed on purpose" — it is more than a simulation artefact, it is a
+live second policy that fires at a lower threshold than the naive one.
+
+**Confirmed, not argued.** `descentCheck` at n=120 on the baseline seeds:
+160 drinks, `healDelivered` 414. Under the stated policy every drink fires
+only when missing ≥ heal, so all 160 must deliver the full 3 — 480. **The
+66 hp gap is structurally impossible under the policy this item describes.**
+No sigma needed; one partial drink falsifies "0 wasted, provable by
+construction", and there are dozens.
+
+**Why the report's own numbers missed it.** `drinksWasted` counts
+`delivered === 0`. A tactics-driven drink at 2 hp missing delivers 2 of 3 and
+counts as *useful*. The metrics agent flagged in code that post-M35 partial
+overheal is unmeasurable — that note and this defect are the same blind spot,
+found from two directions an hour apart, and neither agent could see the
+other half.
+
+**Why this matters beyond tidiness.** M35 exists to stop potions being
+overhealed away. The tactical layer now reintroduces exactly that waste,
+invisibly, in the same commit that repriced potions upward. And **B15 is
+pre-empted**: it cannot measure "what does danger-awareness buy" against a
+baseline that already has some.
+
+**Do.** Keep `drink` in `ACTIONS`. Exclude it from the tactical search
+instead — the lookahead enumerates the action list because that was a
+convenient proxy for "moves the bot can make", and drinking is now a
+decision the top-level policy owns. Say in one line why exclusion is the
+right shape rather than scoring the drink branch honestly, or make the
+opposite case with a measurement.
+
+**Then re-measure** `healDelivered` against `3 × potionsDrunk`. They should
+be equal under the naive policy, and that equality is the cheapest possible
+check that no second policy is firing.
+
 ## B15 · a drink policy that reads the danger field
 
 `bot agent` · **after I12** · only worth doing once B14's naive policy has a
