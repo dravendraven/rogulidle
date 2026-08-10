@@ -84,9 +84,10 @@ session, skip it.
 | — | X5 | Classify every dial by lifecycle, delete only the dead | work + bot | READY · at a structural boundary |
 | — | X6 | Collapse the tier clamps, redundancy proven first | work | after X5 |
 | — | I9 | Conditional survival table = the "hope" instrument | metrics | BLOCKED on finishes > 0 |
-| 1 | M35 | Potions become carried items, drunk on command | work | READY · owner feature, head of queue |
-| 2 | B14 | The dumbest defensible drink policy, and potions repriced | bot | after M35 |
-| 3 | I12 | Did it move anything? finishes, and died-holding-a-potion | metrics | **baseline READY NOW**, parallel to M35 · comparison after B14 |
+| — | M35 | Potions become carried items, drunk on command | work | **DONE** · drink left off ACTIONS, correctly |
+| 1 | B14 | The dumbest defensible drink policy, and potions repriced | bot | READY · M35 landed |
+| 2 | I12b | Split drunk into useful and wasted, now that amount is honest | metrics | READY · with or before B14 |
+| 3 | I12 | Did it move anything? finishes, and died-holding-a-potion | metrics | instrument shipped · comparison after B14 |
 | 4 | B15 | A drink policy that reads the danger field | bot | after I12 |
 | 5 | I10 | A supported headless runner for measurements | metrics | READY |
 | 6 | I11 | Does the ruler read true when the starting hero changes? | metrics | READY |
@@ -176,6 +177,83 @@ there on the next floor. Determinism holds: same seed, same run.
 simply false afterwards) and §6 (the list of actions that resolve in place).
 `rules.md` §10 and `rogule-spec.md` §13 gain a divergence — the original
 consumed on pickup; this does not.
+
+### Report
+
+In the commit message of `57d1eff`, not here — noted only so the next reader
+knows where to look, not as a complaint. All six asserts covered, six tests,
+141/141, determinism replayed. `rules.md` §5, §6 and §10 updated in the same
+commit; reasoning in `decisions.md`; `rogule-spec.md` §13 deliberately not
+extended, since that list is frozen by its own preamble.
+
+### Review
+
+**Adopted.** The one substantive judgement call in it is right, and it is a
+call the item did not anticipate.
+
+**`drink` is accepted by `step` but deliberately left OFF `ACTIONS`.** That
+list is the BOT's menu — `tactics.js` and `placeholder.js` enumerate it — so
+adding `drink` there would have changed every bot decision from inside an
+item scoped to the engine. **That is exactly the boundary `CLAUDE.md` keeps**,
+and catching it required noticing that a constant named for the engine is
+actually read by the bot. The item said "nothing in `src/bot/`"; the agent
+found the line that would have broken that rule without touching the
+directory.
+
+**The riskiest line was the one that unified the pickup path, and it is
+safe.** Potions now flow through `grantArmour` and sit in `inventory`
+permanently, which puts them in front of three functions that iterate it.
+Checked independently: `grantArmour` guards on `item.armour`,
+`weaponDamage` and `armourValue` both guard with `|| 0`. A carried potion
+adds nothing to damage or to the armour bar. Nothing leaks.
+
+**One thing the report got backwards, and it is small but worth fixing.** The
+commit says logging the real gain means "the event keeps meaning hp moved —
+three diagnostic pages rely on that reading". Those three pages
+(`run-b9.html`, `run-b11.html`, `run-axe2x.html`) count heal **events**, not
+amounts — so they are precisely the consumers the change did *not* preserve:
+post-M35 a wasted drink fires an event carrying 0. `run-axe2x.html:120`
+still states in a comment that a heal only logs when it did something, which
+is now false. Low stakes — all three are ad-hoc pages from closed items — and
+logging the true amount was still the right choice, for the reason below.
+
+**And it bought something nobody claimed.** Because `amount` is now honest, a
+wasted drink is detectable as `amount === 0`. **That is the exact failure B14
+and B15 both steer by** — drinking at the wrong moment. It was not available
+before M35 and the instrument built 80 seconds earlier cannot see it. Filed
+as I12b.
+
+**Expected and not a defect: the game is temporarily worse.** The bot cannot
+produce `drink`, so it now hoards potions and never drinks them. It also still
+prices a potion by hp missing *right now*, so at full hp it will not detour
+for one it could carry for free. Both are B14's, both were foreseen when the
+arc was planned, and neither should be fixed here.
+
+## I12b · a wasted drink is now visible — teach the instrument to see it
+
+`metrics agent` · READY · **small, and it exists because M35 made it
+possible** · do it with or before B14
+
+`clustering.js`'s `potionsDrunk` counts `heal` log events. That was the only
+option when the instrument was written — one commit before M35 landed — and
+it is still a correct count of potions *consumed*.
+
+**But `amount` is now the hp actually gained, so a drink that healed nothing
+logs 0.** Splitting drunk into useful and wasted is a filter on a field that
+already exists: no new instrument, no new pass over the runs.
+
+**Why it is worth the few lines.** B14 ships a policy that drinks whenever
+nothing would be wasted, and B15 has to beat it. "Wasted drinks" is the
+direct measurement of a policy drinking at the wrong moment — the same defect
+`deathsHoldingPotion` catches from the opposite side, one drinking too early
+and one too late. With both, a drink policy is bracketed. With neither, only
+`finishes` moves and nobody can say why.
+
+**Tripwires, not scoreboards** — both numbers fire and point at a defect;
+neither is a quantity to push.
+
+**Assert.** A run where the bot drinks at full hp reports it as wasted and
+not as useful. Totals alongside shares, per I12's own denominator warning.
 
 ## B14 · the dumbest defensible drink policy, and potions repriced
 
