@@ -87,7 +87,7 @@ session, skip it.
 | — | M35 | Potions become carried items, drunk on command | work | **DONE** · drink left off ACTIONS, correctly |
 | 1 | B14 | The dumbest defensible drink policy, and potions repriced | bot | READY · M35 landed |
 | 2 | I12b | Split drunk into useful and wasted, now that amount is honest | metrics | READY · with or before B14 |
-| 3 | I12 | Did it move anything? finishes, and died-holding-a-potion | metrics | instrument shipped · comparison after B14 |
+| 3 | I12 | Did it move anything? finishes, and died-holding-a-potion | metrics | baseline reviewed · **owes overheal, before B14 lands** |
 | 4 | B15 | A drink policy that reads the danger field | bot | after I12 |
 | 5 | I10 | A supported headless runner for measurements | metrics | READY |
 | 6 | I11 | Does the ruler read true when the starting hero changes? | metrics | READY |
@@ -228,6 +228,65 @@ produce `drink`, so it now hoards potions and never drinks them. It also still
 prices a potion by hp missing *right now*, so at full hp it will not detour
 for one it could carry for free. Both are B14's, both were foreseen when the
 arc was planned, and neither should be fixed here.
+
+### Review — the baseline half
+
+**Adopted, with one gap that has to close before the comparison runs.**
+
+**The agent substituted a reproduction recipe for the numbers, and that is
+better than what this item asked for.** `docs/i12-baseline.md` records no
+measurements at all — it pins commit `9058559` (pre-M35, instrument already
+in) and the seed family, and says run it there. My own objection was that a
+checkout is "possible and nobody does it".
+
+**So I did it, which is the only way to review a deliverable that is a
+recipe.** Worktree at `9058559`, `--selftest` 8/8 (vendored ROT.js sha256,
+four generation fingerprints, three `rewardShape` series), then
+`descentCheck` at n=200: 66 s, real numbers out, `deathsHoldingPotion` 0
+exactly as the structural argument predicts. **The recipe works.** Timing
+extrapolates to the ~55 min serial the doc claims. Numbers not copied here
+on purpose — that is what the pinned commit is for.
+
+**One thing to confirm rather than assume: was the 8000-run baseline ever
+actually run?** The doc gives a cost ("~7 min with 4 processes") in the voice
+of something measured, but no result appears anywhere. If it ran, nothing is
+owed. If the cost is an extrapolation from a smaller sample, say so — an
+estimate stated as a measurement is the one habit this project has paid for
+repeatedly.
+
+### The gap, and it is the important half
+
+**The baseline cannot see the quantity M35 most directly improves.**
+
+Pre-M35 the engine logged `{ type: 'heal', amount: item.heal }` — the
+potion's **face value**, not what the hero gained. Healing is capped at
+hpMax, so a potion walked over with 1 hp missing delivered 1 and logged 3.
+**That overheal is exactly the waste M35 exists to recover**, and in the
+baseline tree it is invisible by construction.
+
+M35 changed `amount` to the real gain. So across the boundary:
+`potionsDrunk` stays comparable (event counts), and **heal actually
+delivered does not** — the after-tree measures it honestly and the
+before-tree overstates it by every point of overheal.
+
+**Why this matters more than `finishes`.** Heal delivered per generated
+potion is the feature's direct effect and it moves whether or not `finishes`
+does — at ~0.25%, `finishes` may well not resolve at any sample this project
+will run. Losing the one number that was always going to move would leave the
+arc with no evidence at all.
+
+**Fixable, and cheaply, because the worktree already exists.** Instrument the
+pre-M35 tree to record hp before and after each heal rather than reading the
+logged amount. That is a measurement-only change on a detached worktree —
+it ships nothing and touches no shipped commit.
+
+**Also worth stating so nobody expects a jump that is not there.** At n=200
+the baseline drinks about half the potions the reached floors contain, and
+full-hp refusals are a low single-digit percentage of generated potions. Most
+uncollected potions are uncollected because the bot never reached them —
+which M35 does nothing about. **The feature's win is in what each drunk
+potion delivers, not in how many get drunk.** Anyone expecting uptake to jump
+will read the comparison wrong.
 
 ## I12b · a wasted drink is now visible — teach the instrument to see it
 
