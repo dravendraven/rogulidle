@@ -352,3 +352,22 @@ clear and hitting one at run 377. **Costing it correctly matters:** anything
 gated on a non-zero finish rate needs hundreds of runs, not dozens, and any
 guard written against `finishes` at small n is decorative for arithmetic
 reasons rather than because the game is broken.
+
+**The denominator trap, fourth instance — and the first one caught by the agent
+that made it, before reporting.** B12's per-floor arming ratio cleared 2σ at
+z=-2.31 and read exactly like its own pre-registered stop signal. It was an
+artefact: the ratio's denominator is depth and the treatment moved depth
+(z=+2.04), while the numerator alone sat at z=-1.44, under the bar. **The tell
+was in the stop signal's own wording** — "weapon damage falling *while depth
+holds*" — and depth did not hold.
+
+**A second discriminator worth reusing.** At n=240 the ratio read z=-1.61 and
+depth z=+1.03; both grew with n. A real effect and a moving denominator both
+scale with n, so growth separates nothing — but **the numerator failing to
+clear at either sample while the ratio clears at the larger one is what the
+artefact looks like from the inside.**
+
+**Paired per-run differences are what made it visible.** Comparing arm means
+throws away the pairing and most of the power with it; a per-run difference over
+the same seed cancels the seed's own variance. An arm-mean table cannot show
+this class of artefact at all.

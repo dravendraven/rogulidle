@@ -101,21 +101,26 @@ luta que vale começar entra na mesma lista**, com um `net` na mesma moeda.
 Vence o maior líquido, seja qual for o tipo. Loot que não paga a própria
 caminhada pontua negativo e é ignorado.
 
-**A luta mais barata.** Se nada acima pagou, a criatura conhecida de menor
-custo — não a mais próxima. Andar contra ela *é* o ataque, então combate não
-precisa de caso especial.
+**O santuário, na mesma lista, valendo zero.** Desde o B12 sair não é uma
+etapa abaixo da comparação — é um candidato *dentro* dela, com `net` 0,
+entrando depois do filtro `net > 0` em vez de através dele.
 
-**O santuário.** Assim que estiver **alcançável**. Nenhuma morte é exigida —
-a regra que pedia a espinha limpa, e antes dela a que pedia tudo morto, foram
-relaxadas por decisão do dono. O que sobrou de `requireClear` não guarda mais
-a saída: ele só filtra quais criaturas de sala lateral entram na comparação,
-o que é oportunidade e não obrigação.
+Isso torna explícita uma comparação que sempre esteve implícita: aquele filtro
+sempre significou "este objetivo se paga", e aquilo contra o que ele se paga é
+**ir embora**. Quando nada supera zero, o melhor candidato restante é a porta.
 
-**Mas a obrigação de lutar não saiu — ela só não mora onde se procuraria.**
-A comparação acima roda antes do santuário, e a etapa da luta mais barata
-dispara sempre que existe qualquer criatura conhecida e alcançável, sem
-comparar "ter esta luta" contra "simplesmente ir embora". Então o bot ainda
-luta por construção, e é `B12` que trata disso.
+**Zero, e não `−distância até lá`, de propósito.** Todo andar termina naquele
+tile, então a caminhada até ele é custo fixo do andar, não custo marginal de
+*escolher* sair. Cobrá-la faria o bot demorar mais justamente nos andares cuja
+saída é mais distante — ao contrário.
+
+**A luta mais barata.** Só quando o santuário não está alcançável de jeito
+nenhum — e aí lutar ou explorar é tudo o que existe. Antes do B12 esta etapa
+disparava sempre que houvesse qualquer criatura conhecida, o que era a última
+obrigação estrutural de lutar.
+
+O que sobrou de `requireClear` não guarda a saída: só filtra quais criaturas de
+sala lateral entram na comparação — oportunidade, não obrigação.
 
 **Fronteira.** Explorar, como último recurso.
 

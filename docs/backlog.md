@@ -79,7 +79,7 @@ session, skip it.
 | 1 | U6e | The shop screen | ui | **DONE** |
 | 2 | U6f | Watch a full loop, integration check | ui | **DONE** · DOM layer owed a click-through |
 | 3 | B13 | Charge a pursuer where it actually collects | bot | **DONE** · shipped OFF, inert |
-| 4 | B12 | Fighting should compete with leaving, not precede it | bot | **REPORTED** · shipped ON |
+| 4 | B12 | Fighting should compete with leaving, not precede it | bot | **DONE** · shipped ON |
 | 5 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | IN FLIGHT |
 | — | X5 | Classify every dial by lifecycle, delete only the dead | work + bot | READY · at a structural boundary |
 | — | X6 | Collapse the tier clamps, redundancy proven first | work | after X5 |
@@ -760,6 +760,68 @@ The measurement again ran headless through node rather than an HTML page —
 same reason and same disclosure as B13, and the paired harness is what made
 the denominator artefact visible at all, since arm-mean tables cannot show a
 per-run difference.
+
+### Review — ADOPTED. The mechanism is the minimum-change rule done properly,
+### and the report caught its own artefact
+
+**No new constant, no dial, one more candidate in a comparison that already
+existed** — exactly what the item asked for and rarer than it sounds. Verified
+in the code: the shrine is pushed with `net: 0` *after* the `net > 0` filter,
+so it never competes on the filter's terms, only on the ranking's.
+
+**The reasoning for zero rather than `−approach` is the best line in the
+report.** Every floor ends on that tile, so the walk is a fixed cost of the
+floor and not a marginal cost of *choosing* to leave; charging it would make
+the bot linger longest on the floors whose exit is furthest, which is
+backwards. That is a real argument, not a convenience.
+
+**The mechanism is not in doubt and the outcome is not ambiguous.** Floors left
+with creatures breathing z=+5.6, creatures left alive z=+5.0, kills per floor
+z=-5.0 — and depth *rose*, z=+2.04, rather than paying for it.
+
+### It caught its own stop signal firing falsely, which is new
+
+The per-floor arming ratio cleared the bar at z=-2.31 and read exactly like the
+stop signal I wrote. **It is a denominator artefact** — the denominator is
+depth, and the treatment moved depth. The numerator alone is z=-1.44, under the
+bar.
+
+**And the tell was in my own wording:** the signal said "weapon damage falling
+*while depth holds*". Depth did not hold. The shape that criterion was written
+to catch is a depth loss, and depth went the other way.
+
+This is the **fourth** instance of that trap in this project and the **first
+caught by the agent that made it, before reporting**. The previous three were
+found by other people afterwards. Recorded in `decisions.md`, along with the
+discriminator that separated it (a real effect and a moving denominator both
+grow with n, so growth proves nothing — but a numerator failing at both samples
+while the ratio clears at the larger one is the artefact seen from inside).
+
+**Paired per-run differences are what made it visible at all**, and that is a
+method worth reusing: arm-mean tables cannot show this class of artefact.
+
+**The disclosure is correctly calibrated.** Absolute arming is slightly down and
+consistently signed, ~1.3% of a quantity near its floor. They neither buried it
+nor claimed it — it does not clear 2σ, and the ratio that does cannot carry the
+argument.
+
+### Two smaller things, both right
+
+**`leaveCompetes` is a measurement flag, not a mechanism flag**, and the
+distinction is stated: it gates which of two comparisons runs so the Assert's
+paired before/after is possible. Correctly left for X5 to judge, with the note
+that unlike the previous four it preserves no rejected idea, so deleting it
+later costs only re-measurement.
+
+**The snowball claim was overstated in my item and they corrected it.** Total
+kills moved z=-0.72 — the bot fights less *per floor* and reaches more floors,
+rather than fighting less. The snowball was already dead from `XP_FROM_KILLS`
+shipping false; this removed the last structural obligation, not a live engine.
+
+**`bot-strategy.md` §3.2 is fixed** — I wrote that paragraph today and this item
+made three of its claims false, which the report identified precisely. `rules.md`
+§8 correctly identified as still true.
+
 
 ## X5 · classify every dial by lifecycle, then delete only what is truly dead
 
