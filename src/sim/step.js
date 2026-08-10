@@ -13,12 +13,19 @@ import { observe } from './observe.js';
 // set the engine accepts. `tactics.js` and `placeholder.js` enumerate this
 // list, so anything added here changes bot behaviour immediately.
 //
-// M35 added `drink`, which `step` accepts but which is deliberately NOT
-// here: that item is engine-only and putting it on this list would have
-// silently rewritten every bot decision under the banner of an engine
-// change. B14 is the item that teaches the bot to drink, and adding it to
-// this list is that item's call to make.
-export const ACTIONS = ['up', 'down', 'left', 'right', 'rest'];
+// M35 added `drink`, which `step` accepts but which was deliberately kept
+// OFF this list: that item was engine-only, and putting it on the menu
+// would have silently rewritten every bot decision under the banner of an
+// engine change. B14 is the item that teaches the bot to drink, and adding
+// it here is that item's call, made now.
+//
+// `tactics.js` enumerates this same list for its lookahead search, so the
+// tactical veto can now simulate drinking mid-duel too — `hypothetical.js`
+// already carries `inventory` into the simulated state, so that branch of
+// the search behaves exactly like the real engine. Not designed on
+// purpose by B14, which only adds the naive top-level policy below;
+// disclosed as a second, emergent place `drink` can now fire from.
+export const ACTIONS = ['up', 'down', 'left', 'right', 'rest', 'drink'];
 
 const DIRECTIONS = {
   up: [0, -1],

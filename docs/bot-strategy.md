@@ -172,11 +172,23 @@ como o vaivém nascia.
 | quanto vale um baú fechado | `expectedChestValue` |
 | o que esta criatura provavelmente carrega | `expectedMonsterDropValue` (B9) |
 
-**Arma é precificada marginalmente, armadura por valor de face — e isso está
-certo.** Armadura *é* hp efetivo, linear e sem teto, então três de armadura
-valem três, sempre. Arma passa por turnos-para-matar, que é recíproco do
-dano, então cada ponto vale menos que o anterior. Qualquer redesenho da curva
-de arma precisa preservar esse cálculo marginal.
+**Arma é precificada marginalmente, armadura e poção por valor de face — e
+isso está certo.** Armadura *é* hp efetivo, linear e sem teto, então três de
+armadura valem três, sempre. Arma passa por turnos-para-matar, que é
+recíproco do dano, então cada ponto vale menos que o anterior. Qualquer
+redesenho da curva de arma precisa preservar esse cálculo marginal.
+
+**Poção entrou no mesmo grupo de armadura desde o B14.** Antes do M35 beber
+era no contato e uma poção pega com hp cheio era perdida, então o valor era
+limitado pelo hp que faltava. Agora carregar é de graça e beber é ação
+própria que o bot escolhe — uma poção nunca é desperdiçada por ficar
+guardada, só vale menos se a run acabar antes de ser usada, e é esse
+desconto que `LOOT_CAMPAIGN_HORIZON` já cobre, sem um segundo dial.
+
+O custo do turno de beber **não** entra aqui: é pago na decisão de beber, não
+na aquisição — `rules.md` §6, dano é evento e quem escolhe o turno é o bot.
+A política que decide QUANDO beber está na próxima seção, e ela ainda não lê
+o campo de perigo para pesar esse custo.
 
 ---
 
@@ -189,6 +201,11 @@ recomendação registrada de como adicionar direito — delta real de
 `campaignCost` com o equipamento comprado na run seguinte, **não** a fórmula
 da moeda, que existe para diagnóstico e não como preço de decisão. Ver as
 notas do U6e em `docs/backlog.md`.
+
+**Beber ignora perigo.** A política de hoje (B14) é deliberadamente burra:
+bebe sempre que o hp que falta cobre a cura, sem olhar se há perseguidor —
+ele bebe do lado de um lobo. Existe de propósito, para o M35 ter um número a
+melhorar; B15 é quem lê o campo de perigo antes de decidir o turno.
 
 **Roteamento é o resíduo inteiro do vaivém.** Com a penalidade de reversão no
 lugar, as camadas de veto e de objetivo praticamente zeraram; o que sobra é

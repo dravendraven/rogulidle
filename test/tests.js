@@ -1321,11 +1321,13 @@ test('a weapon is worth more with a campaign ahead than with one floor', () => {
   const near = valueByItemName(belief, 6, 0);
   const far = valueByItemName(belief, 6, 40);
   assert(far.get('axe') > near.get('axe'),
-    'the horizon did not raise what a weapon is worth');
-  // A potion is capped by the hero's missing hp, so the horizon must not
-  // touch it — otherwise the bot would hoard potions it cannot drink.
+    'more monsters ahead did not raise what a weapon is worth');
+  // B14 (docs/backlog.md): a potion's value comes from its OWN horizon
+  // parameter (the 5th argument, defaulted here to LOOT_CAMPAIGN_HORIZON on
+  // both sides), never from the monster count `future` scales — a potion
+  // does not fight anything, so more monsters ahead must not move it.
   assertEq(far.get('health'), near.get('health'),
-    'the horizon changed what a potion is worth');
+    'a potion\'s value moved with the monster count ahead, not just the horizon');
 });
 
 // ***** floor spread ***** //

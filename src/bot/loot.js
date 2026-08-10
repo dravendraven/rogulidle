@@ -11,12 +11,17 @@
 // to kill, and nearly nothing on an empty floor.
 //
 // Armour and potions are simpler, because both are just damage the hero can
-// take. Armour is worth its full value every time, since the bar refills
-// regardless; a potion is worth only the gap it can actually fill.
+// take, and both are worth their full face value — B14 (docs/backlog.md).
+// A potion used to be capped by the current hp gap because that was the
+// truth: drinking was on contact, so healing above the cap was wasted on
+// the spot. M35 made drinking its own action and carrying free, so a
+// potion is never wasted — it is worth its whole heal for as long as the
+// run lasts to spend it, same as armour was already priced.
 
 import {
-  CHEST_LOOT_CHANCE, ITEM_TABLE, MONSTER_COUNT, MONSTER_DROP_CHANCE,
-  MONSTER_TABLE, POTION_HEAL, UNKNOWN_MONSTER_ESTIMATE, WEAPON_AXE_MIN_TIER,
+  CHEST_LOOT_CHANCE, ITEM_TABLE, LOOT_CAMPAIGN_HORIZON, MONSTER_COUNT,
+  MONSTER_DROP_CHANCE, MONSTER_TABLE, UNKNOWN_MONSTER_ESTIMATE,
+  WEAPON_AXE_MIN_TIER,
 } from '../sim/balance.js';
 import { itemWeights } from '../sim/spawn.js';
 import { campaignCost } from './duel.js';
@@ -80,7 +85,16 @@ function withItem(player, item) {
 
 // One value per item TYPE rather than per item on the floor — there are 7
 // types and can be dozens of items, and the value only depends on the type.
-export function valueByItemName(belief, total = MONSTER_COUNT, future = 0, crowd = true) {
+// `horizon` defaults to the SAME constant `monstersAhead` is scaled by at
+// the call site in bot.js (`settings.horizon`) — B14 (docs/backlog.md)
+// reuses it rather than inventing a second discount for "will the run last
+// long enough to use this". For a weapon that discount is already embedded
+// in `future`'s monster count; a potion has no monster count to shrink, so
+// it is applied directly as the plain multiplier `LOOT_CAMPAIGN_HORIZON`'s
+// own comment already says it is: "a plain discount rather than a modelled
+// survival curve".
+export function valueByItemName(belief, total = MONSTER_COUNT, future = 0, crowd = true,
+  horizon = LOOT_CAMPAIGN_HORIZON) {
   const player = belief.player;
   const monsters = monstersStillToFight(belief, total, future);
   const baseline = campaignCost(player, monsters, undefined, crowd);
@@ -88,10 +102,7 @@ export function valueByItemName(belief, total = MONSTER_COUNT, future = 0, crowd
   const values = new Map();
   for (const template of ITEM_TABLE) {
     if (template.heal) {
-      // A potion is worth the healing it can actually deliver. At full
-      // health that is zero — and the engine leaves it on the floor rather
-      // than wasting it, so the bot is right to walk past and come back.
-      values.set(template.name, Math.min(POTION_HEAL, player.hpMax - player.hp));
+      values.set(template.name, template.heal * horizon);
       continue;
     }
     if (template.armour) {

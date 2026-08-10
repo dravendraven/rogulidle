@@ -85,7 +85,7 @@ session, skip it.
 | — | X6 | Collapse the tier clamps, redundancy proven first | work | after X5 |
 | — | I9 | Conditional survival table = the "hope" instrument | metrics | BLOCKED on finishes > 0 |
 | — | M35 | Potions become carried items, drunk on command | work | **DONE** · drink left off ACTIONS, correctly |
-| 1 | B14 | The dumbest defensible drink policy, and potions repriced | bot | READY · M35 landed |
+| 1 | B14 | The dumbest defensible drink policy, and potions repriced | bot | **REPORTED** |
 | 2 | I12b | Split drunk into useful and wasted, now that amount is honest | metrics | READY · with or before B14 |
 | 3 | I12 | Did it move anything? finishes, and died-holding-a-potion | metrics | baseline reviewed · **owes overheal, before B14 lands** |
 | 4 | B15 | A drink policy that reads the danger field | bot | after I12 |
@@ -100,6 +100,14 @@ session, skip it.
 | 12 | M4 | Side-room risk/reward spread scales with depth | work | READY · M31 landed |
 | 13 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
 | 14 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
+| — | U7 | The player chooses which hero to play | work + ui | **NEW** · unqueued, owner to place |
+| — | M36 | A detour has to be able to cost the run | work | **NEW** · unqueued, owner to place |
+| — | M37 | A setback needs room between "no effect" and "dead" | work | **NEW** · unqueued, owner to place |
+
+The three rows marked NEW came out of the `objectives.md` rewrite, not out of
+watching. They are filed with reasoning and no slot; **the owner places them,
+not the project agent.** U7 and M36 both had a home elsewhere that was the
+wrong shape for them; M37 had no owner at all.
 
 The M11–M16 batch is done and closed — six items, one commit each, 89 tests
 green. What it taught is in `docs/project/decisions.md`; the specs are in
@@ -316,8 +324,8 @@ not as useful. Totals alongside shares, per I12's own denominator warning.
 
 ## B14 · the dumbest defensible drink policy, and potions repriced
 
-`bot agent` · **after M35** · deliberately unambitious — this item exists to
-make the engine change measurable, not to play well
+`bot agent` · **REPORTED** · potion never wasted by construction, 1.0% of
+deaths held one unused, chest value +50% at full hp
 
 Two things, both small, and the second matters more than the first.
 
@@ -381,6 +389,121 @@ whether it ever dies holding one — do not fix it if so, that is I12's
 number and B15's job. State whether chest-seeking visibly changed.
 
 Stale after this: `bot-strategy.md` §4's pricing table and §5's gaps list.
+
+### Result
+
+**Both halves built as scoped. Naive stayed naive; the reprice reuses
+`LOOT_CAMPAIGN_HORIZON` and invents nothing.**
+
+**1. The policy.** `decide()` checks it first, ahead of goal selection and
+the tactical veto, and returns `'drink'` directly when a carried potion's
+`heal` is at least the missing hp — a real action, not a goal, so it never
+touches `goal` and next turn resumes wherever the bot was headed. Exactly
+as dumb as asked: no danger term, no state beyond "do I have one and do I
+need it."
+
+**`'drink'` added to `ACTIONS`** (`src/sim/step.js`), which was this item's
+call to make per M35's own comment there. One consequence neither item
+named: `tactics.js`'s lookahead search enumerates the same list, so the
+tactical veto can now simulate drinking mid-duel too —
+`hypothetical.js` already carries `inventory` into the simulated state, so
+that branch behaves like the real engine. Not designed on purpose; disclosed
+as a second, emergent place `drink` can fire from, beyond the naive policy
+above.
+
+**2. The reprice.** `valueByItemName` (`src/bot/loot.js`) now prices a
+potion at `template.heal * horizon`, replacing the old `Math.min(POTION_HEAL,
+hpMax - hp)`. `horizon` is a new parameter defaulting to
+`LOOT_CAMPAIGN_HORIZON` — the same constant `settings.monstersAhead` already
+scales weapon pricing by, threaded through rather than duplicated. Its own
+comment already called it "a plain discount rather than a modelled survival
+curve," which is exactly what "will the run last long enough to drink this"
+needed and exactly why no second dial was added.
+
+**Why a straight multiply and not the `future`-monster-count path weapons
+use.** That path discounts by shrinking how many future monsters get
+counted — a lever a potion has no equivalent of, since it does not fight
+anything. Applying the SAME horizon fraction directly is the smallest
+change that reuses the existing constant instead of inventing a parallel
+one shaped for potions specifically.
+
+**Not gated on `level`/`levels` being known, unlike the weapon path.** A
+weapon's discount is 0 (full future) or effectively absent when the floor
+is played alone, because `monstersAhead` returns 0 without a campaign
+context. A potion's discount is about surviving to a free moment to drink
+it, which is live even on a single isolated floor, so it applies
+unconditionally. Flagged as a real asymmetry between the two paths, not an
+oversight — the two questions are not the same question.
+
+**Measured — full hp, floor 3, the exact state that used to price a potion
+at zero:**
+
+    potion value             0  ->  1.5   (heal 3 x horizon 0.5)
+    chest value            0.90 -> 1.35   (+50%)
+
+Chest value rising 50% at full hp is the direct answer to "did chest-seeking
+change" for the case that moved hardest — a chest with nothing else in it
+used to be worth walking past at full health and is not any more. Not
+independently paired-measured against a route; `expectedChestValue` reads
+straight from the same `values` map `chooseGoal` ranks against, so the
+number the bot actually compares chests by IS this one, not a proxy for it.
+
+**Watched, via `tools/measure.mjs`-style headless play (n=200, `--selftest`
+passed first) rather than a single click-through — this is what "watch a
+run" scales to when the behaviour is a few-percent-of-turns event.** 25
+seeds sampled by hand first for concrete traces, then 200 for the
+aggregate:
+
+    potions picked up             321
+    potions drunk                 319
+    wasted drinks (amount = 0)      0
+    deaths                         194
+    died holding an unused potion    2   (1.0% of deaths)
+
+**Zero wasted drinks is not luck, it is the policy's own arithmetic.** It
+only ever fires when `missing >= heal`, so the healed amount is always
+`min(heal, missing) = heal` exactly — provably waste-free by construction,
+which is why I12b's new wasted-drink counter should read zero against this
+policy and any nonzero reading there is a regression, not noise.
+
+**Concrete trace, full-hp pickup carried across a floor boundary and drunk
+later** (seed family 700000, run 6): potion picked up on floor 2 at hp 10/10
+(turn 33); hero takes damage crossing into floor 3; drunk at hp 8/10 on
+floor 3 (turn 0). This is the shape M35 exists to enable and the old rule
+could not: a potion surviving a floor transition unspent and unwasted.
+
+**Died holding one: 2 of 194 (1.0%), reported and not fixed, per the item's
+own instruction — I12's number, B15's problem.** Consistent with a
+danger-blind, one-decision-per-turn policy: `decide()` only reconsiders once
+a turn, so a hit that both crosses the drink threshold and kills in the same
+blow leaves no later turn to act on it. Not a defect in what was asked for
+here.
+
+**The asymmetry against armour, stated rather than papered over, per the
+item's own instruction.** Armour applies passively; a potion needs a turn
+the naive policy does not yet price against danger. Left unpriced — a
+constant fudge factor here would be exactly the parameter-compensating-for-
+a-parameter move `CLAUDE.md` forbids, and the real fix is B15 reading
+`dangerField` at the drink decision, not a discount at acquisition.
+
+**`docs/bot-strategy.md` §4 and §5 updated in this commit** — purely
+descriptive, per `CLAUDE.md`'s own rule for corrections needing no
+restructuring. §4 gained one paragraph: potion joined armour's face-value
+group, the horizon discount is named, and the turn-cost split is stated.
+§5 gained one gap: "beber ignora perigo," pointing at B15. **One correction
+to the item's own framing:** neither section currently states the OLD
+hp-gap-capped rule anywhere — checked by grep across the whole document, not
+assumed — so there was no false claim to retract, only a gap to fill. "não
+persegue o #2" is genuinely untouched, exactly as the item said.
+
+**Files touched:** `src/sim/step.js` (`ACTIONS`, one line, this item's call
+per M35's comment there), `src/bot/bot.js` (the drink check at the top of
+`decide()`, `valueByItemName`'s two call sites threading `horizon` through),
+`src/bot/loot.js` (the reprice, the new `horizon` parameter),
+`test/tests.js` (one stale comment corrected — a pre-existing test asserting
+potion value does not move with monster count ahead still passes under the
+new formula, but its comment argued from the retired hp-gap rule),
+`docs/bot-strategy.md` (§4, §5, as above). 141 tests green.
 
 ## I12 · did it move anything — finishes, and died-holding-a-potion
 
@@ -538,11 +661,35 @@ Metrics agent proposal, filed with the reasoning intact. Nothing implemented.
 
 **Reframed after the owner refined the primary objective — this is worth more
 than it was filed as.** `P(finish | state now)` is not just a discount factor
-for pricing coin: it **is** "hope", which `docs/project/objectives.md` now names
-as the property that must never reach zero. Whatever else this table is for, it
-is the only proposed instrument for the game's primary objective. That does not
+for pricing coin: it **is** "hope", which `docs/project/objectives.md` names as
+the property that must never reach zero. Whatever else this table is for, it is
+the only proposed instrument for the game's primary objective. That does not
 unblock it — it still needs a non-zero finish rate to have signal — but it
 raises what it is worth building once that lands.
+
+**This item now carries the instrumentation half of that objective, moved out
+of `objectives.md` when that file was cut back to strategy.** The root document
+states the property and names no instrument; the instrument is this. Two things
+came with it:
+
+- **The conditional is the whole point.** "Hope" is the chance of completing
+  from where the hero *actually stands*, not the run's overall rate — which is
+  the same distinction the pricing argument below already makes for coin, and
+  it is the reason both live in one item.
+- **The diagnosis the objective produced.** With finishes near zero, hope is
+  near zero for most of most runs. That is the **"too rare, hope goes with
+  it"** failure the owner named, and it means the current state fails the
+  primary objective *on its own terms* rather than merely being hard. It is
+  also why this item being blocked matters more than it looked: the thing it
+  is blocked on is the thing the objective needs.
+
+**One caveat on the objective's own terms, since the property is broader than
+this instrument.** Hope does not have to be hope of *winning* — the objective
+says hope of something not yet decided, and a run carrying several open
+questions degrades where a run carrying one goes to zero at once.
+`P(finish | state now)` measures only the finish question. A run reading zero
+on this table is not automatically a run with no hope in it; it is a run whose
+*finish* is decided. That gap is real and this item does not close it.
 
 ### What the proposal establishes, and it holds up
 
@@ -599,8 +746,10 @@ discovering the need later.
 
 ### Why it is blocked, and on what
 
-`finishes` reads **0% to 1.3%** across every recent measurement. That starves
-the table from both ends at once:
+`finishes` reads **0% to 1.3%** across every recent measurement — and U6f later
+established it is about **0.25%**, one run in four hundred, with every 0%
+reading an artefact of n=60-80 rather than a dead metric. Near zero either way,
+and that starves the table from both ends at once:
 
 - **Shallow cells have plenty of samples and no signal** — almost nobody
   finishes from floor 1, so `P(success | floor 1, any hp)` is indistinguishable
@@ -1294,6 +1443,13 @@ The randomness-tail objective is measured as not met: the one-sided peak does
 not grow smoothly with depth, it is uneven and peaks mid-ladder. **The cause is
 a mismatch this family of dials has by construction.**
 
+**The statistic behind that reading, moved here from `objectives.md` when it
+was cut back to strategy.** The metrics agent built a one-sided tail statistic,
+p90 over mean, precisely because **CV could not answer this question at all**:
+CV is symmetric, so it treats "came out easier than average" exactly like "came
+out harder", and the objective is only about the hard side. This item's reading
+is the one-sided one; do not re-derive it from CV.
+
 `MONSTER_WEIGHTS` spreads by **absolute** offsets — a fixed ±2 indices, the same
 at every depth. The clamps that contain it are **proportional** — a share of the
 floor's ceiling index. So compensation is weak exactly where that index is small
@@ -1601,8 +1757,10 @@ which already have one.
 
 Kept below as filed, for the reasoning.
 
-`docs/project/objectives.md` states four map properties. The fourth — most of
-the threat on the fast route — is the only one with **no way to check it.**
+`docs/map-design.md` states four map properties — they were in
+`docs/project/objectives.md` when this item was filed, and moved when that file
+was cut back to strategy. The fourth — most of the threat on the fast route —
+is the only one with **no way to check it.**
 
 **The dial that exists measures the wrong thing.** `SPINE_THREAT_SHARE`
 controls where threat mass is *placed* at generation. The objective is about
@@ -2290,6 +2448,162 @@ third justification.
 overlay by whoever next has a working browser. Not a blocker on the arc — a
 loose end with a name.
 
+
+## U7 · the player chooses which hero to play
+
+`product` · `work agent` then `ui agent` · **NEW, unqueued — owner to place**
+· the worked design is `docs/project/candidates.md`'s U7 and is deliberately
+not duplicated here
+
+**The premise changed, and `objectives.md` was rewritten around the new one.**
+The root document now opens with "the player chooses, then watches the choice
+play out", and gives a whole section — "What a choice has to be" — to what a
+choice owes. **None of it is built.** There is one hero, and the only thing the
+player picks is what the shop screen offers at the end of a run.
+
+**Planned, not built, and that gap is why this item exists.** A root document
+describing a product half of which does not exist is a specific kind of
+liability: every item derived from it inherits an assumption nobody has tested.
+This is where that assumption gets discharged.
+
+**What it is.** A pre-run menu, several heroes, each with a different starting
+item *and* a different bot behaviour. The pick persists across deaths — die and
+the next run starts with the same hero already chosen, no click required. Never
+blocking: a pre-set rule, not a pause waiting on the spectator.
+
+**The three tests come from `objectives.md`, and each is a tripwire rather than
+per-hero polish.**
+
+- **Visible.** If you cannot tell which hero was picked by watching for thirty
+  seconds, it was not a choice. That is a *behaviour* requirement before it is
+  a stats one — a different starting item will not clear it on its own.
+- **Wrong sometimes.** Every hero needs a real weakness, and one that shows on
+  screen. A hero who is simply better is an unlock, not a choice.
+- **Attributable.** It has to be possible to look at a win and say the hero
+  contributed to it.
+
+**Where the design already is.** `docs/project/candidates.md`'s U7 carries the
+worked version: four named heroes, what each does, which premises were checked
+against the code and which came back wrong (deeper lookahead is measured worse,
+not better — it hesitates rather than dodges), the two-axis visibility table
+that separates Papazito from Ricardo, and the finding that neither needs a
+`GameState` exception because `observe()` already legitimately bridges. **That
+section stays where it is.** This item is the premise; that one is the spec.
+
+**Two dependencies it does not get to skip.**
+
+- **`step()` gains a second run-state axis.** Persona alongside seed keeps
+  determinism — same seed and same persona replays identically — but every
+  test, every `step()` call inside the bot's own search, and every frozen-probe
+  instrument now has a second thing to hold fixed. State it as a decision when
+  this is scoped rather than discovering it mid-build.
+- **`I11`** asks whether the ruler still reads true when the starting hero
+  changes. This item changes the starting hero on purpose and by menu, so I11
+  is the instrument question sitting underneath it.
+
+**What it does not resolve, and this is the honest half.** A choice between
+heroes is a choice about *how* a run gets played. `objectives.md` also says the
+product is a race the player has a stake in, and that the stake is small today.
+This item enlarges the choice. It does not enlarge the stake.
+
+## M36 · a detour has to be able to cost the run
+
+`map` · `work agent` · **NEW, unqueued — owner to place** · this corrects a
+diagnosis `map-design.md` carried and has now retired
+
+**The retired diagnosis.** `map-design.md` said the reason the bot opens every
+side room is the **level** of the reward: a chest is worth its walk almost
+always, so no amount of varying the odds produces a decision. That reads the
+trade from one side only.
+
+**The correction.** A detour is refusable only if taking it **can cost the
+run**. Refusing becomes correct when the walk, the fight and the hp they spend
+can end the descent — and while the worst case of a bad room is a slower floor,
+no reward level makes it refusable. Nor does lowering the reward until detours
+stop paying: that deletes the decision rather than creating one. **What is
+missing is on the cost side.**
+
+**Why this is not `M4`.** M4 scales the risk/reward *spread* with depth — it
+widens the distribution of what a side room offers. This item is about the size
+of the worst case, not its spread. Both can be true at once; they are separate
+changes and must not be collapsed into one dial.
+
+**Establish which existing dial carries it before adding anything.**
+`CLAUDE.md`'s minimum-change rule applies at full force here — this item is the
+exact shape that produced the nine tier clamps. In order of preference:
+`SIDE_ROOM_DEPTH_BONUS` already means "how much deeper a side room is treated
+as being" and already drives both halves of the trade; `STEP_COST_IN_HP`
+decides whether the walk itself costs anything at all, and `backlog.md`'s own
+preamble classes it as structure rather than a number. A report that adds
+something new says in one line why neither could carry it.
+
+**The bot half is a real risk with a measured precedent.** The bot prices a
+detour through `LOOT_CAMPAIGN_HORIZON`, discounting future value by the chance
+of living to use it. Raise what a detour costs and the bot may stop taking any
+— which is the *other* failure. `decisions.md` records exposure pricing costing
+about eleven points of win rate by making the bot shy, and `map-design.md`
+records that forbidding, requiring and permitting the detour once produced
+identical dungeons. **A detour nobody takes is not a decision either.**
+
+**Tripwire, not a target.** Refusal has to happen sometimes and acceptance has
+to happen sometimes, over the same seed family, and the two have to be told
+apart by what is in the room. Every room still opened means the change did
+nothing; no room opened means it overshot. Neither end is a number to push
+toward.
+
+**Sequence.** Independently of `M4` or after it, but **never in the same
+commit** — two changes to the same bargain inside one measurement cannot be
+told apart.
+
+## M37 · a setback needs room between "no effect" and "dead"
+
+`work agent` · **NEW, unqueued — owner to place** · **filed because the
+objectives review found it unowned; no existing item covers it**
+
+`objectives.md` requires that hope never reach zero and that reversals be
+possible. A reversal needs a **recoverable setback**: something goes wrong, the
+run is genuinely worse off, and it is still live. Today the band between an
+event with no consequence and an event that ends the run is too narrow for that
+to happen often.
+
+**This is a buffer question, and buffer is the thing this project already
+established is two quantities.** `decisions.md`: capacity is what the hero
+accumulates — `hpMax` plus gear, monotone because nothing takes gear away —
+and attrition is what gets spent. A recoverable setback is an attrition event
+large enough to matter against capacity and small enough to survive. **The
+complaint is about the ratio between a bad event and the buffer standing behind
+it, not about difficulty in general.**
+
+**Why nobody owned it.** Every neighbouring item touches one side and not this
+one. `M4` moves reward spread. `M21` puts a creature where the hero lands.
+`M32` rebuilds weapons. `B14`/`B15` decide when to drink. None of them is about
+how much room exists between a hit that does not matter and a hit that ends the
+run, which is why this is filed rather than folded into one of them.
+
+**It also inherits the open question that used to hang off map property 1.**
+`objectives.md` carried it: floor 10 may now be past "hardest" and into
+"unreachable". The property itself is in `map-design.md`; the live question is
+here and in `I9`. **Note plainly that no item owns making the descent
+completable** — I9 is blocked on it and this one is weakened by it, and neither
+of them is that item.
+
+**The evidence in hand is indirect.** `finishes` sits near 0.25% and runs
+commonly end inside the first three floors. A hero that dies to the first
+serious event never had a setback, only an ending. That reading is consistent
+with a band too narrow to hold one — and it is **equally consistent with the
+descent simply being too hard overall**. Separating those two is the first job
+of this item, before any dial moves.
+
+**What the answer is probably not: more hp everywhere.** That widens the band
+and flattens the curve in the same motion, and `decisions.md` is full of what
+happens when one change moves two things a measurement cannot separate. Look
+first at what is already unevenly distributed and already shaped like "absorb
+a blow and carry on": potions are a carried resource since `M35`, and armour is
+a spent second bar rather than damage reduction.
+
+**Tripwire, not a target.** What would settle it is whether runs contain events
+that hurt and are survived — not the death rate, not the finish rate, and
+emphatically not an hp number raised until things look better.
 
 ## E1 · expose a resumable turn loop from src/sim
 

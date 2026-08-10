@@ -423,6 +423,7 @@ function chooseGoal(belief, field, danger, current, options) {
   // that for what it might carry" are comparable in one currency.
   const values = valueByItemName(
     belief, options.monsterCount, options.monstersAhead, options.crowdCost,
+    options.horizon,
   );
 
   // Experimental, default 1 (no-op) each: scales what the bot believes a
@@ -804,6 +805,24 @@ export function makeBot(options = {}) {
   const chestsEverSeen = new Set();
 
   return function decide(belief) {
+    // B14 (docs/backlog.md). The dumbest defensible drink policy: drink
+    // whenever the missing hp is at least what the potion heals. Checked
+    // first, ahead of every goal and the tactical veto, and it is a real
+    // action returned directly — not a goal, so it never touches `goal`
+    // and next turn resumes wherever the bot was headed.
+    //
+    // Deliberately ignores danger. It will drink standing next to a wolf,
+    // and that is the point: this item exists to make M35's engine change
+    // measurable with the plainest policy that does not waste a potion, so
+    // B15 has honest numbers to beat rather than a strawman. `rules.md` §6
+    // is why "ignores danger" is not free — a turn spent drinking is a turn
+    // a pursuer closes, but choosing WHEN to accept that cost is exactly
+    // what this policy does not yet do.
+    const potion = belief.player.inventory.find((i) => i.heal > 0);
+    if (potion && belief.player.hpMax - belief.player.hp >= potion.heal) {
+      return 'drink';
+    }
+
     // Forget the chosen ground as soon as nothing is hunting: it is only
     // meaningful while someone is coming.
     if (!liveMonsters(belief).length) standoff = null;
@@ -841,6 +860,7 @@ export function makeBot(options = {}) {
       settings.unseenChests = Math.max(0, settings.chestCount - chestsEverSeen.size);
       settings.chestValue = expectedChestValue(valueByItemName(
         belief, settings.monsterCount, settings.monstersAhead, settings.crowdCost,
+        settings.horizon,
       ));
     }
 
