@@ -219,7 +219,7 @@ moves the binding constraint.
 
 | id | what gets done | agent | status |
 |---|---|---|---|
-| I11 | Does the ruler read true when the starting hero changes? | metrics | REPORTED · found a dead-hero denominator |
+| I11 | Does the ruler read true when the starting hero changes? | metrics | **RETURNED** · knob shipped, reading never taken |
 | I9 | Conditional survival table = the "hope" instrument | metrics | BLOCKED · and the return moved its target |
 
 **`I9` is worth a line of its own.** It was blocked on `finishes` being
@@ -1051,6 +1051,52 @@ not, and that is not the question.
 **Blocks two unscheduled features** (`U8`/`U9` in `candidates.md`) which need a
 ruler that survives a changed starting hero, but it is worth doing on the
 shop's account alone.
+
+#### Review — the capability shipped, the answer did not. RETURNED.
+
+**What landed is good and I would not undo it.** `startingItems` now reaches
+`descentCheck` and both of `observed-ruler`'s descent drivers, forwarded the
+way `playDungeon` already forwards it, so `carry` still wins from floor 2 and
+it only ever arms floor 1 — which is what the shop actually does. Undefined by
+default, so every earlier reading reproduces. Without it the anchor question
+could only be asked by hand-building a carry hero, which would have meant a
+second copy of `grantArmour`.
+
+**But that is the knob, not the reading.** This item's Do says: take a reading
+that already exists, re-take it with a hero starting armed, and **say whether
+the shape holds or only the level moves**. Its Assert says: the same quantity
+at two starting heroes, same seeds, reporting whether the *shape* survives.
+Neither was done. The report describes plumbing and stops.
+
+**The find along the way was real and is separately adopted.** The Map cost
+table's denominator came from a hero with death suppressed and no regen, so hp
+pinned at 0 — the page printed `Infinity` on four of ten floors. Sourcing it
+from the mortal series is right, costs one fewer descent, and refusing a
+`?? PLAYER_HP` fallback was the right call for exactly the reason given. That
+is a good bug, found while building the knob. **It is not this item's
+question.**
+
+#### And the question stopped being hypothetical while this sat REPORTED
+
+M38 shipped `STARTING_ITEMS`: **every hero now starts armed.** The item was
+written as "the shop *can* move the anchor once it has money". The anchor has
+now moved unconditionally, for every run, with no purchase involved.
+
+**One consequence nobody has stated, found by reading the drivers.**
+`driveDescent` sets `carry = startHero ? carryFromPlayer(startHero) : null`.
+With `startHero: null` there is no carry on floor 1, so `newGame` applies
+`STARTING_ITEMS` — **and the probe silently starts holding a dagger, then
+carries it down.** With `startHero: PROBE_HERO` the carry overwrites the
+inventory outright and the probe never sees it.
+
+So the two probe modes now disagree about the hero by default, and neither
+asked to. `capacityShape({ startHero: null })` is exactly the path the cost-table
+fix above just moved onto.
+
+**Do, and it is smaller than the original item.** Take one existing reading at
+both anchors on the same seeds and answer the shape question in a line or two.
+Then state, in the code, which anchor each probe mode is using — the defect is
+not that they differ, it is that they differ by accident.
 
 ### I9 · a conditional survival table, so coin can be priced in hp
 
