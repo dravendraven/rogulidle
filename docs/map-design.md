@@ -15,6 +15,48 @@ Findings live in `docs/project/decisions.md`.**
 
 ---
 
+## What the map has to do
+
+Four properties, owner-defined. They **derive from
+`docs/project/objectives.md`** — the map is where "the outcome stays uncertain
+for as long as possible" and "a decided run ends quickly" become geometry — and
+they live here rather than there because each one names a mechanism. The root
+document names none.
+
+**No status here, deliberately** — same rule as the readings above. Whether a
+property is currently met is a live question owned by a backlog item, named
+below where one exists.
+
+**1. A difficulty curve that starts low and accelerates, with floor 10 the
+hardest.** Floor-to-floor monotonicity is guaranteed by an exact closed form
+over the tier distribution rather than observed, and the ramp is exponential.
+The failure it guards against is a floor cheaper than the one above it.
+
+**2. Alternative routes, with no no-brainer.** Real choices weighing loot
+against the creatures in the way — neither a corridor nor a maze. This is the
+bargain below, and its open half is "What is still open".
+
+**3. A tail of randomness — rare floors that come out harder than expected,
+and the tail thickens with depth.** A creature can come from above the floor's
+band, with the chance growing with depth. The intended shape is a one-sided
+tail whose peak grows smoothly from floor 1 to floor 10. `X6` owns why it does
+not: an absolute spread contained by a proportional clamp.
+
+**4. Most of the threat on the fast route.** If a direct run to the portal can
+skip most of the floor, the mandatory path is not mandatory. The intended
+shape: a direct run wakes well over half the floor, and only a modest fraction
+is left standing afterwards.
+
+**Placed is not woken, and property 4 is about woken.** `SPINE_THREAT_SHARE`
+controls where threat mass is *placed* at generation. What a direct run
+actually meets depends on activation radii and route geometry — a creature
+standing on the mandatory path with a small activation radius can be walked
+straight past. The two are different quantities and both now exist:
+`topologyShape` walks the shortest hero→shrine route and compares every
+creature's real distance against its own activation radius, the same rule
+`monsters.js` applies in play. Placement has a dial; the woken quantity has an
+instrument, and no dial of its own on purpose.
+
 ## The bargain
 
 A floor should offer **one mostly-linear mandatory path holding most of the
@@ -108,13 +150,22 @@ early, so "chests opened" was mostly measuring how far it got before dying.
 Measured over real descents, the two rates are the same within noise.
 
 **So the gamble is still a free lunch.** The variance made individual rooms
-differ without making any of them worth refusing. That is the thing to attack,
-and it is about the **level** of the reward rather than its spread: while a
-chest is worth its walk almost always, no amount of varying the odds produces
-a decision.
+differ without making any of them worth refusing. That much has held up.
 
-`M4` is the scheduled attempt at the spread; the level is the unaddressed
-question.
+**The diagnosis that followed it was wrong, and the correction is the useful
+part.** This file used to say the thing to attack was the **level** of the
+reward — that a chest is worth its walk almost always, so no amount of varying
+the odds produces a decision. That reads the trade from one side only.
+
+**A detour is refusable only if taking it can cost the run.** Refusing is
+correct when the walk, the fight and the hp they spend can end the descent, and
+no reward level makes an offer refusable while the downside is bounded by
+nothing worse than a slower floor. Lowering the reward until detours stop
+paying does not create a decision either; it deletes one. **What is missing is
+on the cost side, not the reward side** — and that is a different item from the
+spread.
+
+`M4` is the scheduled attempt at the spread. `M36` owns the cost side.
 
 ## Two things to check whenever this area changes
 

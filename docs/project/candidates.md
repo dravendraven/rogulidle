@@ -93,6 +93,31 @@ rollout seed through `hashSeeds`, and touch nothing outside `src/ui/`. No
 metrics-agent half, no new instrument. The rule is that ui does not *edit*
 `src/sim/`, not that it cannot import from it.
 
+### Cycles — a hypothesis, with a mechanism that already exists
+
+`owner idea` · **UNSCHEDULED** · moved here from `objectives.md`, which is the
+root document and states no mechanism
+
+The owner's suggestion: alternating stretches of winning, of failing, and of
+trading wins and losses would make a better experience than a flat rate.
+
+**Worth recording that nothing needs building for this, and that it is already
+gated on the same thing.** Runs are independent draws — each seed is derived
+from the session seed and the run number, so nothing in the engine creates a
+cycle. But the shop does: coins bank on a clear, buy gear, make the next run
+easier, which earns more coins. **That is a ratchet.** And the owner's own death
+rule — lose the balance and the held items — is the crash that resets it. A
+ratchet with a reset is a sawtooth, which is the cycle structure described.
+
+**Two honest caveats.** The ratchet only engages once runs are winnable at all,
+so today the mechanism is inert for the same reason everything else is. And if
+compounding outruns the reset, cycles become a runaway instead — win once,
+snowball, win always, which is the *other* named failure. The death reset is
+the only brake, and nobody has checked it is strong enough.
+
+**Still judged by watching.** None of these is measured today, and the project
+has already paid once for treating a proxy as the thing.
+
 ### M8 · layout variety, the way DCSS picks a builder per level
 
 Nothing in the backlog touches map *structure*, and the arithmetic likes it
@@ -393,6 +418,14 @@ swapping who presses the button later does not change the mechanic underneath.
 
 `owner idea` · **UNSCHEDULED — spectator control, the territory already
 flagged as deferred until bot/map base is done. Recorded, not blocking.**
+
+**Status changed at the premise level, not here.** `objectives.md` was
+rewritten around a premise in which the player chooses a hero, so U7 now has a
+**filed backlog item** carrying the premise, the three tests a choice has to
+pass, and the two dependencies. **This section is unchanged and remains the
+build spec** — the four heroes, what each does, what was checked against the
+code. Read the backlog item for why it is being built; read this for what to
+build.
 
 ### What it is
 

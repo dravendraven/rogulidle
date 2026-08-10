@@ -119,8 +119,9 @@ Numbers come from `run-check.html`, run on demand. Nothing records them —
 a written-down measurement goes stale and gets compared against anyway.
 
 **Watch the game. Fix what is wrong.** Measure only when you cannot tell by
-looking — `docs/project/objectives.md` has the history of why that rule
-exists and what the alternative cost.
+looking — `docs/project/objectives.md` states the rule;
+`docs/project/decisions.md` has the history of why it exists and what the
+alternative cost.
 
 ## Hard rules
 - Vanilla JavaScript, ES modules. No frameworks, no npm, no build step,

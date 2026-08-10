@@ -4,6 +4,44 @@ Findings that cost something to get and would cost again to relearn. The
 full record — every item, result and review — is in the git history; the
 commit messages carry the reasoning. This is the residue.
 
+## What the measurement programme cost
+
+Moved here from `objectives.md`, whole and unshortened. It is history, and it
+is the most expensive lesson in the file.
+
+Twelve items closed under an earlier programme organised around approaching
+DCSS's difficulty curve. **Seven were instruments** — the ruler, the probes,
+buffer turning out to be two quantities, reward measured twenty times wrong.
+Three changed the game. **One stuck.**
+
+Then the owner watched the bot play for one session and found six real defects —
+creatures that dealt literally zero damage, floors cheaper than the floor above,
+empty maps, an unguarded exit. **Not one had shown up in any metric.**
+
+**The mistake was the anchor.** The targets came from attribute scales rather
+than observed play, and it was never established that the quantity being chased
+had anything to do with whether a run was worth watching.
+
+**What survives:** the instruments, as a regression check — "did something
+break" — not as a scoreboard. They caught real things. Numbers are produced on
+demand and never written down; a recorded measurement goes stale and gets
+compared against anyway.
+
+**The rule that replaced the programme:** measure only when you cannot tell by
+looking. Most of what is wrong with this game is visible in thirty seconds of
+watching. Reach for an instrument when a question is genuinely invisible — "is
+this floor actually harder than that one", "did that change break something
+three floors down" — and not before.
+
+**The distinction that lets both halves be true.** Sections of this file give
+numbers, and the root document says no number is a goal. What failed was a
+*scoreboard*: a quantity to push in one direction, with everything downstream
+inheriting the assumption that pushing it made the game better. CV went up;
+nobody could say the game improved. A **tripwire** is the opposite shape — "if
+a direct run skips most of the floor, something is wrong" does not reward being
+pushed; it fires or it does not, and when it fires there is a defect to find.
+That is what makes "fix what is wrong" actionable instead of a matter of taste.
+
 ## Measurement
 
 **A modelled ruler prices the fight it imagines, not the one that happens.**
