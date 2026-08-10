@@ -26,6 +26,29 @@ import {
   unkey,
 } from './nav.js';
 
+// B16 (docs/backlog.md). The shrine is a one-way door: stepping on it ends
+// the floor (rules.md §8), and nothing else in the game behaves like that.
+//
+// The router could not see it. `believedWalkable` decides passability from
+// the tile KIND, and the shrine is not a kind — it is an entity on
+// `belief.shrine` — so its tile was ordinary floor to every route, and the
+// bot walked ACROSS it to reach loot on the far side and ended the floor by
+// accident (seed 2367838680, floor 2).
+//
+// Modelled as a graph sink rather than a price, because it is not a cost.
+// Crossing the shrine on the way to something else is not expensive, it is
+// impossible — the floor is over before the route's second half happens.
+// A price says "avoid unless the prize is big enough", which is wrong at
+// every weight, and the item forbids a dial for exactly that reason.
+//
+// Only the BOT's own field gets this. Creature reach (`threat.js`'s flood)
+// is untouched: the shrine stops the hero, not the wolves.
+function shrineSink(belief) {
+  if (!belief.shrine) return () => false;
+  const tile = key(belief.shrine.pos);
+  return (x, y) => (x + ',' + y) === tile;
+}
+
 // Hp it costs to walk to a tile, danger included. Infinity when unreachable.
 function priceOfReaching(field, pos) {
   const cost = field.cost.get(key(pos));
@@ -199,7 +222,7 @@ function frontierField(belief, danger, settings) {
     const base = settings.stepCost + danger.priceAt(x, y);
     if (!belief.tiles.has(x + ',' + y)) return base;
     return Math.max(0, base - settings.frontierRevealWeight * wouldReveal(belief, [x, y]));
-  });
+  }, shrineSink(belief));
 }
 
 // What the dark is worth, in hp, and therefore what a frontier is worth.
@@ -846,7 +869,7 @@ export function makeBot(options = {}) {
       : { menace: new Map(), crowd: new Map(), reach: new Map(), priceAt: () => 0 };
 
     const field = dijkstra(belief.player.pos, passable,
-      (x, y) => settings.stepCost + danger.priceAt(x, y));
+      (x, y) => settings.stepCost + danger.priceAt(x, y), shrineSink(belief));
 
     // B4: what the dark is worth this turn. Both figures move as the floor
     // is played — a chest found is a chest the dark no longer holds, and
@@ -983,6 +1006,13 @@ export function makeBot(options = {}) {
       // remaining distance as well would count it twice — and worse, it
       // made the tiles around a target monster expensive, so closing in on
       // the thing the bot had decided to kill scored as moving away.
+      // B16: deliberately NOT sunk, and this is the one place that would be
+      // wrong. This floods OUTWARD FROM the goal to measure "how far is
+      // every tile from it" — with the shrine as goal, sinking it would
+      // expand nothing and every tile would read as unreachable, breaking
+      // the veto exactly on the approach to the exit. A path that ENDS at
+      // the shrine never crosses it, so the symmetric distance is the
+      // correct one here; only the bot's own outward field needs the sink.
       const costToGoal = dijkstra(goal.pos, passable,
         () => settings.stepCost).cost;
 

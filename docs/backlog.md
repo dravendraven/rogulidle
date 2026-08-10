@@ -197,7 +197,7 @@ moves the binding constraint.
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
 | — | I12b | Split drunk into useful and wasted | metrics | **DONE** · shipped inside the heal-delivered commit |
-| 1 | B16 | The shrine is a trapdoor and the router treats it as floor | bot | READY · **bug**, confirmed in code |
+| 1 | B16 | The shrine is a trapdoor and the router treats it as floor | bot | **REPORTED** · 27.4% of ascends were accidental |
 | 2 | B17 | Loot on the way is free, and the router does not know it | bot | after B16 · same routing price |
 | 3 | B15 | A drink policy that reads the danger field | bot | READY · B14 left a number to beat |
 | 3 | I12 | Did the potion change move anything? | metrics | baseline recorded · comparison owed |
@@ -567,8 +567,8 @@ M35 and B14 shipped. What is left is the policy that reads danger, and the measu
 
 ### B16 · the shrine is a trapdoor and the router treats it as floor
 
-`bot agent` · READY · **bug, found by watching** · seed 2367838680, floor 2 ·
-**confirmed in code during review, not merely reported**
+`bot agent` · **REPORTED** · fixed as a graph sink · 27.4% → 0.38%, and the
+residual is an engine bug reported for the work agent
 
 **Observed:** the bot walked ACROSS the shrine to reach loot on the far side
 and ended the floor by accident.
@@ -617,6 +617,120 @@ the number is knowing how much of the recent measurement record it touched.
 
 Watch one run through and confirm the bot still takes the shrine deliberately.
 The failure direction is a bot that now refuses to path anywhere near the exit.
+
+### Result
+
+**Fixed as a graph sink, not a price. And the number the item asked for is
+much bigger than "rare": 27.4% of every completed floor was ending by
+accident.**
+
+#### The fix, and why a sink rather than a price
+
+`dijkstra` takes an optional `isSink(x, y)`: a tile that can be **entered
+but never expanded from**. It keeps the cost and route it was reached at,
+and no route continues through it. `bot.js` passes the shrine's tile for
+the bot's own two fields — the main routing field and `frontierField`.
+
+**Why not a price.** Crossing the shrine on the way elsewhere is not
+expensive, it is *impossible* — the floor is over before the route's second
+half happens. A price says "avoid unless the prize is big enough", which is
+wrong at every weight, which is exactly why the item forbade a dial. The
+sink says the true thing instead: the graph has no edge leaving that node,
+because the game has no such move.
+
+**Why not `believedWalkable`.** Removing the tile entirely makes the shrine
+unreachable, and it is the goal on most floors. Sink is the only one of the
+three shapes that gets both halves right, and both halves have a test.
+
+**Three places deliberately left alone**, each of which would have been
+wrong to sink:
+
+- **`threat.js`'s flood** — creature reach. The shrine stops the hero, not
+  the wolves.
+- **The tactical `costToGoal`** — this floods *outward from the goal* to
+  measure how far every tile is from it. With the shrine as goal, sinking it
+  would expand nothing and every tile would read unreachable, breaking the
+  veto exactly on the approach to the exit. A path that ENDS at the shrine
+  never crosses it, so the symmetric distance is the correct one there.
+- **The origin** — checked after the origin is seeded, so a hero already
+  standing on a sink is not frozen on it. Has its own test; it is a
+  plausible off-by-one rather than a behaviour anyone asked for.
+
+#### Accidental exits, measured — the number that had never been taken
+
+Paired: identical seeds against two source trees differing in **one
+expression**, `shrineSink` returning the real predicate or `() => false`.
+Everything else is a byte copy, so nothing but the sink can move these.
+Detection is the bot's own `trace` — the goal it had chosen when the floor
+ended — not an inference.
+
+    n=120 runs per family        seed 3000000        seed 4100000
+                              before    after     before    after
+    floors ascended              750      781        749      819
+    ACCIDENTAL exits             206        3        205        3
+      share of ascends        27.5%    0.38%      27.4%    0.37%
+      runs with at least one    94       3         101        3
+      chests left behind        564       15        528       11
+
+**More than one completed floor in four was ending by mistake**, and it hit
+78–84% of runs. This is not a rare edge — it is a background rate that every
+recent measurement was averaging over.
+
+**Nothing regressed in the failure direction the item named.** Floors
+ascended went *up* (750→781, 749→819) and mean depth rose (7.117→7.358,
+7.092→7.658). The bot is not shy of the exit; it now reaches more exits
+deliberately, having stopped throwing floors away.
+
+#### The 3 residuals are a different bug, and it is not in `src/bot/`
+
+All six (three per family) reproduce identically, and none is a routing
+failure: **the goal creature was standing ON the shrine tile.**
+
+    seed 3000013 L6  goal monster [26,4]   shrine [26,4]   hero stayed at [25,4]
+    seed 3000020 L6  goal monster [14,15]  shrine [14,15]  hero stayed at [13,15]
+    seed 3000087 L1  goal monster [4,13]   shrine [4,13]   hero stayed at [3,13]
+
+The hero never moved — it attacked. `resolveEncounters` (`src/sim/step.js`)
+takes its snapshot and then fires each branch in turn, and **`shrineHere`
+fires unconditionally, even when a monster already set `blocked`**. So
+swinging at a creature that stands on the shrine ends the floor without the
+hero ever stepping there.
+
+**Reported, not fixed — `src/sim/` is the work agent's.** Two things worth
+saying about it:
+
+- It is very likely M14's shrine guardian, which `rules.md` §3 places on the
+  shrine by design. The placement and this resolution order have probably
+  never been considered together.
+- **A bot-side patch would be the wrong fix.** Refusing to target a creature
+  on the shrine would paper over an engine rule that says "attacking is
+  ascending" — and would leave that rule live for every future policy. The
+  question is whether the engine should let the shrine resolve on a turn the
+  hero was blocked from entering it. That is one line in `step.js` and not
+  mine.
+
+At 0.38% it no longer contaminates measurement the way 27% did.
+
+#### Watched, on the original seed
+
+Seed 2367838680, the floor 2 the bug was reported on: it now ends with
+`lastGoal: shrine`, deliberately, **with every chest opened** (`chestsLeft:
+0`). Floors 1–4 all exit deliberately, all with zero chests left; the run
+ends by dying on floor 5, which is ordinary. Confirmed the served page is
+running the fixed source rather than a cached module before trusting it.
+
+**Files touched:** `src/bot/nav.js` (`isSink` on `dijkstra`),
+`src/bot/bot.js` (`shrineSink`, passed to the two bot-owned fields; a
+comment on why `costToGoal` is exempt), `test/tests.js` (four tests: the
+sink ends routes, the sink stays reachable, the origin can leave a sink, and
+the bot still takes the exit), `docs/bot-strategy.md` §3.1. `src/sim/`
+untouched. 149 tests green.
+
+**Made stale:** `docs/bot-strategy.md` §3.1 — it said the field gives "o
+custo em hp de alcançar cada tile", which is now false for anything beyond
+the shrine. Corrected in this commit, since it is descriptive and needed no
+restructuring. `rules.md` did not move: the engine was not touched and §8 is
+still exactly right. `map-design.md` did not move.
 
 ### B17 · loot on the way is free, and the router does not know it
 

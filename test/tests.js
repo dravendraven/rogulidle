@@ -24,6 +24,7 @@ import {
 import { expectedMonsterDropValue, monstersAhead, valueByItemName } from '../src/bot/loot.js';
 import { makeBot } from '../src/bot/bot.js';
 import { dangerField } from '../src/bot/threat.js';
+import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
 import { growthOf, summarise, ITEM_VALUE } from '../src/analysis/shape.js';
 import { campaignCost, crowdOverhead, duelCost } from '../src/bot/duel.js';
 
@@ -2638,6 +2639,100 @@ test('a fight worth having still beats leaving', () => {
 
   const { actions } = driveBot(state, 1, { monsterCount: 0, leaveCompetes: true });
   assertEq(actions[0], 'left', 'the bot walked out past a potion it needed');
+});
+
+// ***** B16: the shrine is a one-way door, not floor ***** //
+//
+// docs/backlog.md B16. `believedWalkable` decides passability from the tile
+// KIND, and the shrine is an entity rather than a kind — so its tile was
+// ordinary floor to every route, and the bot walked ACROSS it to reach loot
+// on the far side, ending the floor by accident. Measured at 27.4% of all
+// completed floors before this, on two seed families.
+//
+// Modelled as a graph sink: enterable, never expanded from. Both halves are
+// worth locking, because the failure directions are opposite — a sink that
+// does not stop routes leaves the bug, and one that also blocks arrival
+// would leave the bot unable to take the exit at all.
+
+test('a sink ends routes and never carries them', () => {
+  // Straight corridor, sink in the middle. Everything up to and including
+  // the sink is reachable; nothing past it is.
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const belief = foldBelief(emptyBelief(), observe(makeState({ map, playerPos: [5, 1] })));
+  const passable = believedWalkable(belief);
+  const isSink = (x, y) => x === 10 && y === 1;
+
+  const field = dijkstra([5, 1], passable, () => 1, isSink);
+
+  assert(field.cost.has(key([9, 1])), 'the tile before the sink went unreachable');
+  assert(field.cost.has(key([10, 1])), 'the sink itself must stay reachable — it is the goal');
+  assert(!field.cost.has(key([11, 1])), 'a route continued straight through the sink');
+  assert(!field.cost.has(key([15, 1])), 'the whole far side should be cut off');
+});
+
+test('a bot standing on a sink can still leave it', () => {
+  // The origin is seeded before the sink test runs, so a hero that already
+  // occupies one is not frozen there. Guards a plausible off-by-one in the
+  // check's placement rather than a behaviour anyone asked for.
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const belief = foldBelief(emptyBelief(), observe(makeState({ map, playerPos: [10, 1] })));
+  const field = dijkstra([10, 1], believedWalkable(belief), () => 1,
+    (x, y) => x === 10 && y === 1);
+
+  assert(field.cost.has(key([11, 1])), 'a hero starting on the sink could not move off it');
+});
+
+test('the bot will not route through the shrine to reach loot beyond it', () => {
+  // The bug's own shape: the only chest sits on the far side of the shrine
+  // in a one-wide corridor. Reaching it means ending the floor, so the
+  // router must not believe it can be reached at all.
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [6, 1],
+    shrine: { id: 's', emoji: '⛩️', pos: [10, 1] },
+    chests: [
+      { id: 'c-far', name: 'chest', emoji: '📦', pos: [15, 1], side: false, edge: false, drop: null },
+    ],
+  });
+
+  const trace = [];
+  const { state: after } = driveBot(state, 6, { monsterCount: 0, trace });
+
+  assert(!trace.some((t) => t.goal.kind === 'chest'),
+    'the bot targeted a chest it can only reach by ending the floor');
+  assert(after.chests.length === 1, 'the bot got to the chest, which means it crossed the shrine');
+});
+
+test('the shrine is still reachable as a goal', () => {
+  // The failure direction the item names: a fix that makes the bot refuse to
+  // path anywhere near the exit. With nothing else to do, it must still walk
+  // to the shrine and take it.
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [6, 1],
+    shrine: { id: 's', emoji: '⛩️', pos: [10, 1] },
+  });
+
+  const { state: after } = driveBot(state, 8, { monsterCount: 0 });
+  assertEq(after.outcome, 'ascended', 'the bot would not take an exit with nothing else to do');
 });
 
 // ***** run it ***** //

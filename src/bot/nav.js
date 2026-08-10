@@ -68,7 +68,16 @@ export function flood(origin, passable, maxDist = Infinity) {
 //
 // `priceOf(x, y)` returns the hp charged for standing on that tile, or
 // Infinity for somewhere the bot refuses to go.
-export function dijkstra(origin, passable, priceOf) {
+//
+// `isSink(x, y)` marks a tile that can be ENTERED but never left: it gets a
+// cost and a route, and no route may continue through it. B16
+// (docs/backlog.md) — the shrine is exactly this and nothing else in the
+// game is. Stepping on it ends the floor, so "the path continues past the
+// shrine" is not an expensive route, it is a route that does not exist, and
+// a price cannot say that at any weight. Leaving it out entirely (via
+// `passable`) would be wrong the other way: the shrine is the goal on most
+// floors and has to stay reachable.
+export function dijkstra(origin, passable, priceOf, isSink = () => false) {
   const cost = new Map();
   const steps = new Map();
   const from = new Map();
@@ -116,6 +125,11 @@ export function dijkstra(origin, passable, priceOf) {
     const { pos, cost: here } = pop();
     const posKey = key(pos);
     if (here > cost.get(posKey)) continue;          // a stale heap entry
+
+    // A sink keeps the cost it was reached at and expands no further, so it
+    // ends routes and never carries them. Checked after the origin has been
+    // seeded, so a bot already standing on one can still leave.
+    if (posKey !== originKey && isSink(pos[0], pos[1])) continue;
 
     for (const [dx, dy] of STEPS) {
       const next = [pos[0] + dx, pos[1] + dy];

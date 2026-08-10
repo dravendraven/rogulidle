@@ -90,6 +90,24 @@ esta luta" sem inventar taxa de conversão.
 custo de passo mais preço de perigo — dá o custo em hp de alcançar cada tile.
 Esse campo alimenta toda escolha abaixo.
 
+**O santuário é sumidouro nesse campo: entra-se, não se sai.** Desde o B16 o
+tile do santuário recebe custo e rota como qualquer outro, mas o campo não se
+expande a partir dele — então nenhuma rota o atravessa, e o que estiver
+apenas do outro lado dele fica sem custo nenhum, ou seja, inalcançável.
+
+Não é preço, é a estrutura do grafo ficando honesta. Pisar ali encerra o
+andar (`rules.md` §8), então "a rota segue além do santuário" não é um
+caminho caro, é um caminho que não existe — e preço nenhum diz isso, em peso
+nenhum. Antes disso o roteador não enxergava a porta: `believedWalkable`
+decide passabilidade pelo TIPO do tile, e santuário não é tipo, é entidade em
+`belief.shrine`. O bot atravessava para pegar loot do outro lado e encerrava
+o andar sem querer, em 27% de todos os andares completados.
+
+**Só o campo do próprio bot.** O alcance das criaturas (`threat.js`) não
+muda: o santuário para o herói, não os lobos. E o campo que a camada tática
+monta *a partir do objetivo* também não, de propósito — ele mede distância
+até o objetivo, e um caminho que TERMINA no santuário nunca o cruza.
+
 ### 3.2 Escolher o objetivo
 
 Uma comparação, não uma cadeia de prioridades. `chooseGoal`:
