@@ -260,6 +260,16 @@ export function makeSondaPolicy() {
 // this file and were never meant to require editing it — merged into
 // `counts` last, so a rule variant can never silently override the pickup
 // toggle or the probe hero this instrument depends on.
+//
+// ANCHOR — third of the three modes in this file, and the only one M38
+// cannot reach. `carry` is ALWAYS set here, so `newGame` applies the shipped
+// `STARTING_ITEMS` and the carry then overwrites the inventory: this probe is
+// PROBE_HERO's axe and nothing else, whatever balance.js ships. That is
+// deliberate and it is why `challenge`/`reward` are a fixed ruler — they
+// describe the FLOOR, and must not move when the hero's kit does. It is also
+// why `--selftest`'s rewardShape anchors still matched across M38 while the
+// descent drivers' hero changed underneath. See the anchor note on
+// `driveDescent` for the two modes that DO track the shipped kit.
 function driveFloor(seed, plan, collect, maxTurns, gameOptions = {}) {
   const hero = heroCopy(PROBE_HERO);
   const run = playGame(seed, makeSondaPolicy(), {
@@ -538,6 +548,30 @@ function carryFromPlayer(player) {
 }
 
 function driveDescent(seed, makePolicy, startHero, maxTurns, levels, dungeonOptions = {}, floorPlanFn = floorPlan) {
+  // ***** WHICH HERO THIS PROBE STARTS AS — read before comparing runs *****
+  //
+  // M38 shipped `STARTING_ITEMS` (src/sim/balance.js): `newGame` gives EVERY
+  // hero that kit unless a `carry` overwrites the inventory. That makes the
+  // line below an anchor decision, not bookkeeping, so it is stated rather
+  // than left to be rediscovered:
+  //
+  //   startHero: null   -> no carry on floor 1, so `newGame` applies the
+  //                        shipped kit. The probe starts holding whatever
+  //                        STARTING_ITEMS is (a dagger today) and carries it
+  //                        down. This tracks the real game as it ships.
+  //   startHero: <hero> -> `carry` overwrites the inventory outright and the
+  //                        shipped kit never lands. The probe is exactly the
+  //                        hero passed in — PROBE_HERO's axe, or a bare hero
+  //                        if one is handed over. This is FROZEN against
+  //                        balance changes, which is what a calibration
+  //                        weight wants and what a game-tracking read does
+  //                        not.
+  //
+  // Neither is wrong; they answer different questions. What was wrong was
+  // that they diverged silently the moment M38 landed — I11. Measured, same
+  // 300 seeds: bare vs the shipped dagger moves the floor-3 hazard 0.095 ->
+  // 0.264 and the share of runs over by floor 3 from 0.977 to 0.847, so the
+  // choice is not a detail.
   let carry = startHero ? carryFromPlayer(startHero) : null;
   const perFloor = [];
   let totalCoins = 0;
@@ -572,14 +606,18 @@ function driveDescent(seed, makePolicy, startHero, maxTurns, levels, dungeonOpti
       noPickup: dungeonOptions.noPickup,
     };
 
+    // The floor-1 branch used to hard-code `inventory: []`, which stopped
+    // being true when M38 shipped STARTING_ITEMS: the engine hands the hero a
+    // dagger and this said the hero had nothing, so `heroPower` read floor 1
+    // with a weapon damage of zero. Read the hero the engine actually built
+    // instead of restating what it was assumed to be — the same class of
+    // mistake as restating a balance value in prose.
+    const run = playGame(hashSeeds(seed, level), makePolicy(), { maxTurns, counts });
     const arrivedWith = carry
       ? carryFromPlayer(carry)
-      : {
-        hp: PLAYER_HP, hpMax: PLAYER_HP, armour: 0, xp: PLAYER_XP, inventory: [], kills: [],
-      };
+      : carryFromPlayer(newGame(hashSeeds(seed, level), counts).player);
     const xpEarnedStart = carry ? carry.xpEarned : 0;
 
-    const run = playGame(hashSeeds(seed, level), makePolicy(), { maxTurns, counts });
     const damage = run.state.log
       .filter((e) => e.type === 'attack' && e.target === 'player')
       .reduce((sum, e) => sum + e.damage, 0);
@@ -653,6 +691,30 @@ export function mortalCoinShape(options = {}) {
 // really does "reach hp 0 and keep going," not stop losing hp, which is
 // what makes the two series subtractable at all.
 function driveDescentSuppressed(seed, makePolicy, startHero, maxTurns, levels, dungeonOptions = {}, floorPlanFn = floorPlan) {
+  // ***** WHICH HERO THIS PROBE STARTS AS — read before comparing runs *****
+  //
+  // M38 shipped `STARTING_ITEMS` (src/sim/balance.js): `newGame` gives EVERY
+  // hero that kit unless a `carry` overwrites the inventory. That makes the
+  // line below an anchor decision, not bookkeeping, so it is stated rather
+  // than left to be rediscovered:
+  //
+  //   startHero: null   -> no carry on floor 1, so `newGame` applies the
+  //                        shipped kit. The probe starts holding whatever
+  //                        STARTING_ITEMS is (a dagger today) and carries it
+  //                        down. This tracks the real game as it ships.
+  //   startHero: <hero> -> `carry` overwrites the inventory outright and the
+  //                        shipped kit never lands. The probe is exactly the
+  //                        hero passed in — PROBE_HERO's axe, or a bare hero
+  //                        if one is handed over. This is FROZEN against
+  //                        balance changes, which is what a calibration
+  //                        weight wants and what a game-tracking read does
+  //                        not.
+  //
+  // Neither is wrong; they answer different questions. What was wrong was
+  // that they diverged silently the moment M38 landed — I11. Measured, same
+  // 300 seeds: bare vs the shipped dagger moves the floor-3 hazard 0.095 ->
+  // 0.264 and the share of runs over by floor 3 from 0.977 to 0.847, so the
+  // choice is not a detail.
   let carry = startHero ? carryFromPlayer(startHero) : null;
   const perFloor = [];
 
@@ -685,13 +747,12 @@ function driveDescentSuppressed(seed, makePolicy, startHero, maxTurns, levels, d
       startingItems: dungeonOptions.startingItems,
     };
 
-    const arrivedWith = carry
-      ? carryFromPlayer(carry)
-      : {
-        hp: PLAYER_HP, hpMax: PLAYER_HP, armour: 0, xp: PLAYER_XP, inventory: [], kills: [],
-      };
-
     let state = newGame(hashSeeds(seed, level), counts);
+    // Read off the generated state, not a restatement of it — see the same
+    // fix in `driveDescent` above for why the hard-coded empty inventory
+    // became false the moment M38 shipped STARTING_ITEMS.
+    const arrivedWith = carry ? carryFromPlayer(carry) : carryFromPlayer(state.player);
+
     let observation = observe(state);
     let belief = foldBelief(emptyBelief(), observation);
     const policy = makePolicy();
