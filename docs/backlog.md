@@ -74,6 +74,80 @@ session, skip it.
     DONE        reviewed and closed
     ARCHIVED    decided against, reason kept
 
+## The roadmap, after the return
+
+**Owner decision, 2026-08-10: a run is twenty traversals, not ten.** Floors
+1–10 down, then 11–20 back up — the same map seeds in reverse, with different
+creature seeds, different variance and different loot. **Victory is returning
+to floor 1**, not reaching floor 10. The shop happens after that, as it does
+today.
+
+**Not built. `rules.md` still describes the ten-floor game and stays that way
+until the engine changes** — it records what the game does, not what was
+decided. `map-design.md` carries the design.
+
+### The one thing that has to be said first
+
+**Today `finishes` is about 0.25% for ten floors. Victory now needs twenty.**
+Whatever the return's per-traversal risk is, it multiplies against a descent
+almost nothing survives. **Doubling the run before the first half is
+survivable takes a win rate near zero to indistinguishable from zero** — and
+`objectives.md`'s primary objective is that hope must never reach zero.
+
+That is not an argument against the return. It is the sequencing constraint:
+**the return makes the "make the descent completable" problem urgent rather
+than creating a new one.** M37 already records that nobody owns that problem.
+Now something depends on it.
+
+### Phases
+
+**Phase A — make a run completable at all.** M37 (room between "no effect"
+and "dead"), M36 (a detour has to be able to cost the run), and whatever
+parameter work the owner takes on `finishes`. **Nothing in phase B is worth
+measuring until this moves.**
+
+**Phase B — the return, as engine.** R1–R4 below. R1 is the spine; the rest
+is what makes traversals 11–20 different from 1–10 rather than a rerun.
+
+**Phase C — the bot learns the run is twice as long.** R5. Mandatory
+alongside R1, not after it: every "rest of the campaign" estimate in the bot
+assumes ten floors, and B14 just priced potions against exactly that horizon.
+
+**Phase D — the shop and the heroes.** U7 (the player chooses a hero) and the
+shop repricing that a twenty-traversal clear implies. **U7 gets more valuable
+under the return, not less:** a longer run makes a starting choice matter for
+longer, and it is the only feature on the list that gives the player something
+to do.
+
+**Unchanged and still open, orthogonal to all of it:** X5, X6, I9, I10's
+follow-ons, M21, X1, X2, X3, M4, E1, M32.
+
+### What the return makes stale
+
+| what | why |
+|---|---|
+| `finishes` as a number | it means "reached floor 10", which is no longer victory. Every item that reads it — I9 most of all — needs the new definition |
+| "floor 10 is the hardest" | the turn is maximum threat; the return is maximum variance and rising death risk. Property 1 already restated in `map-design.md` |
+| every horizon in the bot | `campaignCost`, `monstersAhead`, `horizon`, `levels` all assume ten |
+| depth as a single axis | M4, M21 and M32 all scale something "with depth"; there are now two passes over the same depth |
+| coin banking | it banks on a clear, and a clear is twice as far away |
+
+### The new items
+
+| id | what | agent |
+|---|---|---|
+| R1 | Twenty traversals, victory on returning to floor 1 | work |
+| R2 | The return repopulates: same map seed, new creature seed | work |
+| R3 | The return has no chests — reward is kept, not earned | work |
+| R4 | Variance rises through the return, toward the exit | work |
+| R5 | The bot's campaign is twenty traversals, not ten | bot |
+
+**Written as five because they verify separately, not because the change is
+small.** R1 alone is playable and measurable — twenty traversals with the
+return identical to the descent — and every one of R2–R4 is a difference laid
+on top of that. If R1 is built as one thing with all four folded in, nothing
+can be measured against anything.
+
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
 | — | U6e | The shop screen | ui | **DONE** |
@@ -100,7 +174,12 @@ session, skip it.
 | 12 | M4 | Side-room risk/reward spread scales with depth | work | READY · M31 landed |
 | 13 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
 | 14 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
-| — | U7 | The player chooses which hero to play | work + ui | **NEW** · unqueued, owner to place |
+| — | R1 | Twenty traversals, victory on returning to floor 1 | work | **NEW** · phase B |
+| — | R2 | The return repopulates: same map seed, new creature seed | work | **NEW** · after R1 |
+| — | R3 | The return has no chests | work | **NEW** · after R1 |
+| — | R4 | Variance rises through the return | work | **NEW** · after R1 |
+| — | R5 | The bot's campaign is twenty traversals | bot | **NEW** · with R1 |
+| — | U7 | The player chooses which hero to play | work + ui | **NEW** · phase D |
 | — | M36 | A detour has to be able to cost the run | work | **NEW** · unqueued, owner to place |
 | — | M37 | A setback needs room between "no effect" and "dead" | work | **NEW** · unqueued, owner to place |
 
