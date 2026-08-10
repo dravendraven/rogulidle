@@ -208,9 +208,28 @@ andar sem conclusão.
 **Moeda só é efetivamente ganha se a run for concluída.** Morrer descarta o
 acumulado e, por padrão, zera também o saldo guardado e o item comprado.
 
-**A moeda compra item para a run seguinte** — a loja está em construção
-(U6e). Enquanto isso os preços são fixos e a compra múltipla é liberada,
-sabidamente desequilibrada: ver a decisão registrada no U6e e o M32.
+**Guardar o saldo através de uma morte é um flag, desligado por padrão**
+(`PERSIST_BALANCE_ACROSS_DEATH`, `src/ui/wallet.js`). Existe para que a regra
+alternativa possa ser medida contra a padrão, não porque esteja indeciso.
+
+**A moeda compra item para a run seguinte.** A loja aparece ao fim de uma
+run, oferece um punhado de itens a preço fixo, e **a compra múltipla é
+permitida** — o mesmo item mais de uma vez. Item comprado entra como item
+inicial da run seguinte, pelo mesmo caminho de §5, e é indistinguível de um
+achado em baú.
+
+**Ninguém precisa estar assistindo, e por isso a loja compra sozinha.**
+Rogulidle joga sozinho: se nada for clicado antes do tempo da tela acabar, a
+compra padrão é sorteada **entre o que o saldo alcança, com peso proporcional
+ao preço**. Não é o mais barato — isso faria toda run comprar escudo para
+sempre. O sorteio passa pelo rng do projeto e deriva do seed da sessão, então
+o mesmo `?seed=` reproduz também a loja.
+
+**A economia de itens da loja está sabidamente desequilibrada, e isso é
+deliberado.** Preço fixo com compra múltipla torna o escudo a compra racional
+e a segunda arma um mau negócio — armadura é linear e sem teto, arma tem
+retorno decrescente por ponto. Aceito por ora; o conserto é estrutural e está
+no M32, não numa mudança de preço.
 
 ## 10. Onde este jogo se afasta do Rogule
 
