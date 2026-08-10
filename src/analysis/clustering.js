@@ -619,6 +619,31 @@ export function descentCheck(options = {}) {
   let totalCoins = 0;
   const eventGaps = [];
 
+  // ***** I12 — what a potion is actually worth today ***** //
+  //
+  // Generated is counted off the FRESH state of every floor the hero
+  // actually reached, so the denominator is "potions the played floors
+  // contained", not "potions the ten-floor ladder would contain". A floor
+  // nobody reaches generates nothing and must not dilute the share.
+  //
+  // Drunk counts `heal` log events, which is the one signal that survives
+  // M35 unchanged: pre-M35 the engine logs it on contact, post-M35 on the
+  // drink action. Same event, same meaning, so the before/after comparison
+  // this feeds is reading one quantity rather than two lookalikes.
+  //
+  // Refused is the channel M35 deletes and the reason this item exists:
+  // pre-M35 a potion walked over at full hp is left on the map. Detected by
+  // the hero standing on a potion still in `state.items` — under the shipped
+  // rule pickup resolves on arrival, so an unclaimed potion underfoot IS a
+  // refusal. Counted by item id, since the hero can stand there for several
+  // turns or come back. Post-M35 this necessarily reads zero, which is the
+  // point: it measures the size of the hole the feature fills.
+  let potionsGenerated = 0;
+  let potionsDrunk = 0;
+  let deaths = 0;
+  let deathsHoldingPotion = 0;
+  const refusedPotionIds = new Set();
+
   for (let i = 0; i < runs; i++) {
     let carry = null;
     let lastAction = null;
@@ -649,6 +674,16 @@ export function descentCheck(options = {}) {
       const seed = hashSeeds(firstSeed + i, level);
       let state = newGame(seed, counts);
       const xpStart = state.player.xpEarned;
+      // Every potion this floor holds, wherever it is sitting: still inside a
+      // chest, still on a monster, or already loose. All three are decided by
+      // `newGame` before a tile is walked, so this is the floor's supply, not
+      // what any policy managed to find. Read here rather than from a second
+      // generation pass — same state, no extra cost, no chance of the two
+      // disagreeing.
+      const isPotion = (drop) => Boolean(drop) && drop.heal > 0;
+      potionsGenerated += state.chests.filter((c) => isPotion(c.drop)).length
+        + state.monsters.filter((m) => isPotion(m.drop)).length
+        + state.items.filter(isPotion).length;
       let observation = observe(state);
       let belief = foldBelief(emptyBelief(), observation);
       const bot = makeBot({ monsterCount: plan.monsters, level, levels });
@@ -682,7 +717,18 @@ export function descentCheck(options = {}) {
         belief = foldBelief(belief, observation);
         decisions++;
 
+        // Standing on a potion that is still on the map. Pre-M35 pickup
+        // resolves on arrival, so this can only mean the full-hp refusal
+        // fired. By id, because the hero may stand here for several turns.
+        for (const item of state.items) {
+          if (item.heal > 0
+            && item.pos[0] === state.player.pos[0] && item.pos[1] === state.player.pos[1]) {
+            refusedPotionIds.add(item.id);
+          }
+        }
+
         for (const e of state.log.slice(beforeLog)) {
+          if (e.type === 'heal') potionsDrunk++;
           if (e.type === 'attack' && e.target === 'player') totalDamage += e.damage;
           const isEvent = e.type === 'ascend' || e.type === 'open'
             || (e.type === 'attack' && e.by === 'player' && e.killed);
@@ -705,6 +751,14 @@ export function descentCheck(options = {}) {
       }
 
       if (state.outcome !== 'ascended') {
+        // The tripwire (I12): died with a potion still unspent. Structurally
+        // impossible pre-M35 — the engine never lets a potion into the
+        // inventory — so a zero here is the shipped rule, not evidence the
+        // counter works. It becomes a real signal only once M35 lands.
+        if (state.outcome === 'died') {
+          deaths++;
+          if (state.player.inventory.some((i) => i.heal > 0)) deathsHoldingPotion++;
+        }
         totalKills += state.player.kills.length;
         break;
       }
@@ -737,6 +791,20 @@ export function descentCheck(options = {}) {
     runs,
     cleared,
     finishRate: runs ? cleared / runs : 0,
+    // Standard error of `finishRate` as a proportion, so a before/after
+    // comparison has the sigma CLAUDE.md requires without recomputing it.
+    // At the rates involved (~0.25%) this is the number that decides whether
+    // a sample can resolve the difference at all.
+    finishRateSe: runs ? Math.sqrt((cleared / runs) * (1 - cleared / runs) / runs) : 0,
+    // I12. Totals, deliberately, alongside the share: potions that stop
+    // being wasted make runs last longer, so any rate here moves partly
+    // because its denominator moved. Report both and say which did what.
+    potionsGenerated,
+    potionsDrunk,
+    potionsRefusedAtFullHp: refusedPotionIds.size,
+    potionShareDrunk: potionsGenerated ? potionsDrunk / potionsGenerated : null,
+    deaths,
+    deathsHoldingPotion,
     depths,
     medianDepth,
     depthSpread,
