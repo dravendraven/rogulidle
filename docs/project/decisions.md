@@ -344,3 +344,11 @@ was accepted without its largest cost on the table. **Before writing a guard,
 check the metric can currently move.** A rate near zero also needs a far
 larger sample than the n=60 these items used to be distinguished from zero at
 all.
+
+**`finishes` is about one run in four hundred, not zero.** Every reading that
+reported 0% was taken at n=60-80, which cannot resolve a rate that low — the
+metric was never dead, only under-sampled. Found by U6f searching for a real
+clear and hitting one at run 377. **Costing it correctly matters:** anything
+gated on a non-zero finish rate needs hundreds of runs, not dozens, and any
+guard written against `finishes` at small n is decorative for arithmetic
+reasons rather than because the game is broken.

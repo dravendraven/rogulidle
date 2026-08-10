@@ -77,7 +77,7 @@ session, skip it.
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
 | 1 | U6e | The shop screen | ui | **DONE** |
-| 2 | U6f | Watch a full loop, integration check | ui | REPORTED · not watched live, see Result |
+| 2 | U6f | Watch a full loop, integration check | ui | **DONE** · DOM layer owed a click-through |
 | 3 | B13 | Charge a pursuer where it actually collects | bot | **DONE** · shipped OFF, inert |
 | 4 | B12 | Fighting should compete with leaving, not precede it | bot | **REPORTED** · shipped ON |
 | 5 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | IN FLIGHT |
@@ -1120,12 +1120,18 @@ dials.
 `metrics agent` · READY · **the browser tooling has now dropped mid-measurement
 twice in a row**
 
-U6e's report and B13's both had to work around losing the browser mid-session.
+**Three consecutive items now** — U6e, B13 and U6f — have had to work around
+losing the browser mid-session.
 U6e ended up unable to verify its own overlay end to end; B13 measured headless
 instead and got numbers, but through a resolver hook living in a scratchpad
 directory that nothing supports and nobody else can reuse.
 
-**Two failures in consecutive items is an infrastructure problem, not bad luck.**
+**Three in a row is an infrastructure problem, not bad luck.** U6f went
+furthest: a `module.register()` hook redirected `mapgen.js`'s CDN import to a
+local ROT.js copy, which let the **real unmodified engine** run headless — and
+it verified the substitution was faithful, not merely non-crashing, by
+reproducing a number already observed in-browser. That check is the part worth
+keeping: it is what separates a runner from a second implementation.
 
 **What B13 established already works.** Node 22 runs the project's modules
 unchanged with `--experimental-default-type=module`, so no `package.json` is
@@ -1710,6 +1716,58 @@ and remain unverified for exactly the reason stated at the top.
 **Stale-doc check.** None of `rules.md`, `bot-strategy.md` or
 `map-design.md` move — this item ran existing code together, it changed
 none of it.
+
+### Review — ADOPTED. The arc is closed, and one debt from U6c is paid
+
+**They did the harder thing than I asked for.** My review of U6c said this item
+should use `PERSIST_BALANCE_ACROSS_DEATH` to get a purchase observed at all,
+since a real clear is rare. They went and **found a real clear instead** — run
+377 from a fresh session seed — and ran the loop on it. No flag, no fixture, no
+workaround. That is a better answer than the one I gave.
+
+**And it pays U6c's outstanding debt.** U6c verified the banking arithmetic
+synthetically because nobody had watched a clear bank its coin. Now somebody
+has: 26 coins earned and banked, matching `tallyDescent`'s own line. That was
+the single most important unobserved case in the whole arc.
+
+**The check that makes the rest trustworthy is the ROT.js substitution being
+verified faithful rather than merely non-crashing** — seed 1 producing the
+identical `cleared:false, depth:2` already seen in-browser. A headless runner
+that quietly produces different numbers is worse than no runner, and this is
+exactly the failure it had to rule out first. It did.
+
+Every seam agreed with what its own item claimed, run together rather than in
+isolation, which is the thing an integration check exists to find and the thing
+none of U5/U6b/U6c/U6d/U6e could establish alone.
+
+### A number worth keeping: `finishes` is not zero, it is about 0.25%
+
+A clear at run 377 is the **first positive observation** of a finish in this
+whole stretch. Every measurement that reported 0% did so at n=60-80, which is
+entirely consistent with a rate near one in four hundred — the sample simply
+could not resolve it.
+
+That matters beyond this item. It says the metric is measurable and tells
+anyone who needs it what it costs: **hundreds of runs, not dozens.** `I9` is
+blocked on `finishes` being non-zero and now has a figure for how much sampling
+that will take, and the owner's tuning work has a starting point rather than a
+floor of zero.
+
+### What is genuinely still unverified, and it is now a pattern
+
+The DOM layer — the click listeners, the timer racing a real click, the
+overlay's transitions, the disabled-button styling. Correctly named rather than
+glossed.
+
+**This is the third consecutive item unable to open a browser** (U6e, B13, this
+one). The arc ships with its visual layer unwatched, which is an acceptable
+outcome exactly once and is now three times. `I10` is the fix and this is its
+third justification.
+
+**Owed, small, and not worth its own item:** one click-through of the shop
+overlay by whoever next has a working browser. Not a blocker on the arc — a
+loose end with a name.
+
 
 ## E1 · expose a resumable turn loop from src/sim
 
