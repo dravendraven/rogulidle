@@ -41,6 +41,10 @@
   @media (max-width:800px) { .grid { grid-template-columns:1fr 1fr; } }
   .cell { border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:.7rem .8rem; }
   .cell.success { border-color:#33495c; background:#182231; }
+  .cell.untargeted { border-style:dashed; border-color:var(--warn); }
+  .cell.untargeted .kind { color:var(--warn); }
+  .diag-label { color:var(--faint); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; margin:.9rem 0 .3rem; }
+  .grid.diag { opacity:.8; }
   .kind { font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); }
   .cell.success .kind { color:var(--success); }
   .big { font-size:1.35rem; font-weight:600; margin:.2rem 0; }
@@ -65,8 +69,8 @@
 <fieldset>
   <legend>run</legend>
   <div class="row">
-    <div><label>floor samples</label><input id="floorRuns" type="number" value="6"></div>
-    <div><label>descents</label><input id="descentRuns" type="number" value="2"></div>
+    <div><label>floor samples</label><input id="floorRuns" type="number" value="100"></div>
+    <div><label>descents</label><input id="descentRuns" type="number" value="100"></div>
     <div><label>seed base</label><input id="firstSeed" type="number" value="500000"></div>
   </div>
 </fieldset>
@@ -76,7 +80,9 @@
 <div id="out"></div>
 
 <script type="module">
-import { rewardShape, capacityShape, builtShape, mortalCoinShape } from './src/analysis/observed-ruler.js';
+import {
+  rewardShape, capacityShape, builtShape, mortalCoinShape, topologyShape,
+} from './src/analysis/observed-ruler.js';
 import { descentCheck } from './src/analysis/clustering.js';
 import { floorPlan, LEVELS } from './src/sim/dungeon.js';
 import { PLAYER_HP } from './src/sim/balance.js';
@@ -89,6 +95,10 @@ function median(xs) {
   const mid = Math.floor(s.length / 2);
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
+function avgOf(arr, pick) {
+  const vals = arr.map(pick).filter(Number.isFinite);
+  return vals.length ? vals.reduce((s, x) => s + x, 0) / vals.length : NaN;
+}
 
 function el(tag, cls, html) {
   const e = document.createElement(tag);
@@ -98,25 +108,35 @@ function el(tag, cls, html) {
 }
 
 function cell(kind, label, big, hint) {
-  const c = el('div', `cell${kind === 'success' ? ' success' : ''}`);
+  const extra = kind === 'success' ? ' success' : kind === 'untargeted' ? ' untargeted' : '';
+  const c = el('div', `cell${extra}`);
   c.append(el('div', null, `<b style="font-size:11px">${label}</b>`));
   c.append(el('div', 'big', big));
   if (hint) c.append(el('div', 'direction', hint));
   return c;
 }
 
-function levelSection(title, lede, cells, flagNode) {
+// KPI: one per declared objective, worth a band. Diagnóstico: explains why
+// a KPI moved, has no target of its own — kept visually lighter so it
+// doesn't compete with the numbers that are actually the point.
+function levelSection(title, kpiCells, diagCells, flagNode, detailNode) {
   const s = el('section', 'level');
   s.append(el('h2', null, title));
-  if (lede) s.append(el('p', 'lede2', lede));
-  const grid = el('div', 'grid');
-  for (const c of cells) grid.append(c);
-  if (flagNode) grid.append(flagNode);
-  s.append(grid);
+  const kpiGrid = el('div', 'grid');
+  for (const c of kpiCells) kpiGrid.append(c);
+  s.append(kpiGrid);
+  if (flagNode) s.append(flagNode);
+  if (diagCells && diagCells.length) {
+    s.append(el('div', 'diag-label', 'diagnóstico'));
+    const diagGrid = el('div', 'grid diag');
+    for (const c of diagCells) diagGrid.append(c);
+    s.append(diagGrid);
+  }
+  if (detailNode) s.append(detailNode);
   return s;
 }
 
-function render(reward, counts, dc, cap, sonda, coins) {
+function render(reward, counts, dc, cap, sonda, coins, topo) {
   $('out').innerHTML = '';
 
   // ***** Product *****
@@ -124,13 +144,15 @@ function render(reward, counts, dc, cap, sonda, coins) {
   const depthList = depths.join(', ');
   const finCls = dc.finishRate >= 0.15 && dc.finishRate <= 0.35 ? 'ok' : 'meh';
 
-  const productCells = [
+  const productKpi = [
     cell('success', 'median depth', `${f(dc.medianDepth, 1)}/${LEVELS}`, `depths: ${depthList}`),
     cell('health', 'finishes', `<span class="${finCls}">${pct(dc.finishRate)}</span>`, `${dc.cleared}/${dc.runs}`),
+  ];
+  const productDiag = [
     cell('health', 'turns between events', f(dc.eventGapMedian, 0), `n=${dc.eventGapN}`),
     cell('health', 'spread of depths', `±${f(dc.depthSpread, 1)}`),
   ];
-  $('out').append(levelSection('Product', null, productCells));
+  $('out').append(levelSection('Product', productKpi, productDiag));
 
   // ***** Map *****
   const first = reward[0].challenge.mean;
@@ -182,28 +204,45 @@ function render(reward, counts, dc, cap, sonda, coins) {
     + `<tbody><tr><td>count</td>${creatureRow}</tr><tr><td>mean xp</td>${xpRow}</tr></tbody></table>`;
 
   const spreadTable = `<table><thead><tr><th>floor</th>${reward.map((r) => `<th>${r.level}</th>`).join('')}</tr></thead>`
-    + `<tbody><tr><td>spread</td>${reward.map((r) => `<td>${pct(r.challenge.cv)}</td>`).join('')}</tr></tbody></table>`;
+    + `<tbody><tr><td>spread</td>${reward.map((r) => `<td>${pct(r.challenge.cv)}</td>`).join('')}</tr>`
+    + `<tr><td class="direction">pico (p90÷média)</td>${reward.map((r) => `<td class="direction">${f(r.challenge.p90 / r.challenge.mean, 2)}×</td>`).join('')}</tr></tbody></table>`;
 
   const lootTable = `<table><thead><tr><th>floor</th>${reward.map((r) => `<th>${r.level}</th>`).join('')}</tr></thead>`
     + `<tbody><tr><td>loot ÷ cost</td>${reward.map((r) => `<td>${pct(r.reward.mean / r.challenge.mean)}</td>`).join('')}</tr></tbody></table>`;
 
-  const mapCells = [
+  // B1 (spine mass share) is deliberately NOT here — binary check, already
+  // asserted against the [0.6, 0.95] band in test/tests.js (spineShare,
+  // src/sim/spine.js). A number that should never move does not belong
+  // next to ones that do.
+  const topoTable = `<table><thead><tr><th>floor</th>${topo.map((r) => `<th>${r.level}</th>`).join('')}</tr></thead>`
+    + `<tbody><tr><td>rotas alternativas</td>${topo.map((r) => `<td>${pct(r.altRouteShare.mean)}</td>`).join('')}</tr>`
+    + `<tr><td>acordado no caminho direto</td>${topo.map((r) => `<td>${pct(r.directEncounterShare.mean)}</td>`).join('')}</tr></tbody></table>`;
+
+  const avgPico = avgOf(reward, (r) => r.challenge.p90 / r.challenge.mean);
+  const avgAltRoute = avgOf(topo, (r) => r.altRouteShare.mean);
+  const avgDirect = avgOf(topo, (r) => r.directEncounterShare.mean);
+
+  const mapKpi = [
     cell('success', `cost, floor ${LEVELS}÷1`, `${f(last / first, 1)}×`),
+    cell('health', 'cauda (pico p90÷média)', `${f(avgPico, 2)}×`, 'avg, todos os andares'),
+    cell('untargeted', 'rotas alternativas', pct(avgAltRoute), 'sem alvo definido'),
+    cell('health', 'acordado no caminho direto', pct(avgDirect), 'alvo: 70-90%'),
+  ];
+  const mapDiag = [
     cell('health', 'creatures',
       `${counts[0]} → ${counts[counts.length - 1]} <span style="font-size:.85rem;color:var(--faint)">(xp ${f(reward[0].meanXp, 1)} → ${f(reward[reward.length - 1].meanXp, 1)})</span>`),
     cell('health', 'spread within floor', `${pct(reward[0].challenge.cv)} → ${pct(reward[reward.length - 1].challenge.cv)}`),
     cell('health', 'loot / cost',
       `${pct(reward.reduce((s, r) => s + r.reward.mean, 0) / reward.reduce((s, r) => s + r.challenge.mean, 0))} avg`),
   ];
-  const mapSection = levelSection('Map', null, mapCells, flagNode);
   const tables = el('div', 'subnote');
   tables.style.marginTop = '.7rem';
   tables.append(el('h3', null, 'cost per floor'), costTable,
     el('h3', null, 'creatures per floor'), el('div', null, creatureTable),
     el('h3', null, 'spread within a floor'), el('div', null, spreadTable),
-    el('h3', null, 'loot vs cost, per floor'), el('div', null, lootTable));
-  mapSection.querySelector('.grid').append(tables);
-  $('out').append(mapSection);
+    el('h3', null, 'loot vs cost, per floor'), el('div', null, lootTable),
+    el('h3', null, 'rota e exposição, per floor'), el('div', null, topoTable));
+  $('out').append(levelSection('Map', mapKpi, mapDiag, flagNode, tables));
 
   // ***** Bot *****
   // Same real mortal hero, same map, dumb sonda policy instead of the bot
@@ -213,27 +252,33 @@ function render(reward, counts, dc, cap, sonda, coins) {
   // is 0/0-noisy at the small samples this page uses, depth isn't.
   const sondaDepth = median(sonda.depths);
   const botDepth = dc.medianDepth;
-  const botCells = [
-    cell('success', 'depth, bot÷sonda', `${f(botDepth / (sondaDepth || 1), 2)}×`,
+  // Moeda (xp/turno) is the bot's own declared secondary objective — the
+  // only Bot number that IS a target, not a symptom. Everything else below
+  // (skill vs a dumb baseline, movement waste, risk taken) explains why
+  // this number is what it is; none of them has a band of its own.
+  const botKpi = [
+    cell('success', 'moeda (xp/turno)', f(dc.meanCoins, 1),
+      `sonda A ${f(coins.sondaA.coins.mean, 1)} · sonda B ${f(coins.sondaB.coins.mean, 1)}`),
+  ];
+  const botDiag = [
+    cell('health', 'depth, bot÷sonda', `${f(botDepth / (sondaDepth || 1), 2)}×`,
       `bot ${f(botDepth, 1)} / sonda ${f(sondaDepth, 1)}`),
     cell('health', 'reversal rate', pct(dc.reversalRate)),
     cell('health', 'turns per floor', f(dc.turnsPerFloor, 0)),
     cell('health', 'lost fights started',
       `${dc.lostFightsStarted} <span style="font-size:.85rem;color:var(--faint)">/ ${dc.fightsStarted}</span>`),
   ];
-  $('out').append(levelSection('Bot', null, botCells));
 
-  // Theoretical coins: round(xp/turn × 10) per floor, summed per run, mean
-  // across runs. All three now mortal (real PLAYER_HP base, dies for real)
-  // and same-seed paired with the bot's own descent — same reason to hold
-  // back on a fight, same floor draws, so the comparison isn't mixing
-  // "efficiency" with "who's allowed to die" or "who got an easier floor".
+  // Same coins formula, broken out by run — sonda A/B kept alongside the
+  // headline cell as the comparison that gives it meaning (better than
+  // what, exactly), not as a second reading of the same objective.
   const coinsDiv = el('div');
-  coinsDiv.append(el('h3', null, 'theoretical coins (xp/turn × 10, per run, mortal, paired seed)'));
+  coinsDiv.append(el('h3', null, 'moeda por run (xp/turno × 10, mortal, paired seed)'));
   coinsDiv.append(el('div', null,
     `<table><thead><tr><th></th><th>sonda A</th><th>sonda B</th><th>bot</th></tr></thead>`
     + `<tbody><tr><td>mean/run</td><td>${f(coins.sondaA.coins.mean, 1)}</td><td>${f(coins.sondaB.coins.mean, 1)}</td><td>${f(dc.meanCoins, 1)}</td></tr></tbody></table>`));
-  $('out').append(coinsDiv);
+
+  $('out').append(levelSection('Bot', botKpi, botDiag, null, coinsDiv));
 }
 
 $('run').addEventListener('click', async () => {
@@ -287,7 +332,14 @@ $('run').addEventListener('click', async () => {
       sondaB: mortalCoinShape({ runs: descentRuns, firstSeed: pairedSeed, noPickup: false }),
     };
 
-    render(reward, counts, dc, cap, sonda, coins);
+    $('status').textContent = 'lendo topologia do mapa (rotas, exposição)…';
+    await new Promise((r) => setTimeout(r, 20));
+    // Pure generation, no play — cheap like capacityShape's sonda dial, own
+    // fixed sample size for the same reason (decoupled from the expensive
+    // play-based dials on this page).
+    const topo = topologyShape({ runs: 100, firstSeed: firstSeed + 1800000 });
+
+    render(reward, counts, dc, cap, sonda, coins, topo);
     $('status').textContent = `done in ${((performance.now() - started) / 1000).toFixed(1)}s`;
   } catch (error) {
     $('status').textContent = 'failed: ' + error.message;

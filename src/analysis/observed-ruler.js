@@ -59,7 +59,8 @@
 import { newGame, playGame } from '../sim/game.js';
 import { playDungeon, floorPlan, LEVELS } from '../sim/dungeon.js';
 import { hashSeeds } from '../sim/rng.js';
-import { findPath } from '../sim/mapgen.js';
+import { findPath, playerPassable } from '../sim/mapgen.js';
+import { classifyRooms, spineShare } from '../sim/spine.js';
 import { step } from '../sim/step.js';
 import { observe, emptyBelief, foldBelief } from '../sim/observe.js';
 import { effectiveHp, expectedDamage, weaponDamage } from '../sim/combat.js';
@@ -279,10 +280,16 @@ function driveFloor(seed, plan, collect, maxTurns, gameOptions = {}) {
 
 export function summarise(xs) {
   const n = xs.length;
-  if (!n) return { n: 0, mean: NaN, sd: 0, se: 0, cv: 0, cvSe: 0 };
+  if (!n) return { n: 0, mean: NaN, sd: 0, se: 0, cv: 0, cvSe: 0, p90: NaN };
   const mean = xs.reduce((a, b) => a + b, 0) / n;
   const variance = n > 1 ? xs.reduce((a, b) => a + (b - mean) ** 2, 0) / (n - 1) : 0;
   const sd = Math.sqrt(variance);
+  // p90 — nearest-rank: the value below which 90% of the samples fall.
+  // One-sided on purpose, unlike cv above: cv treats an easier-than-usual
+  // run and a harder-than-usual run as the same size of surprise, but for
+  // "how bad can this floor get" only the harder side is the question.
+  const sorted = [...xs].sort((a, b) => a - b);
+  const p90 = sorted[Math.min(n - 1, Math.ceil(0.9 * n) - 1)];
   return {
     n,
     mean,
@@ -290,6 +297,7 @@ export function summarise(xs) {
     se: sd / Math.sqrt(n),
     cv: mean !== 0 ? sd / mean : 0,
     cvSe: mean !== 0 ? (sd / mean) / Math.sqrt(2 * n) : 0,
+    p90,
   };
 }
 
@@ -893,6 +901,114 @@ export function rewardShape(options = {}) {
       // how full a floor is, this says how strong what's on it reads on
       // average, straight off generation rather than a modelled duel score.
       meanXp: xpSamples.reduce((s, x) => s + x, 0) / (xpSamples.length || 1),
+    });
+  }
+  return rows;
+}
+
+// ***** map topology: alternative routes, and what a direct walk wakes ***** //
+//
+// All three numbers below read a FRESH, UNPLAYED newGame() state — pure
+// generation, no probe, no play, same "read the manifest before a tile is
+// walked" move rewardShape's driveReward already makes for loot.
+function threatMassOf(m) {
+  return m.hpMax * Math.max(0, m.xp - 1);
+}
+
+// BFS from `from` over `passable` tiles to the NEAREST tile in `targets` (a
+// Set of 'x,y' keys). Mirrors the exact check monsters.js makes to decide
+// whether a monster wakes (`path.length >= monster.activation`) — multi-
+// target so one search answers "how close does the hero's walk ever get",
+// instead of one findPath per route tile per monster.
+function nearestDistance(from, targets, passable) {
+  const start = `${from[0]},${from[1]}`;
+  if (targets.has(start)) return 0;
+  const seen = new Set([start]);
+  const queue = [[from[0], from[1], 0]];
+  let head = 0;
+  while (head < queue.length) {
+    const [x, y, d] = queue[head++];
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx; const ny = y + dy;
+      const key = `${nx},${ny}`;
+      if (seen.has(key) || !passable(nx, ny)) continue;
+      if (targets.has(key)) return d + 1;
+      seen.add(key);
+      queue.push([nx, ny, d + 1]);
+    }
+  }
+  return Infinity;
+}
+
+export function topologyShape(options = {}) {
+  const {
+    runs = 100, firstSeed = 1100000, levels = LEVELS, gameOptions = {}, floorPlanFn = floorPlan,
+  } = options;
+  const rows = [];
+
+  for (let level = 1; level <= levels; level++) {
+    const plan = floorPlanFn(level);
+    const spineShares = [];
+    const altShares = [];
+    const directShares = [];
+
+    for (let i = 0; i < runs; i++) {
+      const seed = hashSeeds(firstSeed + i, level);
+      const state = newGame(seed, { ...plan, ...gameOptions });
+      const passable = playerPassable(state.map);
+      const info = classifyRooms(state.map, state.player.pos, state.shrine.pos);
+
+      // B1 — spine vs side mass split. `spineShare` (src/sim/spine.js)
+      // already does exactly this and is already tested against the
+      // [0.6, 0.95] band in test/tests.js — reused rather than
+      // reimplemented. Kept here only because B2 below needs the same
+      // total mass to normalise against.
+      const totalMass = state.monsters.reduce((s, m) => s + threatMassOf(m), 0);
+      spineShares.push(spineShare(state));
+
+      // M-A — alternative routes. For every spine room BETWEEN hero and
+      // shrine (the two endpoint rooms cannot meaningfully be "bypassed",
+      // so they are excluded), block its tiles and ask whether the shrine
+      // is still reachable some other way. A room with no bypass is a true
+      // bottleneck; one with a bypass is a real alternative, not a forced
+      // tile dressed up as a choice.
+      const startRoom = info.roomOf(state.player.pos);
+      const endRoom = info.roomOf(state.shrine.pos);
+      const middleSpine = info.spine.filter((r) => r !== startRoom && r !== endRoom);
+      if (middleSpine.length > 0) {
+        let bypassable = 0;
+        for (const room of middleSpine) {
+          const blocked = new Set();
+          for (let x = room.x1; x <= room.x2; x++) {
+            for (let y = room.y1; y <= room.y2; y++) blocked.add(`${x},${y}`);
+          }
+          const withoutRoom = (x, y) => !blocked.has(`${x},${y}`) && passable(x, y);
+          const path = findPath(state.player.pos, state.shrine.pos, withoutRoom);
+          if (path.length >= 2) bypassable++;
+        }
+        altShares.push(bypassable / middleSpine.length);
+      }
+
+      // B2 — what a hero who ONLY walks the direct route (no exploring, no
+      // detours) wakes up along the way: any monster whose activation
+      // radius reaches a tile on that route, by the identical distance rule
+      // monsters.js checks at play time. Static geometry on the unplayed
+      // state rather than a played probe — cheaper, and reads the mechanic
+      // directly instead of approximating it through a policy.
+      const routeTiles = new Set(info.path.map(([x, y]) => `${x},${y}`));
+      let directMass = 0;
+      for (const m of state.monsters) {
+        const dist = nearestDistance(m.pos, routeTiles, passable);
+        if (dist < m.activation) directMass += threatMassOf(m);
+      }
+      if (totalMass > 0) directShares.push(directMass / totalMass);
+    }
+
+    rows.push({
+      level,
+      spineMassShare: summarise(spineShares),
+      altRouteShare: summarise(altShares),
+      directEncounterShare: summarise(directShares),
     });
   }
   return rows;
