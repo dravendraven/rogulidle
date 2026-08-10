@@ -1319,7 +1319,14 @@ be watched by someone; headless numbers are for sweeps and regressions, not for
 
 ## M21 · deep floors have something waiting where you land
 
-`work agent` · **BLOCKED on M19**
+`work agent` · **READY** · M19, M20 and M24 all landed; every block this
+item carried has cleared. The header said BLOCKED on M19 long after that
+was true — the queue table was right and this line was stale.
+
+**Read the assert before starting: it was written when `finishes` read
+zero.** It now reads ~0.25% (U6f, n=377). That does not unblock anything —
+it makes the item's own warning sharper. This is one more thing making the
+descent harder at a moment when almost nothing completes.
 
 The hero lands and has a moment to look around. On floor 1 that is an
 opening; on floor 10 it is a free turn the floor should not be giving away.
