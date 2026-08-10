@@ -89,7 +89,7 @@ session, skip it.
 | 2 | I12b | Split drunk into useful and wasted, now that amount is honest | metrics | READY · with or before B14 |
 | 3 | I12 | Did it move anything? finishes, and died-holding-a-potion | metrics | baseline reviewed · **owes overheal, before B14 lands** |
 | 4 | B15 | A drink policy that reads the danger field | bot | after I12 |
-| 5 | I10 | A supported headless runner for measurements | metrics | READY |
+| — | I10 | A supported headless runner for measurements | metrics | **DONE** · selftest 8/8, verified by review |
 | 6 | I11 | Does the ruler read true when the starting hero changes? | metrics | READY |
 | — | M34 | Nothing measures what a direct run can skip | metrics | **DONE** |
 | 7 | M21 | Deep floors put a creature where the hero lands | work | READY |
