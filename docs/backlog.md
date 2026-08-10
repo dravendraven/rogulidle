@@ -161,7 +161,7 @@ of what to do next, which is the only job it has.
 
 | theme | items | where it stands |
 |---|---|---|
-| **A run has to be completable** | M38 · M37 · M36 | phase A. **Everything else waits on this** |
+| **A run has to be completable** | M38 done · M37 and M36 stood down | phase A bought 10x from one value; what is left is more of the same, not these two |
 | **The return — floors 11 to 20** | R1 · R2 · R3 · R4 · R5 | phase B/C. Specs in the roadmap above; no item bodies yet |
 | **The potion arc** | B15 · I12 · I12b | M35 and B14 shipped; the policy and the verdict are left |
 | **What the map still has to do** | M4 · M21 · X6 · M32 | each owns a map property measured as NOT met |
@@ -174,8 +174,8 @@ of what to do next, which is the only job it has.
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
 | 1 | M38 | The hero starts the run armed | work | REPORTED |
-| 2 | M37 | A setback needs room between "no effect" and "dead" | work | owner to place |
-| 3 | M36 | A detour has to be able to cost the run | work | owner to place |
+| — | M37 | Do runs contain survivable setbacks? | metrics | **not a change** · answer from descentCheck |
+| — | M36 | A detour has to be able to cost the run | work | **deferred until after R3** |
 
 **Measured, and it decides the order:** three quarters of runs are over by
 floor 3. The ramp's top decides floors that 96% of runs never see, so tuning
@@ -422,8 +422,24 @@ rather than an argument, the same way this one was.
 
 ### M37 · a setback needs room between "no effect" and "dead"
 
-`work agent` · **NEW, unqueued — owner to place** · **filed because the
-objectives review found it unowned; no existing item covers it**
+`metrics agent` · **NOT SCHEDULED — it is a question, not a change** · owner
+decision after M38, 2026-08-10
+
+**Downgraded deliberately, and by its own text.** This item says the evidence
+is indirect, that it is "equally consistent with the descent simply being too
+hard overall", and that separating those two comes **before any dial moves**.
+That first job is a reading, not a change — and the reading is available from
+`descentCheck` today: do runs contain events that hurt and are survived?
+
+**Its evidence also moved underneath it.** The case rested on `finishes` near
+0.25% with runs ending inside the first three floors. M38 made that 2.5% and
+37%. Whatever narrow band this item suspected, the number it was inferred from
+is an order of magnitude different now.
+
+**So: answer the question with the instrument that exists. Do not build
+anything.** If the answer is "runs contain no survivable setbacks", this
+becomes a real item with real evidence. Until then it is a hypothesis with a
+work agent attached to it, which is how dials get added for nothing.
 
 `objectives.md` requires that hope never reach zero and that reversals be
 possible. A reversal needs a **recoverable setback**: something goes wrong, the
@@ -472,8 +488,23 @@ emphatically not an hp number raised until things look better.
 
 ### M36 · a detour has to be able to cost the run
 
-`map` · `work agent` · **NEW, unqueued — owner to place** · this corrects a
-diagnosis `map-design.md` carried and has now retired
+`map` · `work agent` · **DEFERRED until after R3** · owner decision,
+2026-08-10 · this corrects a diagnosis `map-design.md` carried and has now
+retired
+
+**Real gap, wrong moment, and the reason is R3.** The return removes chests
+from traversals 11–20 — **half a run will have no detour decision in it at
+all**. Tuning the side-room bargain now means tuning a bargain the return
+restructures, and re-measuring it afterwards against a changed denominator.
+
+**It is also the riskiest item on the list**, which is a second reason not to
+spend it early. The bot half below records the precedent: exposure pricing cost
+about eleven points of win rate by making the bot shy, and a detour nobody
+takes is not a decision either. That is a real chance of losing ground at a
+moment when M38 just gained an order of magnitude.
+
+**Nothing about the diagnosis is retracted** — the correction below stands, and
+the property is still measured as not met. Only the timing moved.
 
 **The retired diagnosis.** `map-design.md` said the reason the bot opens every
 side room is the **level** of the reward: a chest is worth its walk almost
