@@ -80,7 +80,7 @@ session, skip it.
 | 2 | U6f | Watch a full loop, integration check | ui | **DONE** · DOM layer owed a click-through |
 | 3 | B13 | Charge a pursuer where it actually collects | bot | **DONE** · shipped OFF, inert |
 | 4 | B12 | Fighting should compete with leaving, not precede it | bot | **DONE** · shipped ON |
-| 5 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | REPORTED |
+| 5 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | **DONE** · proxy deleted, band history corrected |
 | — | X5 | Classify every dial by lifecycle, delete only the dead | work + bot | READY · at a structural boundary |
 | — | X6 | Collapse the tier clamps, redundancy proven first | work | after X5 |
 | — | I9 | Conditional survival table = the "hope" instrument | metrics | BLOCKED on finishes > 0 |
@@ -91,8 +91,8 @@ session, skip it.
 | 10 | X1 | Delete what nothing references | work | READY |
 | 11 | X2 | Comments in src/ that lie: 25 stale refs + 3 false claims | work + bot | READY |
 | 12 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
-| 13 | D1 | The crowd-correction fit is overdue for its own redo | work | after M31 |
-| 14 | M4 | Side-room risk/reward spread scales with depth | work | after M31 |
+| 13 | D1 | The crowd-correction fit is overdue for its own redo | work | READY · M31 landed |
+| 14 | M4 | Side-room risk/reward spread scales with depth | work | READY · M31 landed |
 | 15 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
 | 16 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
 
@@ -1070,12 +1070,62 @@ sees two of the nine dials that now shape a floor:
 | M30 (shipped) | +14.35% (frozen) | 1.3779 | +6.0% |
 
 M29's report said 0.65 points of the 15% band were left; the generator
-says it was closer to 9. **D1 and M4, both sequenced behind this item
+says M29 left about 11, and **today's shipped state leaves about 9** —
+the number D1 and M4 actually spend against. (The commit message and an
+earlier draft of this paragraph attached the 9 to M29; the two rows are
+one item apart, and 9 is the one that is still true.) **D1 and M4, both
+sequenced behind this item
 specifically to know how much budget is left, should read this table
 instead of the old comment.**
 
 None of `rules.md`, `bot-strategy.md`, `map-design.md` went stale — this
 changes an instrument, not game behaviour.
+
+### Review
+
+**Adopted.** The item asked for a choice between two options and argued for
+the second; the agent took it and then improved on it, which is the outcome
+worth having.
+
+**The deviation is right, and the reason generalises.** The item proposed
+`expectedFloorMass(9)/expectedFloorMass(0)`, and the agent found that is a
+two-sample reading of a ten-sample curve: anything that lifts only the middle
+leaves both endpoints untouched. The measurement offered — `TIER_FLOOR_SHARE_PER_LEVEL`
+0.08 → 0.30 moves nine masses and leaves the endpoint ratio identical to four
+decimals — is exactly the right shape of evidence, because it demonstrates the
+blind spot rather than arguing it. **This is the same failure the item was
+filed about**, one level down: I proposed replacing a formula blind to seven
+dials with a reading blind to eight floors. The fit is the only version with
+no blind spot to name.
+
+**The band question is correctly refused rather than answered.** M30 and my
+own item both cited a 1.34 ±0.03 band as though it belonged to this check;
+traced, it is M25's observed-ruler band for CHALLENGE from real play. Applying
+it to the closed form fails M24 from below as well — which is the tell that it
+was never this check's band. The item's own instruction was "do not silently
+re-widen the band"; leaving the 15% untouched and handing the band question
+back is compliance with that, not avoidance of it.
+
+**Correcting the number my item made worse.** The report says M29 left "closer
+to 9"; the table says M29 is +4.3%, so M29 left ~11 and 9 is *today's* state.
+Fixed above. This matters because it is the one number D1 and M4 were told to
+read.
+
+**One consequence not in the report, now recorded in `balance.md`.** If the
+proxy overstated drift in every state, then every past decision that stopped
+at "the band won't allow more" stopped at a limit that was not there. M12's
+count raise is the live case — it picked 1.22 because that "sits at the edge",
+and it did not. Not a request to revisit it; a note so nobody reads that
+paragraph as a measured constraint.
+
+**The cost is disclosed and is the right trade.** A mistyped
+`STRENGTH_GROWTH_REBALANCED` now reads quieter (proxy +54% vs real +13.8%),
+because the table's eleven rows absorb it. A check that reads the real
+quantity insensitively beats one that reads a proxy sharply — the mistype it
+would have caught is a class the suite covers elsewhere; the dial drift it was
+blind to was not covered anywhere.
+
+**D1 and M4 unblocked**, with the corrected headroom.
 
 ## M32 · weapons become a tier ladder instead of a stack
 

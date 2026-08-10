@@ -736,7 +736,10 @@ lever: it does not undo the effect M12 hoped it would.
 **Chosen instead: raise count as far as the existing M7 budget test
 allows.** `MONSTER_GROWTH_REBALANCED × STRENGTH_GROWTH_REBALANCED^2.356 /
 MONSTER_GROWTH` has to stay within 15% of 1 (the same check M7 shipped
-with) — 1.22 sits at 10% over, the edge of that band. Floor counts:
+with) — 1.22 sits at 10% over, the edge of that band. **That "edge" was the
+proxy talking; see the M31 section — read from the generator, this state was
+nowhere near the band, and the constant was chosen against a limit that was
+not really there.** Floor counts:
 `2,2,3,4,4,5,7,8,10,12` (was `2,2,3,3,3,4,5,5,6,7`) — floor 10 nearly
 doubles. Effective cluster size stays in roughly the same 1.7–2.3 range it
 was already in, so draws per floor rose from ~3.3 to ~5.4 at floor 10 —
