@@ -27,20 +27,60 @@ document names none.
 property is currently met is a live question owned by a backlog item, named
 below where one exists.
 
-**1. A difficulty curve that starts low and accelerates, with floor 10 the
-hardest.** Floor-to-floor monotonicity is guaranteed by an exact closed form
-over the tier distribution rather than observed, and the ramp is exponential.
-The failure it guards against is a floor cheaper than the one above it.
+**1. A difficulty curve of a designed shape, not a ramp.** The old statement —
+"starts low and accelerates, with the last floor hardest" — was wrong because
+it conflated curves that move differently, and there are three of them.
+**Threat mass**, how much creature a floor holds, does rise monotonically
+across the descent, and the exact closed form over the tier distribution still
+guarantees no floor is cheaper than the one above it. **Death risk** does not
+follow it. **Variance** follows neither.
+
+| stretch | threat mass | death risk | variance |
+|---|---|---|---|
+| the opening | low | **high** — the buffer is small, so even a cheap floor can end the run | absolute low, **relative at its highest** |
+| the middle | rising, slowly and then faster | low, turning up towards its end | **lowest of the run** in challenge, highest in reward |
+| the turn | maximum | maximum of the descent | **lowest of the run**, absolute and relative |
+| the return | the same floors, differently populated | high, rising to the exit | **highest of the run**, rising to the exit |
+
+**The opening is hard on purpose, and cheap in time.** A run that fails there
+fails fast. That is "a decided run ends quickly" turned into geometry: a bad
+start costs seconds rather than a long walk to a foregone conclusion. Its
+variance is also the cheapest in the game to produce — the spread of creatures
+is small there, and what makes it decisive is the buffer it is divided by. A
+hard opening needs a poor hero, not a big monster.
+
+**The middle is where the stake is loaded, not where it is decided.** Low risk
+there is not dead time, on one condition — what is accumulated in the middle
+has to visibly determine the return.
+
+**And low challenge variance in the middle is a requirement, not a defect.**
+Accumulation is only legible when it is predictable; a noisy middle means
+nobody can read whether the hero is on track, which is the one job that stretch
+has. What carries interest there is variance of **reward**, not of challenge —
+which is exactly the bargain below, and the bargain belongs to that stretch
+specifically rather than to the whole run. It also reframes a defect this
+project has measured more than once: challenge variance falling as floors get
+larger is the wanted behaviour *in the middle*, and wrong everywhere else.
+
+**The turn is an exam.** Maximum threat, minimum surprise, recognisable in
+advance and therefore preparable. An exam with a draw in it is a draw, and the
+attribution the turn exists to provide goes with it.
 
 **2. Alternative routes, with no no-brainer.** Real choices weighing loot
 against the creatures in the way — neither a corridor nor a maze. This is the
 bargain below, and its open half is "What is still open".
 
-**3. A tail of randomness — rare floors that come out harder than expected,
-and the tail thickens with depth.** A creature can come from above the floor's
-band, with the chance growing with depth. The intended shape is a one-sided
-tail whose peak grows smoothly from floor 1 to floor 10. `X6` owns why it does
-not: an absolute spread contained by a proportional clamp.
+**3. A tail of randomness, and the tail has a designed shape of its own.** A
+creature can come from above the floor's band. What changed is that the tail is
+**not monotone across the run**: it thickens through the middle, **closes at the
+turn**, and reopens on the return, where it is the entire mechanism and widens
+all the way to the exit.
+
+The earlier statement asked for a tail growing smoothly to the last floor.
+That was the ramp assumption again, applied to the second moment instead of the
+first. `X6` owns a separate and still-live question — why the built tail does
+not do even what it was asked for: an absolute spread contained by a
+proportional clamp.
 
 **4. Most of the threat on the fast route.** If a direct run to the portal can
 skip most of the floor, the mandatory path is not mandatory. The intended
@@ -66,6 +106,118 @@ three floors down.
 
 That is the whole design. Everything below is how it is arranged and what went
 wrong on the way.
+
+## The return
+
+The run reaches the last floor and comes back up. **The same map seed, a
+different creature seed.** The geometry is the one already walked; the
+population is not.
+
+**The geometry carries recognition and the population carries surprise**, and
+splitting them that way is the whole reason the return is worth building. The
+viewer has already watched these floors and knows what stood where, so the
+return reads as a place revisited rather than as more dungeon — which is what
+lets it hold the highest variance in the run without becoming confusing to
+watch. Surprise on known ground is legible; surprise on unknown ground is
+noise.
+
+**Why the creature seed differs at all.** Repopulating the floor with the same
+roster would make the return *easier* than the descent, not harder: the hero
+comes back holding everything it found, against creatures it has already
+beaten. An unchanged floor is a victory lap.
+
+**The return removes the chests.** With nothing to detour for, the map stops
+offering the bargain and becomes a routing problem: get through, or fight
+through. That is the intent — the descent is where reward is decided, the
+return is where it is kept or lost.
+
+**Creature drops stay.** Removing those as well would make every fight strictly
+unprofitable, and a stretch where fighting never pays collapses into one
+decision repeated at every floor. Keeping them means a fight can still be worth
+taking, so "fight or route around it" stays a real question.
+
+**Variance is the dial, and it accelerates toward the exit.** The return draws
+its creatures from a wider band than the descent did, and the band keeps
+widening as the hero climbs. Removing the loot is not what makes the return
+hard — absent loot is the denominator, not the threat; it stops resupply and
+adds no risk. The widening draw is the threat.
+
+**One dial does the work of two, and the reason is worth stating because it is
+not obvious.** Widening the draw on a shallow floor can only widen *upward*: a
+shallow band already sits at the bottom of the creature table, so there is no
+room beneath it and every unit of spread added there becomes threat rather than
+symmetric noise. So as the return approaches the exit — the shallowest end —
+the mean rises with the variance, without anything separate pushing it. The
+tension peaks where the hero is weakest in supplies and the floors are nominally
+weakest in creatures, which is why the last floor before the exit can still end
+a run.
+
+**What this shape does not buy is a price on time.** Nothing costs the hero for
+lingering, so "fight or route around it" is not priced the way a clock would
+price it, and the return is thinner as a decision than DCSS's equivalent. With
+the chests gone there is little reason to linger, so what is met is what stands
+on the route — which is why this is worth trying first anyway: it is one dial
+against a whole mechanism. **If the return reads as passive, a clock is the
+first thing to add**, and no item owns that yet.
+
+**What the return does to the economy.** All reward is earned on the descent,
+so the return decides only whether it is kept. That is the point rather than a
+side effect: the hardest stretch of the run judges what the easy stretch
+accumulated, which is the attribution `docs/project/objectives.md` asks for and
+the reason the middle is worth watching.
+
+## The run laid out — the shape to build against
+
+Ten floors, twenty traversals. **Every floor is crossed exactly twice**, and
+the second crossing is what the first one earned.
+
+| traversal | floor | direction | map | threat mass | variance | chests |
+|---|---|---|---|---|---|---|
+| 1–2 | 1–2 | down | generated | **low** | **narrow** | yes |
+| 3–8 | 3–8 | down | generated | rising, slowly then faster | widening | yes |
+| 9–10 | 9–10 | down | generated | **maximum of the run** | **narrowest of the run** | yes |
+| 11 | 10 | **up** | reused from traversal 10 | high — the deepest floor's own roster | wider than the turn | **none** |
+| 12–19 | 9–2 | up | reused from traversal `21 − k` | **falling** — each floor keeps its own | **widening** every floor | **none** |
+| 20 | 1 | up | reused from traversal 1 | **lowest of the run** | **widest of the run** | **none** |
+
+**The pairing rule.** An ascent traversal `k` crosses floor `21 − k`, and
+reuses the map that descent traversal `21 − k` generated. Traversal 11 is the
+second crossing of the deepest floor — the way out of the turn, already under
+return rules. Traversal 20 is the second crossing of the first floor.
+
+**Mass and variance move in opposite directions on the way up, and that is
+deliberate.** Every floor keeps its own roster size, so the mass a traversal
+holds *falls* as the hero climbs, while the band it draws from widens. The
+return is not dangerous because it is crowded — it is dangerous because a thin
+floor drawn at a wide band can produce a single creature the hero has nothing
+left to answer with. **The median return traversal is easier than its descent
+twin. The worst one is far harder.** That gap is the whole finale.
+
+**Three things change on a second crossing, and nothing else does.** The map is
+reused rather than generated. The creature seed is redrawn from a wider band.
+The chests are gone. How a floor is dug, how the spine is classified, how
+creatures are placed against it — all unchanged. That is what makes the return
+cheap: it is a second pass over existing machinery with two inputs swapped.
+
+**Traversal 20 is the one to design for.** Nominally the weakest floor in the
+game, drawn at the widest band in the run, met by a hero whose supplies are
+gone. Two curves cross there — the band widening and the hero's stock falling —
+and that crossing is the intended climax. **A run that cannot be lost on
+traversal 20 has the wrong shape**, whatever the rest of the table says.
+
+**And the opening's variance is relative, not absolute.** Traversals 1–2 draw
+the narrowest band in the run and are still the deadliest stretch of the
+descent, because what makes a draw decisive there is the buffer it is divided
+by. Widening the opening's band is the wrong lever for the opening.
+
+**The failure mode this shape has.** If the late return traversals read as
+empty stretches punctuated by an instant death, the mass has fallen further
+than the widening band can carry on its own and needs a floor under it. That is
+the first thing to look for when this is built, and nothing owns it yet.
+
+**This table says which quantity moves and in which direction. It states no
+values** — what each band actually is lives in `docs/balance.md`, like
+everything else.
 
 ## Nothing new is dug
 
