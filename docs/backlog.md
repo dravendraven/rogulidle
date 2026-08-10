@@ -173,7 +173,7 @@ of what to do next, which is the only job it has.
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | M38 | The hero starts the run armed | work | REPORTED |
+| — | M38 | The hero starts the run armed | work | **DONE** · finishes 0.25% -> 2.5% |
 | — | M37 | Do runs contain survivable setbacks? | metrics | **not a change** · answer from descentCheck |
 | — | M36 | A detour has to be able to cost the run | work | **deferred until after R3** |
 
