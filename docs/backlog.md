@@ -165,7 +165,7 @@ of what to do next, which is the only job it has.
 | **The return — floors 11 to 20** | R1 · R2 · R3 · R4 · R5 | phase B/C. Specs in the roadmap above; no item bodies yet |
 | **The potion arc** | B16 · B17 · B15 · I12 · I12b | M35 and B14 shipped; the policy and the verdict are left |
 | **What the map still has to do** | C1 · C2 · C3 · M4 · M21 · X6 · M32 | the curve arc (C1–C3) states the shape in two lines and solves for it; the rest each own a property measured as NOT met |
-| **The player's choice** | U7 | phase D. The only theme the player touches |
+| **The player's choice** | U10 · U7 | phase D. The only theme the player touches |
 | **Instruments** | I11 · I9 | I11 reported; I9 blocked, and the return moved its target |
 | **Debt** | X1 · X2 · X3 · X5 · E1 | changes no behaviour; makes the next change cheaper |
 
@@ -219,6 +219,7 @@ moves the binding constraint.
 
 | id | what gets done | agent | status |
 |---|---|---|---|
+| U10 | The run is watched, and half of what happens is invisible | ui | READY · `src/ui/` only, no lane collision |
 | U7 | The player chooses which hero to play | work + ui | phase D |
 
 ### Instruments
@@ -1275,6 +1276,71 @@ dominate?
 # The player's choice
 
 The only theme that gives the player something to do. Worth more under the return, not less: a longer run makes a starting choice matter for longer.
+
+### U10 · the run is watched, and half of what happens is invisible
+
+`ui agent` · READY · **found by the owner watching, 2026-08-10** ·
+`src/ui/` only — no engine change, no bot change
+
+**The observation that produced this:** "I am watching and no potions come out
+of chests." They do — measured at generation, about one chest in nine holds
+one. **The feature works and cannot be seen.**
+
+#### What is actually invisible, confirmed by reading the renderer
+
+`src/ui/render.js` draws the map, hp, xp, steps, kills, inventory, run and
+seed. **It reads nothing from `state.log`.** There is no event feed, so every
+event the engine records is either inferred from a changed number or missed.
+
+| what happens | what a watcher sees |
+|---|---|
+| a chest is opened and holds a potion | a chest glyph changes; the item lands on the floor for about a turn |
+| the hero walks over it | a small glyph vanishes; an emoji appears in the inventory strip |
+| the hero drinks | hearts go up and an emoji disappears |
+| the hero dies holding potions | nothing at all |
+
+**M35 removed the one cue that existed.** Before it, a potion walked over at
+full hp was refused and **stayed on the floor** — it sat there being visible.
+Now it is collected in a turn. The feature became functional and invisible in
+the same commit.
+
+#### Why this is a real item and not polish
+
+`docs/project/objectives.md`: **the product is the spectacle**, and the method
+this project runs on is *watch the game, fix what is wrong*. That method
+depends on what happens being visible. The owner just spent a session unable
+to tell a working feature from a broken one, which is the method failing rather
+than a cosmetic complaint.
+
+It also has a measurable cost already on record: `deathsHoldingPotion` fires,
+and a hero dying with unspent potions is the most watchable failure the bot
+has. Nobody can see it happen.
+
+#### Do
+
+**Surface what the engine already records.** The log carries `open` (with
+`found`), `pickup`, `heal` with the real amount since M35, `attack` and
+`ascend`. Nothing new has to be computed and nothing in `src/sim/` may change.
+
+**Scope it to what a watcher needs to follow a run**, not to a debug console.
+The three that carry the potion feature are: a chest yielded X, the hero drank
+for N, and the run ended holding N potions. Beyond that, use judgement — this
+item does not enumerate a design.
+
+**One decision worth taking deliberately:** an event feed and a floating cue
+on the map solve different halves. A feed answers "what just happened"; a cue
+answers "where". Pick one and say why in a line rather than building both.
+
+#### Assert
+
+**Watch a full run and describe, from the screen alone, where every potion in
+it came from and what happened to it.** That is the acceptance test and it is
+the same test that failed today. A screenshot of a drink and of a chest
+yielding a potion.
+
+**Do not tune anything to make events more frequent.** If a run turns out to
+be visually empty, that is a finding for the backlog, not a reason to touch a
+dial from `src/ui/`.
 
 ### U7 · the player chooses which hero to play
 
