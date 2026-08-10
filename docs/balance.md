@@ -113,26 +113,30 @@ There is no calibration table any more. A floor is described by how many
 creatures it holds, and everything else is a constant:
 
 ```
-monsters(N) = 2 × 1.3^(N-1)    2, 3, 3, 4, 6, 7, 10, 13, 16, 21
-chests      = 6                flat, every floor
+monsters(N) = MONSTERS_BASE × MONSTER_GROWTH_REBALANCED^(N-1)       how many creatures floor N holds
+chests      = CHESTS_PER_FLOOR                                      flat, every floor
 strength    = MONSTER_STRENGTH × STRENGTH_GROWTH_REBALANCED^(N-1)   how far up the monster table floor N reaches
 ```
 
-**This block describes the flag-OFF baseline and is partly historical.**
-`DIFFICULTY_REBALANCED` ships `true`, so the count law that actually runs
-reads `MONSTERS_BASE`/`MONSTER_GROWTH_REBALANCED` (see the top table),
-not the `2 × 1.3^(N-1)` above — that line was already stale before M25
-and is left as the original argument's record rather than silently
-rewritten. The strength line's SHAPE is corrected (M25: no longer flat),
-but its base and growth are named as constants rather than restated as
-numbers here — both have moved twice since (M25, then M29) and the top
-table is the one place they are written. See "Difficulty rebalance (M7)"
-below for the constants that actually run.
+**All three laws are named, none is written out.** The count line used to
+carry a literal `2 × 1.3^(N-1)` and the roster it produces; both went stale
+at M17 and stayed wrong through M25 and M29, which is the exact failure this
+file's own rule exists to prevent — the top table is the one place a current
+value is written. Fixed by D1, which is where the staleness was finally
+owned rather than flagged again.
 
-Growth **compounds** rather than adding. Both laws land near 20 creatures on
-floor ten; what differs is where the growth sits. `2 + 2N` front-loads — floor
-2 has twice floor one, floor 10 has 11% more than floor nine — and that is
-backwards, because the hero is weakest at the top with nothing looted yet.
+`DIFFICULTY_REBALANCED` ships `true`, so what runs is
+`MONSTERS_BASE`/`MONSTER_GROWTH_REBALANCED` above. The pre-M7 baseline the
+argument below was originally made against used `MONSTER_GROWTH` with a
+flat strength ramp — see "Difficulty rebalance (M7)" for what replaced it
+and why.
+
+Growth **compounds** rather than adding, and that was the original argument
+for the shape. Against the additive `2 + 2N` it was weighed at the time, an
+exponential law lands in the same neighbourhood on floor ten; what differs is
+where the growth sits. The additive form front-loads — floor 2 has twice
+floor one, floor 10 barely more than floor nine — and that is backwards,
+because the hero is weakest at the top with nothing looted yet.
 
 The growth rate is the number that decides whether the ladder is playable.
 Net challenge eventually multiplies by it every floor, so the span from half
@@ -200,7 +204,7 @@ having.
 
 | Name | Value | Status |
 |---|---|---|
-| `CROWD_COST_OVERHEAD` | 0.75 | **INITIAL GUESS** |
+| `CROWD_COST_OVERHEAD` | 0.75 | **MEASURED, KEPT at D1** — holds on floors 1–8, under-prices 9–10; re-tuning was measured and makes it worse |
 
 ```
 campaignCost(roster) += CROWD_COST_OVERHEAD × Σ expectedDamage(monster.xp, 0)
@@ -309,13 +313,64 @@ one-on-one, untouched). Gear-taking was already saturated before this change
 (87% of chests opened regardless of the room's odds, both `docs/map-design.md`
 findings), so there was no decision left for either model shape to move.
 
-**Fitted at strength 0.35**, which is what the game shipped WHEN THIS WAS
-FITTED. It no longer is: M17 turned the ramp on via
-`STRENGTH_GROWTH_REBALANCED` and M25 moved the base to 0.28. By this
-section's own terms — *"if it is ever switched on, this fit has to be
-redone, because the strength axis moves the overhead the other way"* —
-the fit is now owed a redo. Disclosed here rather than quietly restated;
-no item has claimed it.
+### D1 — the redo the escape clause asked for, and what it found
+
+The clause said: *"if [the ramp] is ever switched on, this fit has to be
+redone, because the strength axis moves the overhead the other way."* M17
+switched it on. **The redo is done and the clause is retired — replaced by
+the measurement below, which says where this model holds and where it does
+not, instead of promising a future check.**
+
+Measured the way the original fit was: the 400-hp probe, `noPickup`, driven
+by the Sonda policy (which chases the nearest creature, so it clears the
+floor), on the **shipped floors** rather than a synthetic count×strength
+grid — the ramp as it actually ships is what the clause asked about.
+`ratio = real damage taken / campaignCost`. Two seed families, n=60 per
+floor each.
+
+**The model holds for eight floors and breaks on the last two.**
+
+| floors | ratio, family A | ratio, family B |
+|---|---|---|
+| 1–8 | 1.08 ±0.03 | 1.17 ±0.03 |
+| 9–10 | 1.41 ±0.04 | 1.39 ±0.04 |
+
+Read as the overhead constant the data implies per floor, the break is a
+step and not a drift: floors 1–8 scatter around the shipped value with no
+trend worth naming, floor 9 implies ~2.1 and floor 10 ~2.6.
+
+**Re-tuning the constant is the wrong repair, and this is the number that
+says so.** A single value re-centred on the pooled mean lands near 1.08–1.23
+depending on the family. It buys the two deep floors a little (they stay at
+1.27–1.33) and pushes the eight good ones **below** 1.00 — the trend against
+floor gets *worse*, not better (z 5.02 → 7.37 on family A, 4.56 → 7.75 on
+family B). Eight floors sold to part-fix two. `CROWD_COST_OVERHEAD` is
+therefore left where it is, deliberately and with the arithmetic on the
+table.
+
+**A second term is also refused, and the alternative shapes were measured
+rather than dismissed.** Against `count`, `turns`, or `maxBlow × count` the
+residual is *less* flat than against the shipped `blowSum`. The one basis
+that beats it is `blowSum × count` (spread across floors 2.1× against 3.5×,
+trend z 2.3 against 6.2) — recorded because it is the honest answer to "what
+would you use instead", and **not implemented**: it is a second term for a
+model whose error reaches the bot through one path, and `CLAUDE.md`'s
+minimum-change rule refuses exactly that. This section already refused a
+second term once, for the same reason.
+
+**Why this is a small problem in practice, which is the other half of the
+decision.** The correction reaches the bot only through `valueByItemName`
+(gear pricing), never `priceMonsters` (target selection, which is
+`duelCost`). The floors it is wrong on are floors almost no run reaches. A
+paired A/B when the correction landed read identical on both arms; there is
+no reason to expect a repair on floors 9–10 to read differently until far
+more runs get there.
+
+**One honest limit in the measurement itself.** Runs the probe could not
+clear are excluded (0–11 of 60 per floor, worst at floor 8). If the dropped
+runs are the expensive ones, the deep-floor ratios above are understated and
+the break is larger than the table says — the direction of that bias is
+known, so it does not threaten the conclusion.
 
 ## Strength ramp — the second way difficulty could grow
 

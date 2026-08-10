@@ -530,6 +530,16 @@ export const EARLY_CHEST_QUALITY_BOOST = 0.5;
 // decision loop) and the measurement noise both support; chasing the last
 // bit of structure would need either a second term or far more seeds than
 // fit in one sitting.
+//
+// D1 — REDONE against the strength ramp, which M17 turned on after this was
+// fitted, and KEPT at the same value on the strength of the redo rather than
+// by default. On the shipped floors the ratio holds near 1 for floors 1-8
+// and reaches ~1.4 on floors 9-10; the constant the deep floors imply is
+// about three times this one. Re-centring a single constant makes the trend
+// WORSE — it drags the eight good floors under 1.00 to part-fix two — and a
+// second term is refused for the reason the paragraph above already gives.
+// docs/balance.md has both seed families and the alternative shapes that
+// were measured and not adopted.
 export const CROWD_COST_OVERHEAD = 0.75;
 
 // ***** floor spread: making deep floors lotteries ***** //

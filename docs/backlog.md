@@ -96,7 +96,7 @@ session, skip it.
 | 8 | X1 | Delete what nothing references | work | READY |
 | 9 | X2 | Comments in src/ that lie: 25 stale refs + 3 false claims | work + bot | READY |
 | 10 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
-| 11 | D1 | The crowd-correction fit is overdue for its own redo | work | READY · M31 landed |
+| 11 | D1 | The crowd-correction fit is overdue for its own redo | work | REPORTED |
 | 12 | M4 | Side-room risk/reward spread scales with depth | work | READY · M31 landed |
 | 13 | E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
 | 14 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
@@ -725,10 +725,8 @@ not: byte-identical bot traces on fixed seeds, the same proof E1 needs.
 
 ## D1 · the crowd-correction fit is overdue for the redo it asked for
 
-`work agent` · READY · **sequence after M29, M30 AND M31** — the first two
-moved the same strength/tier dials this fit is refit against; M31 may move
-the M7 band itself, which is what "refit against the ramp as shipped" needs
-to be stable before it means anything.
+`work agent` · **REPORTED** · sequenced after M29, M30 and M31; all three
+landed, and M31's corrected headroom is what this was waiting to read.
 
 The crowd-correction fit carries its own escape clause in `docs/balance.md`:
 *"if [the ramp] is ever switched on, this fit has to be redone."* **M17
@@ -746,7 +744,55 @@ shipped dials. If nothing moves, that is a result and gets written down.
 law as `2 × 1.3^(N-1)`, stale since M17. M25 flagged it rather than
 rewriting someone else's record. Fix it here.
 
+### Report
 
+**The clause was right and the fit was stale — but the repair it implies is
+not the repair the numbers support.** No dial moved.
+
+Measured the way the original fit was (400-hp probe, `noPickup`, Sonda
+policy, `ratio = real damage / campaignCost`) but on the **shipped floors**
+rather than a synthetic count×strength grid, since "the ramp as it actually
+ships" is what the clause asked about. Two seed families, n=60 per floor.
+
+| floors | family A | family B |
+|---|---|---|
+| 1–8 | 1.08 ±0.03 | 1.17 ±0.03 |
+| 9–10 | 1.41 ±0.04 | 1.39 ±0.04 |
+
+**It is a step, not a drift.** Read as the constant each floor implies,
+floors 1–8 scatter around the shipped value with no trend worth naming;
+floor 9 implies ~2.1 and floor 10 ~2.6. Both families agree, and the deep
+break clears 2σ several times over (z=6.5 and z=4.1 for 9–10 against 1–8).
+
+**Re-tuning is measured to make it worse, which is why nothing moved.** A
+single re-centred constant leaves floors 9–10 at 1.27–1.33 and pushes the
+eight good floors *below* 1.00; the trend against floor goes from z=5.02 to
+z=7.37 (family A) and 4.56 to 7.75 (family B). Eight floors sold to
+part-fix two.
+
+**A second term is refused, with the alternatives measured rather than
+waved off.** `count`, `turns` and `maxBlow × count` are all *less* flat
+than the shipped `blowSum`. Only `blowSum × count` beats it (spread 2.1×
+against 3.5×, trend z 2.3 against 6.2) — written down as the honest answer
+to "what would you use instead", and not implemented, per the minimum-change
+rule. This section already refused a second term once for the same reason.
+
+**Why it is a small problem in practice.** The correction reaches the bot
+only through `valueByItemName` (gear pricing), never `priceMonsters` (target
+selection, which is `duelCost`). It is wrong on exactly the floors almost no
+run reaches, at a finish rate around a quarter of a percent.
+
+**Limit, stated rather than buried.** Runs the probe could not clear are
+excluded — 0–11 of 60 per floor, worst at floor 8. If the dropped runs are
+the expensive ones the deep-floor break is larger than the table says, so
+the bias runs away from the conclusion rather than toward it.
+
+**Both halves done:** the escape clause is retired and replaced by a
+statement of where the model holds, and the headline block's stale
+`2 × 1.3^(N-1)` is gone — all three laws are now named, none written out,
+which is what the file's own rule asked for in the first place.
+
+None of `rules.md`, `bot-strategy.md`, `map-design.md` went stale.
 
 ## I9 · a conditional survival table, so coin can be priced in hp
 
