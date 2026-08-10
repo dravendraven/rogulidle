@@ -85,7 +85,7 @@ session, skip it.
 | — | X6 | Collapse the tier clamps, redundancy proven first | work | after X5 |
 | — | I9 | Conditional survival table = the "hope" instrument | metrics | BLOCKED on finishes > 0 |
 | — | M35 | Potions become carried items, drunk on command | work | **DONE** · drink left off ACTIONS, correctly |
-| 1 | B14 | The dumbest defensible drink policy, and potions repriced | bot | **REPORTED** |
+| 1 | B14 | The dumbest defensible drink policy, and potions repriced | bot | **RETURNED** · tactics drinks too, danger-aware by accident |
 | 2 | I12b | Split drunk into useful and wasted, now that amount is honest | metrics | READY · with or before B14 |
 | 3 | I12 | Did it move anything? finishes, and died-holding-a-potion | metrics | baseline reviewed · **owes overheal, before B14 lands** |
 | 4 | B15 | A drink policy that reads the danger field | bot | after I12 |
