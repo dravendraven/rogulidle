@@ -196,7 +196,7 @@ moves the binding constraint.
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| — | I12b | Split drunk into useful and wasted | metrics | READY |
+| — | I12b | Split drunk into useful and wasted | metrics | **DONE** · shipped inside the heal-delivered commit |
 | 1 | B16 | The shrine is a trapdoor and the router treats it as floor | bot | READY · **bug**, confirmed in code |
 | 2 | B17 | Loot on the way is free, and the router does not know it | bot | after B16 · same routing price |
 | 3 | B15 | A drink policy that reads the danger field | bot | READY · B14 left a number to beat |
