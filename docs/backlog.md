@@ -222,7 +222,7 @@ moves the binding constraint.
 
 | id | what gets done | agent | status |
 |---|---|---|---|
-| I11 | Does the ruler read true when the starting hero changes? | metrics | **RETURNED** · knob shipped, reading never taken |
+| I11 | Does the ruler read true when the starting hero changes? | metrics | **DONE** · the shape inverts; reading taken in review |
 | I9 | Conditional survival table = the "hope" instrument | metrics | BLOCKED · and the return moved its target |
 
 **`I9` is worth a line of its own.** It was blocked on `finishes` being
@@ -1247,6 +1247,65 @@ fix above just moved onto.
 both anchors on the same seeds and answer the shape question in a line or two.
 Then state, in the code, which anchor each probe mode is using — the defect is
 not that they differ, it is that they differ by accident.
+
+#### Review — code adopted. The reading was taken in review, and it answers the item.
+
+**The declaration work is right and thorough.** Three probe modes, each stating
+which hero it starts as at the site: `startHero: null` lets the shipped kit
+land, a passed `startHero` overwrites it via carry and is frozen against
+balance changes, and `driveFloor` always sets carry — **which is why
+`--selftest`'s `rewardShape` anchors kept matching across M38 while the descent
+drivers changed underneath**. That last one explains an observation nobody had
+explained.
+
+**And it found the bug the returned review predicted.** Both drivers hard-coded
+`inventory: []` for the floor-1 arrival hero, which M38 made false on the day
+it shipped: `heroPower` read floor 1 with zero weapon damage, 8.333 instead of
+12.500. Report-only, descent byte-identical, selftest 8/8.
+
+**But the reading was owed twice and did not come.** So I took it — the item
+cannot be returned a third time for the same missing thing.
+
+#### The answer: the shape does not survive. It inverts.
+
+`capacityShape`, n=40, seeds 950000+, per-floor mean power normalised to
+floor 1:
+
+| anchor | floor 1 → 10 |
+|---|---|
+| frozen probe (`PROBE_HERO`) | **1.00 → 1.49**, rising every floor |
+| shipped hero (`startHero: null`) | **1.00 → 0.26 by floor 5**, and no floor 6 to read |
+
+**Not a level shift — opposite directions.** The frozen probe says the hero
+arms up as it descends. The real hero says it is worn down. `I11` asked whether
+the shape holds or only the level moves; the shape does not hold, and that is
+the answer the item was filed for.
+
+**Support dies before the question does.** With the shipped hero the sample is
+40 · 32 · 18 · 7 · 2 and then nothing. **Floors 6–10 cannot be read on the real
+hero at all** at this sample.
+
+**Survivor selection makes the finding stronger, not weaker.** It biases the
+deep floors *upward* — only heroes who got there are in it — and capacity still
+falls. The suppressed variant is worse and should not be used for this:
+`suppressDeath` with no regen pins hp at 0, which is the dead-hero denominator
+this same pass fixed in the cost table.
+
+#### Two consequences, and the second is about the map, not the instrument
+
+**C1 inherits a hard constraint.** Pressure is a ratio whose denominator is
+capacity, and on the shipped hero that denominator has no support past floor 5
+while on the frozen probe it moves the wrong way. **C1 cannot draw the deep half
+of the curve from real play at any sample this project runs today.** That is a
+boundary for C1 to state, not a defect to fix inside it.
+
+**`map-design.md`'s "build-up" stretch does not exist in the shipped game.**
+Property 1 says the middle is two stretches divided by the hero's capacity
+peak — capacity outgrows the floor, then is ground down — and that **where the
+peak sits is a design decision**. Measured, the peak is at floor 1. There is no
+stretch where capacity outgrows the floor; there is only wearing down. The
+document describes a shape the game does not have, which is worth knowing
+before `C2` writes target numbers against it.
 
 ### I9 · a conditional survival table, so coin can be priced in hp
 
