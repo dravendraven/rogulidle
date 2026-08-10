@@ -369,6 +369,57 @@ updated to the new one.
 
 Stale and fixed here: `rules.md` §5.
 
+#### Review — adopted, and it is the largest single result phase A has had
+
+**Verified independently, same seeds, same numbers.** Histogram
+`8 23 43 32 21 21 14 17 11 10`, share ending by floor 3 `0.370`, cleared 5.
+**`finishes` went from ~0.25% to 2.5%** — an order of magnitude from one
+value, and the first time this project has had a finish rate it can measure
+without heroic sample sizes.
+
+**The check that mattered more than the win passed.** The item warned that
+"it got better" could hide a trivialised opening, and it did not happen:
+floors 1–2 still end 31 of 200, 37% still end by floor 3, and the mass
+*spread* across the ladder (floors 7–10: 19 → 52) rather than relocating to a
+new wall. `map-design.md`'s property 1 — the opening is hard on purpose —
+survives.
+
+**My arithmetic was wrong and the report caught it.** The item stated the
+baseline as 0.745; its own histogram sums to 129/200 = 0.645, which is what
+the before arm reproduces. Measured against the right number, and said so
+instead of quietly using it.
+
+**One change beyond the item, and it is right.** `startingItems` now means
+"on top of the kit" rather than "instead of it". Forced by the callers, not
+chosen: `spectator.js` passes `getHeldItems()`, which is `[]` and truthy when
+nothing was bought, so a `??` default would be defeated in exactly the path a
+person watches — and a hero who bought a shield would otherwise lose the
+dagger for it, **making a purchase strictly worse than no purchase**. That is
+a defect the item never anticipated, found by reading call sites rather than
+by testing.
+
+**B14's pricing held under a hero that now reaches floor 10.**
+`drinksWasted` and `healOverheal` both still exactly zero, with floors played
+up 695 → 975. That is the first real load that pricing has carried.
+
+#### Three consequences, none of them blocking
+
+**The shop is now selling a second dagger.** Every hero starts with one, and
+M32 already measures the second weapon point at roughly half the first. The
+shop's cheapest weapon just became its worst buy. Not urgent — M32 owns the
+fix and is blocked on the lab — but the shop's own arithmetic moved today and
+nobody has looked.
+
+**I11's question just went live for real.** The instruments are anchored to a
+hero starting bare; no hero starts bare any more. I11 reported on exactly
+this and its answer now applies to every number this project takes.
+
+**2.5% is not phase A finished.** Victory is about to need twenty traversals,
+not ten. This bought an order of magnitude at the point where it was cheapest;
+whether the same lever has a second pull, or whether M37 and M36 are what is
+left, is the next decision — and it should be taken against a measurement
+rather than an argument, the same way this one was.
+
 ### M37 · a setback needs room between "no effect" and "dead"
 
 `work agent` · **NEW, unqueued — owner to place** · **filed because the
