@@ -231,6 +231,43 @@ function render(reward, counts, dc, sonda, coins, topo) {
   const lootTable = `<table><thead><tr><th>floor</th>${reward.map((r) => `<th>${r.level}</th>`).join('')}</tr></thead>`
     + `<tbody><tr><td>loot ÷ cost</td>${reward.map((r) => `<td>${pct(r.reward.mean / r.challenge.mean)}</td>`).join('')}</tr></tbody></table>`;
 
+  // ***** C1 — the two lines of docs/map-design.md *****
+  //
+  // ANCHOR, stated because I11 showed the anchors move in OPPOSITE
+  // directions and not by a level shift: mortal sonda from the shipped base,
+  // one descent, both halves off the SAME pass. Cost is what that traversal
+  // took from the hero who walked it; capacity is what that same hero
+  // arrived holding. Dividing an isolated-floor probe by a descended hero
+  // would mix two heroes and the ratio would mean nothing.
+  //
+  // The deep half is NOT READABLE from real play and that is a frontier, not
+  // a gap: the sonda's support collapses within a few floors and no sample
+  // this project runs will fix it. Blanks are blanks; the support row says
+  // why.
+  const sondaByLevel = new Map(sonda.rows.map((r) => [r.level, r]));
+  const linesTable = `<table><thead><tr><th>floor</th>${reward.map((r) => `<th>${r.level}</th>`).join('')}</tr></thead><tbody>`
+    + `<tr><td>pressure</td>${reward.map((r) => {
+      const row = sondaByLevel.get(r.level);
+      const v = row ? row.pressure : null;
+      return `<td class="${Number.isFinite(v) && v >= 1 ? 'no' : ''}">${f(v, 2)}</td>`;
+    }).join('')}</tr>`
+    + `<tr><td>spread</td>${reward.map((r) => {
+      const row = sondaByLevel.get(r.level);
+      return `<td>${f(row ? row.spread : null, 2)}</td>`;
+    }).join('')}</tr>`
+    + `<tr><td class="direction">cost hp</td>${reward.map((r) => {
+      const row = sondaByLevel.get(r.level);
+      return `<td class="direction">${f(row ? row.damage.mean : null, 1)}</td>`;
+    }).join('')}</tr>`
+    + `<tr><td class="direction">capacity on arrival</td>${reward.map((r) => {
+      const row = sondaByLevel.get(r.level);
+      return `<td class="direction">${f(row ? row.effectiveHp.mean : null, 1)}</td>`;
+    }).join('')}</tr>`
+    + `<tr><td class="direction">support (runs)</td>${reward.map((r) => {
+      const row = sondaByLevel.get(r.level);
+      return `<td class="direction">${row ? row.reached : 0}</td>`;
+    }).join('')}</tr></tbody></table>`;
+
   // B1 (spine mass share) is deliberately NOT here — binary check, already
   // asserted against the [0.6, 0.95] band in test/tests.js (spineShare,
   // src/sim/spine.js). A number that should never move does not belong
@@ -258,7 +295,10 @@ function render(reward, counts, dc, sonda, coins, topo) {
   ];
   const tables = el('div', 'subnote');
   tables.style.marginTop = '.7rem';
-  tables.append(el('h3', null, 'cost per floor'), costTable,
+  tables.append(
+    el('h3', null, 'pressure e spread, por andar — mortal sonda, uma passada'),
+    el('div', null, linesTable),
+    el('h3', null, 'cost per floor'), costTable,
     el('h3', null, 'creatures per floor'), el('div', null, creatureTable),
     el('h3', null, 'spread within a floor'), el('div', null, spreadTable),
     el('h3', null, 'loot vs cost, per floor'), el('div', null, lootTable),

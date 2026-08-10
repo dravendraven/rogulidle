@@ -497,14 +497,27 @@ export function builtShape(options = {}) {
   }
 
   return {
-    rows: rows.filter((r) => r.reached > 0).map((r) => ({
+    rows: rows.filter((r) => r.reached > 0).map((r) => {
+      const damage = summarise(r.damage);
+      const capacity = summarise(r.effHp);
+      return {
       level: r.level,
       reached: r.reached,
       power: summarise(r.power),
       buffer: summarise(r.buffer.filter(Number.isFinite)),
-      damage: summarise(r.damage),
-      effectiveHp: summarise(r.effHp),
-    })),
+      damage,
+      effectiveHp: capacity,
+      // C1 — the same two lines `capacityShape` returns, from the same
+      // already-paid-for pass: `damage` is the traversal's cost and
+      // `effHp` is the capacity the hero arrived with, both off this
+      // descent. Exposed here so run-check.html can read them without
+      // computing anything itself, and without a second descent.
+      // ANCHOR: mortal sonda, no startHero, so `newGame` hands it the
+      // shipped STARTING_ITEMS — the real base, not the 400 hp probe.
+      pressure: capacity.mean ? damage.mean / capacity.mean : null,
+      spread: damage.mean ? damage.p90 / damage.mean : null,
+      };
+    }),
     cleared,
     runs,
     depths: depths.slice().sort((a, b) => a - b),
@@ -805,7 +818,7 @@ export function capacityShape(options = {}) {
   } = options;
 
   const rows = Array.from({ length: levels }, (_, i) => ({
-    level: i + 1, power: [], hpMax: [], effHp: [], reached: 0, died: 0,
+    level: i + 1, power: [], hpMax: [], effHp: [], cost: [], reached: 0, died: 0,
   }));
   const depths = [];
   let cleared = 0;
@@ -822,28 +835,64 @@ export function capacityShape(options = {}) {
       row.power.push(heroPower(lvl.arrivedWith));
       row.hpMax.push(lvl.arrivedWith.hpMax);
       row.effHp.push(effectiveHp(lvl.arrivedWith));
+      // C1 — the traversal's cost, from THIS pass. `damage` is already
+      // computed by both drivers; it was simply never collected here.
+      // Attaching it to the same descent is the whole design decision of
+      // that item: `rewardShape`'s challenge is a 400-hp probe on an
+      // ISOLATED floor, and dividing it by a capacity measured on a hero
+      // that DESCENDED mixes two heroes, so the ratio would mean nothing.
+      // Same run, same seed, same hero, same floor.
+      row.cost.push(lvl.damage);
       if (lvl.diedCount) row.died++;
     }
   }
 
   return {
-    rows: rows.filter((r) => r.reached > 0).map((r) => ({
-      level: r.level,
-      reached: r.reached,
-      power: summarise(r.power),
-      hpMax: summarise(r.hpMax),
-      // hp + armour on arrival — used by run-check.html (Map's difficulty
-      // reading) as the bot-independent "what a hero plausibly has by
-      // here" denominator, in place of the flat PLAYER_HP constant. Needs
-      // `suppressDeath: true, startHero: null` to mean that; under the
-      // default (immortal 400-hp PROBE_HERO) this number describes the
-      // calibration tank, not a real hero, and should not be used that way.
-      effectiveHp: summarise(r.effHp),
-      // Only meaningful under suppressDeath — how many of the descents that
-      // REACHED this floor had already had a death suppressed getting
-      // there. 0 always under the default (PROBE_HERO never dies).
-      diedBeforeOrOn: r.died,
-    })),
+    rows: rows.filter((r) => r.reached > 0).map((r) => {
+      const cost = summarise(r.cost);
+      const capacity = summarise(r.effHp);
+      return {
+        level: r.level,
+        reached: r.reached,
+        power: summarise(r.power),
+        hpMax: summarise(r.hpMax),
+        // hp + armour on arrival — used by run-check.html (Map's difficulty
+        // reading) as the bot-independent "what a hero plausibly has by
+        // here" denominator, in place of the flat PLAYER_HP constant. Needs
+        // `suppressDeath: true, startHero: null` to mean that; under the
+        // default (immortal 400-hp PROBE_HERO) this number describes the
+        // calibration tank, not a real hero, and should not be used that way.
+        effectiveHp: capacity,
+        // ***** C1 — the two lines of docs/map-design.md, same pass *****
+        //
+        // cost      what this traversal took, in hp, from the hero who walked
+        //           it. Summarised, so `p90` and `mean` are both here.
+        // pressure  cost / capacity-on-arrival. `1.0` = the traversal costs
+        //           exactly everything the hero has.
+        // spread    the traversal's own upper tail over its own mean.
+        //           ONE-SIDED on purpose — a symmetric statistic calls
+        //           "cheaper than usual" the same size of surprise as "harder
+        //           than usual", and the tail's whole design is about one of
+        //           those. `summarise` already carries the p90 for this.
+        //
+        // Ratio of means, not mean of ratios. Per-run `cost_i / effHp_i` blows
+        // up whenever a hero arrives on fumes, and at depth most of them do —
+        // that is the same near-zero denominator that made the old cost table
+        // print Infinity. The aggregate question is "what does this floor cost
+        // against what heroes bring to it", which the ratio of means answers.
+        //
+        // NO NEW STATISTIC AND NO NEW DIAL, which is the item's own test that
+        // the language was already present: both lines are arithmetic over
+        // `summarise` output that existed before this.
+        cost,
+        pressure: capacity.mean ? cost.mean / capacity.mean : null,
+        spread: cost.mean ? cost.p90 / cost.mean : null,
+        // Only meaningful under suppressDeath — how many of the descents that
+        // REACHED this floor had already had a death suppressed getting
+        // there. 0 always under the default (PROBE_HERO never dies).
+        diedBeforeOrOn: r.died,
+      };
+    }),
     cleared,
     runs,
     depths: depths.slice().sort((a, b) => a - b),
