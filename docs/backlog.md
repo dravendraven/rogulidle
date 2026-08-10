@@ -80,7 +80,7 @@ session, skip it.
 | 2 | U6f | Watch a full loop, integration check | ui | **DONE** · DOM layer owed a click-through |
 | 3 | B13 | Charge a pursuer where it actually collects | bot | **DONE** · shipped OFF, inert |
 | 4 | B12 | Fighting should compete with leaving, not precede it | bot | **DONE** · shipped ON |
-| 5 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | IN FLIGHT |
+| 5 | M31 | The M7 budget check is blind to earlyTierCapShare's real cost | work | REPORTED |
 | — | X5 | Classify every dial by lifecycle, delete only the dead | work + bot | READY · at a structural boundary |
 | — | X6 | Collapse the tier clamps, redundancy proven first | work | after X5 |
 | — | I9 | Conditional survival table = the "hope" instrument | metrics | BLOCKED on finishes > 0 |
@@ -991,9 +991,9 @@ and adding to an untidy taxonomy is worse.
 
 ## M31 · the M7 budget check has a blind spot
 
-`work agent` · READY · **found by M30's own review, not requested by the
-owner — small, and worth doing before another item drifts through the same
-gap**
+`work agent` · **REPORTED** · found by M30's own review, not requested by
+the owner — small, and worth doing before another item drifts through the
+same gap
 
 M30 found this directly: the M7 ratio-formula check (`MONSTER_GROWTH_REBALANCED
 × STRENGTH_GROWTH_REBALANCED^2.356 / MONSTER_GROWTH`) does not include
@@ -1029,6 +1029,53 @@ recorded decision and not a side effect of the fix. Confirm the check still
 passes clean on everything shipped before M30 that was never near this
 edge.
 
+### Report
+
+Took the minimum-change option, as the item's own reasoning called for:
+the ratio formula is gone, `test/tests.js`'s budget test now reads
+`expectedFloorMass` (fitted over all ten floors with `growthOf`, not the
+`expectedFloorMass(9)/expectedFloorMass(0)` endpoint reading the item
+proposed — see below for why). Same `MONSTER_GROWTH` reference, same 15%
+band, only the numerator changed. Full suite 134/134. Commit `beb85f4`.
+
+**Deviated from the item's proposed assertion on one point, and it changes
+what the item found.** `expectedFloorMass(9)/expectedFloorMass(0)` is
+blind to any dial that only lifts the MIDDLE of the ladder — measured:
+raising `TIER_FLOOR_SHARE_PER_LEVEL` 0.08 → 0.30 moves nine of ten floor
+masses and leaves that endpoint ratio identical to four decimals. Fitting
+across all ten floors reads the same quantity on a clean ladder and does
+not have that blind spot, so that is what shipped.
+
+**The check does not flag M30, and cannot without a new owner decision.**
+Read directly, M30 sits at +6.0% of its 15% band — comfortably inside.
+The 1.34 ±0.03 band this item's "outside the band" claim rests on turns
+out not to be this check's band at all: traced to M25's report, it bounds
+the **observed ruler's** CHALLENGE growth from real play (Sonda A read
+1.317 ±0.016), not the closed form. Applied to the closed form anyway, it
+also fails M24 — from below (1.2856 against a 1.31 floor) — so "nothing
+before M30 was ever near this edge" does not hold once the band is
+applied here. Whether the closed form should carry a tight band at all is
+left to you; the 15% this check has always enforced is what shipped.
+
+**What the fix actually found, which the item did not anticipate:** the
+old proxy formula was not merely blind to `earlyTierCapShare` — it
+overstated the drift in every state it was ever read, because it only
+sees two of the nine dials that now shape a floor:
+
+| state | proxy read | real climb/floor | real drift |
+|---|---|---|---|
+| M24 | +3.2% | 1.2856 | −1.1% |
+| M25–M28 | +9.4% | 1.3146 | +1.1% |
+| M29 | +14.35% | 1.3557 | +4.3% |
+| M30 (shipped) | +14.35% (frozen) | 1.3779 | +6.0% |
+
+M29's report said 0.65 points of the 15% band were left; the generator
+says it was closer to 9. **D1 and M4, both sequenced behind this item
+specifically to know how much budget is left, should read this table
+instead of the old comment.**
+
+None of `rules.md`, `bot-strategy.md`, `map-design.md` went stale — this
+changes an instrument, not game behaviour.
 
 ## M32 · weapons become a tier ladder instead of a stack
 
@@ -1375,10 +1422,11 @@ reported.
 ## M4 · scale the side-room bonus with depth
 
 `map` · `work agent` · **READY, but sequence after M29, M30 AND M31** —
-M29 left 0.65 points of a 15% band; M30 spent more of it, and M31 found
-the band's own check is blind to what M30 actually cost. Size this
-against whatever the M7 check reads once M31 fixes it, not against a
-number that may currently be wrong.
+M31 landed: the M7 check no longer runs the blind proxy, it reads
+`expectedFloorMass` directly. Corrected headroom is far larger than the
+old comment said — M29 read ~4.3% of the 15% band, M30 (shipped) ~6.0%,
+not the 0.65-point reading the proxy gave. Size this against that direct
+reading, not the retired formula.
 
 `SIDE_ROOM_DEPTH_BONUS` is fixed, so the only structural variance in the game
 is constant across the descent.
