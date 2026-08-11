@@ -56,11 +56,11 @@ cost are in `decisions.md`.
 | theme | items |
 |---|---|
 | The return — floors 11 to 20 | R1 · R5 · R2 · R3 · R4 |
-| The bot's pricing | B20 · B15 |
+| The bot's pricing | B15 |
 | What the map still has to do | C2 · C3 · M4 · M21 · X6 · M32 |
 | The player | U10 · U7 |
 | Instruments | I12 |
-| Debt | X7 · X1 · X2 · X3 · X5 · E1 |
+| Debt | X7 · X1 · X2 · X3 · X5 |
 | Not scheduled | M37 · M36 |
 
 ### The return — floors 11 to 20
@@ -69,7 +69,6 @@ cost are in `decisions.md`.
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | B20 | The bot ranks single goals and never a sequence | bot | **REPORTED** · shipped OFF, +6.3% route for no loot |
 | 3 | B15 | A drink policy that reads the danger field | bot | READY |
 
 ### What the map still has to do
@@ -105,7 +104,6 @@ cost are in `decisions.md`.
 | X1 | Delete what nothing references | work | READY |
 | X2 | Comments in src/ that lie: 25 stale refs + 3 false claims | work + bot | READY |
 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
-| E1 | One resumable turn loop in src/sim, instead of four copies | work | REPORTED |
 
 ### Not scheduled
 
@@ -335,70 +333,6 @@ Phase B and C. `R1` is the spine and is playable on its own; `R2`–`R4` are dif
 # The bot's pricing
 
 M35 and B14 shipped. What is left is the policy that reads danger, and the measurement that says whether any of it helped.
-
-### B20 · the bot ranks single goals and never a sequence
-
-`bot agent` · **REPORTED** · shipped OFF — fires on 40% of decisions, mostly
-redundant, and the only movement is route length
-
-**The observation.** The bot walks past a chest to reach a creature. Watched
-repeatedly, across floors and seeds.
-
-**Why, and it is arithmetic rather than preference.** `chooseGoal` compares
-candidates one at a time by `net` from where the hero stands. A creature's net
-is dominated by its expected drop, priced against the whole remaining campaign;
-a chest's net is armour and potion at face value, spent once. After `B18` cut
-the drop estimate 4×, weapons still lead armour by two orders of magnitude.
-
-**What is missing is not a weight. It is that "collect that, then fight this"
-is never a candidate.** The bot can only ask "which single thing is worth most
-from here", so a route that picks up a shield on the way to a wolf is
-unrepresentable — even when it costs three extra turns and the shield is on the
-way.
-
-#### Do
-
-**Make the pair a candidate.** For a creature the bot would fight, and loot
-close to the route to it, score the sequence — reach the loot, then reach the
-creature from there — and enter it in the same comparison, in the same hp
-currency, against the creature alone. The bot already prices every leg of that:
-`priceOfReaching` for both hops and `duelCost` for the fight. Nothing new is
-being modelled; what is new is that the two are added up as one option.
-
-**Bound it hard.** One intervening pickup, and only loot whose detour is small
-relative to the direct route. This is a sequence of two, not a planner — the
-combinatorics of anything more is how this becomes a different item.
-
-**Do not add a coefficient to make loot win.** If the sequence still loses
-after being priced honestly, that is the answer and it goes in the report.
-`CLAUDE.md` forbids a weight tuned to produce a preferred outcome, and this
-item is one term already.
-
-#### The alternative worth naming, because it may be the real answer
-
-Armour's face value is arithmetically correct in hp — three points absorb three
-damage, once. What it misses is that **hp near death is worth more than hp at
-full health**, and `campaignCost` cannot express that because it measures hp,
-not survival.
-
-`I9` now measures exactly that: `P(finish | floor, effective hp, weapon
-damage)`. Pricing loot by the change in P rather than by hp is the structural
-version of this item, and it did not exist until this week.
-
-**Not this item.** It is a different and larger change, it needs I9's table to
-be trusted first, and the sequence candidate is worth having either way. Named
-here so it is not rediscovered as a novelty.
-
-#### Assert
-
-- The fixture case: a chest two or three tiles off the route to a creature the
-  bot intends to fight, and the bot collects it on the way. Checkable without a
-  batch.
-- Share of floors whose first goal is a creature — 83.3% and 86.8% after `B18`.
-- Items collected per floor, route length, and the depth histogram on the
-  baseline seed family.
-- **Whether the bot now shops before every fight.** That is the failure
-  direction, and route length is where it shows first.
 
 ### Result — built, measured, SHIPPED OFF
 
@@ -1620,131 +1554,3 @@ fixed.
 M27 split them deliberately so they could move without colliding, and M27's own
 Result records what happened when they shared one value. Genuinely independent
 pools.
-
-### E1 · expose a resumable turn loop from src/sim
-
-`engine` · `work agent` · **REPORTED**
-
-The descent loop has been reimplemented **four times** outside `src/sim/`:
-`playFromState` in `clustering.js`, and `driveFloor`, `driveDescent` and
-`driveDescentSuppressed` in `observed-ruler.js`. Every one was written for
-the same reason and every one said so honestly — `playGame` runs a floor to
-completion with no per-turn hook, and `playDungeon` takes a seed rather than
-a starting hero. Anyone who needs to drive turns writes their own.
-
-**This is not a tidiness item.** A copy of the loop has to stay in step with
-the engine or whatever it measures stops describing the game, and that has
-already happened: `clustering.js` diverged from `spawn.js` after M7 landed,
-and it was found by the work agent tripping over it rather than by anything
-noticing.
-
-**What to build.** A resumable driver in `src/sim/` that accepts a starting
-state and yields control per turn — the thing all four copies approximate.
-Then the copies call it.
-
-**Acceptance.**
-- One loop, exported, with the four call sites using it.
-- **Byte-identical results at every existing call site.** These functions
-  produce every number `run-check.html` shows; if any of them moves, the
-  refactor changed behaviour and the numbers behind it are no longer
-  comparable. This is the whole risk of the item.
-- No new RNG consumption anywhere, verified rather than argued.
-
-**Watch.** `driveDescentSuppressed` clears `outcome`/`killedBy` back to null
-between turns, which is why it needs a per-turn hook at all. Whatever the
-shared driver looks like, that has to remain expressible without a special
-case bolted on for one caller.
-
-**Why it is worth doing now.** It unblocks U2 — live clear odds would be the
-fifth copy, and the worst of them, since it would run during the watched run
-rather than offline. With this in place the ui agent can build U2 alone:
-import the loop, import `makeBot`, derive the rollout seed through
-`hashSeeds`, and touch nothing outside `src/ui/`.
-
-Serves neither objective directly. It is debt, and it is the kind that has
-already cost something once.
-
-#### Report
-
-`driveTurns` is in `src/sim/game.js`, next to `playGame`, which is now built
-on it. One loop, one hook, no new parameter.
-
-**The count was wrong in both directions, and the correction matters more
-than the number.** Of the four this item named, **two were never turn loops**:
-`driveFloor` is a thin wrapper over `playGame` with no loop at all, and
-`driveDescent` loops over FLOORS calling `playGame` — a `playDungeon` variant,
-not a copy of the turn loop. Both were left alone, correctly. But **two real
-turn loops went unnamed**: `descentCheck`'s own loop in `clustering.js` (the
-instrument most of this month's measurements came from) and `driveReward`'s
-in `observed-ruler.js`. Counting `playGame` itself, there were **five**. There
-is now one:
-
-| loop | was | now |
-|---|---|---|
-| `playGame` | the original | built on `driveTurns` |
-| `playFromState` (clustering) | copy | reader hook |
-| `descentCheck` (clustering) | copy, **unnamed by the item** | reader hook |
-| `driveDescentSuppressed` (ruler) | copy | replacing hook |
-| `driveReward` (ruler) | copy, **unnamed by the item** | reader hook |
-| `driveFloor` (ruler) | never a loop — wraps `playGame` | untouched |
-| `driveDescent` (ruler) | per-FLOOR loop, not per-turn | untouched |
-
-`grep` over `src/` now finds exactly one `while (!state.outcome …)`, in
-`game.js`. Four more live in root diagnostic pages (`run-b9`, `run-b11`,
-`run-zigzag`, `run-axe2x`); three of those were already slated for deletion
-and none is in `src/`, so they are reported rather than converted.
-
-**One hook, and suppression is not a special case in it.** `onTurn({ state,
-before, action, observation })` returns nothing to observe, or a STATE to
-replace the one just produced — and only then is the observation re-derived.
-That is the whole contract. `driveDescentSuppressed` hands back `{ ...next,
-outcome: null, killedBy: null }` and the driver never learns that death
-suppression exists. Nothing about that caller appears in `src/sim/`.
-
-**Everything `descentCheck` did BEFORE its step is derivable from `before`
-plus the action** — the pre-step hp and ceiling, the log length to slice
-from, the target creature's liveness for the fight counter. So it folded into
-the same after-step hook and the driver needed no second one.
-
-**Byte-identical, verified rather than argued.** Two worktrees at the same
-commit — one pure, one carrying only this item's three files — so a
-concurrent session's `balance.js` commit and its in-flight `src/bot/bot.js`
-edits could not contaminate either arm:
-
-```
-descentCheck        IDENTICAL      clusterExperiment   IDENTICAL
-rewardShape         IDENTICAL      isolatedShape       IDENTICAL
-capacityDefault     IDENTICAL      capacitySuppressed  IDENTICAL
-mortalCoinShape     IDENTICAL      rngPlayGame         IDENTICAL
-```
-
-**RNG consumption read, not reasoned about.** The three stream values after a
-driven run are in that comparison — identical on all three seeds. And the two
-entry points agree with each other: `playGame(seed)` and
-`driveTurns(newGame(seed))` end on the same streams and the same turn count,
-which is the property that makes them one loop rather than two that resemble
-each other.
-
-**Six tests, mutation-checked.** Ignoring the hook's replacement fails the
-suppression test; passing the post-step state as `before` fails the ordering
-test; removing the `maxDecisions` guard hangs, which is its own proof. The
-first test is the load-bearing one: attaching a hook that returns nothing
-leaves the run identical, streams included — if that were false, every number
-these instruments produce would have moved the day this landed.
-
-Suite 162/162, `--selftest` passes.
-
-**A concurrent session swept those six tests into `ebce296` (B20) without the
-`driveTurns` they call, so HEAD's suite did not load at all** — a
-`SyntaxError` on the import, verified in a clean worktree at HEAD before this
-commit. This commit repairs it by bringing the export with them. Fourth time
-this session that another agent's `git add` has taken uncommitted work from
-this tree; it is now costing more than a stray commit message.
-
-**Made stale outside the three:** `docs/observed-ruler.md` said touching
-`src/sim/` for a hook was the work agent's call and not that file's. It is
-done; corrected there in this commit. `docs/lab-backlog.md` cites "four
-separate reimplementations" as live — now historical, and left for the
-project agent.
-
-None of `rules.md`, `bot-strategy.md`, `map-design.md` moved.
