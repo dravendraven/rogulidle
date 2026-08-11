@@ -56,9 +56,8 @@ cost are in `decisions.md`.
 | theme | items |
 |---|---|
 | The return — floors 11 to 20 | R5 · R2 · R3 · R4 |
-| 1 | B23 | The floor is phases, and activation is the boundary | bot | READY · owner observation |
-| 2 | B24 | A step that does not approach the goal should cost more | bot | after B23 · read its answer first |
-| The bot's pricing | B23 · B24 · B15 |
+| 1 | B24 | Break routing ties toward continuing the same axis | bot | READY · B23 corrected its diagnosis |
+| The bot's pricing | B24 · B15 |
 | What the map still has to do | M42 · C2 · C3 · M4 · M21 · X6 · M32 |
 | The player | U10 · U7 |
 | Instruments | I13 · I12 |
@@ -290,85 +289,6 @@ the only thing `B22` deletes.
 
 M35 and B14 shipped. What is left is the policy that reads danger, and the measurement that says whether any of it helped.
 
-### B23 · the floor is phases, and activation is the boundary
-
-`bot agent` · **REPORTED** · shipped ON · **owner observation with B22 ON, 2026-08-11** · the
-concept is the owner's; this item is it written down
-
-**What was watched.** With `B22` on the bot inverted: it now prioritises loot
-even with creatures nearby, avoids creatures as far as it can, and **zig-zags**
-— weaving around creatures to reach distant loot.
-
-**The concept the owner drew out of it.** A floor offers a pool of resource —
-expected loot from creatures plus expected loot from chests — at its maximum
-when the hero arrives, falling as it is consumed. Against that sits the chance
-of surviving the floor. **The question the bot cannot currently ask is how much
-it is worth risking to gather more.**
-
-#### Activation is a state boundary, not a gradient
-
-**This is the part worth building.** `dangerField` prices threat as a
-continuous field that decays with distance. But `rules.md` §3 says a creature
-is **static** until the hero is inside its activation radius — so crossing that
-radius is a discrete event, not a gradual cost.
-
-That splits a floor into **phases**. Inside a phase nothing new is awake, a
-step costs 0.01 hp, and gathering is nearly free. **A phase ends when the hero
-activates something that was asleep**, and that crossing is a decision.
-
-**"The next battle" is definable as the next activation radius**, which is what
-makes this local and computable.
-
-#### Do
-
-**Compute the free region:** the tiles reachable without entering the
-activation radius of any creature that is not already awake. The bot already
-reads `monster.activation` — `priceMonsters` uses it — so this is a flood with
-one extra predicate, not a new model.
-
-**Then the turn's question becomes two, in order:**
-
-1. **Is there anything left worth taking inside the free region** — including
-   finishing creatures that are already awake and chasing? Take it.
-2. **Only then, which radius to cross next**, and in what state. That is the
-   real decision and it is where the resource-versus-risk trade actually lives.
-
-**The owner's own case is the acceptance test.** A rat in this room, a vampire
-with loot in the next: kill the rat first, sweep what is free, and only then
-decide about the vampire's room. The bot should not walk into the vampire's
-radius to reach loot while a rat is still awake behind it.
-
-#### What this is expected to fix as a side effect, and it should be checked
-
-**The zig-zag.** Inside a free region there is no threat to weave around, so
-routing is plain. If the weaving survives, it is not caused by threat avoidance
-and the diagnosis was wrong — say so.
-
-**The owner has a step-budget feature in mind for the zig-zag.** Do not
-pre-empt it; report whether the free region removed the behaviour on its own.
-
-#### What this does NOT need
-
-**It does not need the campaign horizon back.** This is floor-local, and it
-gives a reason to fight that `B22` removed without restoring the term `B22`
-deleted: radii have to be crossed to reach the shrine, so the question is the
-ORDER, not whether.
-
-**Do not add a risk-appetite dial.** "How much to risk for resource" is the
-comparison at step 2, and it is already in hp. If it needs a constant, say in
-one line why the existing safety margin cannot serve.
-
-#### Assert
-
-- The rat-and-vampire fixture, built to the owner's description. Checkable
-  without a batch.
-- Resource gathered per floor and hp at floor exit, against `B22` on and off.
-- **Route length**, which is where the zig-zag lives.
-- Share of floors whose first goal is a creature — 84.6% with `B22` off, 17.6%
-  with it on. This item should land between them rather than at either end; if
-  it lands at an end, something is being decided by one term alone.
-- `finishes` at twenty traversals, once `I13` makes that number mean the run.
-
 ### B15 · a drink policy that reads the danger field
 
 `bot agent` · **after I12** · only worth doing once B14's naive policy has a
@@ -512,6 +432,26 @@ population before assuming this one is different.
 
 **The reversal penalty already exists** and is close to this: it charges undoing
 the previous step. State how the two differ, or use the existing one.
+
+#### What B23 measured, and it changes this item's shape
+
+**The zig-zag is not threat avoidance.** Axis flips per move: 0.2565 pre-`B22`,
+0.2237 with `B22`, **0.2187 with `B23`**. It was worse before the change that
+was blamed for it.
+
+**And the grid is 4-connected** — `STEPS` in `nav.js` has no diagonals — so
+**any diagonal progress must alternate axes**. `RRRRRUUUUU` and `RURURURURU`
+are the same length, and Dijkstra picks arbitrarily between them. At 0.2187 per
+move, most of the weaving is geometry, not indecision.
+
+**So do not add a cost term.** Charging non-approaching steps makes the bot
+walk further to avoid changing axis, which is a worse route bought with a
+tidier picture. **Build a tie-break instead:** among paths of equal cost, prefer
+to continue the current axis. It cannot lengthen a route and it cannot change
+which goal is chosen.
+
+**If that leaves the weaving in place, the remainder is unavoidable geometry**
+and the item is done — say so rather than reaching for the cost term.
 
 #### The reason this is worth trying
 
