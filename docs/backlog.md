@@ -56,11 +56,12 @@ cost are in `decisions.md`.
 | theme | items |
 |---|---|
 | The return — floors 11 to 20 | R5 · R2 · R3 · R4 |
-| 1 | B24 | Break routing ties toward continuing the same axis | bot | READY · B23 corrected its diagnosis |
-| The bot's pricing | B24 · B15 |
-| What the map still has to do | M42 · C2 · C3 · M4 · M21 · X6 · M32 |
+| 1 | B25 | The bot has to price turns, or the budget prices nothing | bot | READY · **paired with M42** |
+| 2 | B24 | Break routing ties toward continuing the same axis | bot | READY · B23 corrected its diagnosis |
+| The bot's pricing | B25 · B24 · B15 |
+| What the map still has to do | C2 · C3 · M4 · M21 · X6 · M32 |
 | The player | U10 · U7 |
-| Instruments | I13 · I12 |
+| Instruments | I12 |
 | Debt | X7 · X1 · X2 · X3 · X5 |
 | Not scheduled | M37 · M36 |
 
@@ -87,7 +88,6 @@ comes back for free and the return is currently identical to the descent.
 
 | id | what gets done | agent | status |
 |---|---|---|---|
-| M42 | Give time a price — stage 1, tighten the existing budget | work | REPORTED |
 | C2 | The target curve, in numbers rather than adjectives | work | NOT NOW |
 | C3 | Solve the dials for a pressure curve instead of sweeping | work | NOT NOW · after C2 |
 | M4 | Side-room risk/reward spread scales with depth | work | READY |
@@ -106,7 +106,6 @@ comes back for free and the return is currently identical to the descent.
 
 | id | what gets done | agent | status |
 |---|---|---|---|
-| I13 | descentCheck still measures a descent and calls it a run | metrics | READY · **R1 made it stale** |
 | I12 | Did the potion change move anything? | metrics | baseline recorded · comparison owed |
 
 ### Debt
@@ -319,169 +318,51 @@ does not ship.
 
 The open half of `map-design.md`'s four properties. Each of these owns a property that is measured as not met.
 
-### M42 · give time a price — stage 1, tighten the budget that already exists
+### B25 · the bot has to price turns, or the budget prices nothing
 
-`work agent` · **REPORTED** · owner proposal, 2026-08-11 · form decided by
-the project agent; the reasoning is in this item
+`bot agent` · READY · **paired with `M42`, which measured why** · the two
+halves do nothing apart
 
-**Time is free in this game.** Dawdling costs nothing, detouring costs nothing,
-walking costs nothing. Three gaps recorded in different documents are that one
-sentence: `map-design.md`'s property 2 — the largest open gap in the game, and
-"what is missing is on the cost side"; the return reading as passive; and
-`STEP_COST_IN_HP` being a BOT pricing dial rather than a charge the game makes.
+`M42` named `TURN_BUDGET` and swept it from 1500 down to 250 — a six-fold
+tightening. **Side-room opening did not move: z = −0.05.** `finishes` was 6/200
+in every arm.
 
-#### The budget already exists, and it is 14x to 47x too loose
+**The reason is structural, not a tuning miss.** Nothing in `src/bot/` prices
+turns. A cost the deciding agent never reads cannot change a decision, so
+tightening only truncates runs that were already wandering — binds rises 0.81%
+→ 3.67% and mean turns falls 104 → 89, while the decision rate sits still.
 
-A traversal takes about **107 turns**, measured. The engine's cap is **5000**;
-the instruments pass **1500**. It is a safety guard that has never fired.
+#### Do
 
-**So stage 1 adds nothing.** Tighten the existing cap until it is a design
-constraint, and measure. That is `CLAUDE.md`'s order — change a value before
-changing a meaning, change a meaning before adding anything.
+**Give the bot a turn price and let it compete in the same comparison.** The
+remaining budget is `TURN_BUDGET − turn`; both are already public, so **no new
+information crosses into `Belief`** — say so in the report rather than leaving
+it looking like a fog-of-war concession.
 
-#### The form, decided
+**A detour's cost in turns is already computed** — `priceOfReaching` returns
+the walk, and `duelCost` returns a fight's turns. What is missing is what a
+turn is worth, and that is the whole item: **turns are only worth something
+when the budget is close.** A price that is flat in remaining budget will read
+as another `STEP_COST_IN_HP` and do nothing.
 
-**Currency: turns.** No new state — the counter and the cap both exist — and it
-prices walking *and* fighting, which is the broad version the proposal asked to
-build first. **Narrowing to movement later is easy; widening is not.**
+**Measure with the budget tightened, not at 1500.** At the shipped value the
+budget binds on 0.81% of traversals, so a correct implementation will still
+measure zero. `M42`'s sweep is the tool: run this against several budgets and
+report where, if anywhere, the refusal appears.
 
-**The bot needs no new channel.** Remaining budget is `cap − turn`; the turn is
-public and the cap is a constant, so nothing crosses into `Belief` that was not
-already there. **This is not a fog-of-war concession** — say so in the report
-rather than leaving it looking like one.
+#### The failure direction, and it is the reason M42 entered loose
 
-**Scope: per traversal, not per run.** "A side room costs a countable number at
-the moment the decision is taken" is a per-traversal statement, and with twenty
-traversals a run-wide budget is a different feature.
-
-#### Enter loose. This is the whole risk.
-
-`finishes` reads about 3% over twenty traversals. **This adds a second way to
-lose, and the project has just spent three items making runs completable.**
-
-1. **Enter with a value that almost never bites, and prove by measurement that
-   it almost never bit.** The expected result is "nothing changed". Report the
-   numbers that said so.
-2. **Tighten one step. Measure. Repeat.**
-
-A budget that changes everything on the first try is not adjustable — it is an
-event, and nothing after it can be attributed.
-
-#### The test that decides whether it was worth doing
-
-> **Does the bot start refusing side rooms?**
-
-That is `map-design.md`'s property 2, measured as not met. Compare side-room
-opening rate before and after.
-
-**If it does not move, stamina did not do the job it exists for** — however
-healthy everything else looks. Say that plainly instead of tightening until it
-appears to have moved. And do not explain a difference below 2 sigma.
-
-#### Stage 2 is NOT this item
-
-Running out today ends the traversal without completing, which ends the run —
-a threshold with no warning, and exactly the illegible death the proposal
-rejects. **Making it legible is stage 2**: a visible budget that absorbs
-distance before hp, the way armour absorbs damage before hp. **It is only worth
-building if stage 1 shows the budget binding at all.**
-
-#### Out of scope
-
-New items, starting-item choice, the tier tree, the daily challenge, hero
-selection. Several depend on this, which is why it comes first, and none enters
-here. **If something seems to require one, stop and report.**
+**This adds a second way to lose** at a `finishes` of about 3%. A bot that
+hurries dies. Report `finishes` and depth at every budget, and if refusal only
+appears at a budget that also costs depth, **that is the finding** — the two
+may not be separable, and saying so is the answer.
 
 #### Assert
 
-- The cap's value and how often it binds, before and after, per traversal.
-- Side-room opening rate, before and after. **This is the item.**
-- `finishes` at twenty traversals, depth histogram, turns per traversal.
-- Which of `rules.md`, `bot-strategy.md`, `map-design.md` this made false.
-  **Expect two or three** — `rules.md` §8 states the turn limit as a guard, and
-  `map-design.md` records the detour as free.
-
-#### Report
-
-**What was built, in plain language.** The per-traversal turn cap already
-existed — `playDungeon` had `1500` written into it and the engine guards at
-5000. It now has a name, `TURN_BUDGET` in `src/sim/balance.js`, and a row in
-`balance.md`, and `playDungeon` reads it. **No mechanism was added.** Running
-out still ends the traversal without completing, which ends the run.
-
-**It ships at the value it already had**, which is stage 1's instruction:
-enter with something that almost never bites and prove it almost never bit.
-
-**Measured at HEAD in an isolated worktree** — a concurrent session had
-`src/bot/` modified, and that alone moved `finishes` from 3.0% to 1.0% and the
-side-room rate from 54% to 34%, so every number below was taken against
-committed code only.
-
-| budget | finishes | mean depth | budget binds | mean turns | **side chests** | spine chests |
-|---|---|---|---|---|---|---|
-| **1500 (shipped)** | 6/200 = 3.0% | 6.18 | **0.81%** | 104.0 | **54.26% ±1.35** | 88.32% ±0.41 |
-| 1000 | 6/200 = 3.0% | 6.17 | 0.97% | 99.8 | 54.10% ±1.35 | 88.32% ±0.41 |
-| 700 | 6/200 = 3.0% | 6.08 | 1.15% | 96.2 | 54.07% ±1.36 | 88.11% ±0.42 |
-| 500 | 6/200 = 3.0% | 6.07 | 1.24% | 93.9 | 53.85% ±1.36 | 88.10% ±0.42 |
-| 350 | 6/200 = 3.0% | 5.91 | 2.12% | 91.7 | 53.93% ±1.38 | 88.10% ±0.43 |
-| 250 | 6/200 = 3.0% | 5.58 | **3.67%** | 89.1 | 54.17% ±1.41 | 88.10% ±0.44 |
-
-**The numbers that said "nothing changed", as asked.** `finishes` is 6/200 in
-every single arm — the tightening never touched it. The shipped budget binds
-0.81% of traversals; the item's claim that the cap "has never fired" was very
-slightly wrong, and it is now measured rather than assumed.
-
-**THE TEST FAILED, AND THAT IS THE RESULT.** Side-room opening does not move
-at any tightness: 54.26% at the shipped budget, 54.17% at a **six-fold**
-tightening, **z = −0.05**. Nothing at 500 either (z = −0.22). Spine chests are
-equally flat (z = −0.37). **Stamina did not do the job it exists for**, and no
-value in this sweep makes it appear to have.
-
-**The reason is structural, and it is the part worth keeping.** A cost the
-deciding agent never reads cannot change a decision. The balance is derivable —
-`TURN_BUDGET − state.turn`, both already public, **which is why this is not a
-fog-of-war concession** — but *derivable* is not *read*: nothing in `src/bot/`
-prices turns at all. So tightening cannot produce a refusal. It only truncates
-runs that were already wandering: binds 0.81% → 3.67%, mean depth 6.18 → 5.58.
-**The test could not have passed at any value**, which is why the honest move
-is to stop rather than to keep turning the dial.
-
-**Denominator, named.** Mean turns per traversal falls 104 → 89 as the budget
-tightens, and that is not the bot hurrying — it is the long traversals being
-cut off and leaving the mean of what survives. Totals moved (more losses), the
-rate moved for arithmetic reasons.
-
-**No tightening step shipped, deliberately.** Every step below the shipped
-value buys measured-zero on the item's own test and pays for it in depth and
-losses. Spending the risk budget for a null result, three items after the
-project made runs completable, is the trade the item warned against.
-
-**What would make it bite is a bot change, not a value.** The decision has to
-carry the price. That is not in this item's scope and is not attempted here.
-
-**Stage 2 remains unjustified on this evidence.** It is only worth building
-"if stage 1 shows the budget binding at all" — it binds under 1% at the shipped
-value and produces no decision at any value, so making the threshold legible
-would be making a non-decision visible.
-
-**One instrument re-pointed:** `descentCheck` had its own copy of `1500` and
-now reads `TURN_BUDGET`. Identical today; the point is that the next tightening
-reaches `run-check.html` instead of leaving it measuring a looser game than
-ships. Other instruments keep their own caps on purpose — the probes pass 4000
-because they measure floors, not runs — and `src/ui/spectator.js` passes 900,
-which is a UI file and tighter than the shipped budget; reported, not touched.
-
-**Nothing out of scope was needed.** No new items, no starting-item choice, no
-tier tree, no daily challenge, no hero selection.
-
-**Made false, and fixed here — three:** `rules.md` §8 (the turn limit was
-stated as an incidental guard; it is now a named per-traversal budget, and the
-no-warning threshold is stated rather than left implicit), `map-design.md`'s
-"What is still open" (a cost side now exists; the gap is narrower and better
-located, not closed), and `bot-strategy.md` §1 — which still said the run is
-**ten floors**. That was made false by `R1`, not by this item, and my `R1`
-report wrongly said `bot-strategy.md` had not moved. Corrected here, with the
-gap to `R5` stated in place.
+- Side-room opening rate against budget, several values. **This is the item**,
+  and `M42` established the baseline: 54.26% ±1.35, flat at every tightness.
+- `finishes`, mean depth and turns per traversal at each budget.
+- Whether the bot refuses anything at the shipped 1500. Expect not, and say so.
 
 ### B24 · a step that does not approach the goal should cost more
 
@@ -953,55 +834,6 @@ This item enlarges the choice. It does not enlarge the stake.
 # Instruments
 
 Built on demand, never as a scoreboard. `docs/project/objectives.md` has the rule and `decisions.md` the history of what the alternative cost.
-
-### I13 · descentCheck still measures a descent and calls it a run
-
-`metrics agent` · READY · **head of the instruments queue** · found by the
-owner asking whether the instruments were aligned to twenty traversals
-
-`R1` taught `playDungeon` the traversal rule. **`descentCheck` has its own
-floor loop** — `for (let level = 1; level <= levels; level++)`, `cleared`
-when `level === levels` — and never learned it. `E1` collapsed the TURN loops;
-floor loops are a separate thing and this is one.
-
-**So every number `descentCheck` produces describes the descent half.**
-
-| number | what it says now |
-|---|---|
-| `finishes` | "reached floor 10", which `R1` made the halfway point |
-| `I9`'s survival table | outcome axis is ten floors; the key is a floor with no direction |
-| potion counters, `depth`, coin | the first ten traversals only |
-
-**Four instruments are correctly pinned and are NOT this item.** `curve.js`,
-`hardness.js`, `shape.js` and `topologyShape` measure per-FLOOR properties, and
-a floor is still a floor. `R1` pinned them deliberately so their numbers
-reproduce. Leave them.
-
-#### Do
-
-**Drive twenty traversals, indexed the way `playDungeon` does it** — through
-`floorOfTraversal`, not a second copy of the rule. If the loop can call
-`playDungeon` instead of keeping its own, do that and say so; if it cannot, say
-in one line what it needs that `playDungeon` does not give.
-
-**`I9`'s table needs a traversal axis, not a floor axis.** Floor 4 descending
-and floor 4 climbing are different states — different hero, different band,
-and after `R3` different loot. Keying both to "floor 4" merges them. `R1`
-already added `traversal` and `direction` to the levels rows for this reason.
-
-**Say what happens to the buckets.** Twenty traversals at the current bucketing
-is twice as many cells over the same sample, so support per cell halves. Either
-the sample doubles or the buckets coarsen — decide, and state which.
-
-#### Assert
-
-- `finishes` means completing traversal 20, and reads near `R1`'s 3.0% ±1.2 on
-  the same seed family.
-- The survival table has a traversal axis, and the descent and return halves of
-  the same floor are separate rows.
-- Support per cell reported, with the sample size it took.
-- **Every number that moves is stated as moving**, with the old and new
-  reading. Anything quoted from before this item belongs to a ten-floor game.
 
 ### I12 · did it move anything — finishes, and died-holding-a-potion
 
