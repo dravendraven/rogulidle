@@ -867,7 +867,7 @@ still exactly what runs.
 
 ### B22 · rank plans by dominance on (low-water mark, exit state)
 
-`bot agent` · **after B21** · second slice · **behind the same flag**
+`bot agent` · **REPORTED** · second slice · **behind the same flag**, shipped OFF
 
 Once `B21` has a number, replace the `net` ranking with the ordering the
 objective actually implies.

@@ -15,7 +15,7 @@ import {
 } from '../sim/balance.js';
 import { MONSTERS_BASE, MONSTER_GROWTH } from '../sim/difficulty.js';
 import { scoreActions } from './tactics.js';
-import { effectiveHp } from '../sim/combat.js';
+import { effectiveHp, weaponDamage } from '../sim/combat.js';
 import { duelCost } from './duel.js';
 import {
   expectedChestValue, expectedMonsterDropValue, monstersAhead, valueByItemName,
@@ -584,17 +584,23 @@ function planLowWater(goal, belief, field, exitField, options) {
   // After the walk in, before anything is resolved.
   let budget = start - approach;
   let low = budget;
+  // B22: the resources the plan ENDS holding, alongside its low point.
+  // Only what the bot can know: an item's armour and weapon damage are on
+  // the belief, a chest's contents are not, and a creature's drop is a
+  // probability rather than a resource. Counting an expected drop here
+  // would put a maybe on the same footing as a certainty in a comparison
+  // whose whole claim is that it needs no exchange rate.
+  let wpn = weaponDamage(belief.player);
 
   if (goal.kind === 'monster') {
     const monster = belief.monsters.get(goal.id);
     if (monster && !monster.dead) budget -= duelCost(belief.player, monster).hpLost;
     low = Math.min(low, budget);
-  } else if (goal.kind === 'item' || goal.kind === 'chest') {
+  } else if (goal.kind === 'item') {
     // The gain lands here, so the low point may already be behind us.
-    const gained = goal.kind === 'item'
-      ? (belief.items.get(goal.id)?.armour || 0)
-      : 0;                       // a chest's contents are unknown until opened
-    budget += gained;
+    const held = belief.items.get(goal.id);
+    budget += (held?.armour || 0);
+    wpn += (held?.dmg || 0);
   }
 
   // Walk out. Unknown exit means the plan genuinely has no third leg yet —
@@ -606,7 +612,45 @@ function planLowWater(goal, belief, field, exitField, options) {
       low = Math.min(low, budget);
     }
   }
-  return low;
+  return { m: low, hp: budget, wpn };
+}
+
+// B22 (docs/backlog.md). The ordering the objective implies, with no
+// exchange rate anywhere in it.
+//
+// Every resource — hp, armour, weapon damage — raises the NEXT floor's
+// low-water mark, so they act on the future through one channel and the
+// whole objective collapses to: maximise the minimum, across the run, of
+// effective hp, subject to reaching the exit.
+//
+// A beats B when `m_A >= m_B` and every exit resource of A is at least B's,
+// with one strict. `P(finish)` is monotone in each, so a plan that survives
+// better AND exits richer is better with no coefficient to pick.
+//
+// **Where this is exact and where it is not.** Exact whenever the
+// comparison is a dominance. **Undetermined on genuine trade-offs** —
+// raising `m` by giving up a resource, such as skipping a weapon to dodge a
+// fight. No local rule settles those and none should pretend to, so ties
+// break by `m`, the conservative side, and only then by `net`.
+//
+// B21 measured that `m` moves only near a proximate threat: a step costs
+// 0.01 hp and menace decays fast, so plans usually TIE on `m`. A tie is
+// exactly when dominance falls through to the exit state — which is why
+// fetching a shield on the way wins here in the ordinary case, *because*
+// `m` ties, not despite it.
+function dominates(a, b) {
+  const ge = a.m >= b.m && a.hp >= b.hp && a.wpn >= b.wpn;
+  const gt = a.m > b.m || a.hp > b.hp || a.wpn > b.wpn;
+  return ge && gt;
+}
+
+function bestByDominance(scored) {
+  const front = scored.filter((a) => !scored.some((b) => dominates(b.plan, a.plan)));
+  const pool = front.length ? front : scored;
+  return pool.reduce((a, b) => {
+    if (b.plan.m !== a.plan.m) return b.plan.m > a.plan.m ? b : a;
+    return b.goal.net > a.goal.net ? b : a;
+  }).goal;
 }
 
 function chooseGoal(belief, field, danger, current, options, fieldFrom, exitField) {
@@ -725,8 +769,8 @@ function chooseGoal(belief, field, danger, current, options, fieldFrom, exitFiel
     if (options.lowWaterVeto) {
       const floorAt = effectiveHp(belief.player) * (1 - options.safetyMargin);
       pool = worthwhile.filter((g) => {
-        const m = planLowWater(g, belief, field, exitField, options);
-        return m === null || m >= floorAt;
+        const plan = planLowWater(g, belief, field, exitField, options);
+        return plan === null || plan.m >= floorAt;
       });
     }
 
@@ -735,7 +779,35 @@ function chooseGoal(belief, field, danger, current, options, fieldFrom, exitFiel
     }
     const worthwhileAfterVeto = pool;
     if (worthwhileAfterVeto.length) {
-      const best = worthwhileAfterVeto.reduce((a, b) => (b.net > a.net ? b : a));
+      // B22: when the flag is on, `net` stops choosing. Candidates are
+      // ranked by dominance on (low-water mark, exit resources), ties by
+      // `m`, and only then by `net` — which survives as the last-resort
+      // tiebreak rather than as the ordering.
+      let best;
+      if (options.lowWaterVeto) {
+        // The shrine is held OUT of the dominance comparison, and this is
+        // the constraint rather than an exception. The objective is
+        // "maximise the minimum effective hp SUBJECT TO reaching the exit";
+        // leaving right now trivially maximises `m`, because a plan that
+        // does nothing spends nothing. Ranked in, the exit would dominate
+        // every candidate on every floor and the bot would walk straight
+        // out — measured doing exactly that before this line existed.
+        //
+        // So B12's semantics stand unchanged: the exit is the option taken
+        // when nothing else is worth doing, and dominance orders the things
+        // that are.
+        const scored = [];
+        for (const g of worthwhileAfterVeto) {
+          if (g.kind === 'shrine') continue;
+          const plan = planLowWater(g, belief, field, exitField, options);
+          if (plan) scored.push({ goal: g, plan });
+        }
+        best = scored.length
+          ? bestByDominance(scored)
+          : worthwhileAfterVeto.reduce((a, b) => (b.net > a.net ? b : a));
+      } else {
+        best = worthwhileAfterVeto.reduce((a, b) => (b.net > a.net ? b : a));
+      }
 
       // Same hysteresis the monster branch below has had all along, and for
       // the same reason — loot never got it, which balance.js's own
@@ -1045,7 +1117,16 @@ export function makeBot(options = {}) {
   // Creatures still ahead after this floor, discounted by how much of the
   // remaining descent the hero can expect to actually play. Computed once:
   // it cannot change during a floor.
-  settings.monstersAhead = settings.horizon * monstersAhead(
+  // B22 includes the DELETION. With the ordering in place the horizon
+  // becomes the floor: `campaignCost` stops pricing gear against the rest
+  // of the run, which is where 165-against-3 came from. Removed rather than
+  // balanced — the exit state now carries a weapon's worth forward, and
+  // nothing projects it.
+  //
+  // Only the campaign roster is dropped. A potion's own `horizon` discount
+  // (B14) stays: that one answers "will the run last long enough to drink
+  // this", which is not a projection of gear value onto future floors.
+  settings.monstersAhead = settings.lowWaterVeto ? 0 : settings.horizon * monstersAhead(
     settings.level, settings.levels, MONSTERS_BASE, MONSTER_GROWTH,
   );
 

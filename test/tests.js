@@ -3285,6 +3285,65 @@ test('the veto never discards the exit itself', () => {
     'the exit was vetoed away, leaving the bot nothing safe to choose');
 });
 
+// ***** B22: dominance ordering on (low-water mark, exit state) ***** //
+//
+// docs/backlog.md B22. With the flag on, `net` stops being the ordering and
+// becomes the last tiebreak: candidates are ranked by Pareto dominance on
+// (m, hp at exit, weapon damage at exit), ties broken by `m`.
+//
+// Both tests here guard the same edge — that switching the ranking must not
+// quietly empty the candidate pool. The first version of this shipped with
+// `planLowWater` returning an object while the B21 veto still compared it to
+// a number; every comparison was NaN, every candidate was discarded, and the
+// bot walked straight out of every floor. Nothing in the suite caught it,
+// because no test asserted that a plainly-safe goal survives the veto.
+test('the veto keeps a plainly-safe goal in the pool', () => {
+  const map = tinyMap([
+    '##################',
+    '#----------------#',
+    '##################',
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [8, 1],
+    hp: 4,
+    monsters: [],
+    items: [{ id: 'i-sh', name: 'shield', emoji: '🛡️', pos: [6, 1], dmg: 0, armour: 3, heal: 0 }],
+    shrine: { id: 's', emoji: '⛩️', pos: [16, 1] },
+  });
+
+  const trace = [];
+  driveBot(state, 1, { monsterCount: 1, trace, lowWaterVeto: true });
+  assertEq(trace[0].goal.kind, 'item',
+    'a two-tile walk to a shield was vetoed — the pool is being emptied');
+});
+
+test('the exit is ranked by net, never by dominance', () => {
+  // "Maximise the minimum effective hp SUBJECT TO reaching the exit" is a
+  // constraint, not an objective. Leaving right now trivially maximises `m`
+  // because a plan that does nothing spends nothing, so ranking the shrine
+  // in would dominate every candidate on every floor. Here the shrine is one
+  // step away and the shield two: on `m` alone the shrine wins.
+  const map = tinyMap([
+    '##################',
+    '#----------------#',
+    '##################',
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [8, 1],
+    hp: 4,
+    monsters: [],
+    items: [{ id: 'i-sh', name: 'shield', emoji: '🛡️', pos: [6, 1], dmg: 0, armour: 3, heal: 0 }],
+    shrine: { id: 's', emoji: '⛩️', pos: [9, 1] },
+  });
+
+  const trace = [];
+  driveBot(state, 1, { monsterCount: 1, trace, lowWaterVeto: true });
+  assertEq(trace[0].goal.kind, 'item',
+    'the shrine was ranked by dominance and beat a goal worth taking');
+});
+
 // ***** run it ***** //
 
 export function runAll() {
