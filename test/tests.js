@@ -14,10 +14,12 @@ import { step, ACTIONS, grantArmour } from '../src/sim/step.js';
 import { observe, emptyBelief, foldBelief } from '../src/sim/observe.js';
 import { weaponDamage, armourValue, effectiveHp } from '../src/sim/combat.js';
 import { findPath, playerPassable, posKey } from '../src/sim/mapgen.js';
-import { drawLogUniform, drawWeighted, makeRng } from '../src/sim/rng.js';
+import { drawLogUniform, drawWeighted, hashSeeds, makeRng } from '../src/sim/rng.js';
 import { classifyRooms, spineShare } from '../src/sim/spine.js';
 import { itemWeights, monsterWeightsAround } from '../src/sim/spawn.js';
-import { floorPlan } from '../src/sim/dungeon.js';
+import {
+  floorOfTraversal, floorPlan, playDungeon, LEVELS, TRAVERSALS,
+} from '../src/sim/dungeon.js';
 import {
   expectedFloorMass, floorParams, floorStrength, makeFloorPlan, monstersAt,
   outOfDepthChanceAt, saturatedAt,
@@ -336,6 +338,110 @@ test('the kit is granted once per run, not once per floor', () => {
   assertEq(floor2.player.inventory.length, 0,
     'the starting kit was granted again on a floor that carried nothing down');
   assertEq(weaponDamage(floor2.player), 0, 'a hero who lost their weapon got it back for free');
+});
+
+// ***** R1 — twenty traversals, victory on returning to floor 1 ***** //
+
+test('the pairing rule sends traversal k to floor 21 - k', () => {
+  // The one rule the whole return rests on, asserted against the design's
+  // own table (docs/map-design.md, "The run laid out") rather than against
+  // the implementation restated.
+  assertEq(TRAVERSALS, LEVELS * 2, 'a run is not two crossings of every floor');
+  assertEq(floorOfTraversal(1), 1, 'traversal 1 is not floor 1');
+  assertEq(floorOfTraversal(10), 10, 'traversal 10 is not the bottom');
+  assertEq(floorOfTraversal(11), 10, 'traversal 11 is not the second crossing of the bottom');
+  assertEq(floorOfTraversal(12), 9, 'traversal 12 is not floor 9');
+  assertEq(floorOfTraversal(20), 1, 'traversal 20 is not the second crossing of floor 1');
+
+  // Every floor exactly twice, no floor three times, none missed.
+  const seen = new Map();
+  for (let k = 1; k <= TRAVERSALS; k++) {
+    const floor = floorOfTraversal(k);
+    seen.set(floor, (seen.get(floor) || 0) + 1);
+  }
+  assertEq(seen.size, LEVELS, 'the run does not visit every floor');
+  assert([...seen.values()].every((n) => n === 2), 'some floor is not crossed exactly twice');
+});
+
+test('an ascent traversal reproduces its twin map, tile for tile', () => {
+  // Free, and that is the point: a floor is generated from
+  // `hashSeeds(seed, level)` and `floorPlan(level)`, neither of which reads
+  // the hero — so asking for the same floor number again rebuilds the same
+  // map with no cache and no second seed. R2 is what will pull the creature
+  // seed away from the map seed; R1 only had to avoid making that harder.
+  //
+  // Asserted at GENERATION rather than through a played run: the requirement
+  // is about the map the pairing rule asks for, and a run only reaches its
+  // late traversals when the bot survives that far.
+  const build = (traversal) => {
+    const floor = floorOfTraversal(traversal);
+    return newGame(hashSeeds(4242, floor), floorPlan(floor));
+  };
+
+  for (const k of [11, 12, 15, 20]) {
+    const up = build(k);
+    const down = build(floorOfTraversal(k));
+    assertEq(up.map.tiles.join(''), down.map.tiles.join(''),
+      `traversal ${k} was a different map from its twin`);
+    // The roster comes back too, which is what makes R2 a change rather than
+    // a fix: today the return is the same creatures, deliberately.
+    assertEq(JSON.stringify(up.monsters.map((m) => [m.name, m.pos])),
+      JSON.stringify(down.monsters.map((m) => [m.name, m.pos])),
+      `traversal ${k} drew a different roster from its twin`);
+  }
+});
+
+test('difficulty is indexed by floor, not by traversal', () => {
+  // Traversal 12 gets floor 9's roster size on the way up, exactly as it had
+  // on the way down. A run that indexed by traversal would make the return
+  // harder than the descent by accident, which is R4's job to do on purpose.
+  for (let k = LEVELS + 1; k <= TRAVERSALS; k++) {
+    const floor = floorOfTraversal(k);
+    assertEq(floorPlan(floor).monsters, floorPlan(floorOfTraversal(k)).monsters,
+      `traversal ${k} did not read floor ${floor}'s plan`);
+  }
+  assertEq(floorPlan(floorOfTraversal(12)).monsters, floorPlan(9).monsters,
+    'traversal 12 does not use floor 9\'s roster size');
+  assert(floorPlan(floorOfTraversal(11)).monsters > floorPlan(floorOfTraversal(20)).monsters,
+    'the return does not keep each floor\'s own mass — it should fall as the hero climbs');
+});
+
+test('reaching the bottom clears nothing; completing the last traversal wins', () => {
+  // Victory moved. Run on a one-floor dungeon so the bot can actually finish
+  // inside a unit test: floors 1, traversals 2, the same pairing rule.
+  const drive = (options) => playDungeon(4242, () => {
+    const bot = makeBot();
+    return (belief, observation) => bot(belief, observation);
+  }, { maxTurns: 600, levels: 1, ...options });
+
+  const whole = drive();
+  assertEq(whole.levels.length, 2, 'a one-floor run is not two traversals');
+  assert(whole.cleared, 'completing every traversal did not read as a clear');
+  assertEq(whole.depth, 2, 'depth does not count traversals survived');
+  assertEq(whole.levels[1].direction, 'up', 'the last traversal is not an ascent');
+  assertEq(whole.levels[1].level, 1, 'the last traversal is not the second crossing of floor 1');
+
+  // The same seed stopped at the bottom is NOT a clear of the real run — it
+  // is the halfway point, and only a caller that pinned itself to a descent
+  // sees it as complete.
+  const halfway = drive({ traversals: 1 });
+  assertEq(halfway.levels.length, 1, 'the pinned descent did not stop at the bottom');
+  assertEq(halfway.levels[0].direction, 'down', 'the descent traversal is not a descent');
+});
+
+test('a run is deterministic across every traversal', () => {
+  const drive = () => playDungeon(777, () => {
+    const bot = makeBot();
+    return (belief, observation) => bot(belief, observation);
+  }, { maxTurns: 400, levels: 3 });
+
+  const a = drive();
+  const b = drive();
+  assertEq(a.depth, b.depth, 'the same seed reached a different traversal');
+  assertEq(a.cleared, b.cleared, 'the same seed cleared differently');
+  assertEq(JSON.stringify(a.levels.map((l) => [l.traversal, l.level, l.direction, l.turns, l.damage])),
+    JSON.stringify(b.levels.map((l) => [l.traversal, l.level, l.direction, l.turns, l.damage])),
+    'the same seed produced a different run');
 });
 
 // ***** E1 — the one turn loop ***** //

@@ -24,7 +24,12 @@ export function runCurve(options) {
 
   const runs = [];
   for (let i = 0; i < count; i++) {
-    const run = playDungeon(firstSeed + i, makePolicy, dungeonOptions);
+    // R1 — PINNED TO A DESCENT. `playDungeon` now plays twenty traversals;
+    // this instrument reads per-FLOOR rows off `levels` and would fold each
+    // floor's two crossings together. Pinned so every number it has ever
+    // produced still reproduces.
+    const run = playDungeon(firstSeed + i, makePolicy,
+      { traversals: dungeonOptions.levels ?? LEVELS, ...dungeonOptions });
     runs.push(run);
 
     for (const level of run.levels) {

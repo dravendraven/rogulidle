@@ -249,8 +249,8 @@ told apart.
 
 ### R1 · twenty traversals, victory on returning to floor 1
 
-`work agent` · READY · **head of the order** · design in `docs/map-design.md`,
-"The return" and "The run laid out"
+`work agent` · **REPORTED** · head of the order · design in
+`docs/map-design.md`, "The return" and "The run laid out"
 
 A run is twenty traversals over ten floors. Every floor is crossed exactly
 twice. **Victory is completing traversal 20**, not reaching floor 10.
@@ -314,6 +314,77 @@ Just do not make the split harder.
 reaching the bottom. `rules.md` §9 if coin's banking condition reads as "ten
 floors" anywhere. Update them in the same commit.
 
+#### Report
+
+**E1 was done first**, which is why the mapping needed teaching in one place
+rather than four. `floorOfTraversal(k, floors)` and `TRAVERSALS` are exported
+from `src/sim/dungeon.js`; `playDungeon` loops traversals and asks the rule
+which floor each one crosses. Nothing else in `src/sim/` moved.
+
+**`TRAVERSALS` is derived, not a dial** — `LEVELS * 2`, because "every floor
+is crossed exactly twice" is the shape the design states. There is no
+`balance.md` row for it and there should not be one.
+
+**The map comes back for free, and that was the whole bet.** A floor is
+generated from `hashSeeds(seed, level)` and `floorPlan(level)`, neither of
+which reads the hero, so asking for the same floor number again rebuilds the
+same map and the same roster — no cache, no second seed, and nothing done
+that makes R2's split harder. Asserted tile for tile at generation rather
+than through a played run, since a run only reaches its late traversals when
+the bot survives that far.
+
+**Both finish rates, same seed family (3000000+, n=200, bot policy):**
+
+| pinned to | finish | mean depth | reached the bottom |
+|---|---|---|---|
+| ten traversals | **9/200 = 4.5% ±1.5** | 5.21 | 18/200 |
+| twenty traversals | **6/200 = 3.0% ±1.2** | 5.56 | 18/200 |
+
+**These are nested, not two independent samples, so no z is quoted between
+them.** A twenty-clear requires a ten-clear first, and the descent half is
+byte-identical in both arms — the bottom is reached 18/200 either way. The
+readable number is the conditional: **of the 9 runs that cleared the descent,
+6 completed the return and 3 died on the way up** (traversals 12, 14, 14).
+
+**No dial moved**, per the item. Where twenty-traversal runs ended:
+
+```
+traversal    1   2   3   4   5   6   7   8   9  10  11  12  13  14  15 …  20
+runs        15  18  30  22  31  26   8  22  10   9   0   1   0   2   0 …   6
+```
+
+**One structural fact the item did not ask for and the next items need.**
+Each traversal is a fresh `newGame`, so the return currently hands the hero
+floor 9's chests *again*, unopened. Today's return is a resupply pass — the
+"victory lap" `map-design.md` warns about — and it still kills a third of the
+heroes that reach it. That is R3's number to move, and it means the 3.0%
+above is an upper bound on what the return costs once the chests go.
+
+**Four analysis instruments were pinned to a descent rather than left to
+drift.** `hardness.js`, `shape.js`, `curve.js` and `observed-ruler`'s
+`topologyShape` read per-FLOOR rows off `playDungeon`'s `levels` array; with
+twenty traversals each floor would appear twice and the two crossings would
+be silently averaged together. Each now passes `traversals: levels` with the
+reason at the call site, so every number they have produced still reproduces
+— confirmed by `--selftest` and by the suite. Whether the ruler should
+eventually measure the return is a real question and belongs to an item, not
+to a default that changed underneath it.
+
+**`levels` now carries `traversal` and `direction`.** The floor number alone
+no longer identifies a row, and anything keyed on `level` would fold the two
+crossings together. `direction` is derived from the same rule as `level`, so
+they cannot disagree. `depth` counts traversals survived — the same number as
+before on a pinned descent, so no consumer changed.
+
+**Five tests, mutation-checked.** Making the ascent count up from 1 instead
+of mirroring fails the pairing and floor-indexing tests; stopping the run at
+the bottom fails the victory test. Suite 169/169, `--selftest` passes.
+
+**Not done, and reported rather than attempted:** `src/ui/spectator.js` calls
+`playDungeon` and will now play twenty traversals, which is what R1 wants —
+but its floor labels and summary read as ten and will be wrong. UI role, and
+R5 is the bot's paired item.
+
 
 Twenty traversals, victory on returning to floor 1. Design in
 `docs/map-design.md`; the decision and its consequences in `decisions.md`.
@@ -322,7 +393,7 @@ return identical to the descent, and R2–R4 are differences laid on top.
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | R1 | Twenty traversals, victory on returning to floor 1 | work | READY · read E1 first |
+| 1 | R1 | Twenty traversals, victory on returning to floor 1 | work | REPORTED |
 | 1 | R5 | The bot's campaign is twenty traversals, not ten | bot | **with R1, not after** |
 | 2 | R2 | The return repopulates: same map seed, new creature seed | work | after R1 |
 | 3 | R3 | The return has no chests | work | after R1 |

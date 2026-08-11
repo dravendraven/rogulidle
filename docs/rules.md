@@ -20,16 +20,34 @@ Mudou o comportamento? **Este arquivo muda no mesmo commit.**
 
 ## 1. A forma de uma run
 
-Dez andares. Concluir é atravessar todos, vivo.
+**Dez andares, vinte travessias.** A run desce até o fundo e volta. Todo
+andar é cruzado exatamente duas vezes, e **concluir é completar a última
+travessia** — chegar ao fundo é a metade do caminho, e não conclui nada.
+
+**A regra de pareamento.** A travessia de subida cruza o andar espelhado:
+a travessia seguinte ao fundo é a segunda passagem pelo andar mais fundo, e a
+última travessia é a segunda passagem pelo andar 1.
+
+**Dificuldade é indexada por ANDAR, não por travessia.** Cada andar guarda o
+próprio elenco na volta, então a massa *cai* enquanto o herói sobe. O que
+torna a volta perigosa não é lotação — é o desenho descrito em
+`docs/map-design.md`, que os itens seguintes constroem em cima desta
+estrutura.
 
 **Cada andar é gerado do seed e do plano do andar, e é independente do
 herói.** Mapa, criaturas e baús saem de `newGame`; só depois o herói que
-desceu sobrescreve os campos dele. O andar 7 é o mesmo andar 7 tenha o herói
+chegou sobrescreve os campos dele. O andar 7 é o mesmo andar 7 tenha o herói
 chegado lá ou morrido no 2.
 
-**O que desce a escada:** hp, hp máximo, barra de armadura, xp, inventário,
+**Por isso a segunda passagem devolve o mesmo andar de graça:** pedir o mesmo
+número de andar de novo reconstrói o mesmo mapa, sem cache e sem segunda
+seed. Hoje isso devolve também o mesmo elenco e os mesmos baús — a volta é
+estruturalmente idêntica à ida, e é assim de propósito, porque o que a torna
+diferente é construído separado para poder ser medido.
+
+**O que atravessa:** hp, hp máximo, barra de armadura, xp, inventário,
 mortes, xp acumulado. **A posição, não** — ela vem sempre da geração do andar
-novo.
+novo, e vale igual na subida.
 
 ## 2. O mapa
 
@@ -237,10 +255,15 @@ explícita por tipo de entidade, não cópia do objeto inteiro.
 
 **Quantas criaturas o andar tem é concedido**, de propósito.
 
-## 8. Como um andar e uma run terminam
+## 8. Como uma travessia e uma run terminam
 
-**Pisar no santuário encerra o andar. O motor permite isso a qualquer
+**Pisar no santuário encerra a travessia. O motor permite isso a qualquer
 momento** — nada obriga a limpar nada.
+
+**Encerrar a travessia não encerra a run.** O santuário é escada em todas
+menos na última; a run só termina em vitória quando a última travessia é
+completada (§1). Não existe ramo de "virada" no fundo: a run simplesmente
+continua, e é o pareamento que decide qual andar vem a seguir.
 
 **Mas é preciso alcançá-lo.** Santuário ocupado por criatura viva não encerra
 andar nenhum: o herói ataca, fica onde está, e o andar segue (§6). Como o
@@ -256,14 +279,17 @@ Quanto o bot escolhe lutar é decisão dele e vive em
 `docs/bot-strategy.md`, não aqui — este arquivo descreve o que o jogo
 permite, e o jogo permite sair de mãos vazias no primeiro turno.
 
-**Morte quando o hp chega a zero.** Há também limite de turnos, que encerra o
-andar sem conclusão.
+**Morte quando o hp chega a zero.** Há também limite de turnos, que encerra a
+travessia sem conclusão — e, como conclusão de run exige todas, encerra a run
+junto.
 
 ## 9. Entre runs
 
-**Moeda por andar concluído**, derivada de xp por turno.
+**Moeda por travessia concluída**, derivada de xp por turno. Toda travessia
+paga, ida e volta.
 
-**Moeda só é efetivamente ganha se a run for concluída.** Morrer descarta o
+**Moeda só é efetivamente ganha se a run for concluída** — e concluir agora é
+completar as vinte travessias, não chegar ao fundo (§1). Morrer descarta o
 acumulado e, por padrão, zera também o saldo guardado e o item comprado.
 
 **Guardar o saldo através de uma morte é um flag, desligado por padrão**

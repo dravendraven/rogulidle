@@ -1,8 +1,14 @@
-// A dungeon: ten floors, each harder than the last.
+// A run: ten floors, crossed twenty times — down to the bottom and back up.
 //
-// A single floor is a complete game — the shrine ends it. A dungeon strings
-// ten of them together, and the shrine becomes a staircase for the first
-// nine. What the hero IS carries down; where they stood does not.
+// A single traversal is a complete game — the shrine ends it. A run strings
+// twenty of them together, and the shrine becomes a staircase for all but the
+// last. What the hero IS carries across; where they stood does not.
+//
+// R1 built the structure and nothing else: traversals 11–20 reuse the map
+// their descent twins generated and are otherwise identical to them. What
+// makes the return DIFFERENT — a new creature seed, no chests, a widening
+// draw — is R2, R3 and R4 laid on top, deliberately separate so each can be
+// measured against the one before it.
 //
 // THE REQUIREMENT: floor 1 is the gentlest and floor 10 the hardest, for
 // the REAL hero — the one who arrives at floor 10 carrying everything the
@@ -60,6 +66,34 @@ import { playGame } from './game.js';
 
 export const LEVELS = 10;
 
+// R1 — docs/backlog.md, design in docs/map-design.md ("The run laid out").
+// A run is TWENTY TRAVERSALS over ten floors: down to the bottom and back up,
+// every floor crossed exactly twice.
+//
+// DERIVED, not a dial. "Every floor is crossed exactly twice" is the shape
+// the design states, so this cannot drift away from `LEVELS` — there is
+// nothing here for balance.md to hold a row for.
+export const TRAVERSALS = LEVELS * 2;
+
+// Which floor a traversal crosses. THE pairing rule, written once: ascent
+// traversal `k` crosses floor `2 × floors + 1 − k`, so traversal 11 is the
+// second crossing of the deepest floor and traversal 20 the second crossing
+// of the first.
+//
+// This is also what makes the map come back for free. A floor is generated
+// from `hashSeeds(seed, level)` and its `floorPlan(level)`, and neither reads
+// the hero — so asking for the same floor number a second time reproduces the
+// same map AND the same roster, tile for tile, with no cache and no second
+// seed. R2 is what will pull the creature seed away from the map seed; R1
+// only has to avoid making that harder, which keeping one seed does.
+//
+// DIFFICULTY IS INDEXED BY FLOOR, NOT BY TRAVERSAL — every caller that wants
+// a plan asks for `floorPlan(floorOfTraversal(k))`, so traversal 12 gets
+// floor 9's roster size on the way up, exactly as it had on the way down.
+export function floorOfTraversal(traversal, floors = LEVELS) {
+  return traversal <= floors ? traversal : (2 * floors) + 1 - traversal;
+}
+
 // Floor N holds `MONSTERS_BASE × MONSTER_GROWTH^(N-1)` creatures, and
 // everything else on the floor follows from that count. Floor 1 gets two,
 // floor 10 gets twenty-one.
@@ -91,22 +125,31 @@ function carryFrom(player) {
   };
 }
 
-// Plays a whole dungeon. `makePolicy(floor)` is called once per floor and
+// Plays a whole run. `makePolicy(floor)` is called once per TRAVERSAL and
 // must return a fresh policy — a bot carries plan state that means nothing
-// on the next map down.
+// on the next map, and floor 9 met on the way up is a new problem even
+// though the tiles are familiar.
 //
-// Ends when the hero dies, when a floor runs out of turns, or when floor
-// ten is cleared.
+// R1 — a run is twenty traversals, not ten floors. Ends when the hero dies,
+// when a traversal runs out of turns, or when the LAST TRAVERSAL is cleared.
+// Reaching the bottom is now the halfway point.
+//
+// `options.traversals` is what a caller pins to keep measuring a plain
+// descent: the analysis modules that read per-floor rows off `levels` below
+// would otherwise get each floor twice and quietly average the two crossings
+// together. They pass `traversals: LEVELS` and say so at the call site.
 export function playDungeon(seed, makePolicy, options = {}) {
   const maxTurns = options.maxTurns ?? 1500;
-  // Both overridable so a tuning page can ask "what if" without editing
+  // All overridable so a tuning page can ask "what if" without editing
   // the shipped model. Defaults ARE the shipped model.
-  const depth = options.levels ?? LEVELS;
+  const floors = options.levels ?? LEVELS;
+  const depth = options.traversals ?? floors * 2;
   const planFor = options.floorPlan ?? floorPlan;
   const levels = [];
   let carry = null;
 
-  for (let level = 1; level <= depth; level++) {
+  for (let traversal = 1; traversal <= depth; traversal++) {
+    const level = floorOfTraversal(traversal, floors);
     const plan = planFor(level);
     const counts = {
       // M19 — docs/backlog.md. spawn.js reads this to fade the early-chest
@@ -195,6 +238,13 @@ export function playDungeon(seed, makePolicy, options = {}) {
     const player = run.state.player;
     levels.push({
       level,
+      // R1 — which crossing this was, and which way the hero was going. The
+      // floor number alone no longer identifies a row: floor 9 appears twice
+      // in a completed run, and anything keyed on `level` would fold the two
+      // together. `direction` is derived from the same rule as `level`, not
+      // tracked separately, so the two cannot disagree.
+      traversal,
+      direction: traversal <= floors ? 'down' : 'up',
       dial: plan.dial,
       monsters: plan.monsters,
       outcome: run.outcome || 'timeout',
@@ -216,11 +266,19 @@ export function playDungeon(seed, makePolicy, options = {}) {
     });
 
     if (run.outcome !== 'ascended') {
-      return { seed, cleared: false, depth: level, levels,
+      // `depth` counts TRAVERSALS survived, not floors — how far the run got,
+      // which is what it always meant. On a pinned descent the two are the
+      // same number, so every instrument reading this is unchanged; on a full
+      // run "died on traversal 14" says something "died on floor 7" cannot,
+      // namely which crossing of floor 7 it was.
+      return { seed, cleared: false, depth: traversal, levels,
         killedBy: run.state.killedBy || null };
     }
     carry = carryFrom(player);
   }
 
+  // R1 — VICTORY IS COMPLETING THE LAST TRAVERSAL. Reaching the bottom is
+  // the halfway point and clears nothing on its own; the loop above simply
+  // keeps going, which is why there is no "turn" branch anywhere here.
   return { seed, cleared: true, depth, levels, killedBy: null };
 }

@@ -465,8 +465,17 @@ export function builtShape(options = {}) {
   let cleared = 0;
 
   for (let i = 0; i < runs; i++) {
-    const dungeon = playDungeon(firstSeed + i, () => makeSondaPolicy(),
-      { maxTurns, levels, ...dungeonOptions });
+    const dungeon = playDungeon(firstSeed + i, () => makeSondaPolicy(), {
+      maxTurns,
+      levels,
+      // R1 — PINNED TO A DESCENT. `playDungeon` now plays twenty
+      // traversals; this instrument reads per-FLOOR rows off `levels`
+      // and would fold each floor's two crossings together. Pinned so
+      // every number it has ever produced still reproduces. Measuring
+      // the return is a separate instrument, not a default change here.
+      traversals: levels,
+      ...dungeonOptions,
+    });
     depths.push(dungeon.depth);
     if (dungeon.cleared) cleared++;
 
