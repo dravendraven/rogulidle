@@ -56,11 +56,11 @@ cost are in `decisions.md`.
 | theme | items |
 |---|---|
 | The return — floors 11 to 20 | R1 · R5 · R2 · R3 · R4 |
-| The bot's pricing | B18 · B19 · B17 · B15 |
+| The bot's pricing | B19 · B17 · B15 |
 | What the map still has to do | C2 · C3 · M4 · M21 · X6 · M32 |
 | The player | U10 · U7 |
 | Instruments | I12 · I9 |
-| Debt | X1 · X2 · X3 · X5 · E1 |
+| Debt | X7 · X1 · X2 · X3 · X5 · E1 |
 | Not scheduled | M37 · M36 |
 
 ### The return — floors 11 to 20
@@ -82,8 +82,7 @@ return identical to the descent, and R2–R4 are differences laid on top.
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | B18 | The bot believes every creature is carrying a weapon | bot | **REPORTED** · 4x inflation fixed, ordering -12pts |
-| 2 | B19 | Loot is priced against the campaign, never against the fight in front of it | bot | after B18 |
+| 1 | B19 | Loot is priced against the campaign, never against the fight in front of it | bot | READY · B18 landed |
 | 3 | B17 | Discount a tile holding free loot | bot | measured inert · **owes one change: ship it OFF** |
 | 3 | B15 | A drink policy that reads the danger field | bot | READY |
 
@@ -116,6 +115,7 @@ return identical to the descent, and R2–R4 are differences laid on top.
 
 | id | what gets done | agent | status |
 |---|---|---|---|
+| X7 | Chest value is right only because two errors cancel | bot | READY · small |
 | X5 | Classify every dial by lifecycle, delete only the dead | work + bot | READY |
 | X1 | Delete what nothing references | work | READY |
 | X2 | Comments in src/ that lie: 25 stale refs + 3 false claims | work + bot | READY |
@@ -268,147 +268,6 @@ Phase B and C. `R1` is the spine and is playable on its own; `R2`–`R4` are dif
 # The bot's pricing
 
 M35 and B14 shipped. What is left is the policy that reads danger, and the measurement that says whether any of it helped.
-
-### B18 · the bot believes every creature is carrying a weapon
-
-`bot agent` · **REPORTED** · drop estimate was 4x too high; creature-first
-floors fell 11-12 points
-
-`expectedMonsterDropValue` (`src/bot/loot.js`) asks `itemWeights` what a
-creature is likely to drop and passes **an empty scarcity object**. Measured
-against what the generator actually rolls:
-
-| | dagger | axe | **empty** |
-|---|---|---|---|
-| what the bot believes | 0.429 | 0.571 | **0.000** |
-| what `spawn.js` rolls | 0.107 | 0.143 | **0.750** |
-
-**Three quarters of monster draws come up empty and the bot's model has no
-empty slot at all**, so every creature is priced as though it were certainly
-carrying a weapon. The drop value is inflated by almost exactly 4× — a rat
-reads 55.12 where it should read about 13.8.
-
-**This is the same defect M39 found on the chest side**, in `ITEM_MIX`, which
-also called `itemWeights({}, 'chest')`. That one was caught because M39 was
-changing the chest rate anyway. **Nobody checked the monster side**, and the
-scarcity dial it ignores — `WEAPON_SCARCITY` — is the one M26 introduced when
-weapons moved onto creatures.
-
-#### Do
-
-Pass the real scarcity, the way the generator does. The dial is already
-exported and `spawn.js` is already the shared implementation — this is one
-argument, not a new model.
-
-**Check what else calls `itemWeights` with an empty object while you are
-there.** Two of three known callers had this bug; the third should be looked
-at rather than assumed.
-
-**Do not compensate anywhere else.** Anything downstream that was tuned
-against the inflated number should be left alone and re-read afterwards, not
-adjusted in the same commit — otherwise the fix and the compensation cannot be
-told apart.
-
-#### Assert
-
-The drop estimate for a named creature, before and after, against the
-generator's own weights. Then the share of floors whose FIRST goal is a
-creature — measured at **86.8%** on the shipped bot over 227 floors, which is
-the observation this item came from. Report it even if it barely moves: `B19`
-is the other half and this item is not expected to fix the ordering on its own.
-
-#### Result
-
-**One argument, as scoped. It moved the ordering far more than the item
-expected — 11 to 12 points — and it turned up a discrepancy in the item's
-own baseline that I could not resolve and am not claiming to.**
-
-#### The fix
-
-`expectedMonsterDropValue` now passes `{ weapon: WEAPON_SCARCITY }`, the way
-`spawn.js` does. `WEAPON_SCARCITY` lives in `difficulty.js`, not
-`balance.js`, so that is one new import and no new model.
-
-#### Assert 1 — the estimate against the generator's own weights
-
-The pool the bot now asks for is byte-identical to the generator's:
-
-    generator pool, quality 1:  dagger 0.107   axe 0.143   EMPTY 0.750
-
-which is exactly the item's table. The empty slot went from **0.000 to
-0.750** at every tier, and the estimate fell by a factor of 4 across the
-table:
-
-    creature   empty slot        drop estimate
-               before  after     before   after
-    rat         0.000  0.750      4.050   1.012
-    wolf        0.000  0.750      5.033   1.258
-    dragon      0.000  0.750      5.178   1.295
-
-**The absolute figures differ from the item's 55.12 → 13.8 because the
-estimate is scaled by `values`, which depends on the hero and the roster in
-front of it** — mine is a fresh hero on floor 5, seed 4242. The invariant
-that matters is the ratio, and it is 4.00x on all three, matching the item.
-Verified the live function returns the `after` column rather than trusting
-the recomputation.
-
-#### Assert 2 — floors whose FIRST goal is a creature
-
-Paired trees, identical seeds, differing only in that one argument:
-
-    seed        before              after
-    3000000     228/239  95.4%      204/245  83.3%
-    4100000     229/234  97.9%      203/234  86.8%
-
-**Chest-first floors went 10 → 38 and 4 → 29.** The item said to report it
-even if it barely moved; it moved 11–12 points, which is more than the fix
-was expected to do on its own. `B19` still has its own half — a fifth of
-floors choosing a chest first is not obviously the right number either — but
-the "creature first, always" reading was substantially this bug.
-
-**A discrepancy I cannot resolve, flagged rather than smoothed.** The item
-cites 86.8% over 227 floors on the shipped bot, and that is almost exactly
-my *after* on seed 4100000 (86.8%, 234 floors) — while my *before* on the
-same tree reads 97.9%. The most likely explanation is that the owner's
-figure predates **M41**, which landed during B17 and made the hero start
-unarmed; an unarmed hero values weapons differently, which is precisely
-what this estimate feeds. I did not try to reconstruct the older tree to
-confirm it. **Take my before/after pair as the measurement and the 86.8% as
-a number from a different tree**, not as a before/after with mine.
-
-#### The other callers, looked at rather than assumed
-
-Three production call sites. Two were already correct, one is the bug, and
-**the third is deliberately wrong and must stay that way**:
-
-- `spawn.js` ×2 — pass real scarcity. Correct; they are the reference.
-- `loot.js`'s `expectedMonsterDropValue` — the bug, fixed here.
-- `loot.js`'s `ITEM_MIX`, `itemWeights({}, 'chest')` — **left alone on
-  purpose.** M39 did not fix this one; it *compensated* for it.
-  `CHEST_LOOT_CHANCE` is explicitly standing in for the whole payout rate
-  precisely because `ITEM_MIX` has no empty slot, and `balance.js`'s own
-  comment says so and flags it to this agent. Passing real scarcity there
-  would double-count the empty slot and silently halve chest value — the
-  compensation the item forbids, in reverse. **It is fragile rather than
-  wrong:** it is exact only while armour and potion scarcity stay equal, and
-  the balance comment already carries that warning. Not this item's to
-  change, and changing it would have made both effects indistinguishable.
-
-**Nothing was compensated.** Anything tuned against the inflated number —
-`GOAL_STICKINESS`, `combatCompetes`'s thresholds, B9's own numbers — is left
-exactly as it was, to be re-read against the corrected estimate rather than
-adjusted in the same commit.
-
-**Files touched:** `src/bot/loot.js` (one argument, one import).
-`src/sim/` untouched. 154 tests green.
-
-**Made stale: none of the three.** `bot-strategy.md` §4 lists
-`expectedMonsterDropValue` as "o que esta criatura provavelmente carrega",
-which is what it was always supposed to compute and now actually does — the
-document described the intent correctly while the code failed to match it,
-so the fix moves the code toward the doc rather than away. `rules.md` did
-not move (no engine change; the generator's behaviour is unchanged and was
-always the reference). `map-design.md` did not move.
 
 ### B19 · loot is priced against the campaign and never against the fight in front of it
 
@@ -1328,6 +1187,28 @@ floor. Say which cells are too thin to read.
 # Debt
 
 None of it changes the game. All of it makes the next change cheaper or stops a document lying.
+
+### X7 · chest value is right only because two errors cancel
+
+`bot agent` · READY · small · **found by B18 declining to fix it**
+
+`loot.js`'s `ITEM_MIX` calls `itemWeights({}, 'chest')` with an empty scarcity
+object, so the bot's chest model has no empty slot. `CHEST_LOOT_CHANCE` then
+stands in for the whole payout rate rather than for the positional gate whose
+shape it resembles, and the two mistakes cancel.
+
+**Not wrong today, and B18 was right not to touch it.** It is fragile: either
+half can be "fixed" in isolation and silently halve or double what the bot
+thinks a chest is worth, and the arrangement is held together by a comment.
+
+**Do.** Make the model say what it means - real scarcity in `ITEM_MIX` and
+`CHEST_LOOT_CHANCE` cut back to the gate it is named for - or, if that is more
+churn than it is worth, leave it and make the coupling impossible to break by
+accident with a test that fails if either half moves alone.
+
+**Assert.** The bot's chest value before and after is unchanged, or the change
+is stated with the number. A correctness-of-model item, not a tuning item.
+
 
 ### X1 · delete what nothing uses
 
