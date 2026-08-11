@@ -255,7 +255,7 @@ single value that moved it was the starting kit.
 |---|---|---|---|
 | C2 | The target curve, in numbers rather than adjectives | work | **NOT NOW** · owner: structure first |
 | C3 | Solve the dials for a pressure curve instead of sweeping | work | **NOT NOW** · after C2, later work |
-| M40 | `blocked` is computed and then ignored | work | READY · **engine bug**, two instances |
+| M40 | `blocked` is computed and then ignored | work | REPORTED |
 | M4 | Side-room risk/reward spread scales with depth | work | READY |
 | M21 | Deep floors put a creature where the hero lands | work | READY · read its own warning on `finishes` |
 | X6 | Collapse the tier clamps, redundancy proven first | work | after X5 · owns the tail-shape cause |
@@ -783,8 +783,8 @@ The open half of `map-design.md`'s four properties. Each of these owns a propert
 
 ### M40 · `blocked` is computed and then ignored
 
-`work agent` · READY · **engine bug, found by B16 and confirmed in review** ·
-`src/sim/step.js`
+`work agent` · **REPORTED** · engine bug, found by B16 and confirmed in review
+· `src/sim/step.js`
 
 `resolveEncounters` sets `blocked = true` when a live monster or a chest stops
 the hero entering the target tile. Two later branches in the same function
@@ -814,6 +814,61 @@ while fixing this.
 Attacking a creature standing on an item leaves the item on the floor. The
 chest still costs two turns. Then re-run B16's accidental-exit count — its
 three residuals per family should go to zero.
+
+#### Report
+
+**One guard, one idea.** The pickup loop and the shrine branch now sit inside
+`if (!blocked)`. No new variable and no second patch: `blocked` already meant
+"the hero does not enter this tile", and everything downstream of it is now
+conditioned on it.
+
+All four asserts hold, and the two bug tests were mutation-checked — removing
+the guard fails exactly those two and nothing else:
+
+- attacking a creature on the shrine leaves `outcome` null, logs no `ascend`,
+  and leaves the hero on its own tile;
+- attacking a creature standing on an item leaves the item on the floor and
+  the armour bar uncredited;
+- a **corpse** on an item still lets the hero walk in and take it — added
+  because a careless guard would have made every killed creature a permanent
+  lid on whatever it died standing on;
+- the chest still costs two turns, asserted directly rather than assumed.
+
+**The chest case is not the same mechanism, confirmed rather than trusted.**
+The two-turn cost comes from `itemsHere` being snapshotted before the chest
+spills, so the drop was never in that loop's list. The guard makes it
+stricter — a loose item already lying on a chest's tile is now left alone too
+— without replacing it. The test asserts the snapshot behaviour on its own so
+a later "tidy-up" of it cannot hide behind the guard.
+
+**B16's residual, counted paired on its own two families, n=120 runs each:**
+
+| | seed 3000000 | seed 4100000 |
+|---|---|---|
+| floors ending on a swing | 17 → **0** | 28 → **0** |
+| runs with any | 14/120 → **0** | 24/120 → **0** |
+| items taken through a live creature | 71 → **0** | 78 → **0** |
+
+**I did not reproduce B16's own statistic, and the difference is worth
+naming.** B16 counted *accidental* exits — bot-intent, its harness, its
+directory. I counted the engine defect firing at all: an `ascend` logged on
+the same turn the hero swung. That is a superset, which is why it reads 17
+and 28 rather than 3 — most firings did not change where the run went, and
+B16's three per family are inside these. Both go to zero by construction
+rather than by tuning: the branch cannot execute when the hero did not enter.
+
+**The second face was the larger one and nobody had counted it.** 71 and 78
+items per family were being collected through a live creature. As the item
+said, that is ordinary play, not a corner.
+
+**It moves play, and I did not chase that.** Floors ascended shifted (623 →
+615 and 603 → 615) because floors that used to end early now continue. Stated
+because the fix is not inert, not as a result — the owner's standing direction
+is structure first, and nothing was tuned.
+
+`--selftest` passes. Suite 153/153.
+
+Stale and fixed here: `rules.md` §6 and §8.
 
 ### C2 · the target curve, in numbers rather than adjectives
 

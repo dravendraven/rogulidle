@@ -112,33 +112,59 @@ function resolveEncounters(state, pos) {
     blocked = true;
   }
 
-  // Loose items do not block — the player walks on and takes them. Skipped
-  // entirely under `noPickup`: the item is left exactly where it lies, as if
-  // the player had not stepped there at all.
+  // M40 — docs/backlog.md. EVERYTHING BELOW ONLY HAPPENS IF THE HERO ENTERS
+  // THE TILE, and `blocked` is already the name for "it does not". The two
+  // branches inside used to run regardless, which is one defect with two
+  // faces rather than two bugs:
   //
-  // M35 — every item takes the same path, potions included. There used to be
-  // a branch here that drank a potion on contact and, at full hp, refused to
-  // pick it up at all. The second rule only existed to work around the first:
-  // consume-on-contact makes a potion found healthy a potion wasted. Drinking
-  // is its own action now (see `drinkPotion`), so there is nothing left for a
-  // special case to protect against. Diverges from the original, which
-  // consumed on pickup (engine.cljs:204) — rules.md §5 and §10 carry the
-  // rule, decisions.md the reasoning. NOT filed under rogule-spec.md §13:
-  // that list is frozen and takes no new entries.
-  for (const item of (state.noPickup ? [] : itemsHere)) {
-    state.player.inventory.push(item);
-    state.items.splice(state.items.indexOf(item), 1);
-    grantArmour(state.player, item);
-    state.log.push({ type: 'pickup', item: item.name, turn: state.turn });
-  }
+  //   - a creature standing ON the shrine: the hero attacks it, stays put,
+  //     and the floor ended anyway. B16 measured three of these per seed
+  //     family and could not fix them from the bot side, because a route
+  //     that never enters the tile still ended the floor. `rules.md` §3 puts
+  //     a guardian at the shrine BY DESIGN (M14), so this is reachable by
+  //     construction, not a corner.
+  //   - a creature standing on a loose item: the hero attacked, stayed put,
+  //     and collected the item anyway. Creatures walk over items and never
+  //     take them (`rules.md` §3), so a creature parked on loot is ordinary
+  //     play.
+  //
+  // A CHEST also sets `blocked`, and the two-turn cost of opening one does
+  // NOT depend on this guard: `itemsHere` is snapshotted above, before the
+  // chest spills, so the drop was never in this loop's list. The guard makes
+  // that stricter rather than replacing it — a loose item that was already
+  // lying on a chest's tile is now left alone too, which is the same rule
+  // ("the hero did not enter") applied consistently.
+  if (!blocked) {
+    // Loose items do not block — the player walks on and takes them. Skipped
+    // entirely under `noPickup`: the item is left exactly where it lies, as
+    // if the player had not stepped there at all.
+    //
+    // M35 — every item takes the same path, potions included. There used to
+    // be a branch here that drank a potion on contact and, at full hp,
+    // refused to pick it up at all. The second rule only existed to work
+    // around the first: consume-on-contact makes a potion found healthy a
+    // potion wasted. Drinking is its own action now (see `drinkPotion`), so
+    // there is nothing left for a special case to protect against. Diverges
+    // from the original, which consumed on pickup (engine.cljs:204) —
+    // rules.md §5 and §10 carry the rule, decisions.md the reasoning. NOT
+    // filed under rogule-spec.md §13: that list is frozen and takes no new
+    // entries.
+    for (const item of (state.noPickup ? [] : itemsHere)) {
+      state.player.inventory.push(item);
+      state.items.splice(state.items.indexOf(item), 1);
+      grantArmour(state.player, item);
+      state.log.push({ type: 'pickup', item: item.name, turn: state.turn });
+    }
 
-  // The shrine ends the run. The engine lets this happen at any time; the
-  // rule that everything must be dead first is the BOT's (CLAUDE.md), so
-  // that P4 can measure what relaxing it would cost.
-  if (shrineHere) {
-    state.outcome = 'ascended';
-    state.log.push({ type: 'ascend', turn: state.turn });
-    blocked = true;
+    // The shrine ends the run. The engine lets this happen at any time; the
+    // rule that everything must be dead first is the BOT's (CLAUDE.md), so
+    // that P4 can measure what relaxing it would cost. It blocks in turn:
+    // the floor is over, so the hero never takes the step.
+    if (shrineHere) {
+      state.outcome = 'ascended';
+      state.log.push({ type: 'ascend', turn: state.turn });
+      blocked = true;
+    }
   }
 
   return blocked;

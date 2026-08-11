@@ -728,6 +728,90 @@ test('reaching the shrine ends the run', () => {
   assertEq(step(state, 'left').state.outcome, 'ascended');
 });
 
+// ***** M40 — `blocked` governs everything downstream of it ***** //
+//
+// One defect with two faces: `resolveEncounters` computed "the hero does not
+// enter this tile" and then ran the pickup loop and the shrine branch anyway.
+
+test('attacking a creature standing on the shrine leaves the floor running', () => {
+  // Reachable BY DESIGN, not by accident: rules.md §3 puts a guardian at the
+  // shrine (M14). B16 measured three floors per seed family ending this way
+  // and could not fix it from the bot side — no route enters the tile, and
+  // the floor ended regardless.
+  const state = makeState({
+    map: ROOM_5x5, playerPos: [2, 2],
+    monsters: [dummy('rat', [1, 2])],
+    shrine: { id: 's', emoji: '⛩️', pos: [1, 2] },
+  });
+  const after = step(state, 'left').state;
+
+  assertEq(after.outcome, null, 'swinging at the shrine guardian ended the floor');
+  assertEq(posKey(after.player.pos), '2,2', 'the hero moved onto an occupied tile');
+  assert(!after.log.some((e) => e.type === 'ascend'), 'an ascend was logged without the hero arriving');
+  assert(after.log.some((e) => e.type === 'attack' && e.by === 'player'),
+    'fixture is wrong: the hero never swung, so nothing was being tested');
+});
+
+test('attacking a creature standing on an item leaves the item on the floor', () => {
+  // Creatures walk over items and never take them (rules.md §3), so a
+  // creature parked on loot is ordinary play rather than a corner. The hero
+  // was collecting it without ever entering the tile.
+  const state = makeState({
+    map: ROOM_5x5, playerPos: [2, 2],
+    monsters: [dummy('rat', [1, 2])],
+    items: [item('shield', [1, 2], { armour: 3 })],
+  });
+  const after = step(state, 'left').state;
+
+  assertEq(after.items.length, 1, 'the item was taken through a live creature');
+  assertEq(after.player.inventory.length, 0, 'the hero picked up loot it never reached');
+  assertEq(after.player.armour, 0, 'the armour bar was credited for an item still on the floor');
+  assertEq(posKey(after.player.pos), '2,2', 'the hero moved onto an occupied tile');
+});
+
+test('a corpse on an item still lets the hero walk in and take it', () => {
+  // The guard is about LIVE blockers. `blocked` is never set for a corpse,
+  // so this must keep working — otherwise the fix would have quietly made
+  // every killed creature a permanent lid on whatever it died standing on.
+  const dead = dummy('rat', [1, 2]);
+  dead.dead = true;
+  const state = makeState({
+    map: ROOM_5x5, playerPos: [2, 2],
+    monsters: [dead],
+    items: [item('shield', [1, 2], { armour: 3 })],
+  });
+  const after = step(state, 'left').state;
+
+  assertEq(after.items.length, 0, 'the item was left under a corpse');
+  assertEq(after.player.armour, 3, 'the armour bar was not credited');
+  assertEq(posKey(after.player.pos), '1,2', 'the hero did not walk onto the corpse');
+});
+
+test('opening a chest still costs two turns, and the guard did not change that', () => {
+  // The two-turn cost does NOT come from `blocked` — `itemsHere` is
+  // snapshotted before the chest spills, so the drop was never in the pickup
+  // loop's list. Asserted directly because M40's guard sits next to that
+  // mechanism and a fix that started leaning on the wrong one would look
+  // identical here until the snapshot was later "tidied away".
+  const state = makeState({
+    map: ROOM_5x5, playerPos: [2, 2],
+    chests: [{
+      id: 'c', name: 'chest', emoji: '📦', pos: [1, 2], side: false, edge: false,
+      drop: item('shield', [1, 2], { armour: 3 }),
+    }],
+  });
+
+  const opened = step(state, 'left').state;
+  assertEq(opened.chests.length, 0, 'the chest did not open');
+  assertEq(opened.items.length, 1, 'the drop was collected on the same turn as the opening');
+  assertEq(opened.player.inventory.length, 0, 'the hero took the drop without a second turn');
+  assertEq(posKey(opened.player.pos), '2,2', 'opening a chest moved the hero');
+
+  const taken = step(opened, 'left').state;
+  assertEq(taken.items.length, 0, 'the second turn did not collect the drop');
+  assertEq(taken.player.armour, 3, 'the armour bar was not credited on the second turn');
+});
+
 // ***** healing, spec §13.1 ***** //
 
 test('waiting never heals — there is no passive regeneration', () => {

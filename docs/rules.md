@@ -198,6 +198,18 @@ mesma forma do esbarrão: nada acontece, e as criaturas não agem.
 **Atacar, abrir baú, pisar no santuário e beber resolvem no lugar** em vez de
 mover.
 
+**O que impede a entrada impede tudo o que viria depois dela.** Criatura viva
+e baú fechado barram o tile alvo. Barrado o tile, nada mais que estivesse
+nele acontece naquele turno: o herói não pega item solto que esteja embaixo
+da criatura, e não encerra o andar por um santuário ocupado. Uma regra só, não
+uma lista de exceções — o herói não entrou, então nada do que está lá dentro
+o alcança.
+
+**O custo de dois turnos do baú não vem daí.** Ele vem de o conteúdo ser
+despejado depois de a foto do tile já ter sido tirada, então o drop nunca
+esteve na lista de coleta daquele turno. As duas regras concordam; não são a
+mesma.
+
 **Beber custa o turno, e esse custo é a decisão.** Como as criaturas agem
 depois do herói, o turno gasto bebendo é um turno em que quem persegue
 alcança — e §4 diz o que isso significa: o golpe é pago exatamente quando o
@@ -229,6 +241,11 @@ explícita por tipo de entidade, não cópia do objeto inteiro.
 
 **Pisar no santuário encerra o andar. O motor permite isso a qualquer
 momento** — nada obriga a limpar nada.
+
+**Mas é preciso alcançá-lo.** Santuário ocupado por criatura viva não encerra
+andar nenhum: o herói ataca, fica onde está, e o andar segue (§6). Como o
+santuário tem guardião por desenho (§3), isso não é canto raro — é o caso
+comum de todo andar até o guardião cair.
 
 **Nenhuma morte é exigida por regra de jogo, em nenhum momento.** O motor
 nunca obrigou a limpar nada — quem já obrigou foi o bot, e de propósito, para
