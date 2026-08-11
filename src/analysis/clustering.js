@@ -69,7 +69,7 @@
 // itself — only the measurement driver below imports `makeBot`, because the
 // whole question is about the REAL bot's behaviour, same as I4.
 
-import { newGame } from '../sim/game.js';
+import { driveTurns, newGame } from '../sim/game.js';
 import { floorPlan, LEVELS } from '../sim/dungeon.js';
 import { hashSeeds, makeRng } from '../sim/rng.js';
 import { posKey, playerPassable, walkablePositions } from '../sim/mapgen.js';
@@ -154,43 +154,32 @@ export function toGrouped(state, clusterSize, seed) {
   return { ...state, monsters, chests: state.chests.map((c) => ({ ...c })), items: state.items.slice() };
 }
 
-// ***** driving a pre-built state, since playGame only ever builds its own ***** //
+// ***** driving a pre-built state ***** //
 //
-// Reimplements playGame's loop (src/sim/game.js) against a state that
-// already exists instead of a seed, using nothing but already-exported pure
-// functions (step, observe, foldBelief). No engine file changes needed for
-// this — game.js keeps generating floors exactly as it always has.
+// E1 — this used to reimplement `playGame`'s loop here, because `playGame`
+// takes a seed and this needs a state that already exists. The loop now
+// lives in `src/sim/` as `driveTurns` and this is a per-turn READER on top
+// of it: the hook returns nothing, so the run is untouched.
 function manhattan(a, b) {
   return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
 }
 
 function playFromState(initialState, policy, maxTurns) {
-  let state = initialState;
-  let observation = observe(state);
-  let belief = foldBelief(emptyBelief(), observation);
-  let decisions = 0;
-  const maxDecisions = maxTurns * 4;
-
   const turns = []; // { dmg, adjacent } per turn actually played
 
-  while (!state.outcome && state.turn < maxTurns && decisions < maxDecisions) {
-    const beforeLog = state.log.length;
-    const action = policy(belief, observation);
-    const result = step(state, action);
-    state = result.state;
-    observation = result.observation;
-    belief = foldBelief(belief, observation);
-    decisions++;
+  const driven = driveTurns(initialState, policy, {
+    maxTurns,
+    onTurn: ({ state, before }) => {
+      const dmg = state.log.slice(before.log.length)
+        .filter((e) => e.type === 'attack' && e.target === 'player')
+        .reduce((sum, e) => sum + e.damage, 0);
+      const adjacent = state.monsters
+        .filter((m) => !m.dead && manhattan(m.pos, state.player.pos) === 1).length;
+      turns.push({ dmg, adjacent });
+    },
+  });
 
-    const dmg = state.log.slice(beforeLog)
-      .filter((e) => e.type === 'attack' && e.target === 'player')
-      .reduce((sum, e) => sum + e.damage, 0);
-    const adjacent = state.monsters
-      .filter((m) => !m.dead && manhattan(m.pos, state.player.pos) === 1).length;
-    turns.push({ dmg, adjacent });
-  }
-
-  return { state, turns };
+  return { state: driven.state, turns };
 }
 
 // ***** the experiment ***** //
@@ -750,46 +739,43 @@ export function descentCheck(options = {}) {
       potionsGenerated += state.chests.filter((c) => isPotion(c.drop)).length
         + state.monsters.filter((m) => isPotion(m.drop)).length
         + state.items.filter(isPotion).length;
-      let observation = observe(state);
-      let belief = foldBelief(emptyBelief(), observation);
       const bot = makeBot({ monsterCount: plan.monsters, level, levels });
-      let decisions = 0;
-      const maxDecisions = maxTurns * 4;
       const engaged = new Set();
 
-      while (!state.outcome && state.turn < maxTurns && decisions < maxDecisions) {
-        const action = bot(belief, observation);
+      // E1 — this used to be a fifth hand-written turn loop, not one of the
+      // four the item named. Everything it did BEFORE the step is derivable
+      // from `before` (the pre-step state) plus the action, so it folds into
+      // the one after-step hook without the driver needing a second one.
+      const driven = driveTurns(state, bot, {
+        maxTurns,
+        onTurn: ({ state: after, before, action }) => {
         if (lastAction && action === OPPOSITE4[lastAction]) totalReversals++;
         totalActions++;
         lastAction = action;
 
         const delta = DIRS4[action];
         if (delta) {
-          const targetPos = [state.player.pos[0] + delta[0], state.player.pos[1] + delta[1]];
-          const target = state.monsters.find((m) => !m.dead
+          const targetPos = [before.player.pos[0] + delta[0], before.player.pos[1] + delta[1]];
+          const target = before.monsters.find((m) => !m.dead
             && m.pos[0] === targetPos[0] && m.pos[1] === targetPos[1]);
           if (target && !engaged.has(target.id)) {
             engaged.add(target.id);
             fightsStarted++;
-            const duel = duelCost(state.player, target);
-            if (duel.hpLost > effectiveHp(state.player) * DUEL_SAFETY_MARGIN) lostFightsStarted++;
+            const duel = duelCost(before.player, target);
+            if (duel.hpLost > effectiveHp(before.player) * DUEL_SAFETY_MARGIN) lostFightsStarted++;
           }
         }
 
-        const beforeLog = state.log.length;
+        const beforeLog = before.log.length;
         // hp entering the step, and the ceiling it heals against. Both are
-        // read BEFORE `step` because a heal always resolves inside the
-        // player's own action, before any monster acts — so this is the hp
-        // the engine's own `Math.min(hpMax, hp + heal)` sees. See the heal
+        // read from the PRE-STEP state because a heal always resolves inside
+        // the player's own action, before any monster acts — so this is the
+        // hp the engine's own `Math.min(hpMax, hp + heal)` sees. See the heal
         // accounting below for why the logged amount cannot be trusted on
         // its own. hpMax cannot move mid-step here: `hpFromKills` is off.
-        const hpBefore = state.player.hp;
-        const hpCeiling = state.player.hpMax;
-        const result = step(state, action);
-        state = result.state;
-        observation = result.observation;
-        belief = foldBelief(belief, observation);
-        decisions++;
+        const hpBefore = before.player.hp;
+        const hpCeiling = before.player.hpMax;
+        const state = after;
 
         // Standing on a potion that is still on the map. Pre-M35 pickup
         // resolves on arrival, so this can only mean the full-hp refusal
@@ -847,7 +833,9 @@ export function descentCheck(options = {}) {
             lastEventTurn = at;
           }
         }
-      }
+        },
+      });
+      state = driven.state;
 
       totalFloorTurns += state.turn;
       floorAttempts++;

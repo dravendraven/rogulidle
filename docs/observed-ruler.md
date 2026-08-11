@@ -200,8 +200,11 @@ only, over a window that shrinks with depth. `capacityShape` and
 
 **Capacity** — `capacityShape`, an immortal Sonda B (`PROBE_HERO`, 400 hp,
 via a locally re-driven descent loop, `driveDescent` — `playDungeon` has no
-hook to seed a starting hero, and touching `src/sim/` for one is the work
-agent's call, not this file's; see the function's own comment). It still
+hook to seed a starting hero; see the function's own comment). That loop is
+per-FLOOR and still lives here, but the per-TURN loop it used to contain does
+not: E1 moved that into `src/sim/` as `driveTurns`, so the suppressed variant
+and the reward probe now call the engine's own loop instead of copying it.
+It still
 kills, collects, and earns every `HP_FROM_KILLS` grant — it just cannot
 die, so there is no survivor selection and no truncated window. 150 runs,
 seed base 950000: **150/150 reached every floor, all ten.**

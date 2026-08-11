@@ -1663,3 +1663,88 @@ import the loop, import `makeBot`, derive the rollout seed through
 
 Serves neither objective directly. It is debt, and it is the kind that has
 already cost something once.
+
+#### Report
+
+`driveTurns` is in `src/sim/game.js`, next to `playGame`, which is now built
+on it. One loop, one hook, no new parameter.
+
+**The count was wrong in both directions, and the correction matters more
+than the number.** Of the four this item named, **two were never turn loops**:
+`driveFloor` is a thin wrapper over `playGame` with no loop at all, and
+`driveDescent` loops over FLOORS calling `playGame` — a `playDungeon` variant,
+not a copy of the turn loop. Both were left alone, correctly. But **two real
+turn loops went unnamed**: `descentCheck`'s own loop in `clustering.js` (the
+instrument most of this month's measurements came from) and `driveReward`'s
+in `observed-ruler.js`. Counting `playGame` itself, there were **five**. There
+is now one:
+
+| loop | was | now |
+|---|---|---|
+| `playGame` | the original | built on `driveTurns` |
+| `playFromState` (clustering) | copy | reader hook |
+| `descentCheck` (clustering) | copy, **unnamed by the item** | reader hook |
+| `driveDescentSuppressed` (ruler) | copy | replacing hook |
+| `driveReward` (ruler) | copy, **unnamed by the item** | reader hook |
+| `driveFloor` (ruler) | never a loop — wraps `playGame` | untouched |
+| `driveDescent` (ruler) | per-FLOOR loop, not per-turn | untouched |
+
+`grep` over `src/` now finds exactly one `while (!state.outcome …)`, in
+`game.js`. Four more live in root diagnostic pages (`run-b9`, `run-b11`,
+`run-zigzag`, `run-axe2x`); three of those were already slated for deletion
+and none is in `src/`, so they are reported rather than converted.
+
+**One hook, and suppression is not a special case in it.** `onTurn({ state,
+before, action, observation })` returns nothing to observe, or a STATE to
+replace the one just produced — and only then is the observation re-derived.
+That is the whole contract. `driveDescentSuppressed` hands back `{ ...next,
+outcome: null, killedBy: null }` and the driver never learns that death
+suppression exists. Nothing about that caller appears in `src/sim/`.
+
+**Everything `descentCheck` did BEFORE its step is derivable from `before`
+plus the action** — the pre-step hp and ceiling, the log length to slice
+from, the target creature's liveness for the fight counter. So it folded into
+the same after-step hook and the driver needed no second one.
+
+**Byte-identical, verified rather than argued.** Two worktrees at the same
+commit — one pure, one carrying only this item's three files — so a
+concurrent session's `balance.js` commit and its in-flight `src/bot/bot.js`
+edits could not contaminate either arm:
+
+```
+descentCheck        IDENTICAL      clusterExperiment   IDENTICAL
+rewardShape         IDENTICAL      isolatedShape       IDENTICAL
+capacityDefault     IDENTICAL      capacitySuppressed  IDENTICAL
+mortalCoinShape     IDENTICAL      rngPlayGame         IDENTICAL
+```
+
+**RNG consumption read, not reasoned about.** The three stream values after a
+driven run are in that comparison — identical on all three seeds. And the two
+entry points agree with each other: `playGame(seed)` and
+`driveTurns(newGame(seed))` end on the same streams and the same turn count,
+which is the property that makes them one loop rather than two that resemble
+each other.
+
+**Six tests, mutation-checked.** Ignoring the hook's replacement fails the
+suppression test; passing the post-step state as `before` fails the ordering
+test; removing the `maxDecisions` guard hangs, which is its own proof. The
+first test is the load-bearing one: attaching a hook that returns nothing
+leaves the run identical, streams included — if that were false, every number
+these instruments produce would have moved the day this landed.
+
+Suite 162/162, `--selftest` passes.
+
+**A concurrent session swept those six tests into `ebce296` (B20) without the
+`driveTurns` they call, so HEAD's suite did not load at all** — a
+`SyntaxError` on the import, verified in a clean worktree at HEAD before this
+commit. This commit repairs it by bringing the export with them. Fourth time
+this session that another agent's `git add` has taken uncommitted work from
+this tree; it is now costing more than a stray commit message.
+
+**Made stale outside the three:** `docs/observed-ruler.md` said touching
+`src/sim/` for a hook was the work agent's call and not that file's. It is
+done; corrected there in this commit. `docs/lab-backlog.md` cites "four
+separate reimplementations" as live — now historical, and left for the
+project agent.
+
+None of `rules.md`, `bot-strategy.md`, `map-design.md` moved.

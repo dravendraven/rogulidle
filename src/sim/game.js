@@ -115,7 +115,14 @@ export function newGame(seed, counts = {}) {
   return state;
 }
 
-// Drives a run to its end.
+// E1 — docs/backlog.md. THE turn loop, and the only one. Takes a state that
+// already exists and hands control back every turn.
+//
+// It exists because `playGame` below could not serve the analysis modules:
+// it takes a SEED rather than a starting state, and it runs to completion
+// with no per-turn hook. So anyone needing either wrote the loop again, and a
+// copy of the loop has to stay in step with the engine or whatever it
+// measures stops describing the game — which has already happened once.
 //
 // `policy(belief, observation)` returns one of ACTIONS. It is handed the
 // BELIEF, never the state — the fog is the point (CLAUDE.md).
@@ -123,13 +130,60 @@ export function newGame(seed, counts = {}) {
 // maxTurns guards a run that will not finish; maxDecisions separately guards
 // a policy that only ever bumps into walls, since those do not pass a turn
 // and so would never move maxTurns at all.
-export function playGame(seed, policy, options = {}) {
+//
+// `onTurn({ state, before, action, observation })` runs after every step.
+// Return nothing to observe; return a STATE to replace the one just produced,
+// and the observation is re-derived from the replacement before the belief
+// folds it. That single return channel is what lets a caller edit the run in
+// flight — the observed ruler's death suppression sets `outcome` back to null
+// so a probe keeps walking — WITHOUT this loop knowing that any such caller
+// exists. `before` is the pre-step state, which is what a caller needs to
+// slice the turn's own log entries off the end.
+//
+// The observation is re-derived ONLY on replacement, never otherwise: an
+// untouched turn keeps `step`'s own observation object, so a caller that
+// hooks nothing is byte-identical to one that cannot hook at all.
+export function driveTurns(state, policy, options = {}) {
   const maxTurns = options.maxTurns ?? 5000;
   const maxDecisions = options.maxDecisions ?? maxTurns * 4;
+  const onTurn = options.onTurn;
 
-  let state = newGame(seed, options.counts);
   let observation = observe(state);
   let belief = foldBelief(emptyBelief(), observation);
+  let decisions = 0;
+
+  while (!state.outcome && state.turn < maxTurns && decisions < maxDecisions) {
+    const before = state;
+    const action = policy(belief, observation);
+    const result = step(state, action);
+
+    state = result.state;
+    observation = result.observation;
+
+    if (onTurn) {
+      const replacement = onTurn({
+        state, before, action, observation,
+      });
+      if (replacement && replacement !== state) {
+        state = replacement;
+        observation = observe(state);
+      }
+    }
+
+    belief = foldBelief(belief, observation);
+    decisions++;
+  }
+
+  return { state, belief, observation, decisions };
+}
+
+// Drives a run to its end, from a seed.
+//
+// Generation plus `driveTurns`, and nothing else — the loop it used to carry
+// itself is the one above (E1). What stays here is what only a whole run
+// has: the pre-touch snapshot and the replay.
+export function playGame(seed, policy, options = {}) {
+  const state = newGame(seed, options.counts);
 
   // What the floor held before anything was touched. Analysis needs it to
   // ask which chests were opened and which were walked past, and the only
@@ -144,31 +198,23 @@ export function playGame(seed, policy, options = {}) {
   };
 
   const actions = [];
-  let decisions = 0;
-
-  while (!state.outcome && state.turn < maxTurns && decisions < maxDecisions) {
-    const action = policy(belief, observation);
-    const result = step(state, action);
-
-    state = result.state;
-    observation = result.observation;
-    belief = foldBelief(belief, observation);
-
-    actions.push(action);
-    decisions++;
-  }
+  const driven = driveTurns(state, policy, {
+    maxTurns: options.maxTurns,
+    maxDecisions: options.maxDecisions,
+    onTurn: ({ action }) => { actions.push(action); },
+  });
 
   return {
-    state,
-    belief,
+    state: driven.state,
+    belief: driven.belief,
     start,
-    outcome: state.outcome,
-    turns: state.turn,
+    outcome: driven.state.outcome,
+    turns: driven.state.turn,
     // The engine is deterministic, so a seed plus the action list replays a
     // run exactly — as long as the floor is generated the same way, which
     // is why the counts travel with it. Leaving them out silently replayed
     // a DIFFERENT map whenever generation was not on its defaults.
-    replay: { seed: state.seed, actions, counts: options.counts },
+    replay: { seed: driven.state.seed, actions, counts: options.counts },
   };
 }
 

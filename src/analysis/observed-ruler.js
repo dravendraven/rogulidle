@@ -56,7 +56,7 @@
 // fraction of turns spent adjacent to two or more live monsters at once.
 // Do not reach for isolatedShape() to answer a clustering question.
 
-import { newGame, playGame } from '../sim/game.js';
+import { driveTurns, newGame, playGame } from '../sim/game.js';
 import { playDungeon, floorPlan, LEVELS } from '../sim/dungeon.js';
 import { hashSeeds } from '../sim/rng.js';
 import { findPath, playerPassable } from '../sim/mapgen.js';
@@ -766,33 +766,31 @@ function driveDescentSuppressed(seed, makePolicy, startHero, maxTurns, levels, d
     // became false the moment M38 shipped STARTING_ITEMS.
     const arrivedWith = carry ? carryFromPlayer(carry) : carryFromPlayer(state.player);
 
-    let observation = observe(state);
-    let belief = foldBelief(emptyBelief(), observation);
-    const policy = makePolicy();
-    let decisions = 0;
-    const maxDecisions = maxTurns * 4;
     let damage = 0;
     let diedCount = 0; // how many times this floor suppressed a death — reported, not hidden
 
-    while (!state.outcome && state.turn < maxTurns && decisions < maxDecisions) {
-      const beforeLog = state.log.length;
-      const action = policy(belief, observation);
-      const result = step(state, action);
-      let next = result.state;
+    // E1 — this was one of the hand-written turn loops, and the ONLY caller
+    // that needs to edit the run in flight rather than merely watch it. The
+    // shared driver (`src/sim/game.js`) takes that through the hook's return
+    // value: hand back a state and it replaces the one just produced, then
+    // re-derives the observation from it before the belief folds. No special
+    // case for this caller lives in the driver — suppression is just "a
+    // caller returned a different state", which any caller may do.
+    const driven = driveTurns(state, makePolicy(), {
+      maxTurns,
+      onTurn: ({ state: next, before }) => {
+        damage += next.log.slice(before.log.length)
+          .filter((e) => e.type === 'attack' && e.target === 'player')
+          .reduce((sum, e) => sum + e.damage, 0);
 
-      damage += next.log.slice(beforeLog)
-        .filter((e) => e.type === 'attack' && e.target === 'player')
-        .reduce((sum, e) => sum + e.damage, 0);
-
-      if (next.outcome === 'died') {
-        diedCount++;
-        next = { ...next, outcome: null, killedBy: null };
-      }
-      state = next;
-      observation = observe(state); // re-derive from the corrected state, not result.observation
-      belief = foldBelief(belief, observation);
-      decisions++;
-    }
+        if (next.outcome === 'died') {
+          diedCount++;
+          return { ...next, outcome: null, killedBy: null };
+        }
+        return undefined;
+      },
+    });
+    state = driven.state;
 
     perFloor.push({
       level, arrivedWith, damage, diedCount, outcome: state.outcome || 'timeout',
@@ -951,23 +949,26 @@ function driveReward(seed, plan, maxTurns, gameOptions = {}) {
   let state = newGame(seed, {
     ...plan, ...gameOptions, carry: hero, noPickup: true,
   });
-  let observation = observe(state);
-  let belief = foldBelief(emptyBelief(), observation);
-  const policy = makeSondaPolicy();
-  let decisions = 0;
-  const maxDecisions = maxTurns * 4;
-
-  while (!state.outcome && state.turn < maxTurns && decisions < maxDecisions) {
-    while (potionQueue.length && state.player.hp < state.player.hpMax) {
-      state.player.hp = Math.min(state.player.hpMax, state.player.hp + potionQueue.shift());
+  // E1 — a sixth hand-written turn loop, not one of the four the item named.
+  // The queue is drunk BEFORE every policy call, so it runs once here and
+  // then once per turn in the hook — the same sequence, not an approximation
+  // of it. Mutates the state IN PLACE and returns nothing, so the driver does
+  // not re-derive the observation: the policy sees the pre-drink hp on its
+  // next call, exactly as it did when this loop was written by hand. Handing
+  // back a NEW state here would re-derive and quietly change what the probe
+  // knows, which is the one way this conversion could have moved a number.
+  const drink = (s) => {
+    while (potionQueue.length && s.player.hp < s.player.hpMax) {
+      s.player.hp = Math.min(s.player.hpMax, s.player.hp + potionQueue.shift());
     }
-    const action = policy(belief, observation);
-    const result = step(state, action);
-    state = result.state;
-    observation = result.observation;
-    belief = foldBelief(belief, observation);
-    decisions++;
-  }
+  };
+
+  drink(state);
+  const driven = driveTurns(state, makeSondaPolicy(), {
+    maxTurns,
+    onTurn: ({ state: next }) => { drink(next); },
+  });
+  state = driven.state;
 
   const clearedAll = state.monsters.length > 0 && state.monsters.every((m) => m.dead);
   const damage = state.log
