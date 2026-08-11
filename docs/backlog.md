@@ -69,7 +69,7 @@ cost are in `decisions.md`.
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | B19 | Loot is priced against the campaign, never against the fight in front of it | bot | READY · B18 landed |
+| 1 | B19 | Loot is priced against the campaign, never against the fight in front of it | bot | **REPORTED** · no change: the term is 0 for armour |
 | 3 | B17 | Discount a tile holding free loot | bot | measured inert · **owes one change: ship it OFF** |
 | 3 | B15 | A drink policy that reads the danger field | bot | READY |
 
@@ -340,8 +340,8 @@ M35 and B14 shipped. What is left is the policy that reads danger, and the measu
 
 ### B19 · loot is priced against the campaign and never against the fight in front of it
 
-`bot agent` · **after B18** · owner decision, 2026-08-10 — "the bot has to
-leave the floor alive, or with as much hp as possible"
+`bot agent` · **REPORTED** · no pricing change — the proposed term is
+identically zero for armour, and the gate case already works
 
 Measured values for a fresh hero, in hp:
 
@@ -406,6 +406,110 @@ Then the share of floors whose first goal is a creature (86.8% today), items
 collected per floor, and the depth histogram on the baseline seed family. **And
 say whether the bot now detours for loot it should ignore** — the failure
 direction is a bot that shops before every fight.
+
+### Result — NO PRICING CHANGE SHIPPED, and the measurement is why
+
+**The specified term is identically zero for armour, and the behaviour it was
+meant to produce already happens.** Two tests shipped to lock both findings;
+no term added.
+
+#### 1. `duelCost(player, m) − duelCost(player + item, m)` is 0 for armour
+
+Not approximately — exactly, at every tier, by construction. `hpLost` is
+built from the hero's damage OUTPUT and the creature's bite:
+
+    turns  = monster.hp / expectedDamage(player.xp, weaponDamage(player))
+    hpLost = (1 − skip) × max(0, turns − 1) × theirs
+
+**Armour appears nowhere in it.** It raises `effectiveHp`, which enters
+`survivable` and `worthStarting` — the gate — but never `hpLost`. So the
+proposed expression cannot move for a shield, and the gate case the item
+calls "the one that matters" is exactly the case it cannot express.
+
+Measured, what the term would actually add at hp 8:
+
+    item      rat    bat  ghost   boar   wolf   ogre
+    health   0.00   0.00   0.00   0.00   0.00   0.00
+    shield   0.00   0.00   0.00   0.00   0.00   0.00
+    dagger   0.30   0.45   0.90   1.20   2.25   3.15
+    axe      0.45   0.68   1.35   1.80   3.38   4.72
+
+**Shipping it would have widened the gap the item opens with**, not closed
+it: weapons gain up to 4.72 and armour gains nothing, against an opening
+complaint that weapons read 165 while a shield reads 3. The item forbids
+adding a coefficient to rebalance that, and rightly — so the honest move is
+to report the term as inapplicable rather than ship it and compensate.
+
+**This is why no double counting had to be avoided:** the term was never
+added, so `campaignCost`'s inclusion of the immediate creature is untouched.
+Had it shipped, the plan was to drop the immediate creature from the
+campaign roster and let the duel term cover that one fight — the first of
+the item's two defensible options.
+
+#### 2. The gate case already works, and it works for a different reason
+
+The Assert's own construction, run against the shipped tree: hero at 6 hp, a
+wolf whose expected loss (5.63) is above the gate (4.20) and below it once
+three points of armour lift it (6.30), and a shield five tiles the other
+way.
+
+**The bot walks to the shield first, collects it, then turns on the wolf.**
+It is not new behaviour and it is not the pricing — it is
+`refuseLostFights` → `preparationGoals`, which exists precisely to fetch
+"gear worth having at ANY distance" when the cheapest fight is refused.
+
+Checked the same fixture at 10 hp, where the gate is open and the fight is
+accepted: **the bot still takes the shield first**, because branch 1 already
+compares a shield's positive net against a fight's negative one. So
+"shield then wolf" is what the bot already does on both sides of the gate.
+
+Where the gate genuinely flips is common enough to matter — sweeping the
+whole creature table against hero hp 1–10 finds 11 combinations where three
+points of armour move a refused fight to an accepted one — and in all 11 the
+proposed term reads 0.00.
+
+#### 3. The Assert's batch numbers
+
+Unchanged, and not re-run, because **no behaviour changed**: the only code
+shipped is tests. The current tree's figures are B18's post-fix
+measurement — first goal a creature 83.3% (seed 3000000) and 86.8% (seed
+4100000), which is the 86.8% this item quotes. Re-running a paired
+comparison against an identical binary would have produced a table of zeros
+and cost a quarter of an hour.
+
+**Does the bot now detour for loot it should ignore?** No — nothing changed,
+so the failure direction the item names cannot have opened. Worth recording
+that the 10-hp probe above shows the bot *already* fetches a nearby shield
+before an accepted fight. That is not the "shops before every fight" failure
+— the shield is four tiles away and pays for itself — but it is the same
+mechanism, and it is where that failure would first appear if anything later
+raises armour's value.
+
+#### What the item got right, and what is left
+
+The diagnosis is right: `campaignCost` ignores order, and "shield then wolf"
+and "wolf then shield" are the same number in the model. The correction is
+that **the bot's sequencing does not come from that number** — it comes from
+`preparationGoals` and from branch 1's net comparison, both of which already
+put the shield first.
+
+**What remains genuinely unpriced** is narrower than the item states: not
+the ordering, but the case where no fight is refused *yet* and arming first
+would still have been better. Nothing measured here shows that costing
+anything, and finding it would need the conditional-survival table I9 is
+blocked on rather than another term in `valueByItemName`.
+
+**Weapons still dominate armour by two orders of magnitude.** Reported as
+the item instructs, not compensated.
+
+**Files touched:** `test/tests.js` only — two tests: the duel-delta is zero
+for armour and non-zero for a weapon, and the gate case fetches the shield
+first. `src/` untouched. 156 green.
+
+**Made stale: none of the three.** No behaviour changed, so nothing any of
+them describes moved. `bot-strategy.md` §4's pricing table is still accurate,
+including its note that armour is priced at face value — which this item
+examined and left standing.
 
 ### B17 · loot on the way is free, and the router does not know it
 

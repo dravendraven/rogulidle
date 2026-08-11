@@ -4,7 +4,8 @@
 import {
   CHEST_GUARD_RADIUS, EARLY_CHEST_QUALITY_BOOST, HP_GRANT_AMOUNT, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_TAIL,
-  PLAYER_HP, SHRINE_DISTANCE_SHARE, STARTING_ITEMS, WEAPON_AXE_MIN_TIER,
+  DUEL_SAFETY_MARGIN, PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE, STARTING_ITEMS,
+  WEAPON_AXE_MIN_TIER,
 } from '../src/sim/balance.js';
 import { newGame, playGame, replayGame } from '../src/sim/game.js';
 import { step, ACTIONS, grantArmour } from '../src/sim/step.js';
@@ -2885,6 +2886,68 @@ test('the item discount never buys a detour', () => {
   const steppedDown = actions.includes('down');
   assert(!steppedDown || wentForItem,
     `the router detoured toward an item without choosing it as a goal: ${actions.join(',')}`);
+});
+
+// ***** B19: the gate case, and why the proposed term cannot express it *****
+//
+// docs/backlog.md B19. A shield can move a fight from the wrong side of
+// `worthStarting` to the right side, and when it does its worth is not three
+// hp. The item proposed pricing that as
+// `duelCost(player, m) - duelCost(player + item, m)`.
+//
+// That expression is identically ZERO for armour, by construction: `hpLost`
+// is built from the hero's DAMAGE OUTPUT and the creature's bite, and armour
+// touches neither — it only raises `effectiveHp`, which enters `survivable`
+// and `worthStarting` but never `hpLost`. Locked here so the formula is not
+// proposed again from the same reasoning.
+test('the duel-cost delta is zero for armour, whatever the fight', () => {
+  const hero = { hp: 8, hpMax: 10, armour: 0, xp: PLAYER_XP, inventory: [], kills: [] };
+  const shield = ITEM_TABLE.find((t) => t.name === 'shield');
+  const armoured = { ...hero, armour: hero.armour + shield.armour, inventory: [shield] };
+
+  for (const m of MONSTER_TABLE) {
+    assertEq(duelCost(hero, m).hpLost, duelCost(armoured, m).hpLost,
+      `a shield changed hpLost against ${m.name}, which would make the proposed term non-zero`);
+  }
+  // And it is NOT zero for a weapon — so shipping the term as specified
+  // would have widened the very gap the item opens with.
+  const dagger = ITEM_TABLE.find((t) => t.name === 'dagger');
+  const wolf = MONSTER_TABLE.find((m) => m.name === 'wolf');
+  assert(duelCost(hero, wolf).hpLost
+    > duelCost({ ...hero, inventory: [dagger] }, wolf).hpLost,
+  'a weapon did not lower hpLost, so the asymmetry this test documents is gone');
+});
+
+test('a shield that opens a shut gate is taken before the fight', () => {
+  // The Assert's own case. At 6 hp the wolf's expected loss is above
+  // `effectiveHp * DUEL_SAFETY_MARGIN`, so the fight is refused; three points
+  // of armour lift the gate above it. The bot must fetch the shield first.
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const wolf = MONSTER_TABLE.find((m) => m.name === 'wolf');
+  const state = makeState({
+    map,
+    playerPos: [10, 1],
+    hp: 6,
+    items: [item('shield', [5, 1], { armour: 3 })],
+    monsters: [dummy('wolf', [15, 1])],
+  });
+
+  // The gate really is shut before, and really is open after — otherwise the
+  // fixture proves nothing about sequencing.
+  const bare = { hp: 6, hpMax: 10, armour: 0, xp: PLAYER_XP, inventory: [], kills: [] };
+  const armoured = { ...bare, armour: 3 };
+  const loss = duelCost(bare, wolf).hpLost;
+  assert(loss > effectiveHp(bare) * DUEL_SAFETY_MARGIN, 'fixture: the fight was already accepted');
+  assert(loss <= effectiveHp(armoured) * DUEL_SAFETY_MARGIN, 'fixture: the shield does not open the gate');
+
+  const trace = [];
+  const { state: after } = driveBot(state, 6, { monsterCount: 1, trace });
+  assertEq(trace[0].goal.kind, 'item', 'the bot went at a fight it had refused instead of arming first');
+  assert(after.player.armour > 0, 'the bot never actually collected the shield');
 });
 
 // ***** run it ***** //
