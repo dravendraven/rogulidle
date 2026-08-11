@@ -56,7 +56,7 @@ cost are in `decisions.md`.
 | theme | items |
 |---|---|
 | The return — floors 11 to 20 | R1 · R5 · R2 · R3 · R4 |
-| 1 | B21 | The plan's low-water mark, as a veto | bot | READY · flag, default OFF |
+| 1 | B21 | The plan's low-water mark, as a veto | bot | **REPORTED** · shipped OFF, cuts 15% and moves nothing |
 | 2 | B22 | Rank plans by dominance on (low-water mark, exit state) | bot | after B21 · same flag |
 | The bot's pricing | B21 · B22 · B15 |
 | What the map still has to do | C2 · C3 · M4 · M21 · X6 · M32 |
@@ -697,8 +697,8 @@ in `decisions.md` — the 0.5% ceiling is the transferable part, not the dial.
 
 ### B21 · the plan's low-water mark, as a veto
 
-`bot agent` · READY · **owner direction, 2026-08-11** · first of two slices ·
-**behind a flag, default OFF**
+`bot agent` · **REPORTED** · shipped OFF — binding on 15% of candidates,
+inert on every outcome
 
 **Why the objective is floor-local, and it is not an approximation.**
 `rules.md` §1: every floor is generated from the seed and is independent of the
@@ -748,6 +748,106 @@ Every structural bot change since B11 shipped that way.
 - **Whether the bot now refuses fights it used to win.** That is the failure
   direction: a veto that is too eager turns into paralysis, and `lostFightRate`
   falling while `finishes` also falls is exactly what that looks like.
+
+### Result — built, fixture passes, SHIPPED OFF as inert
+
+**The mechanism works and the fixture proves it. In real play it is binding
+constantly and decisive almost never.**
+
+#### What shipped
+
+`planLowWater` walks a candidate's plan in order — walk in, resolve, walk
+out — and returns the minimum of `(hp + armour)` along it.
+`chooseGoal` discards candidates whose `m` falls below
+`effectiveHp × (1 − safetyMargin)`, the same 30% headroom the duel gate
+leaves when it permits a fight costing 70%. **No second margin dial**, and
+the `net` ranking among survivors is untouched.
+
+**Order matters, which is the whole reason this is not a sum.** Cumulative
+spend is monotone, so a total's minimum is trivially its end. A pickup ADDS
+to the budget partway through, so a loot plan's low point can sit *before*
+the collection. Computing `m` step by step is what lets a shield appear at
+all — the thing `duelCost` could not express.
+
+**The exit field is rooted at the shrine and deliberately not sunk** — the
+same exemption `B16` made for the tactical `costToGoal`, for the same
+reason: it measures distance TO the exit, and a path that ends there never
+crosses it. When the exit has not been found there is no third leg and
+nothing is charged for it, rather than inventing a number.
+
+**Leaving is exempt from the veto.** If even walking out dips below the
+floor, refusing it does not help, and deleting the exit would drop the bot
+through to the unconditional fight below — the opposite of what a survival
+veto is for. Locked in a test.
+
+#### The fixture, and what building it taught
+
+The Assert's case passes: hero at 6 hp, a rat costing 0.53 hp to kill, and
+a t-rex standing on the only way out. Flag off → the bot takes the rat
+(positive net, nothing prices the exit). Flag on → the plan is refused and
+the bot leaves.
+
+**It took three attempts, and the failures are the finding.** Distance
+alone can never trigger this: a step is 0.01 hp, so a 25-tile walk out
+costs a quarter of one point against a fight costing three. Nor does a
+distant threat — menace decays by `DANGER_FALLOFF` per tile, so a t-rex
+thirteen tiles away contributes about 0.0005. **The veto can only bind when
+something dangerous stands close to the exit route**, which is a narrow
+geometry, and that is most of the explanation for what follows.
+
+#### Measured, paired, one tree, 200 runs
+
+    metric            off        on       diff       z    runs changed
+    finishes        0.095     0.100    +0.0050    0.30       11
+    depth           6.150     6.240    +0.0900    0.58       87
+    fights started 28.225    28.095    -0.1300   -0.17      128
+    lost fights     0.345     0.400    +0.0550    1.15       64
+    kills          27.245    26.995    -0.2500   -0.32      122
+    actions       629.395   612.665   -16.7300   -0.61      168
+
+    lostFightRate   0.0122 -> 0.0142
+
+**Nothing clears 2σ.** Trajectories change in most runs — 87 to 168 of 200
+differ on any given metric — and the outcomes wash out.
+
+#### Binding often, decisive almost never
+
+Instrumented directly rather than inferred: **the veto discards 15.0% of
+every candidate it sees — 16,198 of 107,737** — and cuts at least one
+candidate on thousands of turns. The exit was known every time; the
+"no third leg" path never fired.
+
+So it is not idle. What it cuts is the tail: **the top-ranked candidate
+usually survives the filter**, so removing the ones below it changes what
+the bot considered without changing what it chose. That is the shape of an
+inert filter, and it is different from `B20`'s inertness (a duplicate
+candidate that mostly re-selected the same goal) and from `B17`'s (a
+population too small to act on).
+
+#### The failure direction did not appear
+
+`lostFightRate` **rose** slightly, 0.0122 → 0.0142, while finishes also
+rose slightly. The item named the paralysis signature as lost-fight rate
+falling *together with* finishes; neither half is present. The bot did not
+become timid — it is starting fights at the same rate (z=-0.17) and
+reaching the same depth.
+
+#### Shipped OFF
+
+Per the convention every structural bot change since `B11` has followed,
+and per `B17`'s review: a measured mechanism that does not move outcomes is
+left in the code with the number that killed it, not switched on because it
+is harmless. The code and the fixture stay for slice two — `B22` ranks on
+`(m, exit state)`, and `m` is exactly what this slice built and validated.
+
+**Files touched:** `src/bot/bot.js` (`planLowWater`, the filter, the exit
+field, the flag), `test/tests.js` (two fixtures: the refused plan, and the
+exit's exemption). No new dial. `src/sim/` untouched. 164 green.
+
+**Made stale: none of the three.** The flag ships off, so no shipped
+behaviour changed; `bot-strategy.md` §3.3 still describes `worthStarting` as
+the hard gate applied before a creature enters any comparison, which is
+still exactly what runs.
 
 ### B22 · rank plans by dominance on (low-water mark, exit state)
 

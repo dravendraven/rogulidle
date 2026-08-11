@@ -553,7 +553,63 @@ function sequenceGoals(belief, loot, priced, field, fieldFrom, options) {
   return out;
 }
 
-function chooseGoal(belief, field, danger, current, options, fieldFrom) {
+// B21 (docs/backlog.md). The low-water mark of a plan, and a veto on it.
+//
+// Death happens when the budget touches zero, not when total spend is high.
+// So what decides survival is `m = min over the plan of (hp + armour)` — how
+// close the trajectory comes to the floor — and not the sum. This is why
+// `duelCost` could not express a shield (`B19`, 0.00 at every tier): it
+// measures expected SPEND, and a shield does not change the spend, it
+// changes what the spend is paid from.
+//
+// The plan is walk in, resolve, walk out — which is where the hero actually
+// dips, and which nothing checked before. `worthStarting` already vetoes one
+// duel against `effectiveHp × margin`; this is the same gate over the whole
+// trajectory rather than its middle third.
+//
+// **The order matters, which is the entire point.** Cumulative spend alone
+// is monotone, so its minimum would trivially be the end. A pickup ADDS to
+// the budget partway through, so a loot plan's low point can be just before
+// the collection rather than after the walk out. Computing `m` step by step
+// rather than as a total is what lets a shield show up at all.
+//
+// No second margin dial: `safetyMargin` is the existing headroom rule, and
+// the floor is `effectiveHp × (1 − safetyMargin)` — the same 30% the duel
+// gate leaves when it allows a fight costing 70%.
+function planLowWater(goal, belief, field, exitField, options) {
+  const start = effectiveHp(belief.player);
+  const approach = priceOfReaching(field, goal.pos);
+  if (!Number.isFinite(approach)) return null;
+
+  // After the walk in, before anything is resolved.
+  let budget = start - approach;
+  let low = budget;
+
+  if (goal.kind === 'monster') {
+    const monster = belief.monsters.get(goal.id);
+    if (monster && !monster.dead) budget -= duelCost(belief.player, monster).hpLost;
+    low = Math.min(low, budget);
+  } else if (goal.kind === 'item' || goal.kind === 'chest') {
+    // The gain lands here, so the low point may already be behind us.
+    const gained = goal.kind === 'item'
+      ? (belief.items.get(goal.id)?.armour || 0)
+      : 0;                       // a chest's contents are unknown until opened
+    budget += gained;
+  }
+
+  // Walk out. Unknown exit means the plan genuinely has no third leg yet —
+  // charge nothing rather than invent a number.
+  if (exitField) {
+    const out = priceOfReaching(exitField, goal.pos);
+    if (Number.isFinite(out)) {
+      budget -= out;
+      low = Math.min(low, budget);
+    }
+  }
+  return low;
+}
+
+function chooseGoal(belief, field, danger, current, options, fieldFrom, exitField) {
   // Priced once per turn and threaded through every branch that needs it —
   // loot goals, the dark's value (B4) and now a creature's own drop (B9)
   // all quote the same figures, so "go and open that" and "go and kill
@@ -655,11 +711,31 @@ function chooseGoal(belief, field, danger, current, options, fieldFrom) {
 
     const worthwhile = [...loot, ...explore, ...combat].filter((g) => g.net > 0);
     worthwhile.push(...sequence);
-    if (options.leaveCompetes && canReachShrine(belief, field)) {
-      worthwhile.push({ kind: 'shrine', pos: belief.shrine.pos, net: 0 });
+
+    // B21: a filter, not a ranking. Anything whose plan dips below the
+    // headroom `safetyMargin` already leaves a duel is discarded here; the
+    // `net` order among the survivors is untouched.
+    //
+    // Applied BEFORE the shrine is pushed, so leaving is never vetoed. If
+    // even walking out dips below the floor, refusing it does not help —
+    // the hero is in trouble either way, and deleting the exit would leave
+    // the bot falling through to the unconditional fight below, which is
+    // the opposite of what a survival veto is for.
+    let pool = worthwhile;
+    if (options.lowWaterVeto) {
+      const floorAt = effectiveHp(belief.player) * (1 - options.safetyMargin);
+      pool = worthwhile.filter((g) => {
+        const m = planLowWater(g, belief, field, exitField, options);
+        return m === null || m >= floorAt;
+      });
     }
-    if (worthwhile.length) {
-      const best = worthwhile.reduce((a, b) => (b.net > a.net ? b : a));
+
+    if (options.leaveCompetes && canReachShrine(belief, field)) {
+      pool.push({ kind: 'shrine', pos: belief.shrine.pos, net: 0 });
+    }
+    const worthwhileAfterVeto = pool;
+    if (worthwhileAfterVeto.length) {
+      const best = worthwhileAfterVeto.reduce((a, b) => (b.net > a.net ? b : a));
 
       // Same hysteresis the monster branch below has had all along, and for
       // the same reason — loot never got it, which balance.js's own
@@ -676,7 +752,7 @@ function chooseGoal(belief, field, danger, current, options, fieldFrom) {
       // B11: one shared check keyed by `current.kind`, `monster` included —
       // a fight chosen here is exactly as sticky as a chest chosen here.
       if (current && ['item', 'chest', 'monster'].includes(current.kind)) {
-        const held = worthwhile.find((g) => g.kind === current.kind && g.id === current.id);
+        const held = worthwhileAfterVeto.find((g) => g.kind === current.kind && g.id === current.id);
         if (held && held.net * options.stickiness >= best.net) return held;
       }
       return best;
@@ -829,6 +905,22 @@ export function makeBot(options = {}) {
     // wall-bump count before this ships either way.
     frontierRouting: false,
     frontierRevealWeight: FRONTIER_REVEAL_WEIGHT,
+
+    // B21 (docs/backlog.md). Discards candidates whose whole plan — walk in,
+    // resolve, walk out — dips below the headroom the duel gate already
+    // leaves. A filter on survival, never a re-ranking.
+    //
+    // OFF: measured, and inert on outcomes despite being very active.
+    // 200 paired runs moved nothing past 1.2σ — finishes z=0.30, depth
+    // z=0.58, fights started z=-0.17. It cuts 15% of all candidates it
+    // sees (16,198 of 107,737) and touches thousands of turns, so it is
+    // binding often and decisive almost never: the top-ranked candidate
+    // usually survives it, and cutting the tail changes no outcome.
+    //
+    // The failure direction did NOT appear. `lostFightRate` rose slightly
+    // (0.0122 -> 0.0142) instead of falling, and finishes rose with it, so
+    // there is no sign of the paralysis the item warned about.
+    lowWaterVeto: false,
 
     // B20 (docs/backlog.md). Lets "collect that, then fight this" enter the
     // comparison as one candidate, scored against the fight alone. See
@@ -1023,6 +1115,17 @@ export function makeBot(options = {}) {
     const fieldFrom = (origin) => dijkstra(origin, passable, priceTile, shrineSink(belief));
     const field = fieldFrom(belief.player.pos);
 
+    // B21: what walking OUT costs from anywhere, for the plan's third leg.
+    // Rooted at the shrine and deliberately NOT sunk — same exemption B16
+    // made for the tactical `costToGoal`, and for the same reason: this
+    // measures distance TO the exit, and a path that ENDS there never
+    // crosses it. Sinking would expand nothing and read every tile as
+    // unreachable. Skipped entirely when the exit has not been found, in
+    // which case the plan genuinely has no third leg yet.
+    const exitField = (settings.lowWaterVeto && belief.shrine)
+      ? dijkstra(belief.shrine.pos, passable, priceTile)
+      : null;
+
     // B4: what the dark is worth this turn. Both figures move as the floor
     // is played — a chest found is a chest the dark no longer holds, and
     // gear picked up changes what the next chest is worth — so they are
@@ -1047,7 +1150,7 @@ export function makeBot(options = {}) {
       settings.requireClear) ? goal : null;
     goal = (held && held.kind === 'frontier')
       ? held
-      : chooseGoal(belief, field, danger, held, settings, fieldFrom);
+      : chooseGoal(belief, field, danger, held, settings, fieldFrom, exitField);
     if (!goal) return 'rest';
 
     // B10: a frontier goal routes on its own field, weighted toward

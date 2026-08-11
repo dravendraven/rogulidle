@@ -3101,6 +3101,84 @@ test('a sequence is never scored when there is no fight to sequence with', () =>
     'a sequence candidate appeared with no creature to sequence against');
 });
 
+// ***** B21: the plan's low-water mark, as a veto ***** //
+//
+// docs/backlog.md B21. Death happens when the budget touches zero, so what
+// decides survival is the minimum of (hp + armour) along a plan, not the
+// total spend. `worthStarting` already gates one duel; this gates the whole
+// trajectory — walk in, resolve, walk out.
+//
+// The fixture the item asked for: a fight the hero survives, on a floor
+// whose only exit is guarded. The rat costs 0.53 hp and is comfortably
+// winnable; the walk out past the t-rex is what kills. With the flag off
+// the bot takes the rat, because its net is positive and nothing prices the
+// exit. With it on, the plan is refused and the bot leaves instead.
+//
+// Distance alone can never trigger this — a step is 0.01 hp, so a 25-tile
+// walk out costs a quarter of one point. It takes DANGER on the exit route,
+// which is why the fixture needs a creature standing on it rather than
+// simply a distant shrine.
+test('a plan that survives its fight but dies on the way out is refused', () => {
+  const map = tinyMap([
+    '##################',
+    '#----------------#',
+    '##################',
+  ]);
+  const rex = MONSTER_TABLE.find((m) => m.name === 't-rex');
+  const build = () => makeState({
+    map,
+    playerPos: [8, 1],
+    hp: 6,
+    monsters: [
+      dummy('rat', [5, 1]),
+      // Awake and parked on the only way out. `activation` has to be wide
+      // enough that standing anywhere on the route counts as inside its
+      // chase radius, or `dangerField` prices it at nothing.
+      { id: 'm-rex', name: 't-rex', emoji: '🦖', pos: [11, 1], hp: rex.hp, hpMax: rex.hp,
+        xp: rex.xp, activation: 30, dead: false, side: false },
+    ],
+    shrine: { id: 's', emoji: '⛩️', pos: [13, 1] },
+  });
+
+  const off = [];
+  driveBot(build(), 1, { monsterCount: 2, trace: off, lowWaterVeto: false });
+  const on = [];
+  driveBot(build(), 1, { monsterCount: 2, trace: on, lowWaterVeto: true });
+
+  assertEq(off[0].goal.kind, 'monster',
+    'fixture: without the veto the bot should still have taken the fight');
+  assertEq(on[0].goal.kind, 'shrine',
+    'the veto did not refuse a plan whose walk out kills the hero');
+});
+
+test('the veto never discards the exit itself', () => {
+  // Leaving is exempt by design: if even walking out dips below the floor,
+  // refusing it does not help, and deleting it would drop the bot through
+  // to the unconditional fight below — the opposite of a survival veto.
+  const map = tinyMap([
+    '##################',
+    '#----------------#',
+    '##################',
+  ]);
+  const rex = MONSTER_TABLE.find((m) => m.name === 't-rex');
+  const state = makeState({
+    map,
+    playerPos: [8, 1],
+    hp: 2,
+    monsters: [
+      { id: 'm-rex', name: 't-rex', emoji: '🦖', pos: [11, 1], hp: rex.hp, hpMax: rex.hp,
+        xp: rex.xp, activation: 30, dead: false, side: false },
+    ],
+    shrine: { id: 's', emoji: '⛩️', pos: [13, 1] },
+  });
+
+  const trace = [];
+  driveBot(state, 1, { monsterCount: 1, trace, lowWaterVeto: true });
+  assert(trace.length > 0 && trace[0].goal, 'the bot produced no goal at all');
+  assertEq(trace[0].goal.kind, 'shrine',
+    'the exit was vetoed away, leaving the bot nothing safe to choose');
+});
+
 // ***** run it ***** //
 
 export function runAll() {
