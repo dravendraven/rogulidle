@@ -65,6 +65,74 @@ cost are in `decisions.md`.
 
 ### The return — floors 11 to 20
 
+### R1 · twenty traversals, victory on returning to floor 1
+
+`work agent` · READY · **head of the order** · design in `docs/map-design.md`,
+"The return" and "The run laid out"
+
+A run is twenty traversals over ten floors. Every floor is crossed exactly
+twice. **Victory is completing traversal 20**, not reaching floor 10.
+
+**This item builds the structure only.** Traversals 11–20 are otherwise
+identical to their descent twins — same map, same creatures, same chests. What
+makes the return *different* is R2, R3 and R4, laid on top. Building them
+together makes all four unmeasurable.
+
+#### The pairing rule
+
+Ascent traversal `k` crosses floor `21 − k` and reuses the map that descent
+traversal `21 − k` generated. Traversal 11 is the second crossing of floor 10;
+traversal 20 is the second crossing of floor 1.
+
+**Difficulty is indexed by FLOOR, not by traversal.** Each floor keeps its own
+roster size on the way up — `floorPlan` is still called with the floor, so
+traversal 12 uses floor 9's plan.
+
+#### Read this before starting: four copies of the descent loop
+
+The loop that walks floors and carries the hero exists in at least four places
+— `src/sim/game.js`, `src/analysis/clustering.js`, `src/ui/spectator.js` and
+the `observed-ruler` drivers. **All of them need the traversal mapping**, and
+`E1` exists precisely to collapse them into one.
+
+**Do `E1` first, or say in one line why not.** This is the change E1 was filed
+to make cheap, and doing R1 across four copies is four chances for them to
+diverge on the one rule the whole feature rests on.
+
+#### Do
+
+- Twenty traversals with the pairing rule above, floor-indexed difficulty.
+- The run ends in victory when traversal 20 completes. Death ends it as today.
+- The hero carries across the turn exactly as it carries between floors —
+  `rules.md` §1's carry list is unchanged.
+- Coin still banks only on a completed run. A clear is now twenty traversals.
+
+**Do not change how a floor is dug, how the spine is classified, or how
+creatures are placed against it.** `map-design.md` is explicit that a second
+crossing changes three inputs and nothing else; this item changes one of them
+and R2/R3 change the other two.
+
+**Do not split the map seed from the creature seed here.** R2 needs that split;
+R1 needs the same floor twice, which the current single seed already gives.
+Just do not make the split harder.
+
+#### Assert
+
+- A run is twenty traversals and traversal `k > 10` reproduces the map of
+  traversal `21 − k`, tile for tile.
+- Traversal 20 completing is a win; nothing else is.
+- Determinism holds: same seed, same twenty traversals.
+- **The finish rate against ten traversals, and against twenty, on the same
+  seed family.** Both numbers, stated. This is structure, not tuning — do not
+  move a dial because the second number is small.
+
+#### What this makes stale
+
+`rules.md` §1 and §8 — a run is no longer ten floors and finishing is no longer
+reaching the bottom. `rules.md` §9 if coin's banking condition reads as "ten
+floors" anywhere. Update them in the same commit.
+
+
 Twenty traversals, victory on returning to floor 1. Design in
 `docs/map-design.md`; the decision and its consequences in `decisions.md`.
 Five items because they verify separately — R1 alone is playable, with the
@@ -72,7 +140,7 @@ return identical to the descent, and R2–R4 are differences laid on top.
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | R1 | Twenty traversals, victory on returning to floor 1 | work | READY · no item body yet |
+| 1 | R1 | Twenty traversals, victory on returning to floor 1 | work | READY · read E1 first |
 | 1 | R5 | The bot's campaign is twenty traversals, not ten | bot | **with R1, not after** |
 | 2 | R2 | The return repopulates: same map seed, new creature seed | work | after R1 |
 | 3 | R3 | The return has no chests | work | after R1 |
