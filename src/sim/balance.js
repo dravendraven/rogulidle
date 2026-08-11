@@ -715,8 +715,14 @@ export const FRONTIER_REVEAL_WEIGHT = 0.00002;
 // not B10's ("ties are rare"); it is that there is nothing to bend toward.
 // A wanted loose item is on the floor in 6.5% of decisions, mean 0.066 at a
 // time, and in 93% of those the bot's goal ALREADY IS that item. The
-// discount can only matter in 0.5% of turns. Set to 0 to ablate.
-export const ROUTE_ITEM_DISCOUNT = 0.0004;
+// discount can only matter in 0.5% of turns.
+//
+// SHIPPED OFF by B17's review, overruling the report. "It cannot cost
+// anything" is not this project's test: CLAUDE.md says a new parameter is
+// the last resort, and that a measured-and-rejected mechanism is left in
+// the code with the number that killed it in the comment. That convention
+// does not say ON. Set to 0.0004 to re-enable the mechanism as measured.
+export const ROUTE_ITEM_DISCOUNT = 0;
 
 // GUESS — a new target must beat the current one by this factor before the
 // bot switches. Without it, two near-equal targets make it dither on the

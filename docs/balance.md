@@ -42,7 +42,7 @@ statement about today. Only this table is current.
 | `FLOOR_SPREAD_PER_LEVEL` | `0.09` | balance.js |
 | `FRONTIER_REVEAL_WEIGHT` | `0.00002` | balance.js |
 | `GOAL_STICKINESS` | `1.4` | balance.js |
-| `ROUTE_ITEM_DISCOUNT` | `0.0004` | balance.js |
+| `ROUTE_ITEM_DISCOUNT` | `0` | balance.js |
 | `GUARANTEE_FIRST_WEAPON` | `false` | balance.js |
 | `HIT_CHANCE` | `5 / 6` | balance.js |
 | `HOLD_RANGE` | `5` | balance.js |
