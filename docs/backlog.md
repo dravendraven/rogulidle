@@ -56,8 +56,7 @@ cost are in `decisions.md`.
 | theme | items |
 |---|---|
 | The return — floors 11 to 20 | R1 · R5 · R2 · R3 · R4 |
-| 1 | B22 | Rank plans by dominance on (low-water mark, exit state) | bot | READY · B21 landed, same flag |
-| The bot's pricing | B22 · B15 |
+| The bot's pricing | B15 |
 | What the map still has to do | C2 · C3 · M4 · M21 · X6 · M32 |
 | The player | U10 · U7 |
 | Instruments | I12 |
@@ -864,67 +863,6 @@ exit's exemption). No new dial. `src/sim/` untouched. 164 green.
 behaviour changed; `bot-strategy.md` §3.3 still describes `worthStarting` as
 the hard gate applied before a creature enters any comparison, which is
 still exactly what runs.
-
-### B22 · rank plans by dominance on (low-water mark, exit state)
-
-`bot agent` · **REPORTED** · second slice · **behind the same flag**, shipped OFF
-
-Once `B21` has a number, replace the `net` ranking with the ordering the
-objective actually implies.
-
-**Resources and survival are one objective at two moments.** More hp, armour or
-weapon damage all raise the NEXT floor's low-water mark, so every resource acts
-on the future through one channel. The whole thing collapses to:
-
-> **Maximise the minimum, across the run, of the hero's effective hp — subject
-> to reaching the exit.**
-
-**What `B21` established, and it shapes what to expect.** `m` is computable,
-ordered correctly, and **varies only near a proximate threat** — a step costs
-0.01 hp and menace decays fast, so distance and plan length barely move it.
-Everywhere else candidate plans **tie on `m`**, and a tie is exactly when
-dominance falls through to the exit state. A plan that collects a shield on the
-way exits richer, so the owner's case is what this produces in the common case
-*because* `m` ties there.
-
-**The ordering, and it needs no coefficient.** A beats B when `m_A >= m_B` and
-`X_A >= X_B` in every resource. `P` is monotone in each, so a plan that
-survives better and exits richer is better with no exchange rate. Prefer the
-non-dominated; break remaining ties by `m`.
-
-**This slice includes the deletion.** The horizon becomes the floor:
-`campaignCost` stops pricing gear against the rest of the run. That term is
-where 165-against-3 comes from, and this removes it rather than balancing it.
-
-#### Where the rule is provably right, and where it is not
-
-Exact whenever the comparison is a dominance. **Undetermined exactly on the
-genuine trade-offs** — raising `m` by giving up a resource, such as skipping a
-weapon to avoid a fight. No local rule settles those and none should pretend
-to; ties break by `m`, which is the conservative side.
-
-**Those cases are rarer than they sound.** A step costs 0.01 hp, so almost
-every real comparison here is a dominance: fetching a shield two tiles away
-before a fight raises `m` *and* the exit state.
-
-#### The gap this opens, stated rather than discovered
-
-**A floor-local bot undervalues a weapon**, whose worth is mostly in later
-floors. The exit state carries it; nothing projects it forward. That may be
-correct — but if the bot starts refusing fights it should take, this is where
-it comes from. **Report the number rather than adding a projection term back.**
-
-#### Assert
-
-- The owner's case: creature five tiles off, shield two tiles off, hero at low
-  hp — the bot takes the shield first. **And at high hp it does not**, because
-  `m` never approaches the margin. Same mechanism, both directions.
-- A fight the bot must take to reach the shrine is still taken.
-- Share of floors whose first goal is a creature — 83.3% and 86.8% after `B18`.
-- **Route length** — `B20` shipped OFF for a 6.3% rise that bought nothing.
-- Items and hp at floor exit, depth histogram, `finishes`, paired, flag on
-  against off.
-
 
 ### B15 · a drink policy that reads the danger field
 

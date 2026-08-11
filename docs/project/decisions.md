@@ -482,3 +482,58 @@ recording.
   that it mirrors reality**, not what it says. An instrument reporting a
   number nobody likes has succeeded — C1 is the model: built, it contradicted
   a design claim on first use, and that was the value.
+
+## The bot was right to go for creatures first — B19 through B22
+
+Four items, one question, and the answer is that the behaviour being complained
+about was correct.
+
+**The complaint.** The bot walks past a chest to reach a creature. Watched
+repeatedly across floors and seeds; creature `net` reads in the hundreds
+against a chest's 1.
+
+**What was tried, and what each attempt established:**
+
+- **B19** — price loot by the duel it is about to change. **Impossible by
+  construction**: `duelCost`'s `hpLost` is built from the hero's damage output
+  and the creature's bite, so armour moves it by exactly 0.00 at every tier.
+  The gate case it was filed for already worked, through
+  `refuseLostFights` → `preparationGoals`.
+- **B20** — make "collect that, then fight this" a single candidate. Built and
+  measured: fires on ~40% of decisions, buys nothing, and adds 6.3% route
+  length. It shops without buying.
+- **B21** — veto plans whose low-water mark dips below the margin. Binds on
+  15.0% of candidates and changes almost nothing, because the top-ranked
+  candidate usually survives. **Its by-product is the durable fact:** a step
+  costs 0.01 hp and menace decays fast, so **neither distance nor a distant
+  threat can move the low-water mark** — only something dangerous standing
+  close to the route.
+- **B22** — rank by dominance on (low-water mark, exit state), with the
+  campaign horizon deleted.
+
+**B22 produced the requested behaviour and it is worse.** Floors opening on a
+creature fell 84.6% → 17.6% (z −24.7) — the change worked exactly as designed —
+and the bot got worse on every axis that matters:
+
+| | on vs off |
+|---|---|
+| depth | −0.79 (z −3.46) |
+| fights started | −6.87 (z −5.89) |
+| items held at exit | −3.74 (z −5.56) |
+| lost-fight rate | 1.30% → 2.53% |
+
+**The mechanism, and it is the game's own design.** Weapons are the only
+permanent power in the game and only creatures carry them. Delete the campaign
+horizon and the reason to fight goes with it: the bot fights less, arms up
+less, loses more of the fights it does take, and **ends up holding fewer items
+than the loot-first policy was supposed to gather** — because loot comes from
+fighting.
+
+**So the two-orders-of-magnitude gap between a weapon and a shield is not a
+modelling error.** It is what the loot design (M26/M27: weapons from creatures,
+chests hold armour and potions) makes true.
+
+**What this cost and what it bought.** Four bot items, three of them shipping
+nothing. What it bought is that "prefer loot before combat" is now a measured
+dead end rather than a recurring suggestion, and the low-water machinery exists
+behind a flag with the number that killed it.
