@@ -65,6 +65,17 @@ cost are in `decisions.md`.
 
 ### The return — floors 11 to 20
 
+Twenty traversals, victory on returning to floor 1. `R1` landed; the map
+comes back for free and the return is currently identical to the descent.
+`R2`–`R4` are the differences laid on top, and each is measurable alone.
+
+| # | id | what gets done | agent | status |
+|---|---|---|---|---|
+| 1 | R3 | The return has no chests | work | READY · today the return refills them |
+| 2 | R2 | The return repopulates: same map seed, new creature seed | work | READY |
+| 3 | R4 | Variance rises through the return | work | after R2 |
+| — | R5 | The bot's campaign is twenty traversals, not ten | bot | **BLOCKED on the B22 decision** |
+
 ### The bot's pricing
 
 | # | id | what gets done | agent | status |
@@ -247,468 +258,34 @@ told apart.
 
 # The return — floors 11 to 20
 
+### R5 · the bot's campaign is twenty traversals, not ten
+
+`bot agent` · **BLOCKED on the owner's B22 decision** · moot while `B22` is ON
+
+Filed to run alongside `R1`, on the reasoning that every horizon in the bot —
+`campaignCost` through `monstersAhead`, `LOOT_CAMPAIGN_HORIZON`, `levels` —
+assumes ten floors, and `R1` made a run twenty traversals.
+
+**That reasoning does not hold in the shipped configuration.** `B22` zeroes
+`monstersAhead`, so `campaignCost` prices only the current floor's roster and
+there is no campaign horizon left to correct. **This item would fix a term that
+is switched off.**
+
+**What decides it is the owner watching.** `B22` shipped ON against its own
+measurement, deliberately, to be observed. If it stays, the horizon is the
+floor and this item is deleted rather than done. If it comes off, this item is
+needed and urgent — the bot would be pricing gear against half a run.
+
+**One distinction worth keeping**, because it was nearly lost: the proposal was
+never to eliminate `campaignCost`, only to shorten its reach to the floor.
+`campaignCost` answers "what does fighting this set cost", which the
+floor-local objective still needs; `monstersAhead` chooses the set, and that is
+the only thing `B22` deletes.
+
+
 # The bot's pricing
 
 M35 and B14 shipped. What is left is the policy that reads danger, and the measurement that says whether any of it helped.
-
-### Result — built, measured, SHIPPED OFF
-
-**The pair is a candidate now and the arithmetic is honest. It fires
-constantly, is mostly redundant, and the only thing it moves is route
-length — the failure direction the item named.**
-
-#### What shipped, and why no coefficient was needed
-
-`sequenceGoals` scores "reach the loot, then reach the creature from there"
-against the creature alone. Writing `A(x)` for the hp cost of reaching x:
-
-    direct     = drop − hpLost − A(M)
-    sequence   = drop − hpLost − A(L) − A(L→M) + lootValue − lootExtras
-    difference = lootValue − lootExtras − [A(L) + A(L→M) − A(M)]
-                                           \_______ detour _______/
-
-**The sequence wins exactly when the loot is worth more than the detour
-costs.** That cancellation is why the item's "bound it hard — only loot
-whose detour is small" was NOT implemented as a threshold: a large detour
-already loses on its own arithmetic, so a bound would be a second way of
-saying the same thing, and `CLAUDE.md` calls that the parameter to avoid.
-The chain is bounded structurally instead — one pickup, one fight, and only
-the fight the bot would already take, which costs exactly one extra
-Dijkstra per turn rooted at that creature.
-
-`fieldFrom` was extracted in `decide()` so the second field is built from
-the same price expression as the first, rather than a second copy that can
-drift.
-
-#### Measured, paired in-tree, 240 runs on the baseline families
-
-    metric               off        on       diff       z    runs changed
-    SEQUENCE fired      0.000   274.579  +274.58    24.25       240 / 240
-    items picked up    18.208    18.292    +0.083    0.12       163
-    pickups per floor   2.587     2.670    +0.083    1.26       165
-    depth               6.058     6.121    +0.063    0.34       131
-    ROUTE: actions    623.471   662.575   +39.104    1.18       238
-    kills              26.825    27.087    +0.263    0.28       190
-
-**It fires on roughly 40% of decisions and buys nothing.** Pickups z=0.12,
-depth z=0.34. The one number that moves is route length, **+6.3%**, and
-although z=1.18 does not clear the bar it is the largest signed effect and
-it points exactly where the item said to watch: *whether the bot now shops
-before every fight*. **Yes, mildly — it walks 6% further and comes back with
-the same loot.**
-
-#### Why it fires 274 times and changes almost nothing
-
-**The candidate is usually a duplicate of a goal the bot had already
-chosen.** It is emitted carrying the same `kind` and `id` as the plain loot
-goal it is built from, so both sit in `worthwhile` at once. The hysteresis
-check then matches on kind+id and takes the **first** hit — the plain
-one — and returns that. The bot walks to the same tile either way; only the
-score differs.
-
-So "fired 274 times" is not 274 changed decisions. It is mostly the same
-chest, scored twice. The real population is the subset where the sequence
-beats a *creature* that would otherwise have won, and that subset is what
-produced +6.3% route and no extra loot.
-
-**This interaction is worth knowing beyond this item:** any future candidate
-that shares kind+id with an existing one is invisible to the stickiness
-check, which will silently prefer whichever was pushed first. Locked in a
-test.
-
-#### The fixture case, and why it could not isolate
-
-The Assert asked for a chest two or three tiles off the route to a creature
-the bot intends to fight, and the bot collecting it on the way. Built it —
-and **the bot already does that with the flag off**, because a chest's net
-is positive and a rat's is not, so the plain comparison already prefers the
-chest. The fixture therefore proves nothing about the sequence, and is
-shipped as what it actually demonstrates: the flag is a no-op on that board.
-
-To isolate the mechanism a fixture would need a creature that *beats* a
-chest in the plain comparison, which after `B18` cut drop values 4× is a
-narrow band. Not constructed; the batch already answers the question.
-
-#### Shipped OFF
-
-Following `B17`'s review directly: "it cannot cost anything" is not this
-project's test, and a measured-and-rejected mechanism is left in the code
-with the number that killed it. Here it is not even neutral — the only
-movement is the failure direction. The code and the arithmetic stay for
-whoever revisits this with `I9`'s survival table, which is the version the
-item itself names as the real answer.
-
-**Files touched:** `src/bot/bot.js` (`sequenceGoals`, `fieldFrom` extracted
-in `decide()`, flag default off), `test/tests.js` (two tests: the duplicate
-is a no-op, and no sequence is scored without a fight). No new dial.
-`src/sim/` untouched. 162 green.
-
-**Made stale: none of the three.** The flag ships off, so no shipped
-behaviour changed. `bot-strategy.md` §3.2 still describes `chooseGoal` as a
-one-at-a-time comparison, which is what it still does.
-
-
-### Result — NO PRICING CHANGE SHIPPED, and the measurement is why
-
-**The specified term is identically zero for armour, and the behaviour it was
-meant to produce already happens.** Two tests shipped to lock both findings;
-no term added.
-
-#### 1. `duelCost(player, m) − duelCost(player + item, m)` is 0 for armour
-
-Not approximately — exactly, at every tier, by construction. `hpLost` is
-built from the hero's damage OUTPUT and the creature's bite:
-
-    turns  = monster.hp / expectedDamage(player.xp, weaponDamage(player))
-    hpLost = (1 − skip) × max(0, turns − 1) × theirs
-
-**Armour appears nowhere in it.** It raises `effectiveHp`, which enters
-`survivable` and `worthStarting` — the gate — but never `hpLost`. So the
-proposed expression cannot move for a shield, and the gate case the item
-calls "the one that matters" is exactly the case it cannot express.
-
-Measured, what the term would actually add at hp 8:
-
-    item      rat    bat  ghost   boar   wolf   ogre
-    health   0.00   0.00   0.00   0.00   0.00   0.00
-    shield   0.00   0.00   0.00   0.00   0.00   0.00
-    dagger   0.30   0.45   0.90   1.20   2.25   3.15
-    axe      0.45   0.68   1.35   1.80   3.38   4.72
-
-**Shipping it would have widened the gap the item opens with**, not closed
-it: weapons gain up to 4.72 and armour gains nothing, against an opening
-complaint that weapons read 165 while a shield reads 3. The item forbids
-adding a coefficient to rebalance that, and rightly — so the honest move is
-to report the term as inapplicable rather than ship it and compensate.
-
-**This is why no double counting had to be avoided:** the term was never
-added, so `campaignCost`'s inclusion of the immediate creature is untouched.
-Had it shipped, the plan was to drop the immediate creature from the
-campaign roster and let the duel term cover that one fight — the first of
-the item's two defensible options.
-
-#### 2. The gate case already works, and it works for a different reason
-
-The Assert's own construction, run against the shipped tree: hero at 6 hp, a
-wolf whose expected loss (5.63) is above the gate (4.20) and below it once
-three points of armour lift it (6.30), and a shield five tiles the other
-way.
-
-**The bot walks to the shield first, collects it, then turns on the wolf.**
-It is not new behaviour and it is not the pricing — it is
-`refuseLostFights` → `preparationGoals`, which exists precisely to fetch
-"gear worth having at ANY distance" when the cheapest fight is refused.
-
-Checked the same fixture at 10 hp, where the gate is open and the fight is
-accepted: **the bot still takes the shield first**, because branch 1 already
-compares a shield's positive net against a fight's negative one. So
-"shield then wolf" is what the bot already does on both sides of the gate.
-
-Where the gate genuinely flips is common enough to matter — sweeping the
-whole creature table against hero hp 1–10 finds 11 combinations where three
-points of armour move a refused fight to an accepted one — and in all 11 the
-proposed term reads 0.00.
-
-#### 3. The Assert's batch numbers
-
-Unchanged, and not re-run, because **no behaviour changed**: the only code
-shipped is tests. The current tree's figures are B18's post-fix
-measurement — first goal a creature 83.3% (seed 3000000) and 86.8% (seed
-4100000), which is the 86.8% this item quotes. Re-running a paired
-comparison against an identical binary would have produced a table of zeros
-and cost a quarter of an hour.
-
-**Does the bot now detour for loot it should ignore?** No — nothing changed,
-so the failure direction the item names cannot have opened. Worth recording
-that the 10-hp probe above shows the bot *already* fetches a nearby shield
-before an accepted fight. That is not the "shops before every fight" failure
-— the shield is four tiles away and pays for itself — but it is the same
-mechanism, and it is where that failure would first appear if anything later
-raises armour's value.
-
-#### What the item got right, and what is left
-
-The diagnosis is right: `campaignCost` ignores order, and "shield then wolf"
-and "wolf then shield" are the same number in the model. The correction is
-that **the bot's sequencing does not come from that number** — it comes from
-`preparationGoals` and from branch 1's net comparison, both of which already
-put the shield first.
-
-**What remains genuinely unpriced** is narrower than the item states: not
-the ordering, but the case where no fight is refused *yet* and arming first
-would still have been better. Nothing measured here shows that costing
-anything, and finding it would need the conditional-survival table I9 is
-blocked on rather than another term in `valueByItemName`.
-
-**Weapons still dominate armour by two orders of magnitude.** Reported as
-the item instructs, not compensated.
-
-**Files touched:** `test/tests.js` only — two tests: the duel-delta is zero
-for armour and non-zero for a weapon, and the gate case fetches the shield
-first. `src/` untouched. 156 green.
-
-**Made stale: none of the three.** No behaviour changed, so nothing any of
-them describes moved. `bot-strategy.md` §4's pricing table is still accurate,
-including its note that armour is priced at face value — which this item
-examined and left standing.
-
-### Result
-
-**Built as the item scoped it — one term in the existing Dijkstra price, no
-new layer. Measured INERT, and the diagnostic says why in one number that
-is more useful than the fix.**
-
-#### What shipped
-
-`routeItemDiscount` builds a set of tiles holding a WANTED loose item and
-subtracts `ROUTE_ITEM_DISCOUNT` from their crossing price in the main
-routing field. Wanted means "has a mechanical effect" — the same test
-`ITEM_VALUE` already uses, not a second opinion about what counts as
-reward. Chests are excluded: opening one blocks and costs a turn, so a
-chest is never free on the way and belongs to `chooseGoal`, where it is.
-
-**Tiles with a live creature on them are excluded too.** Walking in attacks
-and the hero stays put, so the item is not collected on the way — the
-discount would be paying for a pass-through that cannot happen. True both
-before and after M40, since the hero never enters the tile either way.
-
-**The bound is the design.** At 1/25th of `STEP_COST_IN_HP` a route would
-have to cross 25 wanted items to pay for one tile of detour, against a
-floor that generates `CHEST_COUNT` at most. That is what keeps it a
-tie-breaker rather than goal selection by the back door. `Math.max(0, …)`
-guards the price floor because Dijkstra needs non-negative weights and a
-negative one corrupts the field silently rather than throwing.
-
-#### Measured — paired, in-tree ablation, 300 runs
-
-Both arms are the same source in the same process, differing only in the
-`routeItemDiscount` setting. That is deliberate: M41 landed and M40 was
-sitting uncommitted in the tree during this work, and an in-tree paired
-ablation is immune to both — each arm sees the identical tree.
-
-    metric                off        on       diff       z    runs changed
-    items picked up     17.990    17.983   -0.0067   -0.43        3 / 300
-    pickups per floor    2.615     2.614   -0.0006   -0.86        3
-    depth                5.923     5.923    0.0000    0.00        2
-    ROUTE: actions     654.220   653.413   -0.8067   -1.41       16
-    ROUTE: turns       649.223   648.420   -0.8033   -1.41       16
-    kills               26.730    26.723   -0.0067   -0.25        3
-
-    depth histogram   floor    1   2   3   4   5   6   7   8   9  10
-                      off     20  29  27  25  30  35  25  43  21  45
-                      on      20  29  27  25  31  34  24  44  21  45
-
-**Nothing clears 2σ, and the trap did not fire.** Route length moved
-*down*, not up (z = −1.41) — the opposite of the direction the item said to
-watch for. Three runs in three hundred changed what they picked up.
-
-#### Why it is inert, and it is NOT B10's reason
-
-B10's inert tie-breaker was explained by "routes of exactly equal cost are
-rare". I expected the opposite here — on a floor with nothing awake every
-tile costs exactly `STEP_COST_IN_HP`, so equal-length routes tie exactly
-and ties should be everywhere. That prediction was wrong about the
-conclusion but right about the mechanism, and the real reason is simpler:
-
-    decisions sampled                                  42,872
-    mean wanted loose items on the floor                 0.066
-    turns with ANY wanted loose item                      6.5%
-      ...of those, the bot's goal ALREADY IS that item     93%
-    turns where the discount could possibly matter         0.5%
-
-**There is almost nothing to bend toward.** A loose item exists only
-between the moment a chest spills or a creature dies and the moment the bot
-walks over it — and `chooseGoal` already makes it the goal in 93% of those
-turns. The routing discount is left with half a percent of turns, and only
-the tie-broken subset of those.
-
-**This also re-frames the observation the item came from.** "Walked past
-loot to a distant creature" is real, but the population it belongs to is
-0.5% of decisions. A multi-target planner — which the item correctly told
-me not to build — would be a new layer chasing that.
-
-#### One test, and the one that could not be written
-
-The trap half is locked: the router must not bend down a side passage
-toward an item unless `chooseGoal` chose it.
-
-**A fixture for the positive half was attempted and abandoned**, and the
-failure is itself the finding: any item close enough to lie on a
-tie-breaking route is also valuable enough that `chooseGoal` makes it the
-GOAL, so the ablated arm collects it too and the fixture isolates nothing.
-Recorded in the test file rather than deleted quietly.
-
-#### Shipped ON, with a caveat for X5
-
-On, because it cannot cost anything — bounded below one step by
-construction, and route length measured flat-to-down. Turning a correct
-tie-break off would mean deliberately routing past free loot when the
-alternative is genuinely free.
-
-**But it adds a dial that does nothing measurable**, which is exactly what
-`CLAUDE.md`'s minimum-change rule is suspicious of. No existing dial could
-carry it — `FRONTIER_REVEAL_WEIGHT` prices unseen tiles revealed, a
-different quantity — so it had to be new or not exist. **Flagging it as an
-X5 candidate:** if the project would rather have one fewer dial than a
-free-but-idle one, this is a clean delete, and the number that justifies
-either choice is now on record.
-
-**Files touched:** `src/bot/bot.js` (`routeItemDiscount`, wired into the
-main field), `src/sim/balance.js` + `docs/balance.md` (the new dial, same
-commit per the house rule), `test/tests.js` (one test). 154 green.
-
-**Made stale:** none of the three. `bot-strategy.md` §3.1 already describes
-the board price as a Dijkstra cost function that the router reads, which is
-still exactly what it is; the discount is a term inside a price the section
-already covers, not a new stage or a changed objective. `rules.md` did not
-move — no engine change. `map-design.md` did not move.
-
-#### Review — adopted as a finding. **Ship it OFF, not ON.**
-
-**The measurement is the best this project has produced and the method is why.**
-Paired in-tree ablation — both arms the same source in one process — so M40
-sitting uncommitted and M41 landing mid-work could not skew it. That is the
-contamination that bit M39 two days ago, avoided without being told.
-
-    items picked up   17.990 -> 17.983   z -0.43
-    depth              5.923 -> 5.923    z  0.00
-    route: actions   654.220 -> 653.413  z -1.41
-    kills             26.730 -> 26.723   z -0.25
-
-Nothing near 2 sigma, and route length moved DOWN — the opposite of the failure
-direction the item said to watch.
-
-**The diagnostic is worth more than the change.** Over 42,872 decisions a
-wanted loose item is on the floor in 6.5% of them, mean 0.066 at a time, and in
-**93% of those the bot's goal already IS that item**. The discount can matter
-in **0.5% of turns**. That number is what says "do not build the multi-target
-planner", and it was the item's real question.
-
-**It also right-sizes the observation that spawned it.** "Walked past loot to a
-distant creature" is real and lives in 0.5% of decisions. **The thing the owner
-was actually watching is not this** — it is `B18` and `B19`, where a creature's
-`net` reads 250 against loot's 1. This item was scoped to loose items on the
-route, and chests are correctly excluded because opening one blocks and costs a
-turn, so it is never free on the way.
-
-#### The one thing I am overruling
-
-**It shipped ON, and it should be OFF.** The reason given — "it cannot cost
-anything" — is not the project's test. `CLAUDE.md` says a new parameter is the
-last resort and that measured-and-rejected flags are **left in the code with
-the number that killed them in the comment**. That convention exists precisely
-for this case, and it does not say ON.
-
-A dial that provably does nothing, left enabled, is a term every future
-measurement carries and nobody can attribute. Off, with `z −0.43` in the
-comment, it is a recorded answer instead — and it flips back in one character
-if a future change makes loose items abundant enough to matter.
-
-**Not an X5 question.** X5 classifies dials whose status is unknown; this one's
-status was established by the measurement in this very item. Decide it here.
-
-**Do:** default it off, keep the code and the comment, and record the finding
-in `decisions.md` — the 0.5% ceiling is the transferable part, not the dial.
-
-### Result — built, fixture passes, SHIPPED OFF as inert
-
-**The mechanism works and the fixture proves it. In real play it is binding
-constantly and decisive almost never.**
-
-#### What shipped
-
-`planLowWater` walks a candidate's plan in order — walk in, resolve, walk
-out — and returns the minimum of `(hp + armour)` along it.
-`chooseGoal` discards candidates whose `m` falls below
-`effectiveHp × (1 − safetyMargin)`, the same 30% headroom the duel gate
-leaves when it permits a fight costing 70%. **No second margin dial**, and
-the `net` ranking among survivors is untouched.
-
-**Order matters, which is the whole reason this is not a sum.** Cumulative
-spend is monotone, so a total's minimum is trivially its end. A pickup ADDS
-to the budget partway through, so a loot plan's low point can sit *before*
-the collection. Computing `m` step by step is what lets a shield appear at
-all — the thing `duelCost` could not express.
-
-**The exit field is rooted at the shrine and deliberately not sunk** — the
-same exemption `B16` made for the tactical `costToGoal`, for the same
-reason: it measures distance TO the exit, and a path that ends there never
-crosses it. When the exit has not been found there is no third leg and
-nothing is charged for it, rather than inventing a number.
-
-**Leaving is exempt from the veto.** If even walking out dips below the
-floor, refusing it does not help, and deleting the exit would drop the bot
-through to the unconditional fight below — the opposite of what a survival
-veto is for. Locked in a test.
-
-#### The fixture, and what building it taught
-
-The Assert's case passes: hero at 6 hp, a rat costing 0.53 hp to kill, and
-a t-rex standing on the only way out. Flag off → the bot takes the rat
-(positive net, nothing prices the exit). Flag on → the plan is refused and
-the bot leaves.
-
-**It took three attempts, and the failures are the finding.** Distance
-alone can never trigger this: a step is 0.01 hp, so a 25-tile walk out
-costs a quarter of one point against a fight costing three. Nor does a
-distant threat — menace decays by `DANGER_FALLOFF` per tile, so a t-rex
-thirteen tiles away contributes about 0.0005. **The veto can only bind when
-something dangerous stands close to the exit route**, which is a narrow
-geometry, and that is most of the explanation for what follows.
-
-#### Measured, paired, one tree, 200 runs
-
-    metric            off        on       diff       z    runs changed
-    finishes        0.095     0.100    +0.0050    0.30       11
-    depth           6.150     6.240    +0.0900    0.58       87
-    fights started 28.225    28.095    -0.1300   -0.17      128
-    lost fights     0.345     0.400    +0.0550    1.15       64
-    kills          27.245    26.995    -0.2500   -0.32      122
-    actions       629.395   612.665   -16.7300   -0.61      168
-
-    lostFightRate   0.0122 -> 0.0142
-
-**Nothing clears 2σ.** Trajectories change in most runs — 87 to 168 of 200
-differ on any given metric — and the outcomes wash out.
-
-#### Binding often, decisive almost never
-
-Instrumented directly rather than inferred: **the veto discards 15.0% of
-every candidate it sees — 16,198 of 107,737** — and cuts at least one
-candidate on thousands of turns. The exit was known every time; the
-"no third leg" path never fired.
-
-So it is not idle. What it cuts is the tail: **the top-ranked candidate
-usually survives the filter**, so removing the ones below it changes what
-the bot considered without changing what it chose. That is the shape of an
-inert filter, and it is different from `B20`'s inertness (a duplicate
-candidate that mostly re-selected the same goal) and from `B17`'s (a
-population too small to act on).
-
-#### The failure direction did not appear
-
-`lostFightRate` **rose** slightly, 0.0122 → 0.0142, while finishes also
-rose slightly. The item named the paralysis signature as lost-fight rate
-falling *together with* finishes; neither half is present. The bot did not
-become timid — it is starting fights at the same rate (z=-0.17) and
-reaching the same depth.
-
-#### Shipped OFF
-
-Per the convention every structural bot change since `B11` has followed,
-and per `B17`'s review: a measured mechanism that does not move outcomes is
-left in the code with the number that killed it, not switched on because it
-is harmless. The code and the fixture stay for slice two — `B22` ranks on
-`(m, exit state)`, and `m` is exactly what this slice built and validated.
-
-**Files touched:** `src/bot/bot.js` (`planLowWater`, the filter, the exit
-field, the flag), `test/tests.js` (two fixtures: the refused plan, and the
-exit's exemption). No new dial. `src/sim/` untouched. 164 green.
-
-**Made stale: none of the three.** The flag ships off, so no shipped
-behaviour changed; `bot-strategy.md` §3.3 still describes `worthStarting` as
-the hard gate applied before a creature enters any comparison, which is
-still exactly what runs.
 
 ### B15 · a drink policy that reads the danger field
 
