@@ -59,7 +59,7 @@ cost are in `decisions.md`.
 | The bot's pricing | B20 · B17 · B15 |
 | What the map still has to do | C2 · C3 · M4 · M21 · X6 · M32 |
 | The player | U10 · U7 |
-| Instruments | I12 · I9 |
+| Instruments | I12 |
 | Debt | X7 · X1 · X2 · X3 · X5 · E1 |
 | Not scheduled | M37 · M36 |
 
@@ -96,7 +96,6 @@ cost are in `decisions.md`.
 | id | what gets done | agent | status |
 |---|---|---|---|
 | I12 | Did the potion change move anything? | metrics | baseline recorded · comparison owed |
-| I9 | Conditional survival table | metrics | READY · unblocked, finish rate 0.15 |
 
 ### Debt
 
@@ -1298,60 +1297,6 @@ should have, not just the equality.
 **Files touched:** `src/bot/tactics.js` (`SEARCHABLE_ACTIONS`, both loops).
 Nothing in the pricing half changed — the review said not to touch it, and
 141 tests still pass unmodified.
-
-### I9 · a conditional survival table
-
-`metrics agent` · READY · **unblocked 2026-08-11** — the block was a finish
-rate near zero; it now reads 0.15 ±0.033 at n=120
-
-**What it is.** `P(finish | floor, hero state)` — the chance of completing the
-run from where the hero actually stands, not the run's overall rate. The
-conditional is the whole point.
-
-**What it is for.** `objectives.md` requires that hope never reach zero. This
-is the instrument for that property, and there is no other proposal for it. It
-also gives coin a discount factor priced in hp rather than guessed.
-
-#### Do — and it needs no new simulation
-
-`descentCheck` already drives full descents with the real bot and already
-visits every state this table is about. **The table is an aggregation over runs
-that are already being produced**, not a Monte Carlo rollout: bucket the hero's
-state on arrival at each floor, then count what fraction of the runs in each
-bucket went on to finish.
-
-Three axes, and no more without a reason: **floor**, **effective hp**
-(hp + armour, the quantity `effectiveHp` already returns), and **weapon
-damage**. Bucket coarsely — the table has to be readable, and every extra
-split costs support.
-
-**Report support per cell.** A cell backed by four runs is not a probability,
-and the deep floors will be thin. Blank beats a confident number nobody can
-use — the same rule the Map cost table now follows after I11.
-
-#### What it does not answer
-
-**It is the finish question only.** `objectives.md`'s hope is broader: a run
-carrying several open questions still has hope when one of them closes. A cell
-reading zero means the *finish* is decided, not that the run is over as
-something to watch. Do not present it as "hope" on any page.
-
-**It is averaged over dungeons, not conditional on this one.** Every seed's map
-is in the same bucket. That is the right question for design — "what does a
-hero in this shape usually do from here" — and the wrong one for a live
-on-screen number, which is `U2` in `candidates.md` and blocked on `E1`.
-
-**The return will change what "finish" means.** Victory becomes twenty
-traversals, so the table's outcome axis is rebuilt when `R1` lands. Build it
-against ten now; the shape and the bucketing survive, only the label moves.
-
-#### Assert
-
-The table, with support per cell. **Two sanity checks it must pass or the
-bucketing is wrong:** the cell for floor 1 at the starting hero's own state
-reproduces the overall finish rate, and P rises with effective hp within a
-floor. Say which cells are too thin to read.
-
 
 # Debt
 
