@@ -51,9 +51,15 @@ export function buildGrid(container) {
     glyph.className = 'glyph';
     const badge = document.createElement('span');
     badge.className = 'badge';
-    cell.append(glyph, badge);
+    // Debug only, and empty every other frame — the bot's score for the
+    // tile. Its own span rather than reusing `badge`, which carries a
+    // monster's xp: the whole reason to look at a score is to compare it
+    // against what the target is worth, so one may not overwrite the other.
+    const net = document.createElement('span');
+    net.className = 'net';
+    cell.append(glyph, badge, net);
     container.append(cell);
-    cells.push({ cell, glyph, badge });
+    cells.push({ cell, glyph, badge, net });
   }
 }
 
@@ -98,6 +104,23 @@ function topmost(entries) {
   return best;
 }
 
+// The bot's own figure for a goal, or null if that branch does not carry
+// one. `chooseGoal` scores most candidates as `net` (higher is better) but
+// its dedicated monster branch ranks by `cost` (lower is better) and the
+// unconditional "leave" branch returns a bare {kind, pos} with no score at
+// all — so this reads defensively rather than assuming a shape. -cost is
+// the same inversion chooseGoal itself applies when a fight competes in
+// the main pool, so the sign convention on screen stays "higher is better"
+// no matter which branch decided.
+function goalScore(goal) {
+  if (!goal) return null;
+  if (Number.isFinite(goal.net)) return goal.net;
+  if (Number.isFinite(goal.cost)) return -goal.cost;
+  return null;
+}
+
+const signed = (n) => (n > 0 ? '+' : '') + n.toFixed(1);
+
 // `debug`, when given, is { danger, goal } and paints the bot's reasoning
 // over the map: how dangerous it believes each tile to be, and what it is
 // currently heading for. Phase 4 item 22 — you need this the moment the bot
@@ -107,13 +130,14 @@ export function renderFrame(state, belief, debug = null) {
   const truth = trueAt(state);
   const memory = believedAt(belief);
   const goalKey = debug && debug.goal && debug.goal.pos ? posKey(debug.goal.pos) : null;
+  const goalNet = debug ? goalScore(debug.goal) : null;
 
   for (let row = 0; row < VIEW; row++) {
     for (let column = 0; column < VIEW; column++) {
       const x = player[0] - VISIBLE_DIST + column;
       const y = player[1] - VISIBLE_DIST + row;
       const key = x + ',' + y;
-      const { cell, glyph, badge } = cells[row * VIEW + column];
+      const { cell, glyph, badge, net } = cells[row * VIEW + column];
 
       const away = distSq(player, [x, y]);
       const inSight = away <= VISIBLE_SQ;
@@ -168,8 +192,14 @@ export function renderFrame(state, belief, debug = null) {
           ? `rgba(${crowded ? 255 : 200}, ${crowded ? 40 : 70}, 60, ${0.12 + 0.55 * heat})`
           : '';
         cell.classList.toggle('goal', key === goalKey);
-      } else if (cell.style.background) {
+        // Only the winner is labelled, because only the winner is in the
+        // trace. The bot scores every candidate the same way and throws
+        // the losers away in chooseGoal — publishing that pool is a
+        // src/bot/ change, filed rather than done here.
+        net.textContent = (key === goalKey && goalNet !== null) ? signed(goalNet) : '';
+      } else if (cell.style.background || net.textContent) {
         cell.style.background = '';
+        net.textContent = '';
         cell.classList.remove('goal');
       }
     }
@@ -211,6 +241,32 @@ export function renderHud(elements, state, session) {
 
   elements.run.textContent = `run ${session.runNumber}`;
   elements.seed.textContent = 'seed ' + state.seed;
+}
+
+// The decision behind the frame on screen, in one line, for debug mode.
+// Reads a trace entry from src/bot/bot.js: which goal won and what it
+// scored, the step the route planner picked for it, and whether the
+// tactical search overruled that step.
+//
+// The veto is the part worth showing. Two layers decide a move — the
+// route to the goal, then a short search that may VETO it — and when the
+// bot does something that looks stupid, which layer did it is the first
+// question. bot.js records `vetoed` for exactly this.
+export function renderDebugInfo(element, entry) {
+  if (!element) return;
+  if (!entry) { element.textContent = ''; return; }
+
+  const score = goalScore(entry.goal);
+  const target = entry.goal ? entry.goal.kind : '—';
+  const parts = [`goal ${target}${score === null ? '' : ' ' + signed(score)}`];
+
+  // `final`/`vetoed` are filled in after decide() returns, so a trace read
+  // mid-call has neither — show the plan alone rather than a blank line.
+  if (entry.final === undefined) parts.push(`plan ${entry.planned}`);
+  else if (entry.vetoed) parts.push(`plan ${entry.planned} → veto ${entry.final}`);
+  else parts.push(`plan ${entry.planned} ✓`);
+
+  element.textContent = parts.join(' · ');
 }
 
 // Recent runs, newest first: how far each one got and how it ended.

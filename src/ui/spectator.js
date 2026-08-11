@@ -12,7 +12,9 @@ import { hashSeeds, seedFromString } from '../sim/rng.js';
 import { difficultyToParams } from '../sim/difficulty.js';
 import { makeBot } from '../bot/bot.js';
 import { dangerField } from '../bot/threat.js';
-import { buildGrid, renderFrame, renderHud, renderHistory, applyDepth } from './render.js';
+import {
+  buildGrid, renderFrame, renderHud, renderHistory, applyDepth, renderDebugInfo,
+} from './render.js';
 import { tileSvg } from './tiles.js';
 import { award, resetScore } from './score.js';
 import { getBalance, setBalance, resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
@@ -61,7 +63,7 @@ function grab() {
     'grid', 'stage', 'hp', 'xpEarned', 'xpRate', 'steps', 'kills', 'inventory',
     'run', 'tally', 'seed', 'summary', 'summaryTitle', 'summaryBody',
     'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
-    'coins', 'coinPopup',
+    'coins', 'coinPopup', 'debugInfo',
     'shop', 'shopBalance', 'shopItems', 'shopSkip',
   ]) {
     el[id] = document.getElementById(id);
@@ -95,11 +97,13 @@ async function playFrames(frames, trace, tallyText) {
     // The danger map is recomputed for the frame on screen rather than
     // stored for every turn of the run — one field costs a millisecond or
     // two, and keeping hundreds of them would be pure memory.
+    const entry = trace[i] || null;
     const debug = session.debug
-      ? { danger: dangerField(frame.belief), goal: trace[i] ? trace[i].goal : null }
+      ? { danger: dangerField(frame.belief), goal: entry ? entry.goal : null }
       : null;
 
     renderFrame(frame.state, frame.belief, debug);
+    renderDebugInfo(el.debugInfo, session.debug ? entry : null);
     renderHud(el, frame.state, session);
     if (el.tally) el.tally.textContent = tallyText();
 
@@ -448,6 +452,8 @@ function wireControls() {
   el.debug.addEventListener('click', () => {
     session.debug = !session.debug;
     el.debug.textContent = session.debug ? '🔎 debug on' : '🔎 debug';
+    // Paused, no frame is coming to clear it — do it here.
+    if (!session.debug) renderDebugInfo(el.debugInfo, null);
   });
 
   el.speed.addEventListener('click', () => {

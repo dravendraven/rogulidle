@@ -135,6 +135,27 @@ main {
   pointer-events: none;
 }
 
+/* Debug only: the bot's score for the tile, opposite corner to .badge so
+   a monster's xp and the score for fighting it are both readable. */
+.net {
+  position: absolute;
+  bottom: -1px;
+  left: 1px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent);
+  text-shadow: 0 0 3px #fff, 0 0 3px #fff;
+  pointer-events: none;
+}
+
+/* Empty when debug is off, and an empty box must not take a row. */
+.debug-info {
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--dim);
+}
+.debug-info:empty { display: none; }
+
 /* Floor-completion coin popup — a moment, not a modal: fades in, holds
    briefly, fades out on its own, never intercepts a click. */
 .coin-popup {
