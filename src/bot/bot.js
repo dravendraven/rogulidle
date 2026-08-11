@@ -992,7 +992,31 @@ export function makeBot(options = {}) {
     // The failure direction did NOT appear. `lostFightRate` rose slightly
     // (0.0122 -> 0.0142) instead of falling, and finishes rose with it, so
     // there is no sign of the paralysis the item warned about.
-    lowWaterVeto: false,
+    //
+    // B22 hangs off the same flag: with it on, `net` stops being the
+    // ordering and candidates are ranked by dominance on (m, hp at exit,
+    // weapon damage at exit), and the `campaignCost` horizon term is
+    // deleted (`monstersAhead` forced to 0).
+    //
+    // ON, AND THIS IS NOT AN APPROVAL. B22 measured WORSE on four axes past
+    // 2 sigma, paired over 180 runs in one tree: depth -0.79 (z -3.46),
+    // fights started -6.87 (z -5.89), items at exit -3.74 (z -5.56), and
+    // lost-fight rate 1.30% -> 2.53%. The share of floors whose first goal
+    // is a creature collapses from 84.6% to 17.6% (z -24.7) — a floor-local
+    // bot undervalues a weapon, exactly the gap B22's item predicted and
+    // told the report to state as a number rather than patch.
+    //
+    // The owner turned it on deliberately, TO WATCH IT. Some defects never
+    // show up in an aggregate, and this project's history is that watching
+    // found six real ones no metric caught. So the number above is the
+    // number that would kill this flag, kept next to it on purpose.
+    //
+    // Do not read "it is on" as "it was validated", and do not tune
+    // anything to compensate for what it does. If the behaviour grates,
+    // that is the owner's observation to make. `CHEST_LOOT_CHANCE` survived
+    // at 0.60 against a generator producing 0.226 precisely because nobody
+    // wrote this paragraph next to it.
+    lowWaterVeto: true,
 
     // B20 (docs/backlog.md). Lets "collect that, then fight this" enter the
     // comparison as one candidate, scored against the fight alone. See

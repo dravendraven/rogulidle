@@ -116,8 +116,28 @@ Uma comparação, não uma cadeia de prioridades. `chooseGoal`:
 que calcula **valor marginal**: quanto o resto da campanha fica mais barato
 com o item, contra o inventário que o herói já tem. E, desde o B11, **uma
 luta que vale começar entra na mesma lista**, com um `net` na mesma moeda.
-Vence o maior líquido, seja qual for o tipo. Loot que não paga a própria
-caminhada pontua negativo e é ignorado.
+Loot que não paga a própria caminhada pontua negativo e é ignorado.
+
+**O que ordena a lista mudou no B22.** O `net` deixou de ser a ordenação e
+virou o último desempate. Cada candidato é planejado inteiro — ir, resolver,
+sair — e comparado por **dominância**: A vence B quando o piso de hp efetivo
+ao longo do plano é pelo menos o de B *e* o estado na saída (hp, dano de arma)
+também é. Preferem-se os não-dominados; empate se resolve pelo piso, e só
+então pelo `net`. Sem taxa de câmbio entre os eixos, porque não é preciso uma:
+sobreviver melhor e sair mais rico é melhor sem nenhum coeficiente.
+
+Junto veio uma **deleção**: o horizonte virou o andar. O `campaignCost` não
+precifica mais equipamento contra o resto da run — o estado na saída carrega o
+valor de uma arma, e nada o projeta para a frente.
+
+Uma propriedade que decorre disso e surpreende: a dominância é **invariante ao
+hp do herói**. Somar hp soma o mesmo a todo candidato, então a ordenação a hp
+baixo e a hp alto é idêntica. Quem depende do hp é o veto do §3.3, não o
+ranking.
+
+**Está ligado por decisão do dono, para ser assistido, e não porque mediu
+melhor** — mediu pior. Os números que o matariam estão no comentário do flag
+`lowWaterVeto` em `src/bot/bot.js`, que é onde eles pertencem.
 
 **O santuário, na mesma lista, valendo zero.** Desde o B12 sair não é uma
 etapa abaixo da comparação — é um candidato *dentro* dela, com `net` 0,
@@ -154,6 +174,17 @@ nenhum.
 qualquer comparação. `duelCost` estima o hp perdido num duelo; a margem de
 segurança é um dial. Isto não é ranking — é veto. O B11 mudou como uma luta
 se ordena contra loot, e deliberadamente não afrouxou quando ela é segura.
+
+**Desde o B21 há um segundo veto, e ele olha o plano inteiro.** `worthStarting`
+julga um duelo; o veto do piso julga a trajetória — ir, resolver, sair — e
+descarta qualquer candidato cujo mínimo de hp efetivo caia abaixo da folga que
+o gate do duelo já deixa. Continua sendo filtro, nunca reordenação: entre os
+sobreviventes a ordem do §3.2 vale intacta.
+
+A saída é isenta por construção. Se até sair fura o piso, recusar não ajuda —
+o herói está em apuros de qualquer jeito, e deletar a porta jogaria o bot na
+etapa da luta mais barata, que é o oposto do que um veto de sobrevivência
+serve para fazer.
 
 ### 3.4 Simular, não adivinhar
 
