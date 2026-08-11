@@ -56,9 +56,8 @@ cost are in `decisions.md`.
 | theme | items |
 |---|---|
 | The return — floors 11 to 20 | R1 · R5 · R2 · R3 · R4 |
-| 1 | B21 | The plan's low-water mark, as a veto | bot | **REPORTED** · shipped OFF, cuts 15% and moves nothing |
-| 2 | B22 | Rank plans by dominance on (low-water mark, exit state) | bot | after B21 · same flag |
-| The bot's pricing | B21 · B22 · B15 |
+| 1 | B22 | Rank plans by dominance on (low-water mark, exit state) | bot | READY · B21 landed, same flag |
+| The bot's pricing | B22 · B15 |
 | What the map still has to do | C2 · C3 · M4 · M21 · X6 · M32 |
 | The player | U10 · U7 |
 | Instruments | I12 |
@@ -695,60 +694,6 @@ status was established by the measurement in this very item. Decide it here.
 **Do:** default it off, keep the code and the comment, and record the finding
 in `decisions.md` — the 0.5% ceiling is the transferable part, not the dial.
 
-### B21 · the plan's low-water mark, as a veto
-
-`bot agent` · **REPORTED** · shipped OFF — binding on 15% of candidates,
-inert on every outcome
-
-**Why the objective is floor-local, and it is not an approximation.**
-`rules.md` §1: every floor is generated from the seed and is independent of the
-hero — only state descends. The run is a Markov chain, so
-
-    P(finish) = product over f of p_f(S_f)
-
-exactly. Maximising each factor maximises the product, and each factor depends
-only on the state entering that floor.
-
-**The quantity is the low-water mark.** Death happens when the budget touches
-zero, not when total spend is high, so `p_f` falls with how close the
-trajectory comes to zero. This is why `duelCost` could not express a shield
-(`B19`, measured 0.00 at every tier): it measures expected spend, and a shield
-does not change the spend — it changes what the spend is paid from.
-
-For a plan, `m = min over the plan of (hp + armour)`.
-
-#### Do — this slice is a filter, not a new ranking
-
-**Compute `m` for the candidates `chooseGoal` already builds**, and discard
-those whose `m` falls below the safety margin. **Leave the `net` ranking
-exactly as it is.**
-
-`worthStarting` already vetoes on one duel against `effectiveHp × margin`.
-This extends the same idea to the whole plan — walk in, fight, walk out — which
-is where the hero actually dips. That is the extension, and it is why this is a
-change to what an existing gate covers rather than a new mechanism.
-
-**Behind a flag, default OFF**, measured on against off, paired in one tree.
-Every structural bot change since B11 shipped that way.
-
-#### Do NOT, in this slice
-
-- **Do not change how candidates are ranked.** Dominance on `(m, exit state)`
-  is slice two, and mixing them makes both unmeasurable.
-- **Do not delete `campaignCost` or re-scope the horizon.** Also slice two.
-- **Do not add a second margin dial.** The safety margin exists; reuse it, and
-  if it cannot serve, say why in one line rather than adding one.
-
-#### Assert
-
-- A plan that survives its fight but dies on the walk out is now refused.
-  Buildable as a fixture, checkable without a batch.
-- `finishes`, depth histogram, fights started and lost-fight rate, on the
-  baseline seed family, flag on against off, paired.
-- **Whether the bot now refuses fights it used to win.** That is the failure
-  direction: a veto that is too eager turns into paralysis, and `lostFightRate`
-  falling while `finishes` also falls is exactly what that looks like.
-
 ### Result — built, fixture passes, SHIPPED OFF as inert
 
 **The mechanism works and the fixture proves it. In real play it is binding
@@ -862,6 +807,14 @@ on the future through one channel. The whole thing collapses to:
 
 > **Maximise the minimum, across the run, of the hero's effective hp — subject
 > to reaching the exit.**
+
+**What `B21` established, and it shapes what to expect.** `m` is computable,
+ordered correctly, and **varies only near a proximate threat** — a step costs
+0.01 hp and menace decays fast, so distance and plan length barely move it.
+Everywhere else candidate plans **tie on `m`**, and a tie is exactly when
+dominance falls through to the exit state. A plan that collects a shield on the
+way exits richer, so the owner's case is what this produces in the common case
+*because* `m` ties there.
 
 **The ordering, and it needs no coefficient.** A beats B when `m_A >= m_B` and
 `X_A >= X_B` in every resource. `P` is monotone in each, so a plan that
