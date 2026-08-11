@@ -110,7 +110,7 @@ return identical to the descent, and R2–R4 are differences laid on top.
 | id | what gets done | agent | status |
 |---|---|---|---|
 | I12 | Did the potion change move anything? | metrics | baseline recorded · comparison owed |
-| I9 | Conditional survival table = the "hope" instrument | metrics | BLOCKED on a non-zero finish rate |
+| I9 | Conditional survival table | metrics | READY · unblocked, finish rate 0.15 |
 
 ### Debt
 
@@ -1271,130 +1271,59 @@ should have, not just the equality.
 Nothing in the pricing half changed — the review said not to touch it, and
 141 tests still pass unmodified.
 
-### I9 · a conditional survival table, so coin can be priced in hp
+### I9 · a conditional survival table
 
-`metrics agent` · **BLOCKED on `finishes` being non-zero** — see below; the
-proposal said "can be done now" and that is the one thing in it that does not
-hold
+`metrics agent` · READY · **unblocked 2026-08-11** — the block was a finish
+rate near zero; it now reads 0.15 ±0.033 at n=120
 
-Metrics agent proposal, filed with the reasoning intact. Nothing implemented.
+**What it is.** `P(finish | floor, hero state)` — the chance of completing the
+run from where the hero actually stands, not the run's overall rate. The
+conditional is the whole point.
 
-**Reframed after the owner refined the primary objective — this is worth more
-than it was filed as.** `P(finish | state now)` is not just a discount factor
-for pricing coin: it **is** "hope", which `docs/project/objectives.md` names as
-the property that must never reach zero. Whatever else this table is for, it is
-the only proposed instrument for the game's primary objective. That does not
-unblock it — it still needs a non-zero finish rate to have signal — but it
-raises what it is worth building once that lands.
+**What it is for.** `objectives.md` requires that hope never reach zero. This
+is the instrument for that property, and there is no other proposal for it. It
+also gives coin a discount factor priced in hp rather than guessed.
 
-**This item now carries the instrumentation half of that objective, moved out
-of `objectives.md` when that file was cut back to strategy.** The root document
-states the property and names no instrument; the instrument is this. Two things
-came with it:
+#### Do — and it needs no new simulation
 
-- **The conditional is the whole point.** "Hope" is the chance of completing
-  from where the hero *actually stands*, not the run's overall rate — which is
-  the same distinction the pricing argument below already makes for coin, and
-  it is the reason both live in one item.
-- **The diagnosis the objective produced.** With finishes near zero, hope is
-  near zero for most of most runs. That is the **"too rare, hope goes with
-  it"** failure the owner named, and it means the current state fails the
-  primary objective *on its own terms* rather than merely being hard. It is
-  also why this item being blocked matters more than it looked: the thing it
-  is blocked on is the thing the objective needs.
+`descentCheck` already drives full descents with the real bot and already
+visits every state this table is about. **The table is an aggregation over runs
+that are already being produced**, not a Monte Carlo rollout: bucket the hero's
+state on arrival at each floor, then count what fraction of the runs in each
+bucket went on to finish.
 
-**One caveat on the objective's own terms, since the property is broader than
-this instrument.** Hope does not have to be hope of *winning* — the objective
-says hope of something not yet decided, and a run carrying several open
-questions degrades where a run carrying one goes to zero at once.
-`P(finish | state now)` measures only the finish question. A run reading zero
-on this table is not automatically a run with no hope in it; it is a run whose
-*finish* is decided. That gap is real and this item does not close it.
+Three axes, and no more without a reason: **floor**, **effective hp**
+(hp + armour, the quantity `effectiveHp` already returns), and **weapon
+damage**. Bucket coarsely — the table has to be readable, and every extra
+split costs support.
 
-#### What the proposal establishes, and it holds up
+**Report support per cell.** A cell backed by four runs is not a probability,
+and the deep floors will be thin. Blank beats a confident number nobody can
+use — the same rule the Map cost table now follows after I11.
 
-**Coin's price in hp is settled and was not guessed.** The shipped table
-(shield 1, dagger 5, axe 8) lands within 5% of the same exchange rate against
-what `loot.js` really charges via `campaignCost` with and without the item —
-three items agreeing on one rate is a validation, not a coincidence.
+#### What it does not answer
 
-**Coin only has value if the run banks it, so it must be discounted by the
-chance of finishing — and by the CONDITIONAL chance from where the hero
-actually is, not the overall run rate.** This is the strongest part of the
-proposal and it avoids a trap this project has already been burned by:
-`decisions.md` records that depth does not make the game more forgiving, it
-makes the surviving sample more exclusive, and that buffer's sign flips
-between floors 1-6 and 1-10 purely from selection. A hero on floor 8 is not an
-average hero. Using the global rate would misprice every deep decision, in the
-direction that matters most.
+**It is the finish question only.** `objectives.md`'s hope is broader: a run
+carrying several open questions still has hope when one of them closes. A cell
+reading zero means the *finish* is decided, not that the run is over as
+something to watch. Do not present it as "hope" on any page.
 
-**The marginal-turn derivative is correct.** With coins per floor as
-`10 × xp / turns`, the derivative with respect to turns is `−10 × xp / turns²`,
-so the cost of a turn is that times hp-per-coin times the conditional success
-chance. The algebra checks.
+**It is averaged over dungeons, not conditional on this one.** Every seed's map
+is in the same bucket. That is the right question for design — "what does a
+hero in this shape usually do from here" — and the wrong one for a live
+on-screen number, which is `U2` in `candidates.md` and blocked on `E1`.
 
-#### Three corrections before this gets built
+**The return will change what "finish" means.** Victory becomes twenty
+traversals, so the table's outcome axis is rebuilt when `R1` lands. Build it
+against ten now; the shape and the bucketing survive, only the label moves.
 
-**1. It prices a WASTED turn, not a turn.** The derivative holds xp constant
-while turns rise, which describes walking, dithering, and pacing. A combat turn
-raises xp *and* turns — the full change is `(t·dxp − xp·dt) / t²`, and a fight
-that pays enough xp is net positive. Applied blindly to every turn this would
-tell the bot that fighting is expensive, which is the opposite of what it
-means. State the scope in the code or the next reader will misuse it.
+#### Assert
 
-**2. Weapon belongs in the first cut of the axes, not deferred.** The proposal
-suggests floor × effective hp first, weapon as a later binary. But
-`docs/rules.md` establishes that **weapons are the only thing in this game that
-makes the hero permanently stronger** — and the M29 measurement puts one
-dagger at roughly half a floor of survival (mean death floor 3.5 against 2.95
-with the guarantee off). Two heroes on floor 5 with identical effective hp, one
-holding an axe and one unarmed, do not have the same prospects, and blurring
-them is blurring the axis that carries the most signal. Sample size is not the
-obstacle it looks like: the table is precomputed offline, so more cells is a
-compute cost, not a data-availability one.
+The table, with support per cell. **Two sanity checks it must pass or the
+bucketing is wrong:** the cell for floor 1 at the starting hero's own state
+reproduces the overall finish rate, and P rises with effective hp within a
+floor. Say which cells are too thin to read.
 
-**3. A precomputed table is a measurement snapshot, and this project just
-deleted two of those for rotting.** `map-design.md` carried spine-mass readings
-that drifted about twenty points from reality; `rogule-spec.md` still asserts a
-monster table the game abandoned. Both rotted for the same reason: no owner and
-no rule. **A survival table baked into the bot's pricing has exactly that
-shape** — dials move (they are moving this week) and it silently misprices
-without anything failing. It needs one of: regeneration as a step in the
-balance workflow, or a test that re-measures a few cells and fails when the
-stored table drifts past a tolerance. Pick one deliberately rather than
-discovering the need later.
-
-#### Why it is blocked, and on what
-
-`finishes` reads **0% to 1.3%** across every recent measurement — and U6f later
-established it is about **0.25%**, one run in four hundred, with every 0%
-reading an artefact of n=60-80 rather than a dead metric. Near zero either way,
-and that starves the table from both ends at once:
-
-- **Shallow cells have plenty of samples and no signal** — almost nobody
-  finishes from floor 1, so `P(success | floor 1, any hp)` is indistinguishable
-  from zero, and a rate near zero needs a far larger sample than anything run
-  so far to separate from zero at all.
-- **Deep cells have signal and almost no samples** — `P(finish | reached floor
-  8)` is genuinely interesting, but few runs get there to measure it.
-
-**And the deep cells are the ones that matter**, because they are where coin
-plausibly banks. The table would be mostly noise exactly where it needs to be
-sharp.
-
-**The unblocker is already in hand:** the owner is working on `finishes`
-directly with this same agent. Build the table against that, not against
-today's numbers — and record the finish rate it was measured at, because the
-table is only valid for the difficulty it was measured under.
-
-#### What it still does not resolve
-
-The table gives a price. It does not let the bot act on one: no coin term
-exists in the bot, and there is nothing to buy until the shop is real. The
-sequencing the proposal itself gives is right — table, then a working economy,
-then bot decisions — and `U6e`'s own notes already carry the standing warning
-not to feed the coin formula into `chooseGoal` as a decision price when that
-day comes.
 
 # Debt
 
