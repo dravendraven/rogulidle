@@ -533,6 +533,23 @@ fighting.
 modelling error.** It is what the loot design (M26/M27: weapons from creatures,
 chests hold armour and potions) makes true.
 
+### Shipped ON anyway, by owner decision, 2026-08-11
+
+**The flag is on, and it was measured worse.** The owner turned it on
+deliberately, to watch: some defects are not visible in an aggregate, and this
+project's record is that watching found six real defects no metric had caught.
+
+**Two things this does not mean.** It is not a reversal of the measurement
+above — depth, fights, items at exit and lost-fight rate all moved against it,
+four axes clearing 2 sigma. And **an ON flag is not a validated flag**: this
+paragraph exists so nobody two weeks from now reads the shipped state as
+approval, which is how `CHEST_LOOT_CHANCE` survived at 0.60 against a generator
+producing 0.226.
+
+**Every number taken from here describes the B22 bot.** R1's twenty-traversal
+measurements and I12's owed comparison both cross this boundary. Any figure
+compared across it is comparing two different bots.
+
 **What this cost and what it bought.** Four bot items, three of them shipping
 nothing. What it bought is that "prefer loot before combat" is now a measured
 dead end rather than a recurring suggestion, and the low-water machinery exists
