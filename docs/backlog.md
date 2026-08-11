@@ -56,7 +56,8 @@ cost are in `decisions.md`.
 | theme | items |
 |---|---|
 | The return — floors 11 to 20 | R1 · R5 · R2 · R3 · R4 |
-| The bot's pricing | B15 |
+| 1 | B21 | Price loot by the chance of finishing, not by hp | bot | READY · owner direction |
+| The bot's pricing | B21 · B15 |
 | What the map still has to do | C2 · C3 · M4 · M21 · X6 · M32 |
 | The player | U10 · U7 |
 | Instruments | I12 |
@@ -692,6 +693,86 @@ status was established by the measurement in this very item. Decide it here.
 
 **Do:** default it off, keep the code and the comment, and record the finding
 in `decisions.md` — the 0.5% ceiling is the transferable part, not the dial.
+
+### B21 · price loot by the chance of finishing, not by hp
+
+`bot agent` · READY · **owner direction, 2026-08-11** · the structural answer
+`B19` and `B20` both circled without reaching
+
+**The observation, owner's words:** a creature five tiles away and loot two
+tiles away — the bot should take the loot first, because it raises the chance
+of winning the fight that follows.
+
+#### Why the bot does not, and why it is not a bug
+
+A step costs 0.01 hp. A four-tile detour costs 0.04 against a shield worth 3.
+The detour arithmetic is overwhelming, and it is not what is blocking.
+
+**In the current model the ORDER genuinely does not matter.** `duelCost`'s
+`hpLost` does not depend on armour — `B19` measured 0.00 at every tier — so
+three points of armour are three points of hp whether they are collected before
+the fight or after it. "Loot then fight" and "fight then loot" cost the same,
+so the bot takes the larger single net and picks the chest up afterwards.
+
+**That is correct arithmetic under a linear model of hp, and the model is what
+is wrong.** Three hp at four hp remaining is worth far more than three hp at
+fifteen, because dying costs the entire rest of the run. `campaignCost`
+measures expected hp and is blind to ruin.
+
+#### Do
+
+**Change the currency for loot from hp to `P(finish)`.** `I9` shipped the
+table: `P(finish | floor, effective hp, weapon damage)`. An item's value is
+`P(state + item) − P(state)`.
+
+**This is not a new dial and it is not a detour factor.** It automatically
+makes a shield worth a great deal to a weak hero and almost nothing to a strong
+one, and it automatically makes a cheap detour worth taking — which is the
+behaviour the owner is asking for, arrived at rather than tuned in.
+
+**It also collapses the owner's stated priority order into one number:**
+survive the floor, then finish the run, then coin. `P(finish)` is that ordering
+already, which is why no weighting between the three is needed.
+
+#### The trap that decides whether this works at all
+
+**`I9`'s buckets are coarse — effective hp in 1–4 / 5–9 / 10–14 / 15+, weapon
+damage in 1 / 2 / 3+.** A shield that moves the hero from 6 to 9 hp stays in
+one bucket and reads **ΔP = 0**, which is the same wrong answer `B19` got by a
+different route.
+
+**Interpolate within the bucket, or refine the buckets, and say which.** This
+is the whole engineering content of the item; get it wrong and it repeats
+`B19`'s failure with more machinery.
+
+**Two limits `I9` already states and this inherits.** The table is averaged
+over dungeons, not conditional on this one — acceptable for pricing, and it
+must be said in the report rather than discovered later. And cells below n≥20
+are noise; decide what the bot does when it lands on one, and do not let it be
+"treat it as zero" by accident.
+
+#### What not to do
+
+**Do not price fights in `P` as well, in this item.** One currency conversion
+at a time, and loot is where the defect is. If the comparison then reads
+strangely because loot is in `P` and creatures are in hp, say so with the
+number — that is the finding that would justify converting the other side.
+
+**Do not add a detour dial.** The owner asked whether one is needed; the
+arithmetic above says the detour was never the blocker. If measurement shows
+otherwise, that is a report, not a constant.
+
+#### Assert
+
+- The owner's own case: creature five tiles off, shield two tiles off, hero at
+  low hp — the bot takes the shield first. And at high hp it does not, which is
+  the same mechanism proving it is not a blanket preference.
+- Share of floors whose first goal is a creature — 83.3% and 86.8% after `B18`.
+- Items collected per floor, **route length** (`B20` shipped OFF for a 6.3%
+  rise that bought nothing — this must not repeat it), depth histogram, and
+  `finishes`, on the baseline seed family.
+- Whether the bot now refuses fights it used to take. `worthStarting` is
+  untouched by this item, so a large move there means something leaked.
 
 ### B15 · a drink policy that reads the danger field
 
