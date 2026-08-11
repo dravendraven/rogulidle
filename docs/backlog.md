@@ -163,7 +163,7 @@ of what to do next, which is the only job it has.
 |---|---|---|
 | **A run has to be completable** | M37 · M36 | **overshot — see below.** 0.25% → 25% finishes in three items; the opening has stopped filtering |
 | **The return — floors 11 to 20** | R1 · R2 · R3 · R4 · R5 | phase B/C. Specs in the roadmap above; no item bodies yet |
-| **The potion arc** | B17 · B15 · I12 | M35 and B14 shipped; the policy and the verdict are left |
+| **The potion arc** | B18 · B19 · B17 · B15 · I12 | M35 and B14 shipped; the policy and the verdict are left |
 | **What the map still has to do** | M40 · C2 · C3 · M4 · M21 · X6 · M32 | the curve arc (C1–C3) states the shape in two lines and solves for it; the rest each own a property measured as NOT met |
 | **The player's choice** | U10 · U7 | phase D. The only theme the player touches |
 | **Instruments** | I9 | blocked, and the return moved its target |
@@ -243,7 +243,9 @@ single value that moved it was the starting kit.
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | B17 | Loot on the way is free, and the router does not know it | bot | READY · B16 landed |
+| 1 | B18 | The bot believes every creature is carrying a weapon | bot | READY · **bug**, drop value inflated 4x |
+| 2 | B19 | Loot is priced against the campaign, never against the fight in front of it | bot | after B18 · owner decision |
+| 3 | B17 | Loot on the way is free, and the router does not know it | bot | READY · B16 landed |
 | 3 | B15 | A drink policy that reads the danger field | bot | READY · B14 left a number to beat |
 | 3 | I12 | Did the potion change move anything? | metrics | baseline recorded · comparison owed |
 
@@ -431,6 +433,123 @@ Phase B and C. `R1` is the spine and is playable on its own; `R2`–`R4` are dif
 # The potion arc
 
 M35 and B14 shipped. What is left is the policy that reads danger, and the measurement that says whether any of it helped.
+
+### B18 · the bot believes every creature is carrying a weapon
+
+`bot agent` · READY · **bug, confirmed by measurement** · found by the owner
+watching nets of 250 on creatures against 1 on loot
+
+`expectedMonsterDropValue` (`src/bot/loot.js`) asks `itemWeights` what a
+creature is likely to drop and passes **an empty scarcity object**. Measured
+against what the generator actually rolls:
+
+| | dagger | axe | **empty** |
+|---|---|---|---|
+| what the bot believes | 0.429 | 0.571 | **0.000** |
+| what `spawn.js` rolls | 0.107 | 0.143 | **0.750** |
+
+**Three quarters of monster draws come up empty and the bot's model has no
+empty slot at all**, so every creature is priced as though it were certainly
+carrying a weapon. The drop value is inflated by almost exactly 4× — a rat
+reads 55.12 where it should read about 13.8.
+
+**This is the same defect M39 found on the chest side**, in `ITEM_MIX`, which
+also called `itemWeights({}, 'chest')`. That one was caught because M39 was
+changing the chest rate anyway. **Nobody checked the monster side**, and the
+scarcity dial it ignores — `WEAPON_SCARCITY` — is the one M26 introduced when
+weapons moved onto creatures.
+
+#### Do
+
+Pass the real scarcity, the way the generator does. The dial is already
+exported and `spawn.js` is already the shared implementation — this is one
+argument, not a new model.
+
+**Check what else calls `itemWeights` with an empty object while you are
+there.** Two of three known callers had this bug; the third should be looked
+at rather than assumed.
+
+**Do not compensate anywhere else.** Anything downstream that was tuned
+against the inflated number should be left alone and re-read afterwards, not
+adjusted in the same commit — otherwise the fix and the compensation cannot be
+told apart.
+
+#### Assert
+
+The drop estimate for a named creature, before and after, against the
+generator's own weights. Then the share of floors whose FIRST goal is a
+creature — measured at **86.8%** on the shipped bot over 227 floors, which is
+the observation this item came from. Report it even if it barely moves: `B19`
+is the other half and this item is not expected to fix the ordering on its own.
+
+### B19 · loot is priced against the campaign and never against the fight in front of it
+
+`bot agent` · **after B18** · owner decision, 2026-08-10 — "the bot has to
+leave the floor alive, or with as much hp as possible"
+
+Measured values for a fresh hero, in hp:
+
+| item | value |
+|---|---|
+| potion | **1.5**, flat |
+| shield | **3**, flat |
+| dagger | 15.75 → 47.25 → 110.25 as monsters ahead grows |
+| axe | 23.62 → 70.88 → **165.37** |
+
+**Weapons are priced against the whole remaining campaign; armour and potions
+are priced at face value, once.** That is why a creature's `net` reads in the
+hundreds against a chest's 1. The two sides of the comparison are not in the
+same units, and no preference is being expressed — an arithmetic mismatch is.
+
+**Face value is not wrong for armour, and this item is not asking to inflate
+it.** Three points of armour do absorb three points of damage. What is missing
+is different and the owner named it: **taking the shield before the fight
+changes the fight.** The bot prices the item against `campaignCost`, which
+counts the remaining monsters without caring in what ORDER things happen — so
+"shield then wolf" and "wolf then shield" cost the same in the model and do
+not in the game.
+
+#### The non-linear case, which is the one that matters
+
+`worthStarting` is a hard gate: a duel whose expected loss exceeds the hero's
+effective hp times the safety margin never enters the comparison at all. **A
+shield can move a fight from the wrong side of that gate to the right side.**
+When it does, its worth is not three hp — it is the difference between a floor
+the bot can finish and one it cannot.
+
+That is the sharpest form of "leave the floor alive", and nothing in the
+current pricing can express it.
+
+#### Do — and the function you need already exists
+
+`duelCost(player, monster)` is already there, and `valueByItemName` already
+computes a marginal delta by re-pricing with the item added. **The immediate
+value of an item is the same shape one level down:**
+`duelCost(player, m) − duelCost(player + item, m)`. No new model, no new dial —
+the second call is the whole change.
+
+**The trap, and it will be easy to fall into: double counting.**
+`campaignCost` already includes the creature standing in front of the hero.
+Adding a duel saving on top counts that fight twice. **The report must say in
+one line how it avoided this** — excluding the immediate creature from the
+campaign term, or crediting only the ordering difference, are both defensible;
+silently summing them is not.
+
+**Do not add a weight to balance the two sides.** If weapons still dominate
+after `B18` and after this, that is a finding to report, not a coefficient to
+introduce. `CLAUDE.md`'s rule applies at full force: this item already adds one
+term, and a second one to tune the first is exactly what it forbids.
+
+#### Assert
+
+**The gate case explicitly:** construct a duel the bot refuses, show that a
+reachable shield makes it accept, and show it takes the shield first. That is
+the behaviour the item exists for and it is checkable without a batch.
+
+Then the share of floors whose first goal is a creature (86.8% today), items
+collected per floor, and the depth histogram on the baseline seed family. **And
+say whether the bot now detours for loot it should ignore** — the failure
+direction is a bot that shops before every fight.
 
 ### B17 · loot on the way is free, and the router does not know it
 
