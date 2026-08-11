@@ -734,6 +734,39 @@ behaviour the owner is asking for, arrived at rather than tuned in.
 survive the floor, then finish the run, then coin. `P(finish)` is that ordering
 already, which is why no weighting between the three is needed.
 
+#### What the real table says, read before starting
+
+Measured at n=250, seeds 3000000+, cells above support:
+
+| floor | eff. hp | weapon | P(finish) | n |
+|---|---|---|---|---|
+| 2 | 5–9 | 1 | **6.0%** | 50 |
+| 2 | 10–14 | 1 | **14.2%** | 106 |
+| 2 | 15+ | 1 | 11.6% | 43 |
+| 4 | 10–14 | 1 | 7.7% | 39 |
+| 4 | 15+ | 1 | 9.1% | 33 |
+| 4 | 15+ | **3+** | **34.4%** | 32 |
+
+**What supports the item:** moving one hp bucket on floor 2 more than doubles
+the chance of finishing, 6.0% → 14.2%. That is the non-linearity the hp model
+cannot see, and it is worth about eight points of finish probability where the
+face value said three hp.
+
+**What does not:** weapons dominate in `P` as well, and by more — floor 4 at
+the same hp reads 9.1% with weapon 1 and **34.4%** with weapon 3+. **This
+change may not flip the preference the observation asked for.** It makes the
+arithmetic correct; correct may still say "go and kill it", because a weapon is
+the only permanent power in the game and only creatures carry one.
+
+**Say so if that is the answer.** An honest re-pricing that leaves the ordering
+unchanged is a result, not a failure, and it is the third time this question
+has been asked — do not reach for a coefficient to force the other outcome.
+
+**One inversion to be aware of:** floor 2 reads 11.6% at 15+ against 14.2% at
+10–14. `I9` reported four inversions, none clearing 2 sigma, and the 15+ cell
+carries n=43 against 106. Thin, not wrong — but do not build a decision that
+turns on it.
+
 #### The trap that decides whether this works at all
 
 **`I9`'s buckets are coarse — effective hp in 1–4 / 5–9 / 10–14 / 15+, weapon
