@@ -486,7 +486,74 @@ function preparationGoals(belief, field, danger, options, values) {
   return bestFrontier(belief, field, options);
 }
 
-function chooseGoal(belief, field, danger, current, options) {
+// B20 (docs/backlog.md). "Collect that, then fight this" as a candidate.
+//
+// `chooseGoal` compares one thing at a time, from where the hero stands, and
+// commits to the winner. So a route that picks up a shield on the way to a
+// wolf is unrepresentable — not outranked, absent. The bot is not choosing
+// the creature over the loot; it is choosing between two options one of
+// which was never offered.
+//
+// The arithmetic, and it needs no coefficient because it cancels to
+// something obvious. Writing `A(x)` for the hp cost of reaching x:
+//
+//   direct    = drop − hpLost − A(M)
+//   sequence  = drop − hpLost − A(L) − A(L→M) + lootValue − lootExtras
+//   difference = lootValue − lootExtras − [A(L) + A(L→M) − A(M)]
+//                                          \_______ the detour _______/
+//
+// **The sequence wins exactly when the loot is worth more than the detour
+// costs.** That is the honest comparison the item asked for, and it is also
+// why no "small detour" bound was added: a large detour loses on its own
+// arithmetic, so a threshold would only be a second way of saying the same
+// thing — and `CLAUDE.md` calls that the parameter to avoid.
+//
+// Bounded to ONE intervening pickup and ONE fight, structurally rather than
+// by a dial: the chain is never extended, and only the fight the bot would
+// actually take is considered. That costs exactly one extra Dijkstra per
+// turn, rooted at that creature, which is what makes A(L→M) available for
+// every loot candidate at once instead of one flood per pair.
+//
+// The winner is emitted as the ORDINARY loot goal it already is, carrying
+// the sequence's score. Nothing new has to execute it — the bot walks to
+// the loot, and next turn re-decides from there, where the creature is
+// simply the nearest thing worth doing.
+function sequenceGoals(belief, loot, priced, field, fieldFrom, options) {
+  if (!options.sequenceGoals || !fieldFrom || !loot.length) return [];
+
+  const fightable = (priced || []).filter((m) => m.worthStarting);
+  if (!fightable.length) return [];
+
+  // The fight the bot would take: `priceMonsters` already ranks by cost and
+  // branch 1 already takes the cheapest, so this is the same creature the
+  // comparison would have chosen — not a new opinion about which to fight.
+  const target = fightable.reduce((a, b) => (b.cost < a.cost ? b : a));
+  const direct = priceOfReaching(field, target.pos);
+  if (!Number.isFinite(direct)) return [];
+
+  const fromTarget = fieldFrom(target.pos);
+  const out = [];
+
+  for (const l of loot) {
+    const toLoot = priceOfReaching(field, l.pos);
+    const lootToTarget = priceOfReaching(fromTarget, l.pos);
+    if (!Number.isFinite(toLoot) || !Number.isFinite(lootToTarget)) continue;
+
+    // `l.net` is already lootValue − A(L) − extras, so adding A(L) back
+    // recovers the value net of its own costs without re-deriving it and
+    // risking a second, drifting copy of what a chest costs to open.
+    const worth = l.net + toLoot;
+    const detour = toLoot + lootToTarget - direct;
+    const net = -target.cost + worth - detour;
+
+    if (net > -target.cost) {
+      out.push({ kind: l.kind, id: l.id, pos: l.pos, net, sequencedWith: target.id });
+    }
+  }
+  return out;
+}
+
+function chooseGoal(belief, field, danger, current, options, fieldFrom) {
   // Priced once per turn and threaded through every branch that needs it —
   // loot goals, the dark's value (B4) and now a creature's own drop (B9)
   // all quote the same figures, so "go and open that" and "go and kill
@@ -578,7 +645,16 @@ function chooseGoal(belief, field, danger, current, options) {
     // worth doing first; when nothing does, the best remaining option IS
     // the door, and the bot takes it instead of falling through to the
     // unconditional fight below.
+    // B20: and "that loot, then this fight" as one option, scored against
+    // the fight alone. Entered unfiltered by `net > 0` for the same reason
+    // the shrine is: its net carries the FIGHT's cost, which is normally
+    // negative, so requiring it to be positive would delete exactly the
+    // case the item is about — a worthwhile detour on the way to a fight
+    // the bot has already decided is worth having.
+    const sequence = sequenceGoals(belief, loot, pricedEarly, field, fieldFrom, options);
+
     const worthwhile = [...loot, ...explore, ...combat].filter((g) => g.net > 0);
+    worthwhile.push(...sequence);
     if (options.leaveCompetes && canReachShrine(belief, field)) {
       worthwhile.push({ kind: 'shrine', pos: belief.shrine.pos, net: 0 });
     }
@@ -754,6 +830,19 @@ export function makeBot(options = {}) {
     frontierRouting: false,
     frontierRevealWeight: FRONTIER_REVEAL_WEIGHT,
 
+    // B20 (docs/backlog.md). Lets "collect that, then fight this" enter the
+    // comparison as one candidate, scored against the fight alone. See
+    // `sequenceGoals` for the arithmetic.
+    //
+    // OFF: measured. It fires on ~40% of decisions but is mostly REDUNDANT —
+    // the candidate it emits is the same loot goal the plain candidate
+    // already produced, so winning changes the score and not the choice.
+    // Where it does flip a choice from creature to loot, 240 paired runs
+    // moved pickups z=0.12 and depth z=0.34 (nothing), while route length
+    // rose 6.3% (z=1.18) — under the bar, but the only signed movement and
+    // the failure direction the item named. Set true to re-enable.
+    sequenceGoals: false,
+
     // B17 (docs/backlog.md). ON at the shipped value, 0 to ablate. Bends the
     // route toward a wanted loose item it can collect for free on the way,
     // by strictly less than one step is worth — see `routeItemDiscount`.
@@ -925,9 +1014,14 @@ export function makeBot(options = {}) {
     // decoration — dijkstra needs non-negative weights, and a negative one
     // would corrupt the field silently rather than throw.
     const itemBonus = routeItemDiscount(belief, settings.routeItemDiscount);
-    const field = dijkstra(belief.player.pos, passable,
-      (x, y) => Math.max(0, settings.stepCost + danger.priceAt(x, y) - itemBonus(x, y)),
-      shrineSink(belief));
+    // B20 needs the same price from a SECOND origin (a creature's tile), to
+    // ask what reaching it from a piece of loot costs. Built once as a
+    // closure so the two fields cannot drift apart — a second copy of this
+    // expression is exactly how the router and the pricer stop agreeing.
+    const priceTile = (x, y) => Math.max(0,
+      settings.stepCost + danger.priceAt(x, y) - itemBonus(x, y));
+    const fieldFrom = (origin) => dijkstra(origin, passable, priceTile, shrineSink(belief));
+    const field = fieldFrom(belief.player.pos);
 
     // B4: what the dark is worth this turn. Both figures move as the floor
     // is played — a chest found is a chest the dark no longer holds, and
@@ -953,7 +1047,7 @@ export function makeBot(options = {}) {
       settings.requireClear) ? goal : null;
     goal = (held && held.kind === 'frontier')
       ? held
-      : chooseGoal(belief, field, danger, held, settings);
+      : chooseGoal(belief, field, danger, held, settings, fieldFrom);
     if (!goal) return 'rest';
 
     // B10: a frontier goal routes on its own field, weighted toward

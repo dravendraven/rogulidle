@@ -7,7 +7,9 @@ import {
   DUEL_SAFETY_MARGIN, PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE, STARTING_ITEMS,
   WEAPON_AXE_MIN_TIER,
 } from '../src/sim/balance.js';
-import { newGame, playGame, replayGame } from '../src/sim/game.js';
+import {
+  driveTurns, newGame, playGame, replayGame,
+} from '../src/sim/game.js';
 import { step, ACTIONS, grantArmour } from '../src/sim/step.js';
 import { observe, emptyBelief, foldBelief } from '../src/sim/observe.js';
 import { weaponDamage, armourValue, effectiveHp } from '../src/sim/combat.js';
@@ -334,6 +336,94 @@ test('the kit is granted once per run, not once per floor', () => {
   assertEq(floor2.player.inventory.length, 0,
     'the starting kit was granted again on a floor that carried nothing down');
   assertEq(weaponDamage(floor2.player), 0, 'a hero who lost their weapon got it back for free');
+});
+
+// ***** E1 — the one turn loop ***** //
+
+test('a hook that returns nothing leaves the run exactly as it was', () => {
+  // The property the whole refactor rests on: `playGame` is now built on
+  // this, and four analysis call sites are too. If merely ATTACHING a hook
+  // changed anything, every number those instruments produce would have
+  // shifted the day this landed.
+  const policy = () => 'right';
+  const bare = driveTurns(newGame(9182, { chests: 0 }), policy, { maxTurns: 40 });
+
+  let seen = 0;
+  const hooked = driveTurns(newGame(9182, { chests: 0 }), policy, {
+    maxTurns: 40,
+    onTurn: () => { seen++; },
+  });
+
+  assert(seen > 0, 'fixture is wrong: the hook never fired, so nothing was compared');
+  assertEq(hooked.decisions, bare.decisions, 'the hook changed how many turns were played');
+  assertEq(hooked.state.turn, bare.state.turn, 'the hook changed the turn count');
+  assertEq(JSON.stringify(hooked.state.rng), JSON.stringify(bare.state.rng),
+    'attaching a hook consumed randomness');
+  assertEq(JSON.stringify({ ...hooked.state, map: null }), JSON.stringify({ ...bare.state, map: null }),
+    'attaching a hook changed the run');
+});
+
+test('a hook that returns a state replaces the one just produced', () => {
+  // This is the channel the observed ruler's death suppression uses, and it
+  // is a general return value rather than a flag for that one caller: it
+  // sets `outcome` back to null so the probe keeps walking.
+  const build = () => makeState({
+    map: ROOM_5x5, playerPos: [2, 2], hp: 1, xp: 1,
+    monsters: [dummy('t-rex', [3, 2], { activation: 9 })],
+  });
+  const pace = () => { let n = 0; return () => (n++ % 2 === 0 ? 'left' : 'right'); };
+
+  const bare = driveTurns(build(), pace(), { maxTurns: 30 });
+  assertEq(bare.state.outcome, 'died', 'fixture is wrong: the hero survived, so nothing was suppressed');
+
+  let suppressed = 0;
+  const hooked = driveTurns(build(), pace(), {
+    maxTurns: 30,
+    onTurn: ({ state: next }) => {
+      if (next.outcome !== 'died') return undefined;
+      suppressed++;
+      return { ...next, outcome: null, killedBy: null };
+    },
+  });
+
+  assert(suppressed > 0, 'the death was never seen by the hook');
+  assertEq(hooked.state.outcome, null, 'the run stopped despite the death being suppressed');
+  assert(hooked.state.turn > bare.state.turn,
+    'a suppressed run did not outlive the one that was allowed to die');
+});
+
+test('the hook sees the state as it was BEFORE the step', () => {
+  // Callers slice the turn's own log entries off the end with it, and read
+  // pre-step hp so a heal is measured against the ceiling the engine used.
+  // Getting `before` wrong would corrupt those silently rather than loudly.
+  const state = makeState({ map: ROOM_5x5, playerPos: [2, 2] });
+  const pairs = [];
+  let n = 0;
+  const pace = () => (n++ % 2 === 0 ? 'left' : 'right'); // every step passes a turn
+
+  driveTurns(state, pace, {
+    maxTurns: 3,
+    onTurn: ({ state: after, before, action }) => {
+      pairs.push({ from: posKey(before.player.pos), to: posKey(after.player.pos), action });
+    },
+  });
+
+  assertEq(pairs.length, 3, 'the hook did not fire once per turn');
+  assertEq(pairs[0].from, '2,2', 'the first hook call did not see the starting position');
+  assertEq(pairs[0].to, '1,2', 'the hook did not see the position after the step');
+  assertEq(pairs[1].from, '1,2', "the second turn's `before` was not the first turn's result");
+  assertEq(pairs[1].to, '2,2', 'the second step did not move the hero back');
+  assertEq(pairs[0].action, 'left', 'the hook did not receive the action that was played');
+});
+
+test('maxDecisions stops a policy that only ever bumps walls', () => {
+  // Wall bumps do not pass a turn, so `maxTurns` alone would never fire and
+  // the loop would spin forever. Kept as its own guard through the refactor.
+  const state = makeState({ map: ROOM_5x5, playerPos: [1, 1] });
+  const driven = driveTurns(state, () => 'up', { maxTurns: 10, maxDecisions: 7 });
+
+  assertEq(driven.state.turn, 0, 'bumping a wall passed a turn');
+  assertEq(driven.decisions, 7, 'maxDecisions did not stop the loop');
 });
 
 test('step does not mutate the state it was given', () => {
@@ -2948,6 +3038,67 @@ test('a shield that opens a shut gate is taken before the fight', () => {
   const { state: after } = driveBot(state, 6, { monsterCount: 1, trace });
   assertEq(trace[0].goal.kind, 'item', 'the bot went at a fight it had refused instead of arming first');
   assert(after.player.armour > 0, 'the bot never actually collected the shield');
+});
+
+// ***** B20: "collect that, then fight this" as one candidate ***** //
+//
+// docs/backlog.md B20. `chooseGoal` compares one thing at a time from where
+// the hero stands, so a route that picks up loot on the way to a fight was
+// not outranked — it was absent. `sequenceGoals` scores the pair and enters
+// it in the same comparison.
+//
+// The arithmetic cancels to "the sequence wins when the loot is worth more
+// than the detour costs", which is why no coefficient was added. Locked
+// here, because the batch could not isolate it: the candidate fires on ~40%
+// of decisions and mostly re-selects loot the bot was already going to take.
+test('the sequence candidate is redundant with the plain loot goal it duplicates', () => {
+  // The finding that decided this item's default. The candidate carries the
+  // same `kind` and `id` as the plain loot goal it is built from, so when
+  // both are in the list the hysteresis check — which matches on kind+id and
+  // takes the FIRST hit — returns the plain one. The bot walks to the same
+  // tile either way; only the score differs.
+  const map = tinyMap([
+    '###############',
+    '#-------------#',
+    '#####-#########',
+    '#####-#########',
+    '###############',
+  ]);
+  const build = () => makeState({
+    map,
+    playerPos: [1, 1],
+    monsters: [dummy('rat', [12, 1])],
+    chests: [
+      { id: 'c1', name: 'chest', emoji: '📦', pos: [5, 3], side: false, edge: false, drop: null },
+    ],
+  });
+
+  const off = driveBot(build(), 12, { monsterCount: 1, sequenceGoals: false });
+  const on = driveBot(build(), 12, { monsterCount: 1, sequenceGoals: true });
+  assertEq(on.actions.join(','), off.actions.join(','),
+    'the flag changed behaviour on a board where the plain goal already wins');
+});
+
+test('a sequence is never scored when there is no fight to sequence with', () => {
+  // No creature, so there is no second leg and the candidate must not
+  // appear — otherwise it would be scoring a fight that does not exist.
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [1, 1],
+    chests: [
+      { id: 'c1', name: 'chest', emoji: '📦', pos: [10, 1], side: false, edge: false, drop: null },
+    ],
+  });
+
+  const trace = [];
+  driveBot(state, 6, { monsterCount: 0, trace, sequenceGoals: true });
+  assert(!trace.some((t) => t.goal && t.goal.sequencedWith),
+    'a sequence candidate appeared with no creature to sequence against');
 });
 
 // ***** run it ***** //

@@ -69,7 +69,7 @@ cost are in `decisions.md`.
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | B20 | The bot ranks single goals and never a sequence | bot | READY · replaces B19 |
+| 1 | B20 | The bot ranks single goals and never a sequence | bot | **REPORTED** · shipped OFF, +6.3% route for no loot |
 | 3 | B15 | A drink policy that reads the danger field | bot | READY |
 
 ### What the map still has to do
@@ -338,8 +338,8 @@ M35 and B14 shipped. What is left is the policy that reads danger, and the measu
 
 ### B20 · the bot ranks single goals and never a sequence
 
-`bot agent` · READY · **owner direction, 2026-08-11** · replaces `B19`, which
-prescribed a fix that could not work
+`bot agent` · **REPORTED** · shipped OFF — fires on 40% of decisions, mostly
+redundant, and the only movement is route length
 
 **The observation.** The bot walks past a chest to reach a creature. Watched
 repeatedly, across floors and seeds.
@@ -399,6 +399,102 @@ here so it is not rediscovered as a novelty.
   baseline seed family.
 - **Whether the bot now shops before every fight.** That is the failure
   direction, and route length is where it shows first.
+
+### Result — built, measured, SHIPPED OFF
+
+**The pair is a candidate now and the arithmetic is honest. It fires
+constantly, is mostly redundant, and the only thing it moves is route
+length — the failure direction the item named.**
+
+#### What shipped, and why no coefficient was needed
+
+`sequenceGoals` scores "reach the loot, then reach the creature from there"
+against the creature alone. Writing `A(x)` for the hp cost of reaching x:
+
+    direct     = drop − hpLost − A(M)
+    sequence   = drop − hpLost − A(L) − A(L→M) + lootValue − lootExtras
+    difference = lootValue − lootExtras − [A(L) + A(L→M) − A(M)]
+                                           \_______ detour _______/
+
+**The sequence wins exactly when the loot is worth more than the detour
+costs.** That cancellation is why the item's "bound it hard — only loot
+whose detour is small" was NOT implemented as a threshold: a large detour
+already loses on its own arithmetic, so a bound would be a second way of
+saying the same thing, and `CLAUDE.md` calls that the parameter to avoid.
+The chain is bounded structurally instead — one pickup, one fight, and only
+the fight the bot would already take, which costs exactly one extra
+Dijkstra per turn rooted at that creature.
+
+`fieldFrom` was extracted in `decide()` so the second field is built from
+the same price expression as the first, rather than a second copy that can
+drift.
+
+#### Measured, paired in-tree, 240 runs on the baseline families
+
+    metric               off        on       diff       z    runs changed
+    SEQUENCE fired      0.000   274.579  +274.58    24.25       240 / 240
+    items picked up    18.208    18.292    +0.083    0.12       163
+    pickups per floor   2.587     2.670    +0.083    1.26       165
+    depth               6.058     6.121    +0.063    0.34       131
+    ROUTE: actions    623.471   662.575   +39.104    1.18       238
+    kills              26.825    27.087    +0.263    0.28       190
+
+**It fires on roughly 40% of decisions and buys nothing.** Pickups z=0.12,
+depth z=0.34. The one number that moves is route length, **+6.3%**, and
+although z=1.18 does not clear the bar it is the largest signed effect and
+it points exactly where the item said to watch: *whether the bot now shops
+before every fight*. **Yes, mildly — it walks 6% further and comes back with
+the same loot.**
+
+#### Why it fires 274 times and changes almost nothing
+
+**The candidate is usually a duplicate of a goal the bot had already
+chosen.** It is emitted carrying the same `kind` and `id` as the plain loot
+goal it is built from, so both sit in `worthwhile` at once. The hysteresis
+check then matches on kind+id and takes the **first** hit — the plain
+one — and returns that. The bot walks to the same tile either way; only the
+score differs.
+
+So "fired 274 times" is not 274 changed decisions. It is mostly the same
+chest, scored twice. The real population is the subset where the sequence
+beats a *creature* that would otherwise have won, and that subset is what
+produced +6.3% route and no extra loot.
+
+**This interaction is worth knowing beyond this item:** any future candidate
+that shares kind+id with an existing one is invisible to the stickiness
+check, which will silently prefer whichever was pushed first. Locked in a
+test.
+
+#### The fixture case, and why it could not isolate
+
+The Assert asked for a chest two or three tiles off the route to a creature
+the bot intends to fight, and the bot collecting it on the way. Built it —
+and **the bot already does that with the flag off**, because a chest's net
+is positive and a rat's is not, so the plain comparison already prefers the
+chest. The fixture therefore proves nothing about the sequence, and is
+shipped as what it actually demonstrates: the flag is a no-op on that board.
+
+To isolate the mechanism a fixture would need a creature that *beats* a
+chest in the plain comparison, which after `B18` cut drop values 4× is a
+narrow band. Not constructed; the batch already answers the question.
+
+#### Shipped OFF
+
+Following `B17`'s review directly: "it cannot cost anything" is not this
+project's test, and a measured-and-rejected mechanism is left in the code
+with the number that killed it. Here it is not even neutral — the only
+movement is the failure direction. The code and the arithmetic stay for
+whoever revisits this with `I9`'s survival table, which is the version the
+item itself names as the real answer.
+
+**Files touched:** `src/bot/bot.js` (`sequenceGoals`, `fieldFrom` extracted
+in `decide()`, flag default off), `test/tests.js` (two tests: the duplicate
+is a no-op, and no sequence is scored without a fight). No new dial.
+`src/sim/` untouched. 162 green.
+
+**Made stale: none of the three.** The flag ships off, so no shipped
+behaviour changed. `bot-strategy.md` §3.2 still describes `chooseGoal` as a
+one-at-a-time comparison, which is what it still does.
 
 
 ### Result — NO PRICING CHANGE SHIPPED, and the measurement is why
