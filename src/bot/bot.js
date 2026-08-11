@@ -1001,6 +1001,13 @@ const samePosition = (a, b) => a[0] === b[0] && a[1] === b[1];
 
 const OPPOSITE = { up: 'down', down: 'up', left: 'right', right: 'left' };
 
+// B24. `OPPOSITE` above is the reversal penalty's business — undoing the last
+// step, a two-cycle. This is the orthogonal case, which that penalty cannot
+// see at all: `right` then `up` is not the opposite of anything, so it is
+// never charged, and a zig-zag is made entirely of moves like it.
+const AXIS_OF = { up: 'v', down: 'v', left: 'h', right: 'h' };
+const STEP_OF = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+
 export function makeBot(options = {}) {
   const settings = {
     // How many monsters the floor holds. The bot is told (bot-strategy
@@ -1106,6 +1113,29 @@ export function makeBot(options = {}) {
     // at 0.60 against a generator producing 0.226 precisely because nobody
     // wrote this paragraph next to it.
     lowWaterVeto: true,
+
+    // B24 (docs/backlog.md). When the planned step would change axis, keep
+    // going straight if that reaches the same goal for the same price. See
+    // the tie-break in `decide`.
+    //
+    // ON, and the honest case for it is narrow. Paired, 90 runs, the 3000000
+    // family: axis flips per move 0.2386 -> 0.1775, and route length -4.5
+    // steps (z -0.11), so the weaving fell by a quarter without the walk
+    // getting longer — which is the whole thing this was filed to do, since
+    // it is the owner watching the bot that made it an item.
+    //
+    // What it did NOT do is help anything else, and every outcome sign is
+    // negative: depth -0.08 (z -0.42), finishes -0.011 (z -0.38), kills
+    // -0.82 (z -0.83), hp at exit -0.04 (z -0.17), items at exit -0.79
+    // (z -1.80). None clears the 2-sigma bar so none is explained here, and
+    // they are one correlated signal rather than five, because they all move
+    // with depth. Reversals per move went the other way, 0.2088 -> 0.2309.
+    //
+    // Items at exit is the tripwire: it is the closest to the bar, and if a
+    // later measurement puts it past 2 sigma this flag is the first thing to
+    // switch off. B17's ruling is the precedent worth remembering — "it
+    // cannot cost anything" is not this project's test for shipping ON.
+    straightRoutes: true,
 
     // B23 (docs/backlog.md). Splits the floor into phases at the activation
     // radii and asks "what is still free" before "which radius next". See
@@ -1385,7 +1415,51 @@ export function makeBot(options = {}) {
       return 'rest';
     }
 
-    const planned = actionToward(belief.player.pos, route[1]);
+    let planned = actionToward(belief.player.pos, route[1]);
+
+    // B24 (docs/backlog.md): among equal-cost routes, keep going the way the
+    // bot was already going.
+    //
+    // The grid is 4-connected, so any diagonal progress MUST alternate axes:
+    // `RRRRRUUUUU` and `RURURURURU` cost exactly the same and Dijkstra picks
+    // between them by `STEPS` order alone. B23 measured the weaving at 0.2187
+    // axis changes per move and found it was WORSE before B22, so most of it
+    // is geometry rather than indecision — which is why this is a tie-break
+    // and NOT the cost term the item was originally filed as. Charging the
+    // sideways step would buy a tidier picture with a longer walk.
+    //
+    // Only the first step is checked, because only the first step is taken:
+    // the whole field is rebuilt next turn anyway, so a globally flip-minimal
+    // path would be computed and thrown away fifteen times over.
+    //
+    // Exact rather than heuristic. Re-rooting the field at the neighbour
+    // gives the true remaining cost, so the swap happens only when the two
+    // routes really are the same price. One extra flood, on the minority of
+    // turns where the axis would otherwise change.
+    //
+    // This is NOT the reversal penalty, which charges undoing the last step —
+    // `right` then `left`. A zig-zag is `right` then `up`, the opposite of
+    // nothing, so that penalty never sees it. See `AXIS_OF`.
+    //
+    // Skipped when B10's frontier routing supplied the field, because that
+    // one is priced differently and `fieldFrom` would be comparing two
+    // different currencies. It ships off; this is here so the two do not
+    // quietly interact if it is ever switched on.
+    if (settings.straightRoutes && routingField === field
+      && lastAction && AXIS_OF[lastAction]
+      && AXIS_OF[planned] !== AXIS_OF[lastAction]) {
+      const [dx, dy] = STEP_OF[lastAction];
+      const sideways = [belief.player.pos[0] + dx, belief.player.pos[1] + dy];
+      const goalKey = key(goal.pos);
+      const total = routingField.cost.get(goalKey);
+      if (passable(sideways[0], sideways[1]) && Number.isFinite(total)) {
+        const price = priceTile(sideways[0], sideways[1]);
+        const onward = fieldFrom(sideways).cost.get(goalKey);
+        // A hair of slack: these are sums of floating-point tile prices, so
+        // two genuinely equal routes can differ in the last bit.
+        if (Number.isFinite(onward) && price + onward <= total + 1e-9) planned = lastAction;
+      }
+    }
 
     // Let it come to you. bot-strategy §2: a corridor is not a trap, it is
     // the tool that forces the duel to be one against one — so when

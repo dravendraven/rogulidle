@@ -241,6 +241,27 @@ Quando algo está caçando, o bot pode escolher um tile e **se comprometer com
 ele uma vez**, em vez de recalcular todo turno. Recalcular era exatamente
 como o vaivém nascia.
 
+### 3.6 Continuar no eixo em que já se estava (B24)
+
+A grade é 4-conexa: `STEPS` não tem diagonal. Então **todo progresso diagonal
+obriga a alternar eixo** — `RRRRRUUUUU` e `RURURURURU` custam exatamente o
+mesmo, e o Dijkstra escolhe entre os dois pela ordem em que `STEPS` foi
+escrito, nada mais. A maior parte do serpenteio que se vê é isso: geometria,
+não indecisão. O B23 mediu, e ele era **pior antes** da mudança que foi
+culpada por ele.
+
+Então, quando o passo planejado trocaria de eixo, o bot pergunta se seguir
+reto chega ao mesmo objetivo pelo mesmo preço, e só troca se chegar. É
+desempate, **não termo de custo**: cobrar o passo lateral compraria uma foto
+mais arrumada com uma caminhada mais longa.
+
+Só o primeiro passo é verificado, porque só o primeiro passo é executado — o
+campo é reconstruído no turno seguinte de qualquer jeito.
+
+**Não é a penalidade de reversão**, que cobra desfazer o passo anterior:
+`right` depois de `left`. Um zigue-zague é `right` depois de `up`, que não é o
+oposto de nada, e por isso aquela penalidade nunca o enxerga.
+
 ---
 
 ## 4. Como as coisas são precificadas

@@ -366,7 +366,7 @@ may not be separable, and saying so is the answer.
 
 ### B24 · a step that does not approach the goal should cost more
 
-`bot agent` · READY · **owner idea, 2026-08-11** · bot pricing, not a game
+`bot agent` · **REPORTED** · shipped ON as a tie-break, not a cost term · **owner idea, 2026-08-11** · bot pricing, not a game
 charge — deliberately separate from `M42`
 
 **The idea.** Once the bot has chosen a goal, it has already decided that goal

@@ -3444,6 +3444,58 @@ test('the free region is swept before a radius is crossed', () => {
     'the phase-one fight should be the pursuer, not the sleeper');
 });
 
+// ***** B24: keep going the way you were going ***** //
+//
+// docs/backlog.md B24, reshaped by what B23 measured. The grid is
+// 4-connected — `STEPS` in nav.js has no diagonals — so any diagonal
+// progress MUST alternate axes: `RRRRRUUUUU` and `RURURURURU` cost the same
+// and Dijkstra picks between them by `STEPS` order alone.
+//
+// A tie-break, deliberately not the cost term the item was first filed as.
+// Charging the sideways step would make the bot walk further to avoid
+// changing axis, which is a worse route bought with a tidier picture. The
+// second assert below is what holds it to that: same number of moves.
+//
+// It is also not the reversal penalty, which charges undoing the last step.
+// A zig-zag is `down` then `right` — the opposite of nothing — so that
+// penalty cannot see it at all.
+test('equal-cost routes keep the current axis', () => {
+  const map = tinyMap([
+    '##########',
+    '#--------#',
+    '#--------#',
+    '#--------#',
+    '#--------#',
+    '#--------#',
+    '#--------#',
+    '#--------#',
+    '#--------#',
+    '##########',
+  ]);
+  // Open floor, nothing on it, and the exit on the far diagonal: thousands
+  // of routes there are exactly the same price.
+  const build = () => makeState({
+    map,
+    playerPos: [1, 1],
+    hp: 10,
+    monsters: [],
+    shrine: { id: 's', emoji: '⛩️', pos: [8, 8] },
+  });
+
+  const axis = { up: 'v', down: 'v', left: 'h', right: 'h' };
+  const walk = (straightRoutes) => driveBot(build(), 40, { monsterCount: 0, straightRoutes })
+    .actions.filter((a) => axis[a]);
+
+  const plain = walk(false);
+  const straight = walk(true);
+  const flips = (ms) => ms.filter((m, i) => i > 0 && axis[m] !== axis[ms[i - 1]]).length;
+
+  assertEq(straight.length, plain.length,
+    'the tie-break changed how far the bot walked, which it may not do');
+  assert(flips(straight) < flips(plain),
+    `expected fewer axis changes, got ${flips(straight)} against ${flips(plain)}`);
+});
+
 // ***** run it ***** //
 
 export function runAll() {
