@@ -716,6 +716,42 @@ it does**, and the reason is not the expectation: a fight costing 5 taken at 6
 hp leaves the hero one bad roll from dead, and the same fight taken at 9 does
 not. **The missing quantity is how low the hero dips, not how much it spends.**
 
+#### Why floor-local is not an approximation
+
+`rules.md` §1: every floor is generated from the seed and is **independent of
+the hero** — only state descends. The run is therefore a Markov chain, and the
+chance of surviving floor `f` depends only on the state entering it. So
+
+    P(finish) = product over f of p_f(S_f)
+
+exactly, not approximately. **That identity is what licenses deciding one floor
+at a time**: maximising each factor maximises the product, and each factor is
+local.
+
+#### The quantity, and why it is the low-water mark
+
+Death happens when the budget touches zero, not when total spend is high. So
+`p_f` falls with **how close the trajectory comes to zero**, not with what it
+costs. That is precisely why `duelCost` could not express a shield: it measures
+expected spend, and a shield does not change the spend — it changes what the
+spend is paid from.
+
+For a plan, the quantity is `m = min over the plan of (hp + armour)`.
+
+#### Resources and survival are the same objective at two moments
+
+More hp and armour raise next floor's `m`. More weapon damage lowers the cost
+of every fight, which also raises next floor's `m`. **Every resource acts on
+the future through one channel: it raises the next floor's low-water mark.**
+
+So there are not two goals needing an exchange rate between them. There is one:
+
+> **Maximise the minimum, across the run, of the hero's effective hp — subject
+> to reaching the exit.**
+
+A maximin objective, the standard shape for ruin avoidance, and ordinally
+proportional to `P(finish)` by the monotonicity above.
+
 #### Do
 
 **Two changes, and the first is a deletion.**
@@ -733,6 +769,23 @@ lexicographically:
 
 - **feasible first**: the low-water mark stays above the safety margin;
 - **then resources at exit**: hp, armour bar, weapon damage, items held.
+
+Dominance, precisely: **A beats B when `m_A >= m_B` and `X_A >= X_B` in every
+resource.** `P` is monotone in each, so a plan that survives better AND exits
+richer is better with no exchange rate, no table and no constant. Prefer the
+non-dominated; break remaining ties by `m`.
+
+**Where this is provably right, and where it is not.** It is exact whenever the
+comparison is a dominance. It is **undetermined exactly on the genuine
+trade-offs** — when raising `m` requires giving up a resource, such as skipping
+a weapon to avoid a fight. No local rule can settle those, and none should
+pretend to.
+
+**Those cases are rarer than they sound, and that is the owner's point.** A
+step costs 0.01 hp, so almost every real comparison here is a dominance:
+fetching a shield two tiles away before a fight raises `m` *and* the exit
+state. The bot is only left without a local answer in the narrow case, and
+breaking ties by survival there is the conservative choice.
 
 That is the ratio the owner described, made an ordering rather than a weighted
 sum — and an ordering needs no coefficient to balance the two halves, which is
