@@ -56,7 +56,7 @@ cost are in `decisions.md`.
 | theme | items |
 |---|---|
 | The return — floors 11 to 20 | R1 · R5 · R2 · R3 · R4 |
-| The bot's pricing | B19 · B17 · B15 |
+| The bot's pricing | B20 · B17 · B15 |
 | What the map still has to do | C2 · C3 · M4 · M21 · X6 · M32 |
 | The player | U10 · U7 |
 | Instruments | I12 · I9 |
@@ -69,7 +69,7 @@ cost are in `decisions.md`.
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | B19 | Loot is priced against the campaign, never against the fight in front of it | bot | **REPORTED** · no change: the term is 0 for armour |
+| 1 | B20 | The bot ranks single goals and never a sequence | bot | READY · replaces B19 |
 | 3 | B17 | Discount a tile holding free loot | bot | measured inert · **owes one change: ship it OFF** |
 | 3 | B15 | A drink policy that reads the danger field | bot | READY |
 
@@ -338,74 +338,70 @@ Phase B and C. `R1` is the spine and is playable on its own; `R2`–`R4` are dif
 
 M35 and B14 shipped. What is left is the policy that reads danger, and the measurement that says whether any of it helped.
 
-### B19 · loot is priced against the campaign and never against the fight in front of it
+### B20 · the bot ranks single goals and never a sequence
 
-`bot agent` · **REPORTED** · no pricing change — the proposed term is
-identically zero for armour, and the gate case already works
+`bot agent` · READY · **owner direction, 2026-08-11** · replaces `B19`, which
+prescribed a fix that could not work
 
-Measured values for a fresh hero, in hp:
+**The observation.** The bot walks past a chest to reach a creature. Watched
+repeatedly, across floors and seeds.
 
-| item | value |
-|---|---|
-| potion | **1.5**, flat |
-| shield | **3**, flat |
-| dagger | 15.75 → 47.25 → 110.25 as monsters ahead grows |
-| axe | 23.62 → 70.88 → **165.37** |
+**Why, and it is arithmetic rather than preference.** `chooseGoal` compares
+candidates one at a time by `net` from where the hero stands. A creature's net
+is dominated by its expected drop, priced against the whole remaining campaign;
+a chest's net is armour and potion at face value, spent once. After `B18` cut
+the drop estimate 4×, weapons still lead armour by two orders of magnitude.
 
-**Weapons are priced against the whole remaining campaign; armour and potions
-are priced at face value, once.** That is why a creature's `net` reads in the
-hundreds against a chest's 1. The two sides of the comparison are not in the
-same units, and no preference is being expressed — an arithmetic mismatch is.
+**What is missing is not a weight. It is that "collect that, then fight this"
+is never a candidate.** The bot can only ask "which single thing is worth most
+from here", so a route that picks up a shield on the way to a wolf is
+unrepresentable — even when it costs three extra turns and the shield is on the
+way.
 
-**Face value is not wrong for armour, and this item is not asking to inflate
-it.** Three points of armour do absorb three points of damage. What is missing
-is different and the owner named it: **taking the shield before the fight
-changes the fight.** The bot prices the item against `campaignCost`, which
-counts the remaining monsters without caring in what ORDER things happen — so
-"shield then wolf" and "wolf then shield" cost the same in the model and do
-not in the game.
+#### Do
 
-#### The non-linear case, which is the one that matters
+**Make the pair a candidate.** For a creature the bot would fight, and loot
+close to the route to it, score the sequence — reach the loot, then reach the
+creature from there — and enter it in the same comparison, in the same hp
+currency, against the creature alone. The bot already prices every leg of that:
+`priceOfReaching` for both hops and `duelCost` for the fight. Nothing new is
+being modelled; what is new is that the two are added up as one option.
 
-`worthStarting` is a hard gate: a duel whose expected loss exceeds the hero's
-effective hp times the safety margin never enters the comparison at all. **A
-shield can move a fight from the wrong side of that gate to the right side.**
-When it does, its worth is not three hp — it is the difference between a floor
-the bot can finish and one it cannot.
+**Bound it hard.** One intervening pickup, and only loot whose detour is small
+relative to the direct route. This is a sequence of two, not a planner — the
+combinatorics of anything more is how this becomes a different item.
 
-That is the sharpest form of "leave the floor alive", and nothing in the
-current pricing can express it.
+**Do not add a coefficient to make loot win.** If the sequence still loses
+after being priced honestly, that is the answer and it goes in the report.
+`CLAUDE.md` forbids a weight tuned to produce a preferred outcome, and this
+item is one term already.
 
-#### Do — and the function you need already exists
+#### The alternative worth naming, because it may be the real answer
 
-`duelCost(player, monster)` is already there, and `valueByItemName` already
-computes a marginal delta by re-pricing with the item added. **The immediate
-value of an item is the same shape one level down:**
-`duelCost(player, m) − duelCost(player + item, m)`. No new model, no new dial —
-the second call is the whole change.
+Armour's face value is arithmetically correct in hp — three points absorb three
+damage, once. What it misses is that **hp near death is worth more than hp at
+full health**, and `campaignCost` cannot express that because it measures hp,
+not survival.
 
-**The trap, and it will be easy to fall into: double counting.**
-`campaignCost` already includes the creature standing in front of the hero.
-Adding a duel saving on top counts that fight twice. **The report must say in
-one line how it avoided this** — excluding the immediate creature from the
-campaign term, or crediting only the ordering difference, are both defensible;
-silently summing them is not.
+`I9` now measures exactly that: `P(finish | floor, effective hp, weapon
+damage)`. Pricing loot by the change in P rather than by hp is the structural
+version of this item, and it did not exist until this week.
 
-**Do not add a weight to balance the two sides.** If weapons still dominate
-after `B18` and after this, that is a finding to report, not a coefficient to
-introduce. `CLAUDE.md`'s rule applies at full force: this item already adds one
-term, and a second one to tune the first is exactly what it forbids.
+**Not this item.** It is a different and larger change, it needs I9's table to
+be trusted first, and the sequence candidate is worth having either way. Named
+here so it is not rediscovered as a novelty.
 
 #### Assert
 
-**The gate case explicitly:** construct a duel the bot refuses, show that a
-reachable shield makes it accept, and show it takes the shield first. That is
-the behaviour the item exists for and it is checkable without a batch.
+- The fixture case: a chest two or three tiles off the route to a creature the
+  bot intends to fight, and the bot collects it on the way. Checkable without a
+  batch.
+- Share of floors whose first goal is a creature — 83.3% and 86.8% after `B18`.
+- Items collected per floor, route length, and the depth histogram on the
+  baseline seed family.
+- **Whether the bot now shops before every fight.** That is the failure
+  direction, and route length is where it shows first.
 
-Then the share of floors whose first goal is a creature (86.8% today), items
-collected per floor, and the depth histogram on the baseline seed family. **And
-say whether the bot now detours for loot it should ignore** — the failure
-direction is a bot that shops before every fight.
 
 ### Result — NO PRICING CHANGE SHIPPED, and the measurement is why
 
