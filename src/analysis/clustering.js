@@ -70,7 +70,9 @@
 // whole question is about the REAL bot's behaviour, same as I4.
 
 import { driveTurns, newGame } from '../sim/game.js';
-import { floorPlan, LEVELS } from '../sim/dungeon.js';
+import {
+  floorPlan, floorOfTraversal, LEVELS, TRAVERSALS,
+} from '../sim/dungeon.js';
 import { hashSeeds, makeRng } from '../sim/rng.js';
 import { posKey, playerPassable, walkablePositions } from '../sim/mapgen.js';
 import { step } from '../sim/step.js';
@@ -627,6 +629,19 @@ export function descentCheck(options = {}) {
     runs = 8, firstSeed = 800000, maxTurns = 1500, levels = LEVELS, hpFromKills = false,
     // I11 — see the counts block below.
     startingItems,
+    // I13 — a run is TWENTY TRAVERSALS, not ten floors. This loop had its
+    // own `for (level = 1; level <= levels; level++)` and never learned R1's
+    // rule, so everything below it measured the descent half and called it a
+    // run. Pass `traversals: LEVELS` to pin a plain descent, the same escape
+    // hatch `playDungeon` gives for the same reason.
+    traversals = TRAVERSALS,
+    // I13 — forwarded to `makeBot` so a reading can be reproduced against a
+    // DIFFERENT bot configuration than today's shipped one. Needed here
+    // specifically: R1 measured 3.0% before the owner turned B22's
+    // `lowWaterVeto` on, so checking this item against R1's number requires
+    // R1's bot. Empty by default, so the shipped bot is what runs unless a
+    // caller says otherwise.
+    botOptions = {},
   } = options;
 
   const depths = [];
@@ -691,7 +706,15 @@ export function descentCheck(options = {}) {
     let finishedThisRun = false;
     arrivalsThisRun.length = 0;
 
-    for (let level = 1; level <= levels; level++) {
+    // I13 — indexed by TRAVERSAL, and the floor comes from `dungeon.js`'s own
+    // `floorOfTraversal` rather than a second copy of the pairing rule. The
+    // map returns for free: a floor is generated from `hashSeeds(seed, level)`
+    // and `floorPlan(level)`, neither of which reads the hero, so asking for
+    // floor 9 again on the way up reproduces it tile for tile — exactly what
+    // `playDungeon` does.
+    for (let traversal = 1; traversal <= traversals; traversal++) {
+      const level = floorOfTraversal(traversal, levels);
+      const direction = traversal <= levels ? 'down' : 'up';
       const plan = floorPlan(level);
       const counts = {
         monsters: plan.monsters,
@@ -723,8 +746,14 @@ export function descentCheck(options = {}) {
       // engine's own STARTING_ITEMS land here and only a read of the built
       // state sees them — the mistake I11 found in observed-ruler's
       // `arrivedWith`, not repeated.
+      // I13 — keyed by TRAVERSAL, not floor. Floor 4 going down and floor 4
+      // coming back are different states: different hero, different band,
+      // and after R3 different loot. One key for both folds them together
+      // and averages two questions into one meaningless number.
       arrivalsThisRun.push({
+        traversal,
         level,
+        direction,
         effHp: effectiveHp(state.player),
         wpn: weaponDamage(state.player),
       });
@@ -739,7 +768,7 @@ export function descentCheck(options = {}) {
       potionsGenerated += state.chests.filter((c) => isPotion(c.drop)).length
         + state.monsters.filter((m) => isPotion(m.drop)).length
         + state.items.filter(isPotion).length;
-      const bot = makeBot({ monsterCount: plan.monsters, level, levels });
+      const bot = makeBot({ monsterCount: plan.monsters, level, levels, ...botOptions });
       const engaged = new Set();
 
       // E1 — this used to be a fifth hand-written turn loop, not one of the
@@ -840,7 +869,10 @@ export function descentCheck(options = {}) {
       totalFloorTurns += state.turn;
       floorAttempts++;
       runTurnOffset += state.turn;
-      depthReached = level;
+      // I13 — depth counts TRAVERSALS survived, matching `playDungeon`'s own
+      // `depth`. On a pinned descent (traversals: LEVELS) the two are the
+      // same number, so a caller measuring a plain descent sees no change.
+      depthReached = traversal;
       // Theoretical coins: round(xp gained ÷ turns spent × 10), this floor,
       // added into the run's running total.
       if (state.turn > 0) {
@@ -860,7 +892,9 @@ export function descentCheck(options = {}) {
         break;
       }
       carry = carryFromPlayer(state.player);
-      if (level === levels) {
+      // I13 — VICTORY IS THE LAST TRAVERSAL. Reaching the bottom clears
+      // nothing on its own; it is the halfway point.
+      if (traversal === traversals) {
         cleared++;
         finishedThisRun = true;
         totalKills += state.player.kills.length;
@@ -871,8 +905,12 @@ export function descentCheck(options = {}) {
     // I9 — the run's outcome is known now, so every state it passed through
     // gets credited with it.
     for (const a of arrivalsThisRun) {
-      const key = `${a.level}|${hpBucketOf(a.effHp)}|${wpnBucketOf(a.wpn)}`;
-      const cell = cells.get(key) ?? { level: a.level, hp: hpBucketOf(a.effHp), wpn: wpnBucketOf(a.wpn), n: 0, finished: 0 };
+      const hp = hpBucketOf(a.effHp);
+      const wpn = wpnBucketOf(a.wpn);
+      const key = `${a.traversal}|${hp}|${wpn}`;
+      const cell = cells.get(key) ?? {
+        traversal: a.traversal, level: a.level, direction: a.direction, hp, wpn, n: 0, finished: 0,
+      };
       cell.n++;
       if (finishedThisRun) cell.finished++;
       cells.set(key, cell);
@@ -925,8 +963,13 @@ export function descentCheck(options = {}) {
       hpLabels: HP_LABELS,
       wpnLabels: WPN_LABELS,
       minSupport: MIN_SUPPORT,
+      traversals,
+      // I13 — every cell carries `traversal`, `level` and `direction`. The
+      // key is the traversal: floor 4 down and floor 4 up are separate rows,
+      // and `level` rides along only so a reader can see which floor a
+      // traversal crossed.
       cells: [...cells.values()]
-        .sort((a, b) => a.level - b.level
+        .sort((a, b) => a.traversal - b.traversal
           || HP_LABELS.indexOf(a.hp) - HP_LABELS.indexOf(b.hp)
           || WPN_LABELS.indexOf(a.wpn) - WPN_LABELS.indexOf(b.wpn))
         .map((c) => {
@@ -972,8 +1015,13 @@ export function descentCheck(options = {}) {
     totalKills,
     reversalRate: totalActions ? totalReversals / totalActions : null,
     totalActions,
+    // I13 — one attempt per TRAVERSAL now, so a completed run contributes
+    // twenty of these rather than ten. The name is kept because every reader
+    // of it means "per crossing", which is what it still counts; what moved
+    // is how many crossings a run has.
     turnsPerFloor: floorAttempts ? totalFloorTurns / floorAttempts : null,
     floorAttempts,
+    traversals,
     fightsStarted,
     lostFightsStarted,
     lostFightRate: fightsStarted ? lostFightsStarted / fightsStarted : null,

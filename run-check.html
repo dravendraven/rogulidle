@@ -144,7 +144,9 @@ function render(reward, counts, dc, sonda, coins, topo) {
   const finCls = dc.finishRate >= 0.15 && dc.finishRate <= 0.35 ? 'ok' : 'meh';
 
   const productKpi = [
-    cell('success', 'median depth', `${f(dc.medianDepth, 1)}/${LEVELS}`, `depths: ${depthList}`),
+    // I13 — depth counts TRAVERSALS survived, so the denominator is 20, not
+    // 10. Reaching the bottom is traversal 10 and clears nothing.
+    cell('success', 'median depth', `${f(dc.medianDepth, 1)}/${dc.traversals}`, `depths: ${depthList}`),
     cell('health', 'finishes', `<span class="${finCls}">${pct(dc.finishRate)}</span>`, `${dc.cleared}/${dc.runs}`),
   ];
   const productDiag = [
@@ -312,7 +314,13 @@ function render(reward, counts, dc, sonda, coins, topo) {
   // of how well anyone plays). Median depth, not finish rate: finish rate
   // is 0/0-noisy at the small samples this page uses, depth isn't.
   const sondaDepth = median(sonda.depths);
-  const botDepth = dc.medianDepth;
+  // I13 — the bot now runs twenty traversals; `builtShape` is deliberately
+  // PINNED to a descent (it reads per-floor rows, which would otherwise get
+  // each floor twice). Comparing 20 against 10 would double this ratio for
+  // no change in skill, so the bot's depth is capped to the descent half —
+  // "how far into the first ten crossings", which is the same question the
+  // sonda answers. Both sides are a descent; neither is a run.
+  const botDepth = Math.min(dc.medianDepth, LEVELS);
   // Moeda (xp/turno) is the bot's own declared secondary objective — the
   // only Bot number that IS a target, not a symptom. Everything else below
   // (skill vs a dumb baseline, movement waste, risk taken) explains why
@@ -323,7 +331,7 @@ function render(reward, counts, dc, sonda, coins, topo) {
   ];
   const botDiag = [
     cell('health', 'depth, bot÷sonda', `${f(botDepth / (sondaDepth || 1), 2)}×`,
-      `bot ${f(botDepth, 1)} / sonda ${f(sondaDepth, 1)}`),
+      `descida: bot ${f(botDepth, 1)} / sonda ${f(sondaDepth, 1)}`),
     cell('health', 'reversal rate', pct(dc.reversalRate)),
     cell('health', 'turns per floor', f(dc.turnsPerFloor, 0)),
     cell('health', 'lost fights started',
@@ -352,16 +360,20 @@ function render(reward, counts, dc, sonda, coins, topo) {
   // worth watching. Averaged over dungeons, not conditional on this one:
   // right for design, wrong for a live on-screen number (U2, blocked on E1).
   const surv = dc.survival;
-  const survCell = (lvl, hp, wpn) => surv.cells.find(
-    (c) => c.level === lvl && c.hp === hp && c.wpn === wpn,
+  // I13 — keyed by TRAVERSAL. Floor 4 down and floor 4 up are separate rows;
+  // `level` is shown alongside so a reader can see which floor each crossing
+  // was, without the two folding into one number.
+  const survCell = (t, hp, wpn) => surv.cells.find(
+    (c) => c.traversal === t && c.hp === hp && c.wpn === wpn,
   );
   const survRows = [];
-  for (let lvl = 1; lvl <= LEVELS; lvl++) {
+  for (let t = 1; t <= surv.traversals; t++) {
     for (const hp of surv.hpLabels) {
-      if (!surv.wpnLabels.some((w) => survCell(lvl, hp, w))) continue;
-      survRows.push(`<tr><td>${lvl}</td><td>${hp}</td>`
+      if (!surv.wpnLabels.some((w) => survCell(t, hp, w))) continue;
+      const any = surv.wpnLabels.map((w) => survCell(t, hp, w)).find(Boolean);
+      survRows.push(`<tr><td>${t}</td><td class="direction">${any.direction} f${any.level}</td><td>${hp}</td>`
         + surv.wpnLabels.map((w) => {
-          const c = survCell(lvl, hp, w);
+          const c = survCell(t, hp, w);
           if (!c) return '<td class="direction">·</td>';
           if (!c.readable) return `<td class="direction">— <span style="font-size:.85em">n=${c.n}</span></td>`;
           return `<td>${pct(c.p)} <span style="font-size:.85em;color:var(--faint)">n=${c.n}</span></td>`;
@@ -371,11 +383,12 @@ function render(reward, counts, dc, sonda, coins, topo) {
   }
   const survDetails = el('details');
   survDetails.append(el('summary', null,
-    `P(finish | andar, hp efetivo, dano de arma) — ${surv.cells.filter((c) => c.readable).length}`
+    `P(concluir travessia ${surv.traversals} | travessia, hp efetivo, dano de arma) — `
+    + `${surv.cells.filter((c) => c.readable).length}`
     + ` de ${surv.cells.length} células com suporte (n≥${surv.minSupport});`
     + ' em branco = runs insuficientes, não impossível'));
   survDetails.append(el('div', null,
-    `<table><thead><tr><th>andar</th><th>hp efetivo</th>`
+    `<table><thead><tr><th>trav</th><th>sentido</th><th>hp efetivo</th>`
     + surv.wpnLabels.map((w) => `<th>arma ${w}</th>`).join('')
     + `</tr></thead><tbody>${survRows.join('')}</tbody></table>`));
   coinsDiv.append(survDetails);
