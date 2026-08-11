@@ -161,19 +161,19 @@ of what to do next, which is the only job it has.
 
 | theme | items | where it stands |
 |---|---|---|
-| **A run has to be completable** | M41 · M37 · M36 | **overshot — see below.** 0.25% → 25% finishes in three items; the opening has stopped filtering |
+| **A run has to be completable** | M37 · M36 | **overshot — see below.** 0.25% → 25% finishes in three items; the opening has stopped filtering |
 | **The return — floors 11 to 20** | R1 · R2 · R3 · R4 · R5 | phase B/C. Specs in the roadmap above; no item bodies yet |
 | **The potion arc** | B17 · B15 · I12 | M35 and B14 shipped; the policy and the verdict are left |
 | **What the map still has to do** | M40 · C2 · C3 · M4 · M21 · X6 · M32 | the curve arc (C1–C3) states the shape in two lines and solves for it; the rest each own a property measured as NOT met |
 | **The player's choice** | U10 · U7 | phase D. The only theme the player touches |
-| **Instruments** | I9 | I11 reported; I9 blocked, and the return moved its target |
+| **Instruments** | I9 | blocked, and the return moved its target |
 | **Debt** | X1 · X2 · X3 · X5 · E1 | changes no behaviour; makes the next change cheaper |
 
 ### A run has to be completable — phase A
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | M41 | Take the starting weapon back out | work | REPORTED |
+| 1 
 | — | M37 | Do runs contain survivable setbacks? | metrics | **not a change** · answer from descentCheck |
 | — | M36 | A detour has to be able to cost the run | work | **deferred until after R3** |
 
@@ -293,75 +293,6 @@ Closed work is in `docs/project/decisions.md`. Parked and unscheduled is in
 # A run has to be completable
 
 Phase A of the roadmap. **Nothing else is worth measuring until this moves** — `finishes` reads about a quarter of a percent over ten floors and victory now needs twenty.
-
-### M41 · take the starting weapon back out
-
-`work agent` · **REPORTED** · owner decision, 2026-08-10 · one value
-
-**Do.** `STARTING_ITEMS` goes empty. M38 wrote that case in deliberately —
-"empty is a legal value here and turns the feature off" — so this is the value
-change that item designed for, not a revert of its machinery.
-
-**Everything else M38 built stays.** In particular `startingItems` still means
-"on top of the kit" rather than "instead of it", which M38 changed because
-`spectator.js` passes an empty truthy array and because a hero buying a shield
-would otherwise lose the dagger. With the kit empty that reduces to the old
-behaviour on its own, and no code should move to make it do so.
-
-**Why, and it is not a reversal of M38's finding.** M38 measured the bootstrap
-correctly: an unarmed hero cannot get armed, because since M26 a weapon only
-drops from a creature. That is still true and still unowned. The owner's
-decision is that **the opening should be hard**, and the dagger was the largest
-single thing making it easy.
-
-#### What this does to the measurement record, stated so nobody is surprised
-
-The hero starting armed was the anchor for everything measured since M38 —
-`C1`'s pressure curve, `M39`'s before/after arms, `I11`'s two-anchor
-comparison. **All of it was taken against a hero that will no longer exist.**
-
-**No re-measurement is scheduled and none should be.** The owner's standing
-direction is structure and instrumentation first, results later; the numbers
-will be re-taken when something needs them. What matters is that nobody quotes
-a figure from this window without saying which hero it belonged to.
-
-**Assert.** The hero starts empty-handed. `startingItems` still adds a shop
-purchase on top. `--selftest` passes — and if it does not, say so, because the
-recorded anchors were captured across this boundary.
-
-#### Report
-
-`STARTING_ITEMS` is `[]`. One value; no machinery moved, and `game.js` was not
-touched at all.
-
-All three asserts hold, checked directly rather than only through the suite:
-a run with no options starts with an empty inventory, zero weapon damage and
-zero armour; a shop purchase still arrives on top and still credits the
-armour bar through the same `grantArmour` rule; and the spectator's
-"nothing bought" path — an empty truthy array — still leaves the hero
-correctly empty rather than throwing the concat off.
-
-**`--selftest` passes, and the reason is worth stating rather than taking as
-reassurance.** The generation fingerprint covers map, rooms, spawn, shrine and
-roster — not the hero's inventory — and `rewardShape` drives `PROBE_HERO` in
-through `carry`, which overwrites the kit outright. **The starting kit is
-invisible to both halves of the anchor by construction**, so the selftest
-could not have failed here and could not have caught M38 either. It is not
-evidence that this change is inert.
-
-**One test had to be rewritten, because it asserted the feature was on.**
-M38's "a run with no options at all starts holding the kit" now asserts the
-opposite. The other three kit tests still pass but two of them go quiet: with
-an empty kit there is nothing for a purchase to displace and nothing to grant
-twice, so "adds rather than replaces" and "once per run" are no longer
-observable from the shipped value. Flagged in place and written against
-`STARTING_ITEMS.length` rather than deleted, so they tighten again by
-themselves if the kit is ever refilled — deleting live coverage because
-today's value makes it quiet is how a guard goes missing.
-
-**Nothing was measured, per the item.** Suite 149/149.
-
-Stale and fixed here: `rules.md` §5.
 
 ### M37 · a setback needs room between "no effect" and "dead"
 
