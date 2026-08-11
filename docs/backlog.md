@@ -751,6 +751,17 @@ must be said in the report rather than discovered later. And cells below n≥20
 are noise; decide what the bot does when it lands on one, and do not let it be
 "treat it as zero" by accident.
 
+#### The feedback loop, which nobody has named yet
+
+`I9`'s table is measured from **this bot's own play**. Change the policy on the
+strength of the table and the table now describes a bot that no longer exists.
+
+**Not a reason to refuse the item** — every measured-policy change in this
+project has the same shape, and the effect is small if the policy change is
+small. But it has to be handled rather than discovered: **re-measure the table
+after shipping and report whether the cells the decision leans on moved.** If
+they moved a lot, the pricing is chasing itself and that is a finding.
+
 #### What not to do
 
 **Do not price fights in `P` as well, in this item.** One currency conversion
