@@ -424,3 +424,61 @@ artefact looks like from the inside.**
 throws away the pairing and most of the power with it; a per-run difference over
 the same seed cancels the seed's own variance. An arm-mean table cannot show
 this class of artefact at all.
+
+## The return, and what phase A cost — owner decisions, 2026-08-10
+
+Moved out of `docs/backlog.md`, which is a task list and had accumulated
+design direction. The items live there; the reasoning lives here.
+
+### A run is twenty traversals, not ten
+
+Floors 1–10 down, then 11–20 back up — the same map seeds in reverse, with
+different creature seeds, different variance and different loot. **Victory is
+returning to floor 1**, not reaching floor 10. The shop happens after that.
+
+`map-design.md` carries the design. `rules.md` keeps describing the ten-floor
+game until the engine changes, because it records what the game does.
+
+**What it makes stale, and this is why it is worth writing down:**
+
+| what | why |
+|---|---|
+| `finishes` as a number | it means "reached floor 10", which is no longer victory |
+| "floor 10 is the hardest" | the turn is maximum threat; the return is maximum variance and rising death risk |
+| every horizon in the bot | `campaignCost`, `monstersAhead`, `horizon`, `levels` all assume ten |
+| depth as a single axis | there are now two passes over the same depth |
+| coin banking | it banks on a clear, and a clear is twice as far away |
+
+### Phase A overshot, and nobody chose where it landed
+
+Three changes in sequence, each individually justified, all pushing the same
+direction:
+
+| | share ending by floor 3 | runs clearing all ten |
+|---|---|---|
+| before M38 | 0.645 | ~0.25% |
+| after M38 — starting dagger | 0.370 | 2.5% |
+| after M39 — chests pay out half the time | 0.130 | 20% |
+| after B16 — no more accidental exits | 0.115 | 25% |
+
+**A hundredfold in three items.** M39's own report said it rather than
+reaching for a dial to hide it: **the opening stopped filtering.**
+`objectives.md` names both failure directions, and the live one swapped ends —
+"too rare and hope goes with it" became "too common and the win loses its
+charm".
+
+Nothing here says 25% was wrong. It says the number moved a hundredfold
+without anyone choosing where it should land, which is the failure worth
+recording.
+
+### The standing direction that came out of it
+
+- **No fine tuning now.** No item proposes moving a dial to chase a measured
+  number, and no report treats a measured number as a verdict on the game.
+- **The opening SHOULD be hard.** `map-design.md` is not wrong; the game
+  drifted from it. M41 took the starting weapon back out on that basis. What
+  is deferred is *tuning* it, not the intent.
+- **What is wanted from a measurement right now is that it is possible and
+  that it mirrors reality**, not what it says. An instrument reporting a
+  number nobody likes has succeeded — C1 is the model: built, it contradicted
+  a design claim on first use, and that was the value.

@@ -1,299 +1,114 @@
 # Backlog
 
-The task list. Everything needed to pick up a task and finish it.
+The task list, and nothing else. What each task is, what it has to satisfy,
+and what order things go in.
 
-> **Priority order, owner-set:** phase A of the roadmap below — make a run
-> completable — before anything else. The shop arc is closed; `docs/lab-backlog.md`
-> (the manual dungeon simulator) still sits behind phase A.
->
-> **This file is grouped by theme, not by agent.** An item names its own agent
-> in its first line. Grouping by lane made the roadmap unreadable: the return
-> alone spans three lanes, and reading it meant assembling it from three tables.
+**Design direction does not live here.** Why the game is the way it is:
+`docs/project/objectives.md`. Why the map is shaped as it is:
+`docs/map-design.md`. What the game does today: `docs/rules.md`. What was
+decided and what it cost: `docs/project/decisions.md`. Ideas with no slot:
+`docs/project/candidates.md`.
 
-- **What we are doing and why** — `docs/project/objectives.md`
-- **What was last measured** — `run-check.html` (a record, not a set of goals)
-- **Closed items** — removed from this file once adopted. The transferable
-  lesson goes to `docs/project/decisions.md`; the full report, result and
-  review stay in the git history, where the commit message carries them.
-- **Ideas with no slot** — `docs/project/candidates.md`
+**Closed items are removed** the moment they are reviewed. `git log` is the
+archive; the transferable lesson goes to `decisions.md`.
 
-## How this works
-
-**Every report names which behaviour document it made stale** — `rules.md`,
-`bot-strategy.md` or `map-design.md` — or says plainly that none moved. See
-`CLAUDE.md`. "None" is a valid answer that still has to be written.
-
-**A new parameter is the last resort, not the first.** Change an existing
-value, or what an existing parameter means, or delete what is fighting you —
-before adding. A report that adds one says in a line why an existing one could
-not carry it. See `CLAUDE.md`; the nine tier clamps are why the rule exists.
-
-**Before filing anything, ask: if this changes, does a previous measurement
-become invalid?** Yes → it is STRUCTURE, and it is worth deciding early and
-cheaply. No, it only moves a value → it is a NUMBER, and it should be tuned
-late, expecting to be redone.
-
-The evidence for taking this seriously is expensive and already paid:
-`balance.md`'s "Where the current numbers live" section exists to say the
-tables were **deleted**, because they were measured before xp was frozen,
-before weapons widened the roll, before armour became a spent bar, before
-passive regeneration went, before the collectibles went, before growth turned
-exponential and before the map grew a spine. Seven structural changes. The
-instruments survived all seven; not one table survived any.
-
-**The project has inverted these two in both directions**, which is why the
-test is worth applying explicitly. `STEP_COST_IN_HP` reads as a number and is
-structure — it decides whether time is a real resource, which decides whether
-the coin formula means anything. The nine tier clamps read as structure and
-are numbers — they have names, files and backlog items, but changing them only
-re-reads the same curve and invalidates nothing.
-
-**Watch the game. Fix what is wrong.** That is where items come from.
-
-One item, one commit, and a test asserting the thing the item was for — "a
-rat deals damage", "floor 5 is not cheaper than floor 4". Most items here
-have a criterion you can check by looking or by asserting; the ruler is for
-questions that are genuinely invisible.
-
-Run the ruler when a batch lands, as a **regression check** — did something
-break — not as a scoreboard. `run-ruler.html`, and put what it says in
-`run-check.html`.
-
-Read your item in full before starting and report against what it asks for
-rather than your own sense of finished. Say what you did, what you measured
-if you measured anything, and what surprised you. If an item looks wrong,
-say so instead of quietly doing something else.
-
-If more than one session is running at once, claim your item by setting it
-IN FLIGHT and committing that alone before anything else. With a single
-session, skip it.
+**Grouped by theme.** Each item names its own agent on its first line.
 
     READY       can be started
     IN FLIGHT   someone is on it
     BLOCKED     waiting on a named item
+    NOT NOW     deliberately not scheduled
     REPORTED    done, written up
     DONE        reviewed and closed
     ARCHIVED    decided against, reason kept
 
-## The roadmap, after the return
+## Order
 
-**Owner decision, 2026-08-10: a run is twenty traversals, not ten.** Floors
-1–10 down, then 11–20 back up — the same map seeds in reverse, with different
-creature seeds, different variance and different loot. **Victory is returning
-to floor 1**, not reaching floor 10. The shop happens after that, as it does
-today.
+1. **The return** — R1 and R5 together, then R2–R4.
+2. Everything else by theme below.
 
-**Not built. `rules.md` still describes the ten-floor game and stays that way
-until the engine changes** — it records what the game does, not what was
-decided. `map-design.md` carries the design.
+Phase A is closed: M38, M39, B16 and M41 landed. The reasoning and what it
+cost are in `decisions.md`.
 
-### The one thing that has to be said first
+## Themes
 
-**Today `finishes` is about 0.25% for ten floors. Victory now needs twenty.**
-Whatever the return's per-traversal risk is, it multiplies against a descent
-almost nothing survives. **Doubling the run before the first half is
-survivable takes a win rate near zero to indistinguishable from zero** — and
-`objectives.md`'s primary objective is that hope must never reach zero.
-
-That is not an argument against the return. It is the sequencing constraint:
-**the return makes the "make the descent completable" problem urgent rather
-than creating a new one.** M37 already records that nobody owns that problem.
-Now something depends on it.
-
-### Phases
-
-**Phase A — make a run completable at all.** M37 (room between "no effect"
-and "dead"), M36 (a detour has to be able to cost the run), and whatever
-parameter work the owner takes on `finishes`. **Nothing in phase B is worth
-measuring until this moves.**
-
-**Phase B — the return, as engine.** R1–R4 below. R1 is the spine; the rest
-is what makes traversals 11–20 different from 1–10 rather than a rerun.
-
-**Phase C — the bot learns the run is twice as long.** R5. Mandatory
-alongside R1, not after it: every "rest of the campaign" estimate in the bot
-assumes ten floors, and B14 just priced potions against exactly that horizon.
-
-**Phase D — the shop and the heroes.** U7 (the player chooses a hero) and the
-shop repricing that a twenty-traversal clear implies. **U7 gets more valuable
-under the return, not less:** a longer run makes a starting choice matter for
-longer, and it is the only feature on the list that gives the player something
-to do.
-
-**Unchanged and still open, orthogonal to all of it:** X5, X6, I9, I10's
-follow-ons, M21, X1, X2, X3, M4, E1, M32.
-
-### What the return makes stale
-
-| what | why |
+| theme | items |
 |---|---|
-| `finishes` as a number | it means "reached floor 10", which is no longer victory. Every item that reads it — I9 most of all — needs the new definition |
-| "floor 10 is the hardest" | the turn is maximum threat; the return is maximum variance and rising death risk. Property 1 already restated in `map-design.md` |
-| every horizon in the bot | `campaignCost`, `monstersAhead`, `horizon`, `levels` all assume ten |
-| depth as a single axis | M4, M21 and M32 all scale something "with depth"; there are now two passes over the same depth |
-| coin banking | it banks on a clear, and a clear is twice as far away |
-
-### The new items
-
-| id | what | agent |
-|---|---|---|
-| R1 | Twenty traversals, victory on returning to floor 1 | work |
-| R2 | The return repopulates: same map seed, new creature seed | work |
-| R3 | The return has no chests — reward is kept, not earned | work |
-| R4 | Variance rises through the return, toward the exit | work |
-| R5 | The bot's campaign is twenty traversals, not ten | bot |
-
-**Written as five because they verify separately, not because the change is
-small.** R1 alone is playable and measurable — twenty traversals with the
-return identical to the descent — and every one of R2–R4 is a difference laid
-on top of that. If R1 is built as one thing with all four folded in, nothing
-can be measured against anything.
-
-**Grouped by theme, not by lane.** Each item states its own agent. The
-previous arrangement was one table per agent, which broke every theme that
-spans more than one — the return needs `src/sim/`, `src/bot/` and eventually
-`src/ui/`, and reading it meant assembling it from three places.
-
-**Closed items are not here.** They are removed the moment they are reviewed;
-`git log` is the archive and `docs/project/decisions.md` holds what they
-taught. A backlog that keeps its own history stops being readable as a list
-of what to do next, which is the only job it has.
-
-| theme | items | where it stands |
-|---|---|---|
-| **A run has to be completable** | M37 · M36 | **overshot — see below.** 0.25% → 25% finishes in three items; the opening has stopped filtering |
-| **The return — floors 11 to 20** | R1 · R2 · R3 · R4 · R5 | phase B/C. Specs in the roadmap above; no item bodies yet |
-| **The potion arc** | B18 · B19 · B17 · B15 · I12 | M35 and B14 shipped; the policy and the verdict are left |
-| **What the map still has to do** | C2 · C3 · M4 · M21 · X6 · M32 | the curve arc (C1–C3) states the shape in two lines and solves for it; the rest each own a property measured as NOT met |
-| **The player's choice** | U10 · U7 | phase D. The only theme the player touches |
-| **Instruments** | I9 | blocked, and the return moved its target |
-| **Debt** | X1 · X2 · X3 · X5 · E1 | changes no behaviour; makes the next change cheaper |
-
-### A run has to be completable — phase A
-
-| # | id | what gets done | agent | status |
-|---|---|---|---|---|
-| 1 
-| — | M37 | Do runs contain survivable setbacks? | metrics | **not a change** · answer from descentCheck |
-| — | M36 | A detour has to be able to cost the run | work | **deferred until after R3** |
-
-**Phase A is over, and it went further than intended. This is an owner
-decision, not an item.**
-
-Three changes landed in sequence, each individually justified, all pushing the
-same direction:
-
-| | share ending by floor 3 | runs clearing all ten |
-|---|---|---|
-| before M38 | 0.645 | ~0.25% |
-| after M38 (starting dagger) | 0.370 | 2.5% |
-| after M39 (chests pay out half the time) | 0.130 | 20% |
-| after B16 (no more accidental exits) | **0.115** | **25%**, verified in review at n=200 |
-
-**A hundredfold in three items.** M39's own report said it plainly and did not
-reach for a dial to hide it: **the opening has stopped filtering.**
-`map-design.md` says the opening is hard on purpose and that a hard opening
-needs a poor hero — M38 and M39 both made the hero richer at exactly that
-point, and B16 then stopped throwing floors away.
-
-**`objectives.md` names both failure directions**, and the risk has swapped
-ends: winning has to stay rare enough to matter, and "too common and the win
-loses its charm" is now the live one. Nothing here says 25% is wrong. It says
-the number moved a hundredfold without anyone choosing where it should land.
-
-**Owner decision, 2026-08-10: structure and instrumentation first, results
-later.**
-
-Three parts, and they are a standing direction rather than a note on this
-section:
-
-- **No fine tuning now.** No item should propose moving a dial to chase a
-  measured number, and no report should treat a measured number as a verdict
-  on the game.
-- **The opening SHOULD be hard** — `map-design.md` is not wrong, the game
-  drifted away from it. `M41` takes the starting weapon back out on that
-  basis. What is deferred is *tuning* it, not the intent.
-- **What is wanted from a measurement right now is that it is possible and
-  that it mirrors reality**, not what it says. An instrument that reports a
-  number nobody likes has succeeded. `C1` is the model: it was built, it
-  contradicted a design claim on first use, and that was the value.
-
-**`C2` and `C3` are explicitly not now.** Pressure and spread exist so the
-shipped curve can eventually be brought toward the drawn one; approaching it
-is later work, and `C1` being done does not start it. What this section exists for now is the record
-that the number moved a hundredfold and that the opening stopped filtering —
-both of which change what other items mean, `C2` most immediately.
-
-**The original reasoning, kept because it is still why M38 went first:** three
-quarters of runs were over by floor 3, so the ramp's top decided floors that
-96% of runs never saw. The binding constraint was the opening, and the cheapest
-single value that moved it was the starting kit.
+| The return — floors 11 to 20 | R1 · R5 · R2 · R3 · R4 |
+| The bot's pricing | B18 · B19 · B17 · B15 |
+| What the map still has to do | C2 · C3 · M4 · M21 · X6 · M32 |
+| The player | U10 · U7 |
+| Instruments | I12 · I9 |
+| Debt | X1 · X2 · X3 · X5 · E1 |
+| Not scheduled | M37 · M36 |
 
 ### The return — floors 11 to 20
 
+Twenty traversals, victory on returning to floor 1. Design in
+`docs/map-design.md`; the decision and its consequences in `decisions.md`.
+Five items because they verify separately — R1 alone is playable, with the
+return identical to the descent, and R2–R4 are differences laid on top.
+
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | R1 | Twenty traversals, victory on returning to floor 1 | work | spec in the roadmap above |
+| 1 | R1 | Twenty traversals, victory on returning to floor 1 | work | READY · no item body yet |
 | 1 | R5 | The bot's campaign is twenty traversals, not ten | bot | **with R1, not after** |
 | 2 | R2 | The return repopulates: same map seed, new creature seed | work | after R1 |
 | 3 | R3 | The return has no chests | work | after R1 |
 | 4 | R4 | Variance rises through the return | work | after R1 |
 
-### The potion arc
+### The bot's pricing
 
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
-| 1 | B18 | The bot believes every creature is carrying a weapon | bot | READY · **bug**, drop value inflated 4x |
-| 2 | B19 | Loot is priced against the campaign, never against the fight in front of it | bot | after B18 · owner decision |
-| 3 | B17 | Loot on the way is free, and the router does not know it | bot | **ADOPTED as a finding** · owes one change: ship it OFF |
-| 3 | B15 | A drink policy that reads the danger field | bot | READY · B14 left a number to beat |
-| 3 | I12 | Did the potion change move anything? | metrics | baseline recorded · comparison owed |
+| 1 | B18 | The bot believes every creature is carrying a weapon | bot | **REPORTED** · 4x inflation fixed, ordering -12pts |
+| 2 | B19 | Loot is priced against the campaign, never against the fight in front of it | bot | after B18 |
+| 3 | B17 | Discount a tile holding free loot | bot | measured inert · **owes one change: ship it OFF** |
+| 3 | B15 | A drink policy that reads the danger field | bot | READY |
 
 ### What the map still has to do
 
 | id | what gets done | agent | status |
 |---|---|---|---|
-| C2 | The target curve, in numbers rather than adjectives | work | **NOT NOW** · owner: structure first |
-| C3 | Solve the dials for a pressure curve instead of sweeping | work | **NOT NOW** · after C2, later work |
+| C2 | The target curve, in numbers rather than adjectives | work | NOT NOW |
+| C3 | Solve the dials for a pressure curve instead of sweeping | work | NOT NOW · after C2 |
 | M4 | Side-room risk/reward spread scales with depth | work | READY |
-| M21 | Deep floors put a creature where the hero lands | work | READY · read its own warning on `finishes` |
-| X6 | Collapse the tier clamps, redundancy proven first | work | after X5 · owns the tail-shape cause |
+| M21 | Deep floors put a creature where the hero lands | work | READY |
+| X6 | Collapse the tier clamps, redundancy proven first | work | after X5 |
 | M32 | Weapons become a tier ladder instead of a stack | work | BLOCKED on the lab |
 
-### The player's choice
+### The player
 
 | id | what gets done | agent | status |
 |---|---|---|---|
-| U10 | The run is watched, and half of what happens is invisible | ui | READY · `src/ui/` only, no lane collision |
-| U7 | The player chooses which hero to play | work + ui | phase D |
+| U10 | The run is watched, and half of what happens is invisible | ui | READY |
+| U7 | The player chooses which hero to play | work + ui | READY |
 
 ### Instruments
 
 | id | what gets done | agent | status |
 |---|---|---|---|
-| I9 | Conditional survival table = the "hope" instrument | metrics | BLOCKED · and the return moved its target |
-
-**`I9` is worth a line of its own.** It was blocked on `finishes` being
-non-zero. The return makes that worse rather than better: `finishes` now has
-to mean twenty traversals, not ten. It is the instrument for the primary
-objective and it is further away than it was.
+| I12 | Did the potion change move anything? | metrics | baseline recorded · comparison owed |
+| I9 | Conditional survival table = the "hope" instrument | metrics | BLOCKED on a non-zero finish rate |
 
 ### Debt
 
 | id | what gets done | agent | status |
 |---|---|---|---|
-| X5 | Classify every dial by lifecycle, delete only the dead | work + bot | READY · at a structural boundary |
+| X5 | Classify every dial by lifecycle, delete only the dead | work + bot | READY |
 | X1 | Delete what nothing references | work | READY |
 | X2 | Comments in src/ that lie: 25 stale refs + 3 false claims | work + bot | READY |
 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
-| E1 | One resumable turn loop in src/sim, instead of four copies | work | READY · U2 in candidates.md waits on it |
+| E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
 
-Closed work is in `docs/project/decisions.md`. Parked and unscheduled is in
-`docs/project/candidates.md`.
+### Not scheduled
 
-# A run has to be completable
+| id | what gets done | agent | status |
+|---|---|---|---|
+| M37 | Do runs contain survivable setbacks? | metrics | a question, not a change |
+| M36 | A detour has to be able to cost the run | work | deferred until after R3 |
 
-Phase A of the roadmap. **Nothing else is worth measuring until this moves** — `finishes` reads about a quarter of a percent over ten floors and victory now needs twenty.
+# Not scheduled
 
 ### M37 · a setback needs room between "no effect" and "dead"
 
@@ -429,14 +244,14 @@ told apart.
 
 Phase B and C. `R1` is the spine and is playable on its own; `R2`–`R4` are differences laid on top of it. **`R5` goes with `R1`, not after it** — every horizon in the bot assumes ten floors. Specs are in the roadmap above; these have no item body yet.
 
-# The potion arc
+# The bot's pricing
 
 M35 and B14 shipped. What is left is the policy that reads danger, and the measurement that says whether any of it helped.
 
 ### B18 · the bot believes every creature is carrying a weapon
 
-`bot agent` · READY · **bug, confirmed by measurement** · found by the owner
-watching nets of 250 on creatures against 1 on loot
+`bot agent` · **REPORTED** · drop estimate was 4x too high; creature-first
+floors fell 11-12 points
 
 `expectedMonsterDropValue` (`src/bot/loot.js`) asks `itemWeights` what a
 creature is likely to drop and passes **an empty scarcity object**. Measured
@@ -480,6 +295,99 @@ generator's own weights. Then the share of floors whose FIRST goal is a
 creature — measured at **86.8%** on the shipped bot over 227 floors, which is
 the observation this item came from. Report it even if it barely moves: `B19`
 is the other half and this item is not expected to fix the ordering on its own.
+
+#### Result
+
+**One argument, as scoped. It moved the ordering far more than the item
+expected — 11 to 12 points — and it turned up a discrepancy in the item's
+own baseline that I could not resolve and am not claiming to.**
+
+#### The fix
+
+`expectedMonsterDropValue` now passes `{ weapon: WEAPON_SCARCITY }`, the way
+`spawn.js` does. `WEAPON_SCARCITY` lives in `difficulty.js`, not
+`balance.js`, so that is one new import and no new model.
+
+#### Assert 1 — the estimate against the generator's own weights
+
+The pool the bot now asks for is byte-identical to the generator's:
+
+    generator pool, quality 1:  dagger 0.107   axe 0.143   EMPTY 0.750
+
+which is exactly the item's table. The empty slot went from **0.000 to
+0.750** at every tier, and the estimate fell by a factor of 4 across the
+table:
+
+    creature   empty slot        drop estimate
+               before  after     before   after
+    rat         0.000  0.750      4.050   1.012
+    wolf        0.000  0.750      5.033   1.258
+    dragon      0.000  0.750      5.178   1.295
+
+**The absolute figures differ from the item's 55.12 → 13.8 because the
+estimate is scaled by `values`, which depends on the hero and the roster in
+front of it** — mine is a fresh hero on floor 5, seed 4242. The invariant
+that matters is the ratio, and it is 4.00x on all three, matching the item.
+Verified the live function returns the `after` column rather than trusting
+the recomputation.
+
+#### Assert 2 — floors whose FIRST goal is a creature
+
+Paired trees, identical seeds, differing only in that one argument:
+
+    seed        before              after
+    3000000     228/239  95.4%      204/245  83.3%
+    4100000     229/234  97.9%      203/234  86.8%
+
+**Chest-first floors went 10 → 38 and 4 → 29.** The item said to report it
+even if it barely moved; it moved 11–12 points, which is more than the fix
+was expected to do on its own. `B19` still has its own half — a fifth of
+floors choosing a chest first is not obviously the right number either — but
+the "creature first, always" reading was substantially this bug.
+
+**A discrepancy I cannot resolve, flagged rather than smoothed.** The item
+cites 86.8% over 227 floors on the shipped bot, and that is almost exactly
+my *after* on seed 4100000 (86.8%, 234 floors) — while my *before* on the
+same tree reads 97.9%. The most likely explanation is that the owner's
+figure predates **M41**, which landed during B17 and made the hero start
+unarmed; an unarmed hero values weapons differently, which is precisely
+what this estimate feeds. I did not try to reconstruct the older tree to
+confirm it. **Take my before/after pair as the measurement and the 86.8% as
+a number from a different tree**, not as a before/after with mine.
+
+#### The other callers, looked at rather than assumed
+
+Three production call sites. Two were already correct, one is the bug, and
+**the third is deliberately wrong and must stay that way**:
+
+- `spawn.js` ×2 — pass real scarcity. Correct; they are the reference.
+- `loot.js`'s `expectedMonsterDropValue` — the bug, fixed here.
+- `loot.js`'s `ITEM_MIX`, `itemWeights({}, 'chest')` — **left alone on
+  purpose.** M39 did not fix this one; it *compensated* for it.
+  `CHEST_LOOT_CHANCE` is explicitly standing in for the whole payout rate
+  precisely because `ITEM_MIX` has no empty slot, and `balance.js`'s own
+  comment says so and flags it to this agent. Passing real scarcity there
+  would double-count the empty slot and silently halve chest value — the
+  compensation the item forbids, in reverse. **It is fragile rather than
+  wrong:** it is exact only while armour and potion scarcity stay equal, and
+  the balance comment already carries that warning. Not this item's to
+  change, and changing it would have made both effects indistinguishable.
+
+**Nothing was compensated.** Anything tuned against the inflated number —
+`GOAL_STICKINESS`, `combatCompetes`'s thresholds, B9's own numbers — is left
+exactly as it was, to be re-read against the corrected estimate rather than
+adjusted in the same commit.
+
+**Files touched:** `src/bot/loot.js` (one argument, one import).
+`src/sim/` untouched. 154 tests green.
+
+**Made stale: none of the three.** `bot-strategy.md` §4 lists
+`expectedMonsterDropValue` as "o que esta criatura provavelmente carrega",
+which is what it was always supposed to compute and now actually does — the
+document described the intent correctly while the code failed to match it,
+so the fix moves the code toward the doc rather than away. `rules.md` did
+not move (no engine change; the generator's behaviour is unchanged and was
+always the reference). `map-design.md` did not move.
 
 ### B19 · loot is priced against the campaign and never against the fight in front of it
 
@@ -780,160 +688,6 @@ move deaths-holding-a-potion down. If it does neither, say so and leave B14
 shipped — a policy that is more sophisticated and no better is a policy that
 does not ship.
 
-### I12 · did it move anything — finishes, and died-holding-a-potion
-
-`metrics agent` · **the baseline half is READY NOW and runs in parallel
-with M35; the comparison half is after B14** · the measurement the owner
-asked for
-
-#### Take the baseline BEFORE M35 ships. This half is time-sensitive.
-
-Once the engine change lands there is no "before" to measure — it can only
-be reconstructed by checking out an older commit, which is possible and
-which nobody does. **Run it now, against shipped `main`, while M35 is being
-built.** Nothing about it depends on M35 existing.
-
-What to record, at a sample big enough to resolve a quarter of a percent:
-`finishes`, and whatever else the panel gives for free at that sample. The
-same seeds get replayed after B14, so **write the seeds down** — that is the
-one thing here worth persisting, against the project's usual rule that
-measurements are not recorded. A rate compared across different seed
-families is a weaker comparison than one compared across the same ones.
-
-**Also record what a potion is worth today, and it is not obvious.** Under
-the shipped rule a potion is refused at full hp, so some heal supply is
-never collected at all. Count what share of generated potions are drunk in a
-run — that is the number M35 is supposed to move most directly, and it is
-the cleanest evidence the feature did anything, independent of `finishes`
-moving at all.
-
-**The headline number is `finishes`.** It reads ~0.25% (U6f, n=377), so
-**this needs hundreds of runs, not dozens** — the runs that read 0% were
-n=60–80 and could not resolve it. Use `tools/measure.mjs`; this is the
-first item that genuinely needs I10 rather than merely liking it.
-
-**The diagnostic worth building, and it is a tripwire not a scoreboard:**
-the share of deaths that happened with an unused potion in the inventory.
-It does not reward being pushed in either direction — it fires, and when it
-fires there is a defect in the drink policy to find. That is the shape
-`objectives.md` asks for.
-
-**The denominator trap, named in advance because this item is a textbook
-setup for it.** Potions that never go to waste make runs last longer. Any
-per-turn or per-floor rate will move for that reason alone, and reading it
-as "the change helped" would be the fifth instance of this exact error in
-this project. Prefer totals and outcomes over ratios; where a ratio is
-unavoidable, say what its denominator did.
-
-**One confound to separate, not to explain away.** Two things changed at
-once: potions became strictly more valuable (never wasted) and the bot
-gained a decision it can get wrong. If `finishes` moves, this item cannot
-tell you which one did it. **Measure M35+B14 against the shipped baseline
-and say plainly that the two are entangled** — B15 is what separates them,
-by changing only the policy against a fixed engine.
-
-**Assert.** `finishes` before and after, with enough runs to resolve a
-quarter of a percent, and a z. Deaths-holding-a-potion. And, because this
-makes the game easier at a moment when almost nothing completes, say
-whether anything got *worse*.
-
-#### Review — RETURNED, one defect, everything else adopted
-
-**The pricing half is right and the measurement of it is the good kind:**
-potion 0 → 1.5 and chest 0.90 → 1.35 at full hp on floor 3, which answers
-"did chest-seeking change" with a number instead of an impression. Reusing
-`LOOT_CAMPAIGN_HORIZON` rather than inventing a second discount is exactly
-what the item asked for, and the asymmetry against the weapon path
-(unconditional, not gated on level) is disclosed rather than smoothed over.
-
-**The defect: a second drink policy shipped by accident, and it is
-danger-aware — which is B15's whole job.**
-
-Adding `drink` to `ACTIONS` was this item's call to make, correctly. But
-`tactics.js:71` enumerates `ACTIONS` for its lookahead, and its evaluator
-(`tactics.js:63`) returns `effectiveHp(player) + dealt - toGo - crowd`.
-Drinking raises `effectiveHp` directly, so in a depth-1 search **drink
-outscores stepping whenever more than about one hp is missing.** The report
-discloses that the veto "can now simulate drinking mid-duel" and calls it
-"not designed on purpose" — it is more than a simulation artefact, it is a
-live second policy that fires at a lower threshold than the naive one.
-
-**Confirmed, not argued.** `descentCheck` at n=120 on the baseline seeds:
-160 drinks, `healDelivered` 414. Under the stated policy every drink fires
-only when missing ≥ heal, so all 160 must deliver the full 3 — 480. **The
-66 hp gap is structurally impossible under the policy this item describes.**
-No sigma needed; one partial drink falsifies "0 wasted, provable by
-construction", and there are dozens.
-
-**Why the report's own numbers missed it.** `drinksWasted` counts
-`delivered === 0`. A tactics-driven drink at 2 hp missing delivers 2 of 3 and
-counts as *useful*. The metrics agent flagged in code that post-M35 partial
-overheal is unmeasurable — that note and this defect are the same blind spot,
-found from two directions an hour apart, and neither agent could see the
-other half.
-
-**Why this matters beyond tidiness.** M35 exists to stop potions being
-overhealed away. The tactical layer now reintroduces exactly that waste,
-invisibly, in the same commit that repriced potions upward. And **B15 is
-pre-empted**: it cannot measure "what does danger-awareness buy" against a
-baseline that already has some.
-
-**Do.** Keep `drink` in `ACTIONS`. Exclude it from the tactical search
-instead — the lookahead enumerates the action list because that was a
-convenient proxy for "moves the bot can make", and drinking is now a
-decision the top-level policy owns. Say in one line why exclusion is the
-right shape rather than scoring the drink branch honestly, or make the
-opposite case with a measurement.
-
-**Then re-measure** `healDelivered` against `3 × potionsDrunk`. They should
-be equal under the naive policy, and that equality is the cheapest possible
-check that no second policy is firing.
-
-#### Fixed — excluded, not scored, and the equality now holds exactly
-
-**Excluded.** `tactics.js` filters `drink` out of `ACTIONS` into a local
-`SEARCHABLE_ACTIONS`, used at both places the search enumerates moves
-(`bestValue`'s recursion and `scoreActions`'s own top-level loop) — the
-recursion mattered too: leaving `drink` reachable only at depth > 0 would
-still let a hypothetical future drink inflate what the search thinks THIS
-turn's retreat or advance is worth, the same leak one level removed.
-
-**Why exclusion and not scoring it honestly.** `makeEvaluator` is a flat
-sum of hp terms built for movement trade-offs — retreat, advance, fight —
-and every term in it is a rate or a one-time delta the search can compare
-apples-to-apples. Drinking is neither: it converts a HELD ASSET (a potion,
-priced by B14's own horizon-discounted face value in `loot.js`) into
-immediate `effectiveHp`, and pricing that correctly means weighing the
-immediate gain against what the potion is worth NOT spent yet — an
-opportunity-cost comparison this evaluator has no term for and was never
-built to make. Adding one would mean importing `loot.js`'s potion pricing
-into `tactics.js` and reconciling it against `toGo`/`dealt` in the same
-currency, which is not a search fix, it is B15's whole job under a
-different name. Exclusion is the smaller change and does not pre-empt the
-item that owns this decision.
-
-**Re-measured, `descentCheck`, two independent seed families, n=120 each:**
-
-    seed base    potionsDrunk   healDelivered   3 x potionsDrunk
-    3000000           154            462              462
-    4100000           161            483              483
-
-**Exact equality on both, not merely close.** No second policy is firing.
-`drinksWasted` and `deathsHoldingPotion` both read 0 on both families at
-this sample — consistent with the earlier n=200 report (which read 2 deaths
-holding a potion; a different, larger sample, not a contradiction).
-
-**One more thing the numbers say, unprompted.** Drinks fell from the
-review's pre-fix 160 to 154 on the same seed family, while `healDelivered`
-rose from 414 to 462. Fewer drinks, more hp delivered — the tactical
-layer's extra, premature drinks are gone, and what remains is only the
-naive policy's own full-value drinks. That is the shape a correct fix
-should have, not just the equality.
-
-**Files touched:** `src/bot/tactics.js` (`SEARCHABLE_ACTIONS`, both loops).
-Nothing in the pricing half changed — the review said not to touch it, and
-141 tests still pass unmodified.
-
 # What the map still has to do
 
 The open half of `map-design.md`'s four properties. Each of these owns a property that is measured as not met.
@@ -1206,7 +960,7 @@ And the shop question that started this: with a ladder, is there a real
 choice between shields and the next weapon tier, or does one still
 dominate?
 
-# The player's choice
+# The player
 
 The only theme that gives the player something to do. Worth more under the return, not less: a longer run makes a starting choice matter for longer.
 
@@ -1341,6 +1095,160 @@ This item enlarges the choice. It does not enlarge the stake.
 # Instruments
 
 Built on demand, never as a scoreboard. `docs/project/objectives.md` has the rule and `decisions.md` the history of what the alternative cost.
+
+### I12 · did it move anything — finishes, and died-holding-a-potion
+
+`metrics agent` · **the baseline half is READY NOW and runs in parallel
+with M35; the comparison half is after B14** · the measurement the owner
+asked for
+
+#### Take the baseline BEFORE M35 ships. This half is time-sensitive.
+
+Once the engine change lands there is no "before" to measure — it can only
+be reconstructed by checking out an older commit, which is possible and
+which nobody does. **Run it now, against shipped `main`, while M35 is being
+built.** Nothing about it depends on M35 existing.
+
+What to record, at a sample big enough to resolve a quarter of a percent:
+`finishes`, and whatever else the panel gives for free at that sample. The
+same seeds get replayed after B14, so **write the seeds down** — that is the
+one thing here worth persisting, against the project's usual rule that
+measurements are not recorded. A rate compared across different seed
+families is a weaker comparison than one compared across the same ones.
+
+**Also record what a potion is worth today, and it is not obvious.** Under
+the shipped rule a potion is refused at full hp, so some heal supply is
+never collected at all. Count what share of generated potions are drunk in a
+run — that is the number M35 is supposed to move most directly, and it is
+the cleanest evidence the feature did anything, independent of `finishes`
+moving at all.
+
+**The headline number is `finishes`.** It reads ~0.25% (U6f, n=377), so
+**this needs hundreds of runs, not dozens** — the runs that read 0% were
+n=60–80 and could not resolve it. Use `tools/measure.mjs`; this is the
+first item that genuinely needs I10 rather than merely liking it.
+
+**The diagnostic worth building, and it is a tripwire not a scoreboard:**
+the share of deaths that happened with an unused potion in the inventory.
+It does not reward being pushed in either direction — it fires, and when it
+fires there is a defect in the drink policy to find. That is the shape
+`objectives.md` asks for.
+
+**The denominator trap, named in advance because this item is a textbook
+setup for it.** Potions that never go to waste make runs last longer. Any
+per-turn or per-floor rate will move for that reason alone, and reading it
+as "the change helped" would be the fifth instance of this exact error in
+this project. Prefer totals and outcomes over ratios; where a ratio is
+unavoidable, say what its denominator did.
+
+**One confound to separate, not to explain away.** Two things changed at
+once: potions became strictly more valuable (never wasted) and the bot
+gained a decision it can get wrong. If `finishes` moves, this item cannot
+tell you which one did it. **Measure M35+B14 against the shipped baseline
+and say plainly that the two are entangled** — B15 is what separates them,
+by changing only the policy against a fixed engine.
+
+**Assert.** `finishes` before and after, with enough runs to resolve a
+quarter of a percent, and a z. Deaths-holding-a-potion. And, because this
+makes the game easier at a moment when almost nothing completes, say
+whether anything got *worse*.
+
+#### Review — RETURNED, one defect, everything else adopted
+
+**The pricing half is right and the measurement of it is the good kind:**
+potion 0 → 1.5 and chest 0.90 → 1.35 at full hp on floor 3, which answers
+"did chest-seeking change" with a number instead of an impression. Reusing
+`LOOT_CAMPAIGN_HORIZON` rather than inventing a second discount is exactly
+what the item asked for, and the asymmetry against the weapon path
+(unconditional, not gated on level) is disclosed rather than smoothed over.
+
+**The defect: a second drink policy shipped by accident, and it is
+danger-aware — which is B15's whole job.**
+
+Adding `drink` to `ACTIONS` was this item's call to make, correctly. But
+`tactics.js:71` enumerates `ACTIONS` for its lookahead, and its evaluator
+(`tactics.js:63`) returns `effectiveHp(player) + dealt - toGo - crowd`.
+Drinking raises `effectiveHp` directly, so in a depth-1 search **drink
+outscores stepping whenever more than about one hp is missing.** The report
+discloses that the veto "can now simulate drinking mid-duel" and calls it
+"not designed on purpose" — it is more than a simulation artefact, it is a
+live second policy that fires at a lower threshold than the naive one.
+
+**Confirmed, not argued.** `descentCheck` at n=120 on the baseline seeds:
+160 drinks, `healDelivered` 414. Under the stated policy every drink fires
+only when missing ≥ heal, so all 160 must deliver the full 3 — 480. **The
+66 hp gap is structurally impossible under the policy this item describes.**
+No sigma needed; one partial drink falsifies "0 wasted, provable by
+construction", and there are dozens.
+
+**Why the report's own numbers missed it.** `drinksWasted` counts
+`delivered === 0`. A tactics-driven drink at 2 hp missing delivers 2 of 3 and
+counts as *useful*. The metrics agent flagged in code that post-M35 partial
+overheal is unmeasurable — that note and this defect are the same blind spot,
+found from two directions an hour apart, and neither agent could see the
+other half.
+
+**Why this matters beyond tidiness.** M35 exists to stop potions being
+overhealed away. The tactical layer now reintroduces exactly that waste,
+invisibly, in the same commit that repriced potions upward. And **B15 is
+pre-empted**: it cannot measure "what does danger-awareness buy" against a
+baseline that already has some.
+
+**Do.** Keep `drink` in `ACTIONS`. Exclude it from the tactical search
+instead — the lookahead enumerates the action list because that was a
+convenient proxy for "moves the bot can make", and drinking is now a
+decision the top-level policy owns. Say in one line why exclusion is the
+right shape rather than scoring the drink branch honestly, or make the
+opposite case with a measurement.
+
+**Then re-measure** `healDelivered` against `3 × potionsDrunk`. They should
+be equal under the naive policy, and that equality is the cheapest possible
+check that no second policy is firing.
+
+#### Fixed — excluded, not scored, and the equality now holds exactly
+
+**Excluded.** `tactics.js` filters `drink` out of `ACTIONS` into a local
+`SEARCHABLE_ACTIONS`, used at both places the search enumerates moves
+(`bestValue`'s recursion and `scoreActions`'s own top-level loop) — the
+recursion mattered too: leaving `drink` reachable only at depth > 0 would
+still let a hypothetical future drink inflate what the search thinks THIS
+turn's retreat or advance is worth, the same leak one level removed.
+
+**Why exclusion and not scoring it honestly.** `makeEvaluator` is a flat
+sum of hp terms built for movement trade-offs — retreat, advance, fight —
+and every term in it is a rate or a one-time delta the search can compare
+apples-to-apples. Drinking is neither: it converts a HELD ASSET (a potion,
+priced by B14's own horizon-discounted face value in `loot.js`) into
+immediate `effectiveHp`, and pricing that correctly means weighing the
+immediate gain against what the potion is worth NOT spent yet — an
+opportunity-cost comparison this evaluator has no term for and was never
+built to make. Adding one would mean importing `loot.js`'s potion pricing
+into `tactics.js` and reconciling it against `toGo`/`dealt` in the same
+currency, which is not a search fix, it is B15's whole job under a
+different name. Exclusion is the smaller change and does not pre-empt the
+item that owns this decision.
+
+**Re-measured, `descentCheck`, two independent seed families, n=120 each:**
+
+    seed base    potionsDrunk   healDelivered   3 x potionsDrunk
+    3000000           154            462              462
+    4100000           161            483              483
+
+**Exact equality on both, not merely close.** No second policy is firing.
+`drinksWasted` and `deathsHoldingPotion` both read 0 on both families at
+this sample — consistent with the earlier n=200 report (which read 2 deaths
+holding a potion; a different, larger sample, not a contradiction).
+
+**One more thing the numbers say, unprompted.** Drinks fell from the
+review's pre-fix 160 to 154 on the same seed family, while `healDelivered`
+rose from 414 to 462. Fewer drinks, more hp delivered — the tactical
+layer's extra, premature drinks are gone, and what remains is only the
+naive policy's own full-value drinks. That is the shape a correct fix
+should have, not just the equality.
+
+**Files touched:** `src/bot/tactics.js` (`SEARCHABLE_ACTIONS`, both loops).
+Nothing in the pricing half changed — the review said not to touch it, and
+141 tests still pass unmodified.
 
 ### I9 · a conditional survival table, so coin can be priced in hp
 
