@@ -3344,6 +3344,63 @@ test('the exit is ranked by net, never by dominance', () => {
     'the shrine was ranked by dominance and beat a goal worth taking');
 });
 
+// ***** B23: the floor is phases, activation is the boundary ***** //
+//
+// docs/backlog.md B23, and the concept is the owner's, drawn from watching
+// the bot with B22 on. `dangerField` prices threat as a field that decays
+// with distance; rules.md §3 says a sleeping creature is motionless until
+// the hero is inside its activation radius. Crossing that radius is an
+// EVENT, and no continuous price says "nothing, then a whole duel".
+//
+// The fixture is the owner's own case. The serpentine matters: visibility is
+// by straight-line distance (VISIBLE_DIST) and activation is by path length,
+// so the vampire can be four tiles away as the crow flies — seen, priced,
+// competing — while still twenty steps away along the floor, and therefore
+// asleep. Without that gap the case cannot be built at all: a vampire close
+// enough to see down a straight corridor is already awake.
+test('the free region is swept before a radius is crossed', () => {
+  const map = tinyMap([
+    '###########',
+    '#---------#',
+    '#########-#',
+    '#---------#',
+    '#-#########',
+    '#---------#',
+    '###########',
+  ]);
+  const vampire = MONSTER_TABLE.find((m) => m.name === 'vampire');
+  const rat = MONSTER_TABLE.find((m) => m.name === 'rat');
+  const build = () => makeState({
+    map,
+    playerPos: [1, 1],
+    hp: 10,
+    monsters: [
+      // Awake and chasing: three steps off, inside its own radius.
+      { id: 'm-rat', name: 'rat', emoji: '🐀', pos: [4, 1], hp: rat.hp, hpMax: rat.hp,
+        xp: rat.xp, activation: rat.activation, dead: false, side: false },
+      // Asleep: twenty steps along the serpentine, well outside its radius.
+      { id: 'm-vam', name: 'vampire', emoji: '🧛', pos: [1, 5], hp: vampire.hp,
+        hpMax: vampire.hp, xp: vampire.xp, activation: vampire.activation,
+        dead: false, side: false },
+    ],
+    // Inside the vampire's radius, so taking it ends the phase.
+    items: [{ id: 'i-sh', name: 'shield', emoji: '🛡️', pos: [5, 3], dmg: 0, armour: 3, heal: 0 }],
+    shrine: { id: 's', emoji: '⛩️', pos: [9, 5] },
+  });
+
+  const off = [];
+  driveBot(build(), 1, { monsterCount: 2, trace: off, activationPhases: false });
+  const on = [];
+  driveBot(build(), 1, { monsterCount: 2, trace: on, activationPhases: true });
+
+  assertEq(off[0].goal.kind, 'item',
+    'fixture: without phases the bot should still walk into the radius for loot');
+  assertEq(on[0].goal.kind, 'monster',
+    'the bot crossed a sleeping creature\'s radius with a pursuer still awake');
+  assertEq(on[0].goal.id, 'm-rat',
+    'the phase-one fight should be the pursuer, not the sleeper');
+});
+
 // ***** run it ***** //
 
 export function runAll() {

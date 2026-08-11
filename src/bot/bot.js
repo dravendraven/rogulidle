@@ -20,10 +20,10 @@ import { duelCost } from './duel.js';
 import {
   expectedChestValue, expectedMonsterDropValue, monstersAhead, valueByItemName,
 } from "./loot.js";
-import { dangerField } from './threat.js';
+import { dangerField, isAwakeAt } from './threat.js';
 import {
-  actionToward, believedWalkable, dijkstra, exposure, frontiers, key, routeTo,
-  unkey,
+  actionToward, believedWalkable, dijkstra, exposure, flood, frontiers, key,
+  routeTo, unkey,
 } from './nav.js';
 
 // B16 (docs/backlog.md). The shrine is a one-way door: stepping on it ends
@@ -653,6 +653,54 @@ function bestByDominance(scored) {
   }).goal;
 }
 
+// B23 (docs/backlog.md): the tiles the hero can stand on without waking
+// anything that is still asleep.
+//
+// `dangerField` prices threat as a field that decays with distance, which is
+// the right shape for a creature already chasing and the WRONG shape for one
+// that is not. `rules.md` §3: a creature is motionless until the hero is
+// inside its activation radius. Crossing that radius is an EVENT — nothing,
+// then a whole duel — and no continuous price says that at any falloff.
+//
+// So a floor is phases. Inside one, nothing new is awake and gathering costs
+// a step; a phase ends when the hero wakes something, and that crossing is a
+// decision worth making deliberately rather than as a side effect of a
+// cheaper-looking route.
+//
+// Creatures ALREADY awake do not bound the region. They are chasing whatever
+// the bot does, so their duel is not a cost of going anywhere — the same
+// reasoning `guardCost` uses to charge only side monsters.
+//
+// The floods are `dangerField`'s own (`danger.reach`), not new ones: it
+// already floods every monster out to its activation radius, which is
+// exactly this question asked the other way round. One consequence worth
+// naming — a creature that deals nothing (xp 1) is absent from `reach`, so
+// it never bounds a phase. That is right rather than a gap: waking something
+// that cannot hurt the hero does not end anything.
+function freeRegion(belief, danger) {
+  const here = key(belief.player.pos);
+  const asleep = [];
+  for (const monster of liveMonsters(belief)) {
+    const reach = danger.reach.get(monster.id);
+    if (!reach) continue;
+    const toHero = reach.get(here);
+    if (toHero !== undefined && isAwakeAt(monster, toHero)) continue;
+    asleep.push({ monster, reach });
+  }
+
+  const passable = believedWalkable(belief);
+  const free = (x, y) => {
+    if (!passable(x, y)) return false;
+    const tile = x + ',' + y;
+    for (const { monster, reach } of asleep) {
+      const d = reach.get(tile);
+      if (d !== undefined && isAwakeAt(monster, d)) return false;
+    }
+    return true;
+  };
+  return flood(belief.player.pos, free).dist;
+}
+
 function chooseGoal(belief, field, danger, current, options, fieldFrom, exitField) {
   // Priced once per turn and threaded through every branch that needs it —
   // loot goals, the dark's value (B4) and now a creature's own drop (B9)
@@ -765,13 +813,54 @@ function chooseGoal(belief, field, danger, current, options, fieldFrom, exitFiel
     // the hero is in trouble either way, and deleting the exit would leave
     // the bot falling through to the unconditional fight below, which is
     // the opposite of what a survival veto is for.
+    const floorAt = effectiveHp(belief.player) * (1 - options.safetyMargin);
+    const survives = (g) => {
+      if (!options.lowWaterVeto) return true;
+      const plan = planLowWater(g, belief, field, exitField, options);
+      return plan === null || plan.m >= floorAt;
+    };
+
     let pool = worthwhile;
-    if (options.lowWaterVeto) {
-      const floorAt = effectiveHp(belief.player) * (1 - options.safetyMargin);
-      pool = worthwhile.filter((g) => {
-        const plan = planLowWater(g, belief, field, exitField, options);
-        return plan === null || plan.m >= floorAt;
-      });
+    if (options.lowWaterVeto) pool = worthwhile.filter(survives);
+
+    // B23: the turn's question is two questions, in this order. First, is
+    // anything left worth taking WITHOUT waking something new — if so, that
+    // is this phase's work and the bot does it. Only when the free region is
+    // exhausted does the second question arise: which radius to cross next.
+    //
+    // A filter over the order, never over the set. When nothing worthwhile
+    // is free, `pool` is left exactly as it was and every candidate competes
+    // as before — otherwise a floor whose loot all sits inside somebody's
+    // radius would leave the bot with nothing to do but walk out, which is
+    // how you build a bot that never fights instead of one that fights in a
+    // sensible order.
+    //
+    // Applied AFTER the veto and BEFORE the shrine, matching B21's placement
+    // for the same two reasons: survival outranks sequencing, and leaving is
+    // never something a filter here may delete.
+    if (options.activationPhases) {
+      const free = freeRegion(belief, danger);
+      const isFree = (g) => free.has(key(g.pos));
+      const phase = pool.filter(isFree);
+
+      // Creatures already awake and chasing belong to this phase even when
+      // their `net` is negative, which is why they are fetched from `combat`
+      // rather than from `pool` — the `net > 0` filter dropped them.
+      //
+      // A pursuer's duel is not a cost of CHOOSING it: it happens whatever
+      // the bot does next, and doing it now is the version where the hero
+      // is not also standing in a second creature's radius. `worthStarting`
+      // already gated survivability upstream, and the veto still applies.
+      for (const g of combat) {
+        if (g.net > 0 || !isFree(g)) continue;
+        const monster = belief.monsters.get(g.id);
+        const reach = danger.reach.get(g.id);
+        const toHero = reach && reach.get(key(belief.player.pos));
+        if (toHero === undefined || !isAwakeAt(monster, toHero)) continue;
+        if (survives(g)) phase.push(g);
+      }
+
+      if (phase.length) pool = phase;
     }
 
     if (options.leaveCompetes && canReachShrine(belief, field)) {
@@ -1017,6 +1106,29 @@ export function makeBot(options = {}) {
     // at 0.60 against a generator producing 0.226 precisely because nobody
     // wrote this paragraph next to it.
     lowWaterVeto: true,
+
+    // B23 (docs/backlog.md). Splits the floor into phases at the activation
+    // radii and asks "what is still free" before "which radius next". See
+    // `freeRegion`.
+    //
+    // ON: measured, and it recovers most of what B22 cost. Three arms, one
+    // tree, 180 runs each — A = net ranking (B22 off), B = what shipped
+    // (B22 on), C = this on top of B. Against B: depth +0.62 (z 3.44),
+    // kills +4.79 (z 5.17), items at exit +2.32 (z 4.06), hp at exit +0.44
+    // (z 2.27), route length +20 (z 0.53, nothing). Against A the gap is
+    // closed on depth (z -0.81) and finishes (z 0.26); items at exit is
+    // still short by 1.42 (z -2.34), which is the one real residual.
+    //
+    // `finishes` moved +0.04 at z 1.96 against B — UNDER the 2-sigma bar
+    // this project sets, so it is written down and not explained.
+    //
+    // The share of floors opening on a creature lands at 22.2%, between
+    // B22-off's 84.6% and B22-on's 17.6% as the item required, but near the
+    // bottom end. So the bot still opens on loot most of the time — the
+    // difference is that the loot is now FREE loot, and the fighting shows
+    // up later in the floor instead (kills up a quarter). Worth knowing
+    // before reading 22.2% as "it barely changed".
+    activationPhases: true,
 
     // B20 (docs/backlog.md). Lets "collect that, then fight this" enter the
     // comparison as one candidate, scored against the fight alone. See

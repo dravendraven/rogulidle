@@ -139,6 +139,27 @@ ranking.
 melhor** — mediu pior. Os números que o matariam estão no comentário do flag
 `lowWaterVeto` em `src/bot/bot.js`, que é onde eles pertencem.
 
+**O andar é fases, e o raio de ativação é a fronteira (B23).** Antes de
+ordenar, a lista é particionada. O `dangerField` precifica ameaça como campo
+que decai com a distância — a forma certa para uma criatura que já persegue, e
+a errada para uma que dorme, porque a `rules.md` §3 diz que ela está imóvel até
+o herói entrar no raio dela. Cruzar aquele raio é **evento**, não custo
+gradual, e nenhum preço contínuo diz "nada, e então um duelo inteiro".
+
+Então o bot calcula a **região livre**: os tiles alcançáveis sem acordar nada
+que ainda dorme. A pergunta do turno vira duas, nesta ordem — *sobrou algo que
+valha a pena aqui dentro?* e só depois *qual raio cruzar em seguida*.
+Criaturas já acordadas não delimitam a região, porque perseguem o herói faça
+ele o que fizer, e por isso entram na primeira pergunta mesmo com `net`
+negativo: o duelo de um perseguidor não é custo de escolhê-lo.
+
+É partição da ORDEM, nunca do conjunto. Quando nada que vale a pena está
+livre, todos os candidatos voltam a competir — senão um andar cujo loot todo
+mora dentro de algum raio deixaria o bot sem nada além da porta.
+
+Isto recuperou a maior parte do que o B22 custou, e os números estão no
+comentário do flag `activationPhases`.
+
 **O santuário, na mesma lista, valendo zero.** Desde o B12 sair não é uma
 etapa abaixo da comparação — é um candidato *dentro* dela, com `net` 0,
 entrando depois do filtro `net > 0` em vez de através dele.

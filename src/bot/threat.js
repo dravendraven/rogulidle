@@ -19,7 +19,11 @@ import { believedWalkable, exposure, flood, key } from './nav.js';
 //
 // `flood` measures steps between tiles; the engine's path length counts
 // both ends, so it is one greater — hence the +1.
-function isAwakeAt(monster, distance) {
+// Exported for B23, which needs the same predicate to answer a different
+// question: not "what does this tile cost" but "would standing here WAKE
+// something". One expression, one place — the rule it encodes is
+// `rules.md` §3 and restating it twice is how the two drift apart.
+export function isAwakeAt(monster, distance) {
   return distance + 1 < monster.activation;
 }
 

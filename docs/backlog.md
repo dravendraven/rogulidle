@@ -292,7 +292,7 @@ M35 and B14 shipped. What is left is the policy that reads danger, and the measu
 
 ### B23 · the floor is phases, and activation is the boundary
 
-`bot agent` · READY · **owner observation with B22 ON, 2026-08-11** · the
+`bot agent` · **REPORTED** · shipped ON · **owner observation with B22 ON, 2026-08-11** · the
 concept is the owner's; this item is it written down
 
 **What was watched.** With `B22` on the bot inverted: it now prioritises loot
