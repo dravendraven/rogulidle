@@ -164,7 +164,7 @@ of what to do next, which is the only job it has.
 | **A run has to be completable** | M37 · M36 | **overshot — see below.** 0.25% → 25% finishes in three items; the opening has stopped filtering |
 | **The return — floors 11 to 20** | R1 · R2 · R3 · R4 · R5 | phase B/C. Specs in the roadmap above; no item bodies yet |
 | **The potion arc** | B18 · B19 · B17 · B15 · I12 | M35 and B14 shipped; the policy and the verdict are left |
-| **What the map still has to do** | M40 · C2 · C3 · M4 · M21 · X6 · M32 | the curve arc (C1–C3) states the shape in two lines and solves for it; the rest each own a property measured as NOT met |
+| **What the map still has to do** | C2 · C3 · M4 · M21 · X6 · M32 | the curve arc (C1–C3) states the shape in two lines and solves for it; the rest each own a property measured as NOT met |
 | **The player's choice** | U10 · U7 | phase D. The only theme the player touches |
 | **Instruments** | I9 | blocked, and the return moved its target |
 | **Debt** | X1 · X2 · X3 · X5 · E1 | changes no behaviour; makes the next change cheaper |
@@ -255,7 +255,6 @@ single value that moved it was the starting kit.
 |---|---|---|---|
 | C2 | The target curve, in numbers rather than adjectives | work | **NOT NOW** · owner: structure first |
 | C3 | Solve the dials for a pressure curve instead of sweeping | work | **NOT NOW** · after C2, later work |
-| M40 | `blocked` is computed and then ignored | work | REPORTED |
 | M4 | Side-room risk/reward spread scales with depth | work | READY |
 | M21 | Deep floors put a creature where the hero lands | work | READY · read its own warning on `finishes` |
 | X6 | Collapse the tier clamps, redundancy proven first | work | after X5 · owns the tail-shape cause |
@@ -938,95 +937,6 @@ Nothing in the pricing half changed — the review said not to touch it, and
 # What the map still has to do
 
 The open half of `map-design.md`'s four properties. Each of these owns a property that is measured as not met.
-
-### M40 · `blocked` is computed and then ignored
-
-`work agent` · **REPORTED** · engine bug, found by B16 and confirmed in review
-· `src/sim/step.js`
-
-`resolveEncounters` sets `blocked = true` when a live monster or a chest stops
-the hero entering the target tile. Two later branches in the same function
-never read it:
-
-- **the shrine.** `if (shrineHere)` fires unconditionally, so **attacking a
-  creature standing on the shrine ends the floor** with the hero still on its
-  own tile. `rules.md` §3 places a guardian at the shrine by design, so this is
-  reachable by construction rather than by accident.
-- **the pickup loop.** A live monster standing on a loose item does not stop
-  the item being collected, so **the hero takes it without entering the tile**.
-  Monsters walk over items and never pick them up (`rules.md` §3), so this is
-  ordinary play, not a corner.
-
-**The fix is one idea, not two patches.** `blocked` already means "the hero
-does not enter this tile". Everything downstream of it should be conditioned on
-it — that is a change to what an existing variable governs, which is the second
-preference in `CLAUDE.md`'s minimum-change order and needs no new parameter.
-
-**Check the chest case before assuming it is the same.** A chest sets `blocked`
-too, and the documented two-turn cost of opening one depends on the drop NOT
-being collected the same turn — which today works because `itemsHere` is
-snapshotted before the chest opens, not because of `blocked`. Do not break that
-while fixing this.
-
-**Assert.** Attacking a creature on the shrine leaves the floor running.
-Attacking a creature standing on an item leaves the item on the floor. The
-chest still costs two turns. Then re-run B16's accidental-exit count — its
-three residuals per family should go to zero.
-
-#### Report
-
-**One guard, one idea.** The pickup loop and the shrine branch now sit inside
-`if (!blocked)`. No new variable and no second patch: `blocked` already meant
-"the hero does not enter this tile", and everything downstream of it is now
-conditioned on it.
-
-All four asserts hold, and the two bug tests were mutation-checked — removing
-the guard fails exactly those two and nothing else:
-
-- attacking a creature on the shrine leaves `outcome` null, logs no `ascend`,
-  and leaves the hero on its own tile;
-- attacking a creature standing on an item leaves the item on the floor and
-  the armour bar uncredited;
-- a **corpse** on an item still lets the hero walk in and take it — added
-  because a careless guard would have made every killed creature a permanent
-  lid on whatever it died standing on;
-- the chest still costs two turns, asserted directly rather than assumed.
-
-**The chest case is not the same mechanism, confirmed rather than trusted.**
-The two-turn cost comes from `itemsHere` being snapshotted before the chest
-spills, so the drop was never in that loop's list. The guard makes it
-stricter — a loose item already lying on a chest's tile is now left alone too
-— without replacing it. The test asserts the snapshot behaviour on its own so
-a later "tidy-up" of it cannot hide behind the guard.
-
-**B16's residual, counted paired on its own two families, n=120 runs each:**
-
-| | seed 3000000 | seed 4100000 |
-|---|---|---|
-| floors ending on a swing | 17 → **0** | 28 → **0** |
-| runs with any | 14/120 → **0** | 24/120 → **0** |
-| items taken through a live creature | 71 → **0** | 78 → **0** |
-
-**I did not reproduce B16's own statistic, and the difference is worth
-naming.** B16 counted *accidental* exits — bot-intent, its harness, its
-directory. I counted the engine defect firing at all: an `ascend` logged on
-the same turn the hero swung. That is a superset, which is why it reads 17
-and 28 rather than 3 — most firings did not change where the run went, and
-B16's three per family are inside these. Both go to zero by construction
-rather than by tuning: the branch cannot execute when the hero did not enter.
-
-**The second face was the larger one and nobody had counted it.** 71 and 78
-items per family were being collected through a live creature. As the item
-said, that is ordinary play, not a corner.
-
-**It moves play, and I did not chase that.** Floors ascended shifted (623 →
-615 and 603 → 615) because floors that used to end early now continue. Stated
-because the fix is not inert, not as a result — the owner's standing direction
-is structure first, and nothing was tuned.
-
-`--selftest` passes. Suite 153/153.
-
-Stale and fixed here: `rules.md` §6 and §8.
 
 ### C2 · the target curve, in numbers rather than adjectives
 
