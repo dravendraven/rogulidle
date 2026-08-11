@@ -56,7 +56,7 @@ cost are in `decisions.md`.
 | theme | items |
 |---|---|
 | The return — floors 11 to 20 | R1 · R5 · R2 · R3 · R4 |
-| 1 | B21 | Price loot by the chance of finishing, not by hp | bot | READY · owner direction |
+| 1 | B21 | The floor is the horizon, and the budget is what must not run out | bot | READY · owner direction |
 | The bot's pricing | B21 · B15 |
 | What the map still has to do | C2 · C3 · M4 · M21 · X6 · M32 |
 | The player | U10 · U7 |
@@ -694,129 +694,93 @@ status was established by the measurement in this very item. Decide it here.
 **Do:** default it off, keep the code and the comment, and record the finding
 in `decisions.md` — the 0.5% ceiling is the transferable part, not the dial.
 
-### B21 · price loot by the chance of finishing, not by hp
+### B21 · the floor is the horizon, and the budget is what must not run out
 
-`bot agent` · READY · **owner direction, 2026-08-11** · the structural answer
-`B19` and `B20` both circled without reaching
+`bot agent` · READY · **owner direction, 2026-08-11** · replaces the earlier
+`P(finish)` version of this item, and supersedes what `B19` and `B20` tried
 
-**The observation, owner's words:** a creature five tiles away and loot two
-tiles away — the bot should take the loot first, because it raises the chance
-of winning the fight that follows.
+**The objective, owner's words:** leave the floor alive, carrying as much as
+possible — hp, armour, weapon. Surviving includes winning the fights that have
+to be won.
 
-#### Why the bot does not, and why it is not a bug
+#### Why the current model cannot express that
 
-A step costs 0.01 hp. A four-tile detour costs 0.04 against a shield worth 3.
-The detour arithmetic is overwhelming, and it is not what is blocking.
+`campaignCost` prices everything against the **rest of the run**: a weapon is
+worth what it saves across thirty remaining creatures, a shield is worth three
+hp once. That is where 165-against-3 comes from, and it is why the bot walks
+past a chest to reach a creature.
 
-**In the current model the ORDER genuinely does not matter.** `duelCost`'s
-`hpLost` does not depend on armour — `B19` measured 0.00 at every tier — so
-three points of armour are three points of hp whether they are collected before
-the fight or after it. "Loot then fight" and "fight then loot" cost the same,
-so the bot takes the larger single net and picks the chest up afterwards.
-
-**That is correct arithmetic under a linear model of hp, and the model is what
-is wrong.** Three hp at four hp remaining is worth far more than three hp at
-fifteen, because dying costs the entire rest of the run. `campaignCost`
-measures expected hp and is blind to ruin.
+`duelCost` does not depend on armour — `B19` measured 0.00 at every tier — so
+in expected-hp terms the ORDER of loot and fight does not matter. **In the game
+it does**, and the reason is not the expectation: a fight costing 5 taken at 6
+hp leaves the hero one bad roll from dead, and the same fight taken at 9 does
+not. **The missing quantity is how low the hero dips, not how much it spends.**
 
 #### Do
 
-**Change the currency for loot from hp to `P(finish)`.** `I9` shipped the
-table: `P(finish | floor, effective hp, weapon damage)`. An item's value is
-`P(state + item) − P(state)`.
+**Two changes, and the first is a deletion.**
 
-**This is not a new dial and it is not a detour factor.** It automatically
-makes a shield worth a great deal to a weak hero and almost nothing to a strong
-one, and it automatically makes a cheap detour worth taking — which is the
-behaviour the owner is asking for, arrived at rather than tuned in.
+**1. The horizon becomes the floor.** Stop pricing gear against the remaining
+campaign. A weapon is worth having and it is counted at the exit; how much it
+is worth does not need a thirty-creature projection. This removes the term that
+produced the two-orders-of-magnitude gap rather than balancing it — which is
+the order `CLAUDE.md` asks for: delete what is fighting you before adding.
 
-**It also collapses the owner's stated priority order into one number:**
-survive the floor, then finish the run, then coin. `P(finish)` is that ordering
-already, which is why no weighting between the three is needed.
+**2. Score a plan by its LOW-WATER MARK, then by what it exits with.**
+For each candidate — fight now, fetch that loot then fight, take the shrine —
+walk the plan and track the minimum effective hp reached along it. Then rank
+lexicographically:
 
-#### What the real table says, read before starting
+- **feasible first**: the low-water mark stays above the safety margin;
+- **then resources at exit**: hp, armour bar, weapon damage, items held.
 
-Measured at n=250, seeds 3000000+, cells above support:
+That is the ratio the owner described, made an ordering rather than a weighted
+sum — and an ordering needs no coefficient to balance the two halves, which is
+the thing three items in a row have now been forbidden to add.
 
-| floor | eff. hp | weapon | P(finish) | n |
-|---|---|---|---|---|
-| 2 | 5–9 | 1 | **6.0%** | 50 |
-| 2 | 10–14 | 1 | **14.2%** | 106 |
-| 2 | 15+ | 1 | 11.6% | 43 |
-| 4 | 10–14 | 1 | 7.7% | 39 |
-| 4 | 15+ | 1 | 9.1% | 33 |
-| 4 | 15+ | **3+** | **34.4%** | 32 |
+**Everything needed already exists.** `duelCost` gives hp lost and turns,
+`dangerField` gives per-tile threat, `effectiveHp` gives the budget. Nothing
+new is modelled; what is new is tracking the minimum along a plan instead of
+the total at the end.
 
-**What supports the item:** moving one hp bucket on floor 2 more than doubles
-the chance of finishing, 6.0% → 14.2%. That is the non-linearity the hp model
-cannot see, and it is worth about eight points of finish probability where the
-face value said three hp.
+#### Why this is the right shape and the table was not
 
-**What does not:** weapons dominate in `P` as well, and by more — floor 4 at
-the same hp reads 9.1% with weapon 1 and **34.4%** with weapon 3+. **This
-change may not flip the preference the observation asked for.** It makes the
-arithmetic correct; correct may still say "go and kill it", because a weapon is
-the only permanent power in the game and only creatures carry one.
+**It is real time and local.** No offline table, no baked constants, nothing
+that silently ages. The earlier version of this item would have had to bake
+`I9`'s survival table into the bot — and `R1` invalidates that table
+completely, since `P(finish)` would come to mean twenty traversals and the
+floor axis would merge the descent and the return. **This version survives R1
+untouched**: a traversal is a traversal, and the floor is still the horizon.
 
-**Say so if that is the answer.** An honest re-pricing that leaves the ordering
-unchanged is a result, not a failure, and it is the third time this question
-has been asked — do not reach for a coefficient to force the other outcome.
+**It is also the objective the owner actually states**, rather than a proxy for
+it. `P(finish)` answers "will this run end well". "Leave this floor alive and
+loaded" is what the bot can actually act on.
 
-**One inversion to be aware of:** floor 2 reads 11.6% at 15+ against 14.2% at
-10–14. `I9` reported four inversions, none clearing 2 sigma, and the 15+ cell
-carries n=43 against 106. Thin, not wrong — but do not build a decision that
-turns on it.
+#### The gap this opens, stated rather than discovered
 
-#### The trap that decides whether this works at all
+**A floor-local bot will undervalue a weapon**, because a weapon's worth is
+mostly in the floors after this one. The exit state carries it, but nothing
+projects it forward any more.
 
-**`I9`'s buckets are coarse — effective hp in 1–4 / 5–9 / 10–14 / 15+, weapon
-damage in 1 / 2 / 3+.** A shield that moves the hero from 6 to 9 hp stays in
-one bucket and reads **ΔP = 0**, which is the same wrong answer `B19` got by a
-different route.
-
-**Interpolate within the bucket, or refine the buckets, and say which.** This
-is the whole engineering content of the item; get it wrong and it repeats
-`B19`'s failure with more machinery.
-
-**Two limits `I9` already states and this inherits.** The table is averaged
-over dungeons, not conditional on this one — acceptable for pricing, and it
-must be said in the report rather than discovered later. And cells below n≥20
-are noise; decide what the bot does when it lands on one, and do not let it be
-"treat it as zero" by accident.
-
-#### The feedback loop, which nobody has named yet
-
-`I9`'s table is measured from **this bot's own play**. Change the policy on the
-strength of the table and the table now describes a bot that no longer exists.
-
-**Not a reason to refuse the item** — every measured-policy change in this
-project has the same shape, and the effect is small if the policy change is
-small. But it has to be handled rather than discovered: **re-measure the table
-after shipping and report whether the cells the decision leans on moved.** If
-they moved a lot, the pricing is chasing itself and that is a finding.
-
-#### What not to do
-
-**Do not price fights in `P` as well, in this item.** One currency conversion
-at a time, and loot is where the defect is. If the comparison then reads
-strangely because loot is in `P` and creatures are in hp, say so with the
-number — that is the finding that would justify converting the other side.
-
-**Do not add a detour dial.** The owner asked whether one is needed; the
-arithmetic above says the detour was never the blocker. If measurement shows
-otherwise, that is a report, not a constant.
+**That may be correct.** The bot's job each floor is to get out alive and
+richer, and a weapon makes it richer. **But if the bot starts refusing fights
+it should take, that is where it will come from** — say so with the number
+rather than adding a projection term back.
 
 #### Assert
 
-- The owner's own case: creature five tiles off, shield two tiles off, hero at
-  low hp — the bot takes the shield first. And at high hp it does not, which is
-  the same mechanism proving it is not a blanket preference.
+- The owner's case: creature five tiles off, shield two tiles off, hero at low
+  hp — the bot takes the shield first. **And at high hp it does not**, because
+  the low-water mark never approaches the margin. Same mechanism, both
+  directions, checkable without a batch.
+- A fight the bot must take to reach the shrine is still taken.
 - Share of floors whose first goal is a creature — 83.3% and 86.8% after `B18`.
-- Items collected per floor, **route length** (`B20` shipped OFF for a 6.3%
-  rise that bought nothing — this must not repeat it), depth histogram, and
-  `finishes`, on the baseline seed family.
-- Whether the bot now refuses fights it used to take. `worthStarting` is
-  untouched by this item, so a large move there means something leaked.
+- **Route length** — `B20` shipped OFF for a 6.3% rise that bought nothing.
+- Items and hp at floor exit, depth histogram, and `finishes`, on the baseline
+  seed family.
+- **Whether the bot refuses fights it used to take.** That is the named failure
+  direction of change 1.
+
 
 ### B15 · a drink policy that reads the danger field
 
