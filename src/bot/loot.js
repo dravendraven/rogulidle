@@ -23,6 +23,7 @@ import {
   MONSTER_DROP_CHANCE, MONSTER_TABLE, UNKNOWN_MONSTER_ESTIMATE,
   WEAPON_AXE_MIN_TIER,
 } from '../sim/balance.js';
+import { WEAPON_SCARCITY } from '../sim/difficulty.js';
 import { itemWeights } from '../sim/spawn.js';
 import { campaignCost } from './duel.js';
 
@@ -158,7 +159,12 @@ export function expectedMonsterDropValue(monster, values) {
 
   const quality = tier / (MONSTER_TABLE.length - 1);
   const exclude = tier < WEAPON_AXE_MIN_TIER ? ['axe'] : [];
-  const weights = itemWeights({}, 'monster', quality, exclude);
+  // B18 (docs/backlog.md). The real scarcity, the way `spawn.js` passes it.
+  // This used to be `{}`, which gives the weapon kind its full undivided
+  // share and leaves the empty slot at weight zero — so the bot priced
+  // every creature as certainly carrying a weapon, when three monster draws
+  // in four come up empty. Inflated the estimate by almost exactly 4x.
+  const weights = itemWeights({ weapon: WEAPON_SCARCITY }, 'monster', quality, exclude);
 
   let sum = 0;
   for (const [template, probability] of weights) {
