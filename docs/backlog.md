@@ -87,7 +87,7 @@ comes back for free and the return is currently identical to the descent.
 
 | id | what gets done | agent | status |
 |---|---|---|---|
-| M42 | Give time a price — stage 1, tighten the existing budget | work | READY · **owner proposal** |
+| M42 | Give time a price — stage 1, tighten the existing budget | work | REPORTED |
 | C2 | The target curve, in numbers rather than adjectives | work | NOT NOW |
 | C3 | Solve the dials for a pressure curve instead of sweeping | work | NOT NOW · after C2 |
 | M4 | Side-room risk/reward spread scales with depth | work | READY |
@@ -321,8 +321,8 @@ The open half of `map-design.md`'s four properties. Each of these owns a propert
 
 ### M42 · give time a price — stage 1, tighten the budget that already exists
 
-`work agent` · READY · **owner proposal, 2026-08-11** · form decided by the
-project agent; the reasoning is in this item
+`work agent` · **REPORTED** · owner proposal, 2026-08-11 · form decided by
+the project agent; the reasoning is in this item
 
 **Time is free in this game.** Dawdling costs nothing, detouring costs nothing,
 walking costs nothing. Three gaps recorded in different documents are that one
@@ -400,6 +400,88 @@ here. **If something seems to require one, stop and report.**
 - Which of `rules.md`, `bot-strategy.md`, `map-design.md` this made false.
   **Expect two or three** — `rules.md` §8 states the turn limit as a guard, and
   `map-design.md` records the detour as free.
+
+#### Report
+
+**What was built, in plain language.** The per-traversal turn cap already
+existed — `playDungeon` had `1500` written into it and the engine guards at
+5000. It now has a name, `TURN_BUDGET` in `src/sim/balance.js`, and a row in
+`balance.md`, and `playDungeon` reads it. **No mechanism was added.** Running
+out still ends the traversal without completing, which ends the run.
+
+**It ships at the value it already had**, which is stage 1's instruction:
+enter with something that almost never bites and prove it almost never bit.
+
+**Measured at HEAD in an isolated worktree** — a concurrent session had
+`src/bot/` modified, and that alone moved `finishes` from 3.0% to 1.0% and the
+side-room rate from 54% to 34%, so every number below was taken against
+committed code only.
+
+| budget | finishes | mean depth | budget binds | mean turns | **side chests** | spine chests |
+|---|---|---|---|---|---|---|
+| **1500 (shipped)** | 6/200 = 3.0% | 6.18 | **0.81%** | 104.0 | **54.26% ±1.35** | 88.32% ±0.41 |
+| 1000 | 6/200 = 3.0% | 6.17 | 0.97% | 99.8 | 54.10% ±1.35 | 88.32% ±0.41 |
+| 700 | 6/200 = 3.0% | 6.08 | 1.15% | 96.2 | 54.07% ±1.36 | 88.11% ±0.42 |
+| 500 | 6/200 = 3.0% | 6.07 | 1.24% | 93.9 | 53.85% ±1.36 | 88.10% ±0.42 |
+| 350 | 6/200 = 3.0% | 5.91 | 2.12% | 91.7 | 53.93% ±1.38 | 88.10% ±0.43 |
+| 250 | 6/200 = 3.0% | 5.58 | **3.67%** | 89.1 | 54.17% ±1.41 | 88.10% ±0.44 |
+
+**The numbers that said "nothing changed", as asked.** `finishes` is 6/200 in
+every single arm — the tightening never touched it. The shipped budget binds
+0.81% of traversals; the item's claim that the cap "has never fired" was very
+slightly wrong, and it is now measured rather than assumed.
+
+**THE TEST FAILED, AND THAT IS THE RESULT.** Side-room opening does not move
+at any tightness: 54.26% at the shipped budget, 54.17% at a **six-fold**
+tightening, **z = −0.05**. Nothing at 500 either (z = −0.22). Spine chests are
+equally flat (z = −0.37). **Stamina did not do the job it exists for**, and no
+value in this sweep makes it appear to have.
+
+**The reason is structural, and it is the part worth keeping.** A cost the
+deciding agent never reads cannot change a decision. The balance is derivable —
+`TURN_BUDGET − state.turn`, both already public, **which is why this is not a
+fog-of-war concession** — but *derivable* is not *read*: nothing in `src/bot/`
+prices turns at all. So tightening cannot produce a refusal. It only truncates
+runs that were already wandering: binds 0.81% → 3.67%, mean depth 6.18 → 5.58.
+**The test could not have passed at any value**, which is why the honest move
+is to stop rather than to keep turning the dial.
+
+**Denominator, named.** Mean turns per traversal falls 104 → 89 as the budget
+tightens, and that is not the bot hurrying — it is the long traversals being
+cut off and leaving the mean of what survives. Totals moved (more losses), the
+rate moved for arithmetic reasons.
+
+**No tightening step shipped, deliberately.** Every step below the shipped
+value buys measured-zero on the item's own test and pays for it in depth and
+losses. Spending the risk budget for a null result, three items after the
+project made runs completable, is the trade the item warned against.
+
+**What would make it bite is a bot change, not a value.** The decision has to
+carry the price. That is not in this item's scope and is not attempted here.
+
+**Stage 2 remains unjustified on this evidence.** It is only worth building
+"if stage 1 shows the budget binding at all" — it binds under 1% at the shipped
+value and produces no decision at any value, so making the threshold legible
+would be making a non-decision visible.
+
+**One instrument re-pointed:** `descentCheck` had its own copy of `1500` and
+now reads `TURN_BUDGET`. Identical today; the point is that the next tightening
+reaches `run-check.html` instead of leaving it measuring a looser game than
+ships. Other instruments keep their own caps on purpose — the probes pass 4000
+because they measure floors, not runs — and `src/ui/spectator.js` passes 900,
+which is a UI file and tighter than the shipped budget; reported, not touched.
+
+**Nothing out of scope was needed.** No new items, no starting-item choice, no
+tier tree, no daily challenge, no hero selection.
+
+**Made false, and fixed here — three:** `rules.md` §8 (the turn limit was
+stated as an incidental guard; it is now a named per-traversal budget, and the
+no-warning threshold is stated rather than left implicit), `map-design.md`'s
+"What is still open" (a cost side now exists; the gap is narrower and better
+located, not closed), and `bot-strategy.md` §1 — which still said the run is
+**ten floors**. That was made false by `R1`, not by this item, and my `R1`
+report wrongly said `bot-strategy.md` had not moved. Corrected here, with the
+gap to `R5` stated in place.
 
 ### B24 · a step that does not approach the goal should cost more
 

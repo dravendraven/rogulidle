@@ -5,7 +5,7 @@ import {
   CHEST_GUARD_RADIUS, EARLY_CHEST_QUALITY_BOOST, HP_GRANT_AMOUNT, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_TAIL,
   DUEL_SAFETY_MARGIN, PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE, STARTING_ITEMS,
-  WEAPON_AXE_MIN_TIER,
+  TURN_BUDGET, WEAPON_AXE_MIN_TIER,
 } from '../src/sim/balance.js';
 import {
   driveTurns, newGame, playGame, replayGame,
@@ -404,6 +404,49 @@ test('difficulty is indexed by floor, not by traversal', () => {
     'traversal 12 does not use floor 9\'s roster size');
   assert(floorPlan(floorOfTraversal(11)).monsters > floorPlan(floorOfTraversal(20)).monsters,
     'the return does not keep each floor\'s own mass — it should fall as the hero climbs');
+});
+
+// ***** M42 — time has a price, stage 1 ***** //
+
+test('a traversal is capped by TURN_BUDGET, not by a number written in the loop', () => {
+  // Stage 1 adds no mechanism: the cap always existed, hardcoded in
+  // `playDungeon`. What changed is that it has a name and a row in
+  // balance.md, so tightening it is a value change rather than an edit to a
+  // logic file.
+  const run = playDungeon(4242, () => (() => 'rest'), { levels: 1 });
+
+  assertEq(run.levels[0].turns, TURN_BUDGET, 'the traversal did not stop at the shipped budget');
+  assertEq(run.levels[0].outcome, 'timeout', 'running out of turns did not read as a timeout');
+});
+
+test('running out of turns ends the traversal without completing, and so ends the run', () => {
+  // rules.md §8. This is the shape stage 2 exists to make legible — today it
+  // is a threshold with no warning — and it is asserted here so that stage 2
+  // has something to change rather than something to discover.
+  const run = playDungeon(4242, () => (() => 'rest'), { maxTurns: 12 });
+
+  assertEq(run.cleared, false, 'a run that ran out of turns read as a clear');
+  assertEq(run.depth, 1, 'the run continued past the traversal that ran out');
+  assertEq(run.levels.length, 1, 'a later traversal was played after the budget ran out');
+  assertEq(run.levels[0].turns, 12, 'the traversal did not stop at the budget it was given');
+  assertEq(run.killedBy, null, 'running out of turns was recorded as a death');
+});
+
+test('the budget is per traversal, not per run', () => {
+  // Scope decided in the item: "a side room costs a countable number at the
+  // moment you decide" is a per-traversal sentence. A run-wide budget is a
+  // different feature, and this pins which one shipped — every traversal
+  // gets its own full allowance.
+  const run = playDungeon(4242, () => {
+    const bot = makeBot();
+    return (belief, observation) => bot(belief, observation);
+  }, { maxTurns: 600, levels: 2 });
+
+  const spent = run.levels.reduce((sum, l) => sum + l.turns, 0);
+  assert(run.levels.length > 1, 'fixture is wrong: the run did not reach a second traversal');
+  assert(run.levels.every((l) => l.turns <= 600), 'a traversal spent more than the budget');
+  assert(spent > 600 || run.levels.every((l) => l.outcome !== 'timeout'),
+    'the allowance looks shared across traversals rather than granted per traversal');
 });
 
 test('reaching the bottom clears nothing; completing the last traversal wins', () => {

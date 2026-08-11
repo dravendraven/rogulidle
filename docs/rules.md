@@ -279,9 +279,24 @@ Quanto o bot escolhe lutar é decisão dele e vive em
 `docs/bot-strategy.md`, não aqui — este arquivo descreve o que o jogo
 permite, e o jogo permite sair de mãos vazias no primeiro turno.
 
-**Morte quando o hp chega a zero.** Há também limite de turnos, que encerra a
-travessia sem conclusão — e, como conclusão de run exige todas, encerra a run
-junto.
+**Morte quando o hp chega a zero.**
+
+**Toda travessia tem um orçamento de turnos, e estourar encerra a travessia
+sem conclusão** — e, como conclusão de run exige todas, encerra a run junto.
+
+O orçamento é **por travessia**, não por run: cada uma recebe a dotação
+inteira. A moeda é o **turno**, então ele cobra andar e lutar igualmente —
+qualquer coisa que passe turno gasta orçamento.
+
+**Isto deixou de ser guarda de segurança e passou a ser regra de desenho.**
+O limite sempre existiu, mas escrito solto no código e largo demais para
+morder; agora tem nome e valor declarado, e apertá-lo é mudança de valor. O
+propósito é que tempo custe: desviar por uma sala lateral gasta um número
+contável no momento em que a decisão é tomada.
+
+**Estourar não avisa.** Hoje o orçamento é limiar sem barra visível — o herói
+não sente nada até acabar. Tornar isso legível é trabalho separado, e está
+declarado como pendência em vez de deixado implícito.
 
 ## 9. Entre runs
 

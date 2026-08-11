@@ -21,7 +21,19 @@ git já guarda o registro completo de cada item.
 Estas são as únicas regras de verdade. Todo o resto é o bot tentando
 cumpri-las.
 
-**#1 — concluir a run: atravessar os dez andares, vivo.** Requisito mínimo.
+**#1 — concluir a run: completar as vinte travessias, vivo.** Requisito
+mínimo. Descer até o fundo é metade — a run só conclui na última travessia
+(`rules.md` §1).
+
+> **O bot ainda planeja contra dez.** A regra mudou no R1; o horizonte de
+> campanha dele não. Isso é o `R5`, e até ele entrar o bot subestima o que
+> falta pela metade. Registrado aqui porque a lacuna é entre este documento e
+> o código, não dentro de um dos dois.
+
+**#1b — não estourar o orçamento de turnos da travessia.** Estourar encerra a
+travessia sem conclusão, o que encerra a run — mesma consequência de morrer
+(`rules.md` §8). O saldo é `orçamento − turno`: os dois já são públicos, e
+**nada novo atravessou a névoa**. O bot ainda não lê nenhum dos dois.
 
 **#2 — acumular moeda.** A moeda deriva de xp por turno, acumula andar a
 andar, e serve para comprar na loja.

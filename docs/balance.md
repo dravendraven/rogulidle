@@ -96,6 +96,7 @@ statement about today. Only this table is current.
 | `TIER_FLOOR_SHARE_BASE` | `0` | balance.js |
 | `TIER_FLOOR_SHARE_CAP` | `0.5` | balance.js |
 | `TIER_FLOOR_SHARE_PER_LEVEL` | `0.08` | balance.js |
+| `TURN_BUDGET` | `1500` | balance.js |
 | `UNKNOWN_MONSTER_ESTIMATE` | `{ xp: 4, hp: 7 }` | balance.js |
 | `VISIBLE_DIST` | `9` | balance.js |
 | `WEAPONS_WIDEN_ROLL` | `true` | balance.js |

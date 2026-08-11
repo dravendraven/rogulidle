@@ -80,7 +80,7 @@ import { observe, emptyBelief, foldBelief } from '../sim/observe.js';
 import { makeBot } from '../bot/bot.js';
 import { duelCost } from '../bot/duel.js';
 import { effectiveHp, weaponDamage } from '../sim/combat.js';
-import { DUEL_SAFETY_MARGIN } from '../sim/balance.js';
+import { DUEL_SAFETY_MARGIN, TURN_BUDGET } from '../sim/balance.js';
 import { REFERENCE_HERO } from './hardness.js';
 
 function heroCopy(hero) {
@@ -626,7 +626,13 @@ const wpnBucketOf = (v) => WPN_LABELS[bucketIndex(v, WPN_EDGES)];
 
 export function descentCheck(options = {}) {
   const {
-    runs = 8, firstSeed = 800000, maxTurns = 1500, levels = LEVELS, hpFromKills = false,
+    runs = 8, firstSeed = 800000,
+    // M42 — reads the shipped per-traversal budget instead of a copy of
+    // its value. Identical today; the point is that the next tightening
+    // reaches run-check.html instead of leaving it measuring a looser
+    // game than the one that ships.
+    maxTurns = TURN_BUDGET,
+    levels = LEVELS, hpFromKills = false,
     // I11 — see the counts block below.
     startingItems,
     // I13 — a run is TWENTY TRAVERSALS, not ten floors. This loop had its

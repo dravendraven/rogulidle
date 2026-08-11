@@ -57,7 +57,7 @@
 // floor 10 fell from 1.00 to 0.71 as a result. Chests are the lever, not
 // the growth rate.
 
-import { PLAYER_HP, PLAYER_XP } from './balance.js';
+import { PLAYER_HP, PLAYER_XP, TURN_BUDGET } from './balance.js';
 import { hashSeeds } from './rng.js';
 import {
   floorParams, monstersAt, MONSTERS_BASE, MONSTER_GROWTH,
@@ -139,7 +139,10 @@ function carryFrom(player) {
 // would otherwise get each floor twice and quietly average the two crossings
 // together. They pass `traversals: LEVELS` and say so at the call site.
 export function playDungeon(seed, makePolicy, options = {}) {
-  const maxTurns = options.maxTurns ?? 1500;
+  // M42 — the per-traversal turn budget, named rather than hardcoded here.
+  // A caller may still override it, which is what the sweeps and the older
+  // instruments do; the default is what the game ships.
+  const maxTurns = options.maxTurns ?? TURN_BUDGET;
   // All overridable so a tuning page can ask "what if" without editing
   // the shipped model. Defaults ARE the shipped model.
   const floors = options.levels ?? LEVELS;

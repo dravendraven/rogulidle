@@ -672,6 +672,38 @@ export const MIN_ROSTER_FOR_SIDE = 4;
 // every chest.
 export const SIDE_CHEST_BIAS = 3;
 
+// ***** M42 — time has a price, docs/backlog.md M42, stage 1 ***** //
+// How many turns one TRAVERSAL may spend. Run out and the traversal ends
+// without completing, which ends the run (rules.md §8).
+//
+// NOT A NEW MECHANISM, and that is the point of stage 1. A per-traversal
+// turn cap has always existed — `playDungeon` hardcoded 1500 and the engine
+// guards at 5000 — and it was a runaway guard nobody had chosen. This gives
+// it a name and a row in balance.md so it can be TIGHTENED into a design
+// constraint by moving a value, which is CLAUDE.md's first preference.
+//
+// SCOPE IS THE TRAVERSAL, not the run. "A side room costs a countable number
+// at the moment you decide" is a per-traversal sentence, and across twenty
+// traversals a run-wide budget is a different feature.
+//
+// CURRENCY IS TURNS, which prices walking AND fighting — the broad version.
+// Narrowing it to movement later is easy; widening it is not.
+//
+// NO NEW CHANNEL FOR THE BOT, and this is not a fog-of-war concession. What
+// is left is `TURN_BUDGET − state.turn`: the turn already crosses into
+// `Observation` and the budget is a module constant the bot may import like
+// any other. Nothing that was hidden became visible.
+//
+// ENTERED LOOSE ON PURPOSE. Measured at HEAD before this landed, a traversal
+// spends a mean of 104 turns and a p99 of 952 — a heavy tail, because a bot
+// that loses its route wanders rather than dies. The old 1500 already bound
+// 0.81% of traversals, so "the cap has never fired" was not quite true. This
+// ships AT that measured behaviour rather than below it: stage 1's job is to
+// make the budget nameable and provably almost-inert, and every tightening
+// step after it is a value change with its own measurement. A budget that
+// changes everything on the first try is an event, not a dial.
+export const TURN_BUDGET = 1500;
+
 // ***** bot ***** //
 
 export const BOT_KNOWS_MONSTER_COUNT = true;  // bot-strategy 4.1

@@ -319,6 +319,25 @@ spread.
 
 `M4` is the scheduled attempt at the spread. `M36` owns the cost side.
 
+### A cost side now exists, and it did not close the gap
+
+`M42` stage 1 gave time a price: a per-traversal turn budget, named and
+tightenable. **Measured across a six-fold tightening, the side-room opening
+rate does not move at all** — flat within noise at every step, against a spine
+rate that is also flat. Runs get shorter and more of them end without
+completing; **not one detour is refused.**
+
+**The reason is structural, and it is the useful part.** A cost the deciding
+agent never reads cannot change a decision. The budget is derivable — remaining
+is the cap minus the turn, both already public — but nothing in the bot prices
+it, so tightening does not produce refusals. It truncates the runs that were
+already wandering and turns them into losses.
+
+**So the open gap is now narrower and better located.** It is no longer "there
+is no cost side". It is: **a cost exists and nothing weighs it.** Making the
+detour refusable needs the decision to carry the price, which is a bot change,
+not a map one — and tightening the budget further before that only buys deaths.
+
 ## Two things to check whenever this area changes
 
 **The shallowest floors and `MIN_ROSTER_FOR_SIDE`.** Changing the creature
