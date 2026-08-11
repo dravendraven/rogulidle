@@ -339,6 +339,47 @@ function render(reward, counts, dc, sonda, coins, topo) {
     `<table><thead><tr><th></th><th>sonda A</th><th>sonda B</th><th>bot</th></tr></thead>`
     + `<tbody><tr><td>mean/run</td><td>${f(coins.sondaA.coins.mean, 1)}</td><td>${f(coins.sondaB.coins.mean, 1)}</td><td>${f(dc.meanCoins, 1)}</td></tr></tbody></table>`));
 
+  // ***** I9 — P(finish | floor, effective hp, weapon damage) *****
+  //
+  // Collapsed on purpose. It needs roughly a thousand descents before most
+  // cells clear their support floor, and the page's default is far below
+  // that — so at defaults it is mostly blank, which is the honest reading
+  // rather than a broken one. `blank = not enough runs` is stated on the
+  // summary so nobody reads emptiness as "impossible".
+  //
+  // NOT "hope" — objectives.md's property is broader than the finish, and a
+  // zero here says the finish is decided, not that the run stopped being
+  // worth watching. Averaged over dungeons, not conditional on this one:
+  // right for design, wrong for a live on-screen number (U2, blocked on E1).
+  const surv = dc.survival;
+  const survCell = (lvl, hp, wpn) => surv.cells.find(
+    (c) => c.level === lvl && c.hp === hp && c.wpn === wpn,
+  );
+  const survRows = [];
+  for (let lvl = 1; lvl <= LEVELS; lvl++) {
+    for (const hp of surv.hpLabels) {
+      if (!surv.wpnLabels.some((w) => survCell(lvl, hp, w))) continue;
+      survRows.push(`<tr><td>${lvl}</td><td>${hp}</td>`
+        + surv.wpnLabels.map((w) => {
+          const c = survCell(lvl, hp, w);
+          if (!c) return '<td class="direction">·</td>';
+          if (!c.readable) return `<td class="direction">— <span style="font-size:.85em">n=${c.n}</span></td>`;
+          return `<td>${pct(c.p)} <span style="font-size:.85em;color:var(--faint)">n=${c.n}</span></td>`;
+        }).join('')
+        + '</tr>');
+    }
+  }
+  const survDetails = el('details');
+  survDetails.append(el('summary', null,
+    `P(finish | andar, hp efetivo, dano de arma) — ${surv.cells.filter((c) => c.readable).length}`
+    + ` de ${surv.cells.length} células com suporte (n≥${surv.minSupport});`
+    + ' em branco = runs insuficientes, não impossível'));
+  survDetails.append(el('div', null,
+    `<table><thead><tr><th>andar</th><th>hp efetivo</th>`
+    + surv.wpnLabels.map((w) => `<th>arma ${w}</th>`).join('')
+    + `</tr></thead><tbody>${survRows.join('')}</tbody></table>`));
+  coinsDiv.append(survDetails);
+
   $('out').append(levelSection('Bot', botKpi, botDiag, null, coinsDiv));
 }
 

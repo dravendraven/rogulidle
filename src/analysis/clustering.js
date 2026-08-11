@@ -77,7 +77,7 @@ import { step } from '../sim/step.js';
 import { observe, emptyBelief, foldBelief } from '../sim/observe.js';
 import { makeBot } from '../bot/bot.js';
 import { duelCost } from '../bot/duel.js';
-import { effectiveHp } from '../sim/combat.js';
+import { effectiveHp, weaponDamage } from '../sim/combat.js';
 import { DUEL_SAFETY_MARGIN } from '../sim/balance.js';
 import { REFERENCE_HERO } from './hardness.js';
 
@@ -601,6 +601,38 @@ const OPPOSITE4 = {
   up: 'down', down: 'up', left: 'right', right: 'left',
 };
 
+// ***** I9 — bucketing for the conditional survival table ***** //
+//
+// COARSE ON PURPOSE. Every extra split costs support, the deep floors are
+// thin already, and a table nobody can read answers nothing. These are
+// presentation edges for an aggregation, not balance dials: they decide how
+// the same runs are grouped, never what the game does.
+//
+// hp edges are pinned to the hero's own starting point rather than to
+// quantiles, so the buckets keep meaning when the distribution moves. A hero
+// starts at PLAYER_HP with no armour, which is why `10-14` exists as its own
+// band and why floor 1 lands entirely inside it — that is what makes the
+// floor-1 sanity check a real check of the plumbing.
+const HP_EDGES = [5, 10, 15];
+const HP_LABELS = ['1-4', '5-9', '10-14', '15+'];
+// Weapon damage is a small integer sum (dagger 1, axe 2), so these are
+// values rather than ranges until the hero has found several.
+const WPN_EDGES = [2, 3];
+const WPN_LABELS = ['1', '2', '3+'];
+
+// Below this a cell is not a probability. At n=20 and p near the observed
+// finish rate the standard error is about 8 points, which is coarse but
+// usable; under that it is noise wearing a decimal point.
+const MIN_SUPPORT = 20;
+
+function bucketIndex(value, edges) {
+  let i = 0;
+  while (i < edges.length && value >= edges[i]) i++;
+  return i;
+}
+const hpBucketOf = (v) => HP_LABELS[bucketIndex(v, HP_EDGES)];
+const wpnBucketOf = (v) => WPN_LABELS[bucketIndex(v, WPN_EDGES)];
+
 export function descentCheck(options = {}) {
   const {
     runs = 8, firstSeed = 800000, maxTurns = 1500, levels = LEVELS, hpFromKills = false,
@@ -649,12 +681,26 @@ export function descentCheck(options = {}) {
   let deathsHoldingPotion = 0;
   const refusedPotionIds = new Set();
 
+  // ***** I9 — P(finish | floor, hero state) *****
+  //
+  // An AGGREGATION over the descents this function already drives, not a
+  // rollout: every arrival state the table talks about is already visited
+  // here. Record where the hero stood on arrival at each floor, then, once
+  // the run has ended and its outcome is known, credit every one of those
+  // arrivals with that outcome. A hero who reached floor 4 contributes one
+  // observation to floor 1, 2, 3 and 4 — which is exactly what conditional
+  // means: "from HERE, how often does the run finish".
+  const arrivalsThisRun = [];
+  const cells = new Map();
+
   for (let i = 0; i < runs; i++) {
     let carry = null;
     let lastAction = null;
     let runTurnOffset = 0;
     let lastEventTurn = 0;
     let depthReached = 0;
+    let finishedThisRun = false;
+    arrivalsThisRun.length = 0;
 
     for (let level = 1; level <= levels; level++) {
       const plan = floorPlan(level);
@@ -683,6 +729,16 @@ export function descentCheck(options = {}) {
       };
       const seed = hashSeeds(firstSeed + i, level);
       let state = newGame(seed, counts);
+      // I9 — the hero as they ARRIVE, read off the state the engine built
+      // rather than reconstructed from `carry`. Floor 1 has no carry, so the
+      // engine's own STARTING_ITEMS land here and only a read of the built
+      // state sees them — the mistake I11 found in observed-ruler's
+      // `arrivedWith`, not repeated.
+      arrivalsThisRun.push({
+        level,
+        effHp: effectiveHp(state.player),
+        wpn: weaponDamage(state.player),
+      });
       const xpStart = state.player.xpEarned;
       // Every potion this floor holds, wherever it is sitting: still inside a
       // chest, still on a monster, or already loose. All three are decided by
@@ -818,10 +874,21 @@ export function descentCheck(options = {}) {
       carry = carryFromPlayer(state.player);
       if (level === levels) {
         cleared++;
+        finishedThisRun = true;
         totalKills += state.player.kills.length;
       }
     }
     depths.push(depthReached);
+
+    // I9 — the run's outcome is known now, so every state it passed through
+    // gets credited with it.
+    for (const a of arrivalsThisRun) {
+      const key = `${a.level}|${hpBucketOf(a.effHp)}|${wpnBucketOf(a.wpn)}`;
+      const cell = cells.get(key) ?? { level: a.level, hp: hpBucketOf(a.effHp), wpn: wpnBucketOf(a.wpn), n: 0, finished: 0 };
+      cell.n++;
+      if (finishedThisRun) cell.finished++;
+      cells.set(key, cell);
+    }
   }
 
   const sortedDepths = [...depths].sort((a, b) => a - b);
@@ -849,6 +916,41 @@ export function descentCheck(options = {}) {
     // At the rates involved (~0.25%) this is the number that decides whether
     // a sample can resolve the difference at all.
     finishRateSe: runs ? Math.sqrt((cleared / runs) * (1 - cleared / runs) / runs) : 0,
+    // ***** I9 — P(finish | floor, effective hp, weapon damage) *****
+    //
+    // One row per populated cell. `p` is the share of runs that passed
+    // through that state and went on to finish all ten floors; `se` is its
+    // binomial standard error. `readable` is `n >= MIN_SUPPORT` — a caller
+    // that shows a cell below it is showing noise, and the Map cost table
+    // already learned (I11) that a blank beats a confident number nobody can
+    // use.
+    //
+    // AVERAGED OVER DUNGEONS, not conditional on any one of them: every
+    // seed's map sits in the same bucket. Right for design, wrong for a live
+    // on-screen number — that is U2, and it is blocked on E1.
+    //
+    // NOT "hope". objectives.md's property is broader than the finish: a run
+    // with several questions still open has hope when one of them closes, so
+    // a zero here says the FINISH is decided, not that the run stopped being
+    // worth watching. Do not relabel it on any page.
+    survival: {
+      hpLabels: HP_LABELS,
+      wpnLabels: WPN_LABELS,
+      minSupport: MIN_SUPPORT,
+      cells: [...cells.values()]
+        .sort((a, b) => a.level - b.level
+          || HP_LABELS.indexOf(a.hp) - HP_LABELS.indexOf(b.hp)
+          || WPN_LABELS.indexOf(a.wpn) - WPN_LABELS.indexOf(b.wpn))
+        .map((c) => {
+          const p = c.n ? c.finished / c.n : null;
+          return {
+            ...c,
+            p,
+            se: c.n ? Math.sqrt((p * (1 - p)) / c.n) : null,
+            readable: c.n >= MIN_SUPPORT,
+          };
+        }),
+    },
     // I12. Totals, deliberately, alongside the share: potions that stop
     // being wasted make runs last longer, so any rate here moves partly
     // because its denominator moved. Report both and say which did what.
