@@ -8,17 +8,38 @@
 import { CLEAR_DIST, VISIBLE_DIST } from '../sim/balance.js';
 import { distSq, posKey } from '../sim/mapgen.js';
 import { tileSvg } from './tiles.js';
+import { depthTheme } from './depth-theme.js';
 
 const VIEW = VISIBLE_DIST * 2;                 // 18 cells across
 const VISIBLE_SQ = VISIBLE_DIST * VISIBLE_DIST;
 const CLEAR_SQ = CLEAR_DIST * CLEAR_DIST;
 
-const TILE_GLYPH = { wall: '⬛', door: '⬜', room: '', corridor: '' };
-
 const PLAYER_GLYPH = '🧝';
 const CORPSE_GLYPH = '💀';
 
 let cells = [];
+
+// Which walls/doors the current floor draws — see src/ui/depth-theme.js.
+// Module state like `cells` above, and for the same reason: it changes once
+// per floor, not once per cell, so threading it through every call in
+// renderFrame's double loop would be noise.
+let theme = depthTheme(1);
+
+// Only `room` and `corridor` are floor, and floor draws nothing — the
+// .stage background shows through, which is what depth-theme's `stage`
+// class repaints.
+function tileGlyph(tile) {
+  if (tile === 'wall') return theme.wall;
+  if (tile === 'door') return theme.door;
+  return '';
+}
+
+// Called once per floor, before its frames play. `stageElement` is the
+// .stage box; the tier's class is what lets style.css redefine --floor.
+export function applyDepth(stageElement, level) {
+  theme = depthTheme(level);
+  if (stageElement) stageElement.className = 'stage' + (theme.stage ? ' ' + theme.stage : '');
+}
 
 export function buildGrid(container) {
   container.innerHTML = '';
@@ -105,7 +126,7 @@ export function renderFrame(state, belief, debug = null) {
 
       if (inSight) {
         opacity = away > CLEAR_SQ ? 0.75 : 1;
-        text = TILE_GLYPH[state.map.tiles[y * state.map.w + x]] ?? '';
+        text = tileGlyph(state.map.tiles[y * state.map.w + x]);
         const top = topmost(truth.get(key) || []);
         if (top) {
           text = top.kind === 'corpse' ? CORPSE_GLYPH : top.entity.emoji;
@@ -116,7 +137,7 @@ export function renderFrame(state, belief, debug = null) {
         // wandered off since — see docs/rogule-spec.md §12.2.
         opacity = 0.3;
         known = false;
-        text = TILE_GLYPH[belief.tiles.get(key)] ?? '';
+        text = tileGlyph(belief.tiles.get(key));
         const top = topmost(memory.get(key) || []);
         if (top) {
           text = top.entity.emoji;

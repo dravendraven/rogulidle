@@ -86,7 +86,15 @@ main {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 6px;
+  transition: background .5s linear, border-color .5s linear;
 }
+
+/* The descent gets hotter — src/ui/depth-theme.js puts these on. Only
+   --floor and the border move here; the walls are glyphs, swapped there.
+   Turn DEPTH_THEME off and neither class is ever applied, so these rules
+   simply stop matching. */
+.stage.deep-mid { --floor: #F0E4CE; border-color: #C1694F; }
+.stage.deep-max { --floor: #F2DCD2; border-color: #DD2E44; }
 
 .grid {
   display: grid;

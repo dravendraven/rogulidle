@@ -12,7 +12,7 @@ import { hashSeeds, seedFromString } from '../sim/rng.js';
 import { difficultyToParams } from '../sim/difficulty.js';
 import { makeBot } from '../bot/bot.js';
 import { dangerField } from '../bot/threat.js';
-import { buildGrid, renderFrame, renderHud, renderHistory } from './render.js';
+import { buildGrid, renderFrame, renderHud, renderHistory, applyDepth } from './render.js';
 import { tileSvg } from './tiles.js';
 import { award, resetScore } from './score.js';
 import { getBalance, setBalance, resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
@@ -58,7 +58,7 @@ const el = {};
 
 function grab() {
   for (const id of [
-    'grid', 'hp', 'xpEarned', 'xpRate', 'steps', 'kills', 'inventory',
+    'grid', 'stage', 'hp', 'xpEarned', 'xpRate', 'steps', 'kills', 'inventory',
     'run', 'tally', 'seed', 'summary', 'summaryTitle', 'summaryBody',
     'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
     'coins', 'coinPopup',
@@ -387,6 +387,7 @@ async function runDescentForever(sessionSeed) {
     for (let i = 0; i < run.levels.length; i++) {
       const levelResult = run.levels[i];
       if (el.floor) el.floor.textContent = `floor ${levelResult.level} / ${LEVELS}`;
+      applyDepth(el.stage, levelResult.level);
 
       const all = replayGame(levelResult.replay);
       const kept = watchableFrames(all).map((frame) => ({
