@@ -245,7 +245,7 @@ single value that moved it was the starting kit.
 |---|---|---|---|---|
 | 1 | B18 | The bot believes every creature is carrying a weapon | bot | READY · **bug**, drop value inflated 4x |
 | 2 | B19 | Loot is priced against the campaign, never against the fight in front of it | bot | after B18 · owner decision |
-| 3 | B17 | Loot on the way is free, and the router does not know it | bot | **REPORTED** · inert, 0.5% of turns could matter |
+| 3 | B17 | Loot on the way is free, and the router does not know it | bot | **ADOPTED as a finding** · owes one change: ship it OFF |
 | 3 | B15 | A drink policy that reads the danger field | bot | READY · B14 left a number to beat |
 | 3 | I12 | Did the potion change move anything? | metrics | baseline recorded · comparison owed |
 
@@ -707,6 +707,53 @@ the board price as a Dijkstra cost function that the router reads, which is
 still exactly what it is; the discount is a term inside a price the section
 already covers, not a new stage or a changed objective. `rules.md` did not
 move — no engine change. `map-design.md` did not move.
+
+#### Review — adopted as a finding. **Ship it OFF, not ON.**
+
+**The measurement is the best this project has produced and the method is why.**
+Paired in-tree ablation — both arms the same source in one process — so M40
+sitting uncommitted and M41 landing mid-work could not skew it. That is the
+contamination that bit M39 two days ago, avoided without being told.
+
+    items picked up   17.990 -> 17.983   z -0.43
+    depth              5.923 -> 5.923    z  0.00
+    route: actions   654.220 -> 653.413  z -1.41
+    kills             26.730 -> 26.723   z -0.25
+
+Nothing near 2 sigma, and route length moved DOWN — the opposite of the failure
+direction the item said to watch.
+
+**The diagnostic is worth more than the change.** Over 42,872 decisions a
+wanted loose item is on the floor in 6.5% of them, mean 0.066 at a time, and in
+**93% of those the bot's goal already IS that item**. The discount can matter
+in **0.5% of turns**. That number is what says "do not build the multi-target
+planner", and it was the item's real question.
+
+**It also right-sizes the observation that spawned it.** "Walked past loot to a
+distant creature" is real and lives in 0.5% of decisions. **The thing the owner
+was actually watching is not this** — it is `B18` and `B19`, where a creature's
+`net` reads 250 against loot's 1. This item was scoped to loose items on the
+route, and chests are correctly excluded because opening one blocks and costs a
+turn, so it is never free on the way.
+
+#### The one thing I am overruling
+
+**It shipped ON, and it should be OFF.** The reason given — "it cannot cost
+anything" — is not the project's test. `CLAUDE.md` says a new parameter is the
+last resort and that measured-and-rejected flags are **left in the code with
+the number that killed them in the comment**. That convention exists precisely
+for this case, and it does not say ON.
+
+A dial that provably does nothing, left enabled, is a term every future
+measurement carries and nobody can attribute. Off, with `z −0.43` in the
+comment, it is a recorded answer instead — and it flips back in one character
+if a future change makes loose items abundant enough to matter.
+
+**Not an X5 question.** X5 classifies dials whose status is unknown; this one's
+status was established by the measurement in this very item. Decide it here.
+
+**Do:** default it off, keep the code and the comment, and record the finding
+in `decisions.md` — the 0.5% ceiling is the transferable part, not the dial.
 
 ### B15 · a drink policy that reads the danger field
 
