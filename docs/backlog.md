@@ -57,8 +57,9 @@ cost are in `decisions.md`.
 |---|---|
 | The return — floors 11 to 20 | R5 · R2 · R3 · R4 |
 | 1 | B23 | The floor is phases, and activation is the boundary | bot | READY · owner observation |
-| The bot's pricing | B23 · B15 |
-| What the map still has to do | C2 · C3 · M4 · M21 · X6 · M32 |
+| 2 | B24 | A step that does not approach the goal should cost more | bot | after B23 · read its answer first |
+| The bot's pricing | B23 · B24 · B15 |
+| What the map still has to do | M42 · C2 · C3 · M4 · M21 · X6 · M32 |
 | The player | U10 · U7 |
 | Instruments | I13 · I12 |
 | Debt | X7 · X1 · X2 · X3 · X5 |
@@ -87,6 +88,7 @@ comes back for free and the return is currently identical to the descent.
 
 | id | what gets done | agent | status |
 |---|---|---|---|
+| M42 | Give time a price — stage 1, tighten the existing budget | work | READY · **owner proposal** |
 | C2 | The target curve, in numbers rather than adjectives | work | NOT NOW |
 | C3 | Solve the dials for a pressure curve instead of sweeping | work | NOT NOW · after C2 |
 | M4 | Side-room risk/reward spread scales with depth | work | READY |
@@ -396,6 +398,135 @@ does not ship.
 # What the map still has to do
 
 The open half of `map-design.md`'s four properties. Each of these owns a property that is measured as not met.
+
+### M42 · give time a price — stage 1, tighten the budget that already exists
+
+`work agent` · READY · **owner proposal, 2026-08-11** · form decided by the
+project agent; the reasoning is in this item
+
+**Time is free in this game.** Dawdling costs nothing, detouring costs nothing,
+walking costs nothing. Three gaps recorded in different documents are that one
+sentence: `map-design.md`'s property 2 — the largest open gap in the game, and
+"what is missing is on the cost side"; the return reading as passive; and
+`STEP_COST_IN_HP` being a BOT pricing dial rather than a charge the game makes.
+
+#### The budget already exists, and it is 14x to 47x too loose
+
+A traversal takes about **107 turns**, measured. The engine's cap is **5000**;
+the instruments pass **1500**. It is a safety guard that has never fired.
+
+**So stage 1 adds nothing.** Tighten the existing cap until it is a design
+constraint, and measure. That is `CLAUDE.md`'s order — change a value before
+changing a meaning, change a meaning before adding anything.
+
+#### The form, decided
+
+**Currency: turns.** No new state — the counter and the cap both exist — and it
+prices walking *and* fighting, which is the broad version the proposal asked to
+build first. **Narrowing to movement later is easy; widening is not.**
+
+**The bot needs no new channel.** Remaining budget is `cap − turn`; the turn is
+public and the cap is a constant, so nothing crosses into `Belief` that was not
+already there. **This is not a fog-of-war concession** — say so in the report
+rather than leaving it looking like one.
+
+**Scope: per traversal, not per run.** "A side room costs a countable number at
+the moment the decision is taken" is a per-traversal statement, and with twenty
+traversals a run-wide budget is a different feature.
+
+#### Enter loose. This is the whole risk.
+
+`finishes` reads about 3% over twenty traversals. **This adds a second way to
+lose, and the project has just spent three items making runs completable.**
+
+1. **Enter with a value that almost never bites, and prove by measurement that
+   it almost never bit.** The expected result is "nothing changed". Report the
+   numbers that said so.
+2. **Tighten one step. Measure. Repeat.**
+
+A budget that changes everything on the first try is not adjustable — it is an
+event, and nothing after it can be attributed.
+
+#### The test that decides whether it was worth doing
+
+> **Does the bot start refusing side rooms?**
+
+That is `map-design.md`'s property 2, measured as not met. Compare side-room
+opening rate before and after.
+
+**If it does not move, stamina did not do the job it exists for** — however
+healthy everything else looks. Say that plainly instead of tightening until it
+appears to have moved. And do not explain a difference below 2 sigma.
+
+#### Stage 2 is NOT this item
+
+Running out today ends the traversal without completing, which ends the run —
+a threshold with no warning, and exactly the illegible death the proposal
+rejects. **Making it legible is stage 2**: a visible budget that absorbs
+distance before hp, the way armour absorbs damage before hp. **It is only worth
+building if stage 1 shows the budget binding at all.**
+
+#### Out of scope
+
+New items, starting-item choice, the tier tree, the daily challenge, hero
+selection. Several depend on this, which is why it comes first, and none enters
+here. **If something seems to require one, stop and report.**
+
+#### Assert
+
+- The cap's value and how often it binds, before and after, per traversal.
+- Side-room opening rate, before and after. **This is the item.**
+- `finishes` at twenty traversals, depth histogram, turns per traversal.
+- Which of `rules.md`, `bot-strategy.md`, `map-design.md` this made false.
+  **Expect two or three** — `rules.md` §8 states the turn limit as a guard, and
+  `map-design.md` records the detour as free.
+
+### B24 · a step that does not approach the goal should cost more
+
+`bot agent` · READY · **owner idea, 2026-08-11** · bot pricing, not a game
+charge — deliberately separate from `M42`
+
+**The idea.** Once the bot has chosen a goal, it has already decided that goal
+is the best thing available. **A step that does not reduce the distance to it
+is waste**, and should be priced as such.
+
+**The owner's wording is inverted and the justification is what to follow.**
+The sentence says a step TOWARD the goal should cost more; the reason given is
+that steps which do not approach are the waste. **Build the version the reason
+supports** — penalise the non-approaching step — and if the literal reading was
+meant, that is a different item and it should be said.
+
+#### Why this is not `M42`
+
+`M42` makes the GAME charge for time. This changes what the BOT prefers, and
+charges nothing. They are independent, they touch different files, and running
+them in one measurement makes both unreadable. **Sequence them apart.**
+
+#### Do
+
+The routing price is already a per-tile cost function. A step whose distance to
+the current goal does not fall is worth more to take. **One term in an existing
+price**, the same shape `B17` used — and `B17`'s result is the warning: it
+measured inert because the population it needed was not there. Check the
+population before assuming this one is different.
+
+**The reversal penalty already exists** and is close to this: it charges undoing
+the previous step. State how the two differ, or use the existing one.
+
+#### The reason this is worth trying
+
+**The zig-zag the owner watched with `B22` on**: the bot weaving around
+creatures to reach distant loot. `B23` is forbidden from pre-empting this, and
+is instructed to report whether its free region removed the weaving on its own.
+**Read B23's answer before starting** — if the free region already fixed it,
+this item is measuring a behaviour that no longer exists.
+
+#### Assert
+
+- Route length and reversal rate, before and after, on the baseline family.
+- Whether the zig-zag is visible in a watched run, before and after.
+- **Whether the bot now takes worse routes** — refusing a lateral step can make
+  it walk into things it used to walk around.
 
 ### C2 · the target curve, in numbers rather than adjectives
 
