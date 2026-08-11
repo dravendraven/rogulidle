@@ -59,7 +59,7 @@ cost are in `decisions.md`.
 | The bot's pricing | B15 |
 | What the map still has to do | C2 · C3 · M4 · M21 · X6 · M32 |
 | The player | U10 · U7 |
-| Instruments | I12 |
+| Instruments | I13 · I12 |
 | Debt | X7 · X1 · X2 · X3 · X5 |
 | Not scheduled | M37 · M36 |
 
@@ -93,6 +93,7 @@ cost are in `decisions.md`.
 
 | id | what gets done | agent | status |
 |---|---|---|---|
+| I13 | descentCheck still measures a descent and calls it a run | metrics | READY · **R1 made it stale** |
 | I12 | Did the potion change move anything? | metrics | baseline recorded · comparison owed |
 
 ### Debt
@@ -1142,6 +1143,55 @@ This item enlarges the choice. It does not enlarge the stake.
 # Instruments
 
 Built on demand, never as a scoreboard. `docs/project/objectives.md` has the rule and `decisions.md` the history of what the alternative cost.
+
+### I13 · descentCheck still measures a descent and calls it a run
+
+`metrics agent` · READY · **head of the instruments queue** · found by the
+owner asking whether the instruments were aligned to twenty traversals
+
+`R1` taught `playDungeon` the traversal rule. **`descentCheck` has its own
+floor loop** — `for (let level = 1; level <= levels; level++)`, `cleared`
+when `level === levels` — and never learned it. `E1` collapsed the TURN loops;
+floor loops are a separate thing and this is one.
+
+**So every number `descentCheck` produces describes the descent half.**
+
+| number | what it says now |
+|---|---|
+| `finishes` | "reached floor 10", which `R1` made the halfway point |
+| `I9`'s survival table | outcome axis is ten floors; the key is a floor with no direction |
+| potion counters, `depth`, coin | the first ten traversals only |
+
+**Four instruments are correctly pinned and are NOT this item.** `curve.js`,
+`hardness.js`, `shape.js` and `topologyShape` measure per-FLOOR properties, and
+a floor is still a floor. `R1` pinned them deliberately so their numbers
+reproduce. Leave them.
+
+#### Do
+
+**Drive twenty traversals, indexed the way `playDungeon` does it** — through
+`floorOfTraversal`, not a second copy of the rule. If the loop can call
+`playDungeon` instead of keeping its own, do that and say so; if it cannot, say
+in one line what it needs that `playDungeon` does not give.
+
+**`I9`'s table needs a traversal axis, not a floor axis.** Floor 4 descending
+and floor 4 climbing are different states — different hero, different band,
+and after `R3` different loot. Keying both to "floor 4" merges them. `R1`
+already added `traversal` and `direction` to the levels rows for this reason.
+
+**Say what happens to the buckets.** Twenty traversals at the current bucketing
+is twice as many cells over the same sample, so support per cell halves. Either
+the sample doubles or the buckets coarsen — decide, and state which.
+
+#### Assert
+
+- `finishes` means completing traversal 20, and reads near `R1`'s 3.0% ±1.2 on
+  the same seed family.
+- The survival table has a traversal axis, and the descent and return halves of
+  the same floor are separate rows.
+- Support per cell reported, with the sample size it took.
+- **Every number that moves is stated as moving**, with the old and new
+  reading. Anything quoted from before this item belongs to a ten-floor game.
 
 ### I12 · did it move anything — finishes, and died-holding-a-potion
 
