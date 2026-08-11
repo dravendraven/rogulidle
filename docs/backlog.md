@@ -56,8 +56,9 @@ cost are in `decisions.md`.
 | theme | items |
 |---|---|
 | The return — floors 11 to 20 | R1 · R5 · R2 · R3 · R4 |
-| 1 | B21 | The floor is the horizon, and the budget is what must not run out | bot | READY · owner direction |
-| The bot's pricing | B21 · B15 |
+| 1 | B21 | The plan's low-water mark, as a veto | bot | READY · flag, default OFF |
+| 2 | B22 | Rank plans by dominance on (low-water mark, exit state) | bot | after B21 · same flag |
+| The bot's pricing | B21 · B22 · B15 |
 | What the map still has to do | C2 · C3 · M4 · M21 · X6 · M32 |
 | The player | U10 · U7 |
 | Instruments | I12 |
@@ -694,145 +695,111 @@ status was established by the measurement in this very item. Decide it here.
 **Do:** default it off, keep the code and the comment, and record the finding
 in `decisions.md` — the 0.5% ceiling is the transferable part, not the dial.
 
-### B21 · the floor is the horizon, and the budget is what must not run out
+### B21 · the plan's low-water mark, as a veto
 
-`bot agent` · READY · **owner direction, 2026-08-11** · replaces the earlier
-`P(finish)` version of this item, and supersedes what `B19` and `B20` tried
+`bot agent` · READY · **owner direction, 2026-08-11** · first of two slices ·
+**behind a flag, default OFF**
 
-**The objective, owner's words:** leave the floor alive, carrying as much as
-possible — hp, armour, weapon. Surviving includes winning the fights that have
-to be won.
-
-#### Why the current model cannot express that
-
-`campaignCost` prices everything against the **rest of the run**: a weapon is
-worth what it saves across thirty remaining creatures, a shield is worth three
-hp once. That is where 165-against-3 comes from, and it is why the bot walks
-past a chest to reach a creature.
-
-`duelCost` does not depend on armour — `B19` measured 0.00 at every tier — so
-in expected-hp terms the ORDER of loot and fight does not matter. **In the game
-it does**, and the reason is not the expectation: a fight costing 5 taken at 6
-hp leaves the hero one bad roll from dead, and the same fight taken at 9 does
-not. **The missing quantity is how low the hero dips, not how much it spends.**
-
-#### Why floor-local is not an approximation
-
-`rules.md` §1: every floor is generated from the seed and is **independent of
-the hero** — only state descends. The run is therefore a Markov chain, and the
-chance of surviving floor `f` depends only on the state entering it. So
+**Why the objective is floor-local, and it is not an approximation.**
+`rules.md` §1: every floor is generated from the seed and is independent of the
+hero — only state descends. The run is a Markov chain, so
 
     P(finish) = product over f of p_f(S_f)
 
-exactly, not approximately. **That identity is what licenses deciding one floor
-at a time**: maximising each factor maximises the product, and each factor is
-local.
+exactly. Maximising each factor maximises the product, and each factor depends
+only on the state entering that floor.
 
-#### The quantity, and why it is the low-water mark
+**The quantity is the low-water mark.** Death happens when the budget touches
+zero, not when total spend is high, so `p_f` falls with how close the
+trajectory comes to zero. This is why `duelCost` could not express a shield
+(`B19`, measured 0.00 at every tier): it measures expected spend, and a shield
+does not change the spend — it changes what the spend is paid from.
 
-Death happens when the budget touches zero, not when total spend is high. So
-`p_f` falls with **how close the trajectory comes to zero**, not with what it
-costs. That is precisely why `duelCost` could not express a shield: it measures
-expected spend, and a shield does not change the spend — it changes what the
-spend is paid from.
+For a plan, `m = min over the plan of (hp + armour)`.
 
-For a plan, the quantity is `m = min over the plan of (hp + armour)`.
+#### Do — this slice is a filter, not a new ranking
 
-#### Resources and survival are the same objective at two moments
+**Compute `m` for the candidates `chooseGoal` already builds**, and discard
+those whose `m` falls below the safety margin. **Leave the `net` ranking
+exactly as it is.**
 
-More hp and armour raise next floor's `m`. More weapon damage lowers the cost
-of every fight, which also raises next floor's `m`. **Every resource acts on
-the future through one channel: it raises the next floor's low-water mark.**
+`worthStarting` already vetoes on one duel against `effectiveHp × margin`.
+This extends the same idea to the whole plan — walk in, fight, walk out — which
+is where the hero actually dips. That is the extension, and it is why this is a
+change to what an existing gate covers rather than a new mechanism.
 
-So there are not two goals needing an exchange rate between them. There is one:
+**Behind a flag, default OFF**, measured on against off, paired in one tree.
+Every structural bot change since B11 shipped that way.
+
+#### Do NOT, in this slice
+
+- **Do not change how candidates are ranked.** Dominance on `(m, exit state)`
+  is slice two, and mixing them makes both unmeasurable.
+- **Do not delete `campaignCost` or re-scope the horizon.** Also slice two.
+- **Do not add a second margin dial.** The safety margin exists; reuse it, and
+  if it cannot serve, say why in one line rather than adding one.
+
+#### Assert
+
+- A plan that survives its fight but dies on the walk out is now refused.
+  Buildable as a fixture, checkable without a batch.
+- `finishes`, depth histogram, fights started and lost-fight rate, on the
+  baseline seed family, flag on against off, paired.
+- **Whether the bot now refuses fights it used to win.** That is the failure
+  direction: a veto that is too eager turns into paralysis, and `lostFightRate`
+  falling while `finishes` also falls is exactly what that looks like.
+
+### B22 · rank plans by dominance on (low-water mark, exit state)
+
+`bot agent` · **after B21** · second slice · **behind the same flag**
+
+Once `B21` has a number, replace the `net` ranking with the ordering the
+objective actually implies.
+
+**Resources and survival are one objective at two moments.** More hp, armour or
+weapon damage all raise the NEXT floor's low-water mark, so every resource acts
+on the future through one channel. The whole thing collapses to:
 
 > **Maximise the minimum, across the run, of the hero's effective hp — subject
 > to reaching the exit.**
 
-A maximin objective, the standard shape for ruin avoidance, and ordinally
-proportional to `P(finish)` by the monotonicity above.
-
-#### Do
-
-**Two changes, and the first is a deletion.**
-
-**1. The horizon becomes the floor.** Stop pricing gear against the remaining
-campaign. A weapon is worth having and it is counted at the exit; how much it
-is worth does not need a thirty-creature projection. This removes the term that
-produced the two-orders-of-magnitude gap rather than balancing it — which is
-the order `CLAUDE.md` asks for: delete what is fighting you before adding.
-
-**2. Score a plan by its LOW-WATER MARK, then by what it exits with.**
-For each candidate — fight now, fetch that loot then fight, take the shrine —
-walk the plan and track the minimum effective hp reached along it. Then rank
-lexicographically:
-
-- **feasible first**: the low-water mark stays above the safety margin;
-- **then resources at exit**: hp, armour bar, weapon damage, items held.
-
-Dominance, precisely: **A beats B when `m_A >= m_B` and `X_A >= X_B` in every
-resource.** `P` is monotone in each, so a plan that survives better AND exits
-richer is better with no exchange rate, no table and no constant. Prefer the
+**The ordering, and it needs no coefficient.** A beats B when `m_A >= m_B` and
+`X_A >= X_B` in every resource. `P` is monotone in each, so a plan that
+survives better and exits richer is better with no exchange rate. Prefer the
 non-dominated; break remaining ties by `m`.
 
-**Where this is provably right, and where it is not.** It is exact whenever the
-comparison is a dominance. It is **undetermined exactly on the genuine
-trade-offs** — when raising `m` requires giving up a resource, such as skipping
-a weapon to avoid a fight. No local rule can settle those, and none should
-pretend to.
+**This slice includes the deletion.** The horizon becomes the floor:
+`campaignCost` stops pricing gear against the rest of the run. That term is
+where 165-against-3 comes from, and this removes it rather than balancing it.
 
-**Those cases are rarer than they sound, and that is the owner's point.** A
-step costs 0.01 hp, so almost every real comparison here is a dominance:
-fetching a shield two tiles away before a fight raises `m` *and* the exit
-state. The bot is only left without a local answer in the narrow case, and
-breaking ties by survival there is the conservative choice.
+#### Where the rule is provably right, and where it is not
 
-That is the ratio the owner described, made an ordering rather than a weighted
-sum — and an ordering needs no coefficient to balance the two halves, which is
-the thing three items in a row have now been forbidden to add.
+Exact whenever the comparison is a dominance. **Undetermined exactly on the
+genuine trade-offs** — raising `m` by giving up a resource, such as skipping a
+weapon to avoid a fight. No local rule settles those and none should pretend
+to; ties break by `m`, which is the conservative side.
 
-**Everything needed already exists.** `duelCost` gives hp lost and turns,
-`dangerField` gives per-tile threat, `effectiveHp` gives the budget. Nothing
-new is modelled; what is new is tracking the minimum along a plan instead of
-the total at the end.
-
-#### Why this is the right shape and the table was not
-
-**It is real time and local.** No offline table, no baked constants, nothing
-that silently ages. The earlier version of this item would have had to bake
-`I9`'s survival table into the bot — and `R1` invalidates that table
-completely, since `P(finish)` would come to mean twenty traversals and the
-floor axis would merge the descent and the return. **This version survives R1
-untouched**: a traversal is a traversal, and the floor is still the horizon.
-
-**It is also the objective the owner actually states**, rather than a proxy for
-it. `P(finish)` answers "will this run end well". "Leave this floor alive and
-loaded" is what the bot can actually act on.
+**Those cases are rarer than they sound.** A step costs 0.01 hp, so almost
+every real comparison here is a dominance: fetching a shield two tiles away
+before a fight raises `m` *and* the exit state.
 
 #### The gap this opens, stated rather than discovered
 
-**A floor-local bot will undervalue a weapon**, because a weapon's worth is
-mostly in the floors after this one. The exit state carries it, but nothing
-projects it forward any more.
-
-**That may be correct.** The bot's job each floor is to get out alive and
-richer, and a weapon makes it richer. **But if the bot starts refusing fights
-it should take, that is where it will come from** — say so with the number
-rather than adding a projection term back.
+**A floor-local bot undervalues a weapon**, whose worth is mostly in later
+floors. The exit state carries it; nothing projects it forward. That may be
+correct — but if the bot starts refusing fights it should take, this is where
+it comes from. **Report the number rather than adding a projection term back.**
 
 #### Assert
 
 - The owner's case: creature five tiles off, shield two tiles off, hero at low
   hp — the bot takes the shield first. **And at high hp it does not**, because
-  the low-water mark never approaches the margin. Same mechanism, both
-  directions, checkable without a batch.
+  `m` never approaches the margin. Same mechanism, both directions.
 - A fight the bot must take to reach the shrine is still taken.
 - Share of floors whose first goal is a creature — 83.3% and 86.8% after `B18`.
 - **Route length** — `B20` shipped OFF for a 6.3% rise that bought nothing.
-- Items and hp at floor exit, depth histogram, and `finishes`, on the baseline
-  seed family.
-- **Whether the bot refuses fights it used to take.** That is the named failure
-  direction of change 1.
+- Items and hp at floor exit, depth histogram, `finishes`, paired, flag on
+  against off.
 
 
 ### B15 · a drink policy that reads the danger field
