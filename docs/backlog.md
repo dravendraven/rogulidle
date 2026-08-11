@@ -248,7 +248,7 @@ toward.
 commit** — two changes to the same bargain inside one measurement cannot be
 told apart.
 
-### The return — floors 11 to 20
+# The return — floors 11 to 20
 
 ### R1 · twenty traversals, victory on returning to floor 1
 
