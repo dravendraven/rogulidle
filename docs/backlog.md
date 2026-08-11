@@ -56,7 +56,7 @@ cost are in `decisions.md`.
 | theme | items |
 |---|---|
 | The return — floors 11 to 20 | R1 · R5 · R2 · R3 · R4 |
-| The bot's pricing | B20 · B17 · B15 |
+| The bot's pricing | B20 · B15 |
 | What the map still has to do | C2 · C3 · M4 · M21 · X6 · M32 |
 | The player | U10 · U7 |
 | Instruments | I12 |
@@ -70,7 +70,6 @@ cost are in `decisions.md`.
 | # | id | what gets done | agent | status |
 |---|---|---|---|---|
 | 1 | B20 | The bot ranks single goals and never a sequence | bot | READY · replaces B19 |
-| 3 | B17 | Discount a tile holding free loot | bot | measured inert · **owes one change: ship it OFF** |
 | 3 | B15 | A drink policy that reads the danger field | bot | READY |
 
 ### What the map still has to do
@@ -106,7 +105,7 @@ cost are in `decisions.md`.
 | X1 | Delete what nothing references | work | READY |
 | X2 | Comments in src/ that lie: 25 stale refs + 3 false claims | work + bot | READY |
 | X3 | Mark which dials tune the game and which tune only the bot | work | READY |
-| E1 | One resumable turn loop in src/sim, instead of four copies | work | READY |
+| E1 | One resumable turn loop in src/sim, instead of four copies | work | REPORTED |
 
 ### Not scheduled
 
@@ -505,52 +504,6 @@ first. `src/` untouched. 156 green.
 them describes moved. `bot-strategy.md` §4's pricing table is still accurate,
 including its note that armour is priced at face value — which this item
 examined and left standing.
-
-### B17 · loot on the way is free, and the router does not know it
-
-`bot agent` · **REPORTED** · shipped on, measured inert — the population it
-acts on is 0.5% of decisions
-
-**Observed:** the bot walked to a distant creature past loot it could have
-collected on the way.
-
-**The correction that changes the fix.** Loot exactly on the path is
-**already free** — `step.js` picks up a loose item when the hero walks over
-it, no action and no turn. So this is not "the bot ignores free loot"; it is
-that the bot will not deviate two tiles for something beside the path.
-
-**Where it comes from.** `chooseGoal` (`bot-strategy.md` §3.2) compares
-candidates individually by `net` from where the hero stands now, and commits
-to the winner. Nothing in it asks what lies along the route to that winner.
-That is by construction, not by oversight — it is a one-goal chooser.
-
-**Not the same as the ping-pong note.** `bot-strategy.md` §5's routing gap is
-about reversals, going back and forth. This is about sequencing several
-targets, and the two have different causes.
-
-#### Do — and the minimum-change rule points somewhere specific
-
-**Do not build a multi-target planner.** The cheap version is already
-available: the Dijkstra that prices the board is a cost function, and a tile
-holding a wanted item is worth slightly less to cross than an empty one.
-Bending the route toward loot costs a term in an existing price, not a new
-layer — and because pickup is free on arrival, a route that passes over an
-item has collected it with no further decision.
-
-**The trap.** Make the discount large and it stops being a route preference
-and becomes goal selection by the back door, which is `chooseGoal`'s job and
-would put two things in charge of one decision. It has to be small enough to
-break ties between routes of equal length and no more.
-
-**Sequence after `B16`.** They touch the same routing price, and two changes
-to it inside one measurement cannot be told apart. `B16` is a bug and goes
-first.
-
-#### Assert
-
-Items collected per floor, and the depth histogram, on the baseline seed
-family. **Also report route length** — if the bot walks materially further to
-sweep up loot, the discount is too large and is choosing goals.
 
 ### Result
 
@@ -1574,7 +1527,7 @@ pools.
 
 ### E1 · expose a resumable turn loop from src/sim
 
-`engine` · `work agent` · **READY**
+`engine` · `work agent` · **REPORTED**
 
 The descent loop has been reimplemented **four times** outside `src/sim/`:
 `playFromState` in `clustering.js`, and `driveFloor`, `driveDescent` and
