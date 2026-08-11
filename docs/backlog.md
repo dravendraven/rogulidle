@@ -245,7 +245,7 @@ single value that moved it was the starting kit.
 |---|---|---|---|---|
 | 1 | B18 | The bot believes every creature is carrying a weapon | bot | READY · **bug**, drop value inflated 4x |
 | 2 | B19 | Loot is priced against the campaign, never against the fight in front of it | bot | after B18 · owner decision |
-| 3 | B17 | Loot on the way is free, and the router does not know it | bot | READY · B16 landed |
+| 3 | B17 | Loot on the way is free, and the router does not know it | bot | **REPORTED** · inert, 0.5% of turns could matter |
 | 3 | B15 | A drink policy that reads the danger field | bot | READY · B14 left a number to beat |
 | 3 | I12 | Did the potion change move anything? | metrics | baseline recorded · comparison owed |
 
@@ -553,8 +553,8 @@ direction is a bot that shops before every fight.
 
 ### B17 · loot on the way is free, and the router does not know it
 
-`bot agent` · READY · **design gap, found by watching** · same seed and floor
-as `B16`
+`bot agent` · **REPORTED** · shipped on, measured inert — the population it
+acts on is 0.5% of decisions
 
 **Observed:** the bot walked to a distant creature past loot it could have
 collected on the way.
@@ -596,6 +596,117 @@ first.
 Items collected per floor, and the depth histogram, on the baseline seed
 family. **Also report route length** — if the bot walks materially further to
 sweep up loot, the discount is too large and is choosing goals.
+
+### Result
+
+**Built as the item scoped it — one term in the existing Dijkstra price, no
+new layer. Measured INERT, and the diagnostic says why in one number that
+is more useful than the fix.**
+
+#### What shipped
+
+`routeItemDiscount` builds a set of tiles holding a WANTED loose item and
+subtracts `ROUTE_ITEM_DISCOUNT` from their crossing price in the main
+routing field. Wanted means "has a mechanical effect" — the same test
+`ITEM_VALUE` already uses, not a second opinion about what counts as
+reward. Chests are excluded: opening one blocks and costs a turn, so a
+chest is never free on the way and belongs to `chooseGoal`, where it is.
+
+**Tiles with a live creature on them are excluded too.** Walking in attacks
+and the hero stays put, so the item is not collected on the way — the
+discount would be paying for a pass-through that cannot happen. True both
+before and after M40, since the hero never enters the tile either way.
+
+**The bound is the design.** At 1/25th of `STEP_COST_IN_HP` a route would
+have to cross 25 wanted items to pay for one tile of detour, against a
+floor that generates `CHEST_COUNT` at most. That is what keeps it a
+tie-breaker rather than goal selection by the back door. `Math.max(0, …)`
+guards the price floor because Dijkstra needs non-negative weights and a
+negative one corrupts the field silently rather than throwing.
+
+#### Measured — paired, in-tree ablation, 300 runs
+
+Both arms are the same source in the same process, differing only in the
+`routeItemDiscount` setting. That is deliberate: M41 landed and M40 was
+sitting uncommitted in the tree during this work, and an in-tree paired
+ablation is immune to both — each arm sees the identical tree.
+
+    metric                off        on       diff       z    runs changed
+    items picked up     17.990    17.983   -0.0067   -0.43        3 / 300
+    pickups per floor    2.615     2.614   -0.0006   -0.86        3
+    depth                5.923     5.923    0.0000    0.00        2
+    ROUTE: actions     654.220   653.413   -0.8067   -1.41       16
+    ROUTE: turns       649.223   648.420   -0.8033   -1.41       16
+    kills               26.730    26.723   -0.0067   -0.25        3
+
+    depth histogram   floor    1   2   3   4   5   6   7   8   9  10
+                      off     20  29  27  25  30  35  25  43  21  45
+                      on      20  29  27  25  31  34  24  44  21  45
+
+**Nothing clears 2σ, and the trap did not fire.** Route length moved
+*down*, not up (z = −1.41) — the opposite of the direction the item said to
+watch for. Three runs in three hundred changed what they picked up.
+
+#### Why it is inert, and it is NOT B10's reason
+
+B10's inert tie-breaker was explained by "routes of exactly equal cost are
+rare". I expected the opposite here — on a floor with nothing awake every
+tile costs exactly `STEP_COST_IN_HP`, so equal-length routes tie exactly
+and ties should be everywhere. That prediction was wrong about the
+conclusion but right about the mechanism, and the real reason is simpler:
+
+    decisions sampled                                  42,872
+    mean wanted loose items on the floor                 0.066
+    turns with ANY wanted loose item                      6.5%
+      ...of those, the bot's goal ALREADY IS that item     93%
+    turns where the discount could possibly matter         0.5%
+
+**There is almost nothing to bend toward.** A loose item exists only
+between the moment a chest spills or a creature dies and the moment the bot
+walks over it — and `chooseGoal` already makes it the goal in 93% of those
+turns. The routing discount is left with half a percent of turns, and only
+the tie-broken subset of those.
+
+**This also re-frames the observation the item came from.** "Walked past
+loot to a distant creature" is real, but the population it belongs to is
+0.5% of decisions. A multi-target planner — which the item correctly told
+me not to build — would be a new layer chasing that.
+
+#### One test, and the one that could not be written
+
+The trap half is locked: the router must not bend down a side passage
+toward an item unless `chooseGoal` chose it.
+
+**A fixture for the positive half was attempted and abandoned**, and the
+failure is itself the finding: any item close enough to lie on a
+tie-breaking route is also valuable enough that `chooseGoal` makes it the
+GOAL, so the ablated arm collects it too and the fixture isolates nothing.
+Recorded in the test file rather than deleted quietly.
+
+#### Shipped ON, with a caveat for X5
+
+On, because it cannot cost anything — bounded below one step by
+construction, and route length measured flat-to-down. Turning a correct
+tie-break off would mean deliberately routing past free loot when the
+alternative is genuinely free.
+
+**But it adds a dial that does nothing measurable**, which is exactly what
+`CLAUDE.md`'s minimum-change rule is suspicious of. No existing dial could
+carry it — `FRONTIER_REVEAL_WEIGHT` prices unseen tiles revealed, a
+different quantity — so it had to be new or not exist. **Flagging it as an
+X5 candidate:** if the project would rather have one fewer dial than a
+free-but-idle one, this is a clean delete, and the number that justifies
+either choice is now on record.
+
+**Files touched:** `src/bot/bot.js` (`routeItemDiscount`, wired into the
+main field), `src/sim/balance.js` + `docs/balance.md` (the new dial, same
+commit per the house rule), `test/tests.js` (one test). 154 green.
+
+**Made stale:** none of the three. `bot-strategy.md` §3.1 already describes
+the board price as a Dijkstra cost function that the router reads, which is
+still exactly what it is; the discount is a term inside a price the section
+already covers, not a new stage or a changed objective. `rules.md` did not
+move — no engine change. `map-design.md` did not move.
 
 ### B15 · a drink policy that reads the danger field
 

@@ -708,6 +708,14 @@ export const FRONTIER_REVEAL_WEIGHT = 0.00002;
 // single tile of detour, against a floor that generates CHEST_COUNT of
 // them at most. Raise it and `chooseGoal` stops being the only thing
 // choosing goals — two things in charge of one decision.
+//
+// MEASURED INERT, shipped on anyway because it cannot cost anything: 300
+// paired runs moved nothing past 1.4σ, and route length went slightly DOWN
+// rather than up — the direction the item warned to watch. The reason is
+// not B10's ("ties are rare"); it is that there is nothing to bend toward.
+// A wanted loose item is on the floor in 6.5% of decisions, mean 0.066 at a
+// time, and in 93% of those the bot's goal ALREADY IS that item. The
+// discount can only matter in 0.5% of turns. Set to 0 to ablate.
 export const ROUTE_ITEM_DISCOUNT = 0.0004;
 
 // GUESS — a new target must beat the current one by this factor before the

@@ -2843,6 +2843,50 @@ test('the shrine is still reachable as a goal', () => {
   assertEq(after.outcome, 'ascended', 'the bot would not take an exit with nothing else to do');
 });
 
+// ***** B17: the route grazes free loot when it costs nothing ***** //
+//
+// docs/backlog.md B17. Walking over a loose item collects it for free, so
+// among routes of the same length the one crossing an item is strictly
+// better. Measured inert in real play (a wanted loose item is on the floor
+// in 6.5% of decisions, and the bot is already going to get it in 93% of
+// those) — so the mechanism has to be locked by construction here, because
+// a real-play measurement cannot see it.
+//
+// Only the trap half is locked here. A fixture for the positive half was
+// attempted and abandoned: any item close enough to lie on a tie-breaking
+// route is also valuable enough that `chooseGoal` makes it the GOAL, so the
+// ablated arm collects it too and the fixture proves nothing. That is not a
+// gap in the test, it is the same finding the measurement produced — in
+// 93% of the turns a wanted item exists, the bot is already going to get it.
+test('the item discount never buys a detour', () => {
+  // The trap the item names: a discount large enough to bend the route is
+  // goal selection by the back door. Here the item is a full lane away from
+  // the only short path, so reaching it costs real extra steps. The bot must
+  // refuse — `chooseGoal` decides whether that item is worth a trip, not the
+  // router.
+  const map = tinyMap([
+    '###########',
+    '#---------#',
+    '####-######',
+    '####-######',
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [1, 1],
+    items: [item('shield', [4, 3], { armour: 3 })],
+    shrine: { id: 's', emoji: '⛩️', pos: [9, 1] },
+  });
+
+  const trace = [];
+  const { actions } = driveBot(state, 3, { monsterCount: 0, trace, leaveCompetes: true });
+  // Whatever it picks, the ROUTER must not have bent the path down the side
+  // passage on its own — only a goal decision may do that.
+  const wentForItem = trace.some((t) => t.goal.kind === 'item');
+  const steppedDown = actions.includes('down');
+  assert(!steppedDown || wentForItem,
+    `the router detoured toward an item without choosing it as a goal: ${actions.join(',')}`);
+});
+
 // ***** run it ***** //
 
 export function runAll() {

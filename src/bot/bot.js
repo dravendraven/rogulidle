@@ -10,7 +10,7 @@
 import {
   CHEST_COUNT, CROWD_PENALTY, DANGER_FALLOFF, DUEL_SAFETY_MARGIN,
   FRONTIER_REVEAL_WEIGHT, GOAL_STICKINESS, HOLD_RANGE, LOOT_CAMPAIGN_HORIZON,
-  MAP_SIZE, MONSTER_COUNT, REVERSAL_PENALTY, STEP_COST_IN_HP,
+  MAP_SIZE, MONSTER_COUNT, REVERSAL_PENALTY, ROUTE_ITEM_DISCOUNT, STEP_COST_IN_HP,
   TACTICAL_OVERRIDE_MARGIN, TACTICAL_RANGE, VISIBLE_DIST,
 } from '../sim/balance.js';
 import { MONSTERS_BASE, MONSTER_GROWTH } from '../sim/difficulty.js';
@@ -47,6 +47,53 @@ function shrineSink(belief) {
   if (!belief.shrine) return () => false;
   const tile = key(belief.shrine.pos);
   return (x, y) => (x + ',' + y) === tile;
+}
+
+// B17 (docs/backlog.md). A tile with a WANTED loose item on it costs
+// slightly less to cross.
+//
+// Walking over a loose item collects it for free — no action, no turn
+// (`step.js`'s pickup path; items do not block the way a chest does). So
+// loot exactly on the path was never the gap: the gap was that among
+// several routes of the same length, nothing preferred the one that grazes
+// an item. `chooseGoal` cannot fix that — it compares candidates
+// individually from where the hero stands and commits to one winner, and
+// asks nothing about what lies along the route to it.
+//
+// Deliberately a tie-breaker and nothing more. The discount is bounded so
+// the total along a route can never buy one extra step
+// (`ROUTE_ITEM_DISCOUNT`'s own comment carries the arithmetic), because a
+// discount big enough to bend a route two tiles would be selecting goals —
+// which is `chooseGoal`'s job, and two things in charge of one decision is
+// how a bot gets an unexplainable preference.
+//
+// Only items with a mechanical effect count. An item worth nothing should
+// not bend a route at all, and this is the same test `ITEM_VALUE` uses to
+// decide what counts as reward, rather than a second opinion about it.
+//
+// Chests are excluded on purpose: opening one BLOCKS and costs a turn
+// (`resolveEncounters`), so a chest is never free on the way and belongs to
+// `chooseGoal`'s comparison, where it already is.
+function routeItemDiscount(belief, discount) {
+  if (!discount) return () => 0;
+
+  // A tile a live creature is standing on is not a tile the hero can cross:
+  // walking in attacks and the hero stays put, so the item is not collected
+  // on the way — it is collected after the fight, if at all. Discounting it
+  // would be paying for a pass-through that cannot happen.
+  const occupied = new Set();
+  for (const m of belief.monsters.values()) if (!m.dead) occupied.add(key(m.pos));
+
+  const wanted = new Set();
+  for (const item of belief.items.values()) {
+    if ((item.dmg || 0) + (item.armour || 0) + (item.heal || 0) <= 0) continue;
+    const tile = key(item.pos);
+    if (occupied.has(tile)) continue;
+    wanted.add(tile);
+  }
+  if (!wanted.size) return () => 0;
+
+  return (x, y) => (wanted.has(x + ',' + y) ? discount : 0);
 }
 
 // Hp it costs to walk to a tile, danger included. Infinity when unreachable.
@@ -707,6 +754,11 @@ export function makeBot(options = {}) {
     frontierRouting: false,
     frontierRevealWeight: FRONTIER_REVEAL_WEIGHT,
 
+    // B17 (docs/backlog.md). ON at the shipped value, 0 to ablate. Bends the
+    // route toward a wanted loose item it can collect for free on the way,
+    // by strictly less than one step is worth — see `routeItemDiscount`.
+    routeItemDiscount: ROUTE_ITEM_DISCOUNT,
+
     // B11 (docs/backlog.md). ON. A worth-starting fight competes with loot
     // in branch 1's comparison instead of only ever being reachable once
     // every loot option is gone (branch 2). Measured n=60 on two seed
@@ -868,8 +920,14 @@ export function makeBot(options = {}) {
       })
       : { menace: new Map(), crowd: new Map(), reach: new Map(), priceAt: () => 0 };
 
+    // B17: bend the route toward loot it can pick up on the way, but only
+    // far enough to settle a tie. `Math.max(0, ...)` is not defensive
+    // decoration — dijkstra needs non-negative weights, and a negative one
+    // would corrupt the field silently rather than throw.
+    const itemBonus = routeItemDiscount(belief, settings.routeItemDiscount);
     const field = dijkstra(belief.player.pos, passable,
-      (x, y) => settings.stepCost + danger.priceAt(x, y), shrineSink(belief));
+      (x, y) => Math.max(0, settings.stepCost + danger.priceAt(x, y) - itemBonus(x, y)),
+      shrineSink(belief));
 
     // B4: what the dark is worth this turn. Both figures move as the floor
     // is played — a chest found is a chest the dark no longer holds, and
