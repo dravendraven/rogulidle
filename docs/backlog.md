@@ -22,6 +22,27 @@ archive; the transferable lesson goes to `decisions.md`.
     DONE        reviewed and closed
     ARCHIVED    decided against, reason kept
 
+## How to work an item
+
+- **Read your item in full** and report against what it asks for, not against
+  your own sense of finished. If an item looks wrong, say so instead of
+  quietly doing something else.
+- **One item, one commit**, and a test asserting the thing the item was for.
+- **Say what you measured**, including when the measurement says the change
+  did nothing. `node tools/measure.mjs` for numbers, `--selftest` before
+  trusting any of them; `run-check.html` in a visible tab for the same numbers
+  in a browser. Run them as a regression check, not as a scoreboard.
+- **Measure in one tree.** Two arms compared across sessions or across
+  uncommitted work is not a comparison — check out a worktree if the tree is
+  dirty.
+- **Every report ends by naming which behaviour document it made stale** —
+  `rules.md`, `bot-strategy.md` or `map-design.md` — or says plainly that none
+  moved. "None" still has to be written.
+- **A new parameter is the last resort.** A report that adds one says in a
+  line why an existing one could not carry it.
+- **If more than one session is running**, claim your item by setting it
+  IN FLIGHT and committing that alone before anything else.
+
 ## Order
 
 1. **The return** — R1 and R5 together, then R2–R4.
