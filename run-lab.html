@@ -6,9 +6,11 @@
 <title>Rogulidle — lab de dials</title>
 <link rel="stylesheet" href="style.css">
 <style>
-  /* Só o que esta página acrescenta ao style.css do jogo. */
-  .lab { display:flex; gap:1.2rem; align-items:flex-start; max-width:1200px; margin:0 auto; }
-  .dials { flex:0 0 340px; font-size:12px; max-height:92vh; overflow-y:auto; padding-right:.4rem; }
+  /* Só o que esta página acrescenta ao style.css do jogo: a coluna de
+     dials à esquerda; todo o resto reusa a UI do index. */
+  .app { max-width: 1280px; }
+  .lab { display:flex; gap:1.4rem; align-items:flex-start; }
+  .dials { flex:0 0 330px; font-size:12px; max-height:92vh; overflow-y:auto; padding-right:.4rem; }
   .dials h2 { font-size:.8rem; letter-spacing:.08em; text-transform:uppercase;
               margin:1rem 0 .3rem; opacity:.7; }
   .dials h2:first-child { margin-top:0; }
@@ -18,40 +20,74 @@
                 color:inherit; border:1px solid rgba(127,127,127,.35);
                 border-radius:4px; padding:.15rem .35rem; text-align:right; }
   .dial input.changed { border-color:#e8b34a; }
-  .dial-buttons { display:flex; gap:.5rem; margin:.8rem 0; position:sticky; bottom:0; }
+  .dial-buttons { display:flex; gap:.5rem; margin:.8rem 0; }
   .dial-buttons button { font:inherit; padding:.35rem .7rem; cursor:pointer; }
-  .labstage { flex:1; min-width:0; }
-  .labhud { display:flex; gap:1rem; flex-wrap:wrap; margin:.5rem 0; font-size:13px; }
-  .labhud .controls-inline button { font:inherit; cursor:pointer; margin-right:.35rem; }
-  .runlog { font-size:12px; opacity:.8; margin-top:.4rem; min-height:3em; }
-  .hint { font-size:11.5px; opacity:.6; max-width:60ch; }
+  .labgame { flex:1; min-width:0; }
+  .labgame main { flex-wrap: nowrap; }
+  .hint { font-size:11.5px; opacity:.6; max-width:66ch; }
 </style>
 </head>
 <body>
 <div class="app">
-  <header><h1>Lab de dials</h1></header>
+
+  <header>
+    <h1>Lab de dials</h1>
+    <div id="floor" class="floor-badge"></div>
+    <div class="controls">
+      <button id="playPause" type="button">⏸ pause</button>
+      <button id="speed" type="button">1×</button>
+      <button id="debug" type="button">🔎 debug</button>
+    </div>
+  </header>
 
   <div class="lab">
     <div class="dials" id="dials"></div>
 
-    <div class="labstage">
-      <div id="stage" class="stage">
-        <div id="grid" class="grid"></div>
+    <div class="labgame">
+      <main>
+        <div id="stage" class="stage">
+          <div id="grid" class="grid"></div>
+          <div id="summary" class="summary">
+            <div id="summaryTitle" class="summary-title"></div>
+            <div id="summaryBody"></div>
+          </div>
+        </div>
+
+        <aside class="panel">
+          <div id="hp" class="hp"></div>
+
+          <div class="chips">
+            <span id="xpEarned"></span>
+            <span id="xpRate"></span>
+            <span id="steps"></span>
+            <span id="kills"></span>
+          </div>
+
+          <div class="field">
+            <label>carrying</label>
+            <div id="inventory" class="inventory"></div>
+          </div>
+
+          <div id="debugInfo" class="debug-info"></div>
+
+          <footer>
+            <span id="run"></span>
+            <span id="tally"></span>
+            <span id="seed" class="seed"></span>
+          </footer>
+        </aside>
+      </main>
+
+      <div class="box">
+        <label>recent runs — how far each one got</label>
+        <div id="history" class="history"></div>
       </div>
-      <div class="labhud">
-        <span id="floor"></span>
-        <span id="hp"></span>
-        <span id="tally"></span>
-        <span class="controls-inline">
-          <button id="playPause" type="button">⏸</button>
-          <button id="speed" type="button">1×</button>
-        </span>
-      </div>
-      <div class="runlog" id="runlog"></div>
+
       <p class="hint">
         Os valores editados valem a partir da <b>próxima run</b> — ou agora,
-        com «reiniciar». Campo amarelo = diferente do padrão. Nada aqui grava
-        nada: recarregar a página volta ao jogo que está no código.
+        com «reiniciar». Campo amarelo = diferente do padrão. Nada persiste:
+        recarregar volta ao jogo que está no código. Debug pinta o perigo que
+        o bot vê e o objetivo que ele escolheu.
       </p>
     </div>
   </div>
@@ -63,11 +99,15 @@
     CROWD_PENALTY, DANGER_FALLOFF, DEFAULT_HERO, GOAL_STICKINESS,
   } from './src/bot/config.js';
   import { TURN_BUDGET } from './src/sim/balance.js';
-  import { makeBot } from './src/bot/bot.js';
-  import { playDungeon } from './src/sim/dungeon.js';
+  import { dangerField, makeBot } from './src/bot/bot.js';
+  import { playDungeon, LEVELS } from './src/sim/dungeon.js';
   import { replayGame } from './src/sim/game.js';
   import { hashSeeds, seedFromString } from './src/sim/rng.js';
-  import { applyDepth, buildGrid, renderFrame } from './src/ui/render.js';
+  import {
+    applyDepth, buildGrid, renderDebugInfo, renderFrame, renderHistory,
+    renderHud,
+  } from './src/ui/render.js';
+  import { tileSvg } from './src/ui/tiles.js';
 
   // Cada dial: de onde vem o padrão e para onde o valor vai.
   //   kind 'model' -> makeFloorPlan(model)   (gerador do mapa)
@@ -186,40 +226,69 @@
   });
 
   // ----- o loop: computa uma run com os dials de agora, reproduz, repete -----
-  const el = Object.fromEntries(['stage', 'grid', 'floor', 'hp', 'tally',
-    'playPause', 'speed', 'runlog', 'restart'].map(
+  const el = Object.fromEntries(['stage', 'grid', 'floor', 'hp', 'xpEarned',
+    'xpRate', 'steps', 'kills', 'inventory', 'run', 'tally', 'seed',
+    'playPause', 'speed', 'debug', 'debugInfo', 'history', 'restart',
+    'summary', 'summaryTitle', 'summaryBody'].map(
     (id) => [id, document.getElementById(id)]));
 
-  const session = { paused: false, speed: 1, restart: false, runNo: 0, cleared: 0, played: 0 };
+  const session = {
+    runNumber: 0, cleared: 0, played: 0, history: [], turnOffset: 0,
+    paused: false, speed: 1, debug: false, restart: false,
+  };
   const SPEEDS = [1, 4, 16];
   const BASE_DELAY = 110;
+  const SUMMARY_MS = 1600;
+  const HISTORY_LEN = 12;
 
   el.playPause.addEventListener('click', () => {
     session.paused = !session.paused;
-    el.playPause.textContent = session.paused ? '▶' : '⏸';
+    el.playPause.textContent = session.paused ? '▶ play' : '⏸ pause';
   });
   el.speed.addEventListener('click', () => {
     const i = (SPEEDS.indexOf(session.speed) + 1) % SPEEDS.length;
     session.speed = SPEEDS[i];
     el.speed.textContent = session.speed + '×';
   });
+  el.debug.addEventListener('click', () => {
+    session.debug = !session.debug;
+    el.debug.classList.toggle('active', session.debug);
+  });
   el.restart.addEventListener('click', () => { session.restart = true; });
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  // Um esbarrão em parede não passa turno e o frame é idêntico ao anterior.
+  // Um esbarrão em parede não passa turno e o frame é idêntico ao anterior —
+  // mas o trace tem uma entrada por DECISÃO, então o índice original viaja
+  // junto para alinhar os dois (mesmo truque do spectator).
   function watchable(frames) {
-    const out = [frames[0]];
+    const kept = [{ frame: frames[0], index: 0 }];
     for (let i = 1; i < frames.length; i++) {
-      if (frames[i].state.turn !== frames[i - 1].state.turn) out.push(frames[i]);
+      if (frames[i].state.turn !== frames[i - 1].state.turn) {
+        kept.push({ frame: frames[i], index: i });
+      }
     }
-    return out;
+    return kept;
   }
 
-  function log(line) {
-    el.runlog.textContent = line + '\n' + el.runlog.textContent;
-    const lines = el.runlog.textContent.split('\n').slice(0, 5);
-    el.runlog.textContent = lines.join('\n');
+  async function showSummary(run) {
+    const last = run.levels[run.levels.length - 1];
+    el.summaryTitle.textContent = run.cleared
+      ? '⛩️ completou a run'
+      : (last.outcome === 'timeout' ? '🕳️ acabou o tempo' : '💀 morreu');
+    el.summaryBody.innerHTML =
+      `<div class="summary-row"><span>chegou a</span><b>travessia ${run.depth}</b></div>`
+      + (run.killedBy
+        ? `<div class="summary-row"><span>morto por</span><b>${run.killedBy}</b></div>` : '');
+    el.summary.classList.add('shown');
+    let waited = 0;
+    while (waited < SUMMARY_MS / session.speed) {
+      while (session.paused) await sleep(80);
+      if (session.restart) break;
+      await sleep(80);
+      waited += 80;
+    }
+    el.summary.classList.remove('shown');
   }
 
   buildGrid(el.grid);
@@ -228,48 +297,69 @@
 
   async function loop() {
     for (;;) {
-      session.runNo++;
+      session.runNumber++;
       session.restart = false;
+      session.turnOffset = 0;
       const dials = readDials();
-      const seed = hashSeeds(sessionSeed, session.runNo);
+      const seed = hashSeeds(sessionSeed, session.runNumber);
 
       // A run inteira é computada AQUI, com os dials deste instante —
       // editar durante a reprodução vale para a próxima (ou «reiniciar»).
-      const run = playDungeon(seed, (floor) => makeBot({
-        monsterCount: floor.monsterCount,
-        chestCount: floor.chests,
-        hero: dials.hero,
-        ...dials.bot,
-      }), {
+      const traces = [];
+      const run = playDungeon(seed, (floor) => {
+        const trace = [];
+        traces.push(trace);
+        return makeBot({
+          trace,
+          monsterCount: floor.monsterCount,
+          chestCount: floor.chests,
+          hero: dials.hero,
+          ...dials.bot,
+        });
+      }, {
         floorPlan: makeFloorPlan(dials.model),
         maxTurns: dials.run.turnBudget,
       });
 
       replay:
-      for (const level of run.levels) {
+      for (let i = 0; i < run.levels.length; i++) {
+        const level = run.levels[i];
         applyDepth(el.stage, level.level);
         el.floor.textContent =
-          `andar ${level.level} · travessia ${level.traversal} (${level.direction === 'down' ? '↓' : '↑'})`;
-        const frames = watchable(replayGame(level.replay));
-        for (const frame of frames) {
+          `andar ${level.level}/${LEVELS} · travessia ${level.traversal} ${level.direction === 'down' ? '↓' : '↑'}`;
+
+        const kept = watchable(replayGame(level.replay));
+        for (const { frame, index } of kept) {
           while (session.paused) await sleep(80);
           if (session.restart) break replay;
-          renderFrame(frame.state, frame.belief);
-          const p = frame.state.player;
-          el.hp.textContent = `❤️ ${p.hp}/${p.hpMax}` + (p.armour ? ` +🛡${p.armour}` : '');
+
+          const entry = traces[i][Math.max(0, index)] || null;
+          const debug = session.debug
+            ? { danger: dangerField(frame.belief), goal: entry ? entry.goal : null }
+            : null;
+          renderFrame(frame.state, frame.belief, debug);
+          renderDebugInfo(el.debugInfo, session.debug ? entry : null);
+          renderHud(el, frame.state, session);
+          el.tally.textContent = `${session.cleared}/${session.played} completas`;
+
           await sleep(BASE_DELAY / session.speed);
         }
+        session.turnOffset += level.turns;
       }
 
       if (!session.restart) {
         session.played++;
         if (run.cleared) session.cleared++;
         const last = run.levels[run.levels.length - 1];
-        log(`run ${session.runNo}: ` + (run.cleared
-          ? `⛩️ completou as ${run.depth} travessias`
-          : `${last.outcome === 'timeout' ? '🕳️ tempo' : '💀 ' + (run.killedBy || 'morreu')} na travessia ${run.depth}`));
-      } else {
-        log(`run ${session.runNo}: ↻ reiniciada com os dials novos`);
+        session.history.unshift({
+          run: session.runNumber,
+          depth: run.depth,
+          cleared: run.cleared,
+          cause: run.cleared ? 'cleared' : last.outcome,
+        });
+        if (session.history.length > HISTORY_LEN) session.history.length = HISTORY_LEN;
+        renderHistory(el.history, session.history);
+        await showSummary(run);
       }
       el.tally.textContent = `${session.cleared}/${session.played} completas`;
     }
