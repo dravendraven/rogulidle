@@ -31,58 +31,182 @@ const MIN_OF = {
 //   'bot'   -> makeBot(options)       the bot's mechanics
 //   'run'   -> the run's options
 //
+// `title` is the user-facing name; `label` (the old caption) still shows as
+// a smaller sub-line so the precise, original wording never disappears.
+// `up`/`down` describe the effect of moving the dial each way — one short
+// adjective-led phrase, no explanation. `range: [min, max]` is what turns a
+// dial into a slider below; a dial with no natural bound (a raw count like
+// "creatures on floor 1") keeps the old plain number field and has no
+// `range`.
+//
 // The BOT comes first, because a hero is the thing you change to see a
 // different run of the same dungeon; the map is the dungeon itself.
 export const SECTIONS = [
   ['Bot', [
     ['o herói', [
-      ['hero', 'fightMargin',  'fração do hp que uma luta pode custar', 0.05],
-      ['hero', 'sideAppetite', 'apetite pela aposta lateral (0 = nunca)', 0.1],
-      ['hero', 'stepCost',     'quanto vale um passo, em hp', 0.005],
+      {
+        kind: 'hero', key: 'fightMargin', label: 'fração do hp que uma luta pode custar',
+        title: 'Coragem em combate', step: 0.05, range: [0, 1],
+        up: 'mais valente — aceita duelos caros', down: 'mais covarde — foge de quase tudo',
+      },
+      {
+        kind: 'hero', key: 'sideAppetite', label: 'apetite pela aposta lateral (0 = nunca)',
+        title: 'Ganância por desvios', step: 0.1, range: [0, 1],
+        up: 'mais ganancioso — persegue mais desvios', down: 'mais disciplinado — 0 nunca sai da rota',
+      },
+      {
+        kind: 'hero', key: 'stepCost', label: 'quanto vale um passo, em hp',
+        title: 'Pressa', step: 0.005, range: [0, 0.1],
+        up: 'mais apressado — sai cedo do andar', down: 'mais explorador — varre o andar inteiro',
+      },
     ]],
     ['como ele lê o perigo', [
-      ['bot', 'falloff',      'perigo decai por tile', 0.05],
-      ['bot', 'crowdPenalty', 'multa por tile cercável por 2', 0.5],
-      ['bot', 'stickiness',   'teimosia de objetivo', 0.05],
+      {
+        kind: 'bot', key: 'falloff', label: 'perigo decai por tile',
+        title: 'Alcance da percepção de perigo', step: 0.05, range: [0, 1],
+        up: 'mais míope — só teme o que está colado', down: 'mais paranoico — o andar inteiro assusta',
+      },
+      {
+        kind: 'bot', key: 'crowdPenalty', label: 'multa por tile cercável por 2',
+        title: 'Cautela contra cerco', step: 0.5, range: [0, 20],
+        up: 'mais cauteloso — nunca entra em cerco', down: 'mais afoito — ignora o cerco',
+      },
+      {
+        kind: 'bot', key: 'stickiness', label: 'teimosia de objetivo',
+        title: 'Firmeza de decisão', step: 0.05, range: [1, 3],
+        up: 'mais teimoso — não troca de alvo à toa', down: 'mais indeciso — troca a qualquer sombra',
+      },
     ]],
   ]],
   ['Mapa', [
     ['quantas criaturas', [
-      ['model', 'monstersBase',   'criaturas no andar 1', 1],
-      ['model', 'monsterGrowth',  'crescimento por andar', 0.01],
-      ['model', 'spreadPerLevel', 'sorteio do andar: largura por andar', 0.01],
-      ['model', 'spreadCap',      'sorteio do andar: teto', 0.05],
+      {
+        kind: 'model', key: 'monstersBase', label: 'criaturas no andar 1',
+        title: 'Criaturas iniciais', step: 1,
+        up: 'abertura mais brutal', down: 'abertura mais mansa',
+      },
+      {
+        kind: 'model', key: 'monsterGrowth', label: 'crescimento por andar',
+        title: 'Ritmo de crescimento de criaturas', step: 0.01, range: [1, 1.3],
+        up: 'descida mais íngreme', down: 'descida mais plana (<1 esvazia o fundo)',
+      },
+      {
+        kind: 'model', key: 'spreadPerLevel', label: 'sorteio do andar: largura por andar',
+        title: 'Instabilidade do andar (crescimento)', step: 0.01, range: [0, 0.3],
+        up: 'andares mais imprevisíveis', down: 'andares mais regulares',
+      },
+      {
+        kind: 'model', key: 'spreadCap', label: 'sorteio do andar: teto',
+        title: 'Instabilidade máxima do andar', step: 0.05, range: [0, 1],
+        up: 'fundo mais caótico', down: 'fundo mais previsível',
+      },
     ]],
     ['quão fortes', [
-      ['model', 'strength',       'teto da tabela no andar 1 (0..1)', 0.01],
-      ['model', 'strengthGrowth', 'crescimento do teto por andar', 0.01],
+      {
+        kind: 'model', key: 'strength', label: 'teto da tabela no andar 1 (0..1)',
+        title: 'Dificuldade inicial', step: 0.01, range: [0, 1],
+        up: 'início mais cruel', down: 'início mais inofensivo',
+      },
+      {
+        kind: 'model', key: 'strengthGrowth', label: 'crescimento do teto por andar',
+        title: 'Ritmo de escalada de dificuldade', step: 0.01, range: [1, 1.4],
+        up: 'escalada mais violenta (satura antes)', down: 'escalada mais morna',
+      },
     ]],
     ['quanto varia', [
-      ['model', 'tierFloorPerLevel', 'piso do tier: sobe por andar', 0.01],
-      ['model', 'tierFloorCap',      'piso do tier: teto (share)', 0.05],
-      ['model', 'tierSlackPerLevel', 'folga acima do teto: por andar', 0.01],
-      ['model', 'tierSlackCap',      'folga acima do teto: máx (share)', 0.05],
-      ['model', 'earlyTierCut',      'corte do andar 1 (linhas da tabela)', 1],
-      ['model', 'outOfDepthChancePerLevel', 'cauda rara: chance por andar', 0.005],
-      ['model', 'outOfDepthChanceCap',      'cauda rara: teto', 0.01],
+      {
+        kind: 'model', key: 'tierFloorPerLevel', label: 'piso do tier: sobe por andar',
+        title: 'Uniformidade do andar (crescimento)', step: 0.01, range: [0, 0.2],
+        up: 'andares mais uniformes (fundo sem ratos)', down: 'andares mais desiguais',
+      },
+      {
+        kind: 'model', key: 'tierFloorCap', label: 'piso do tier: teto (share)',
+        title: 'Uniformidade máxima do andar', step: 0.05, range: [0, 1],
+        up: 'fundo mais homogêneo', down: 'fundo mais bagunçado',
+      },
+      {
+        kind: 'model', key: 'tierSlackPerLevel', label: 'folga acima do teto: por andar',
+        title: 'Risco de monstro fora da curva (crescimento)', step: 0.01, range: [0, 0.5],
+        up: 'mais traiçoeiro — surpresas acima do esperado', down: 'mais honesto — sem surpresas',
+      },
+      {
+        kind: 'model', key: 'tierSlackCap', label: 'folga acima do teto: máx (share)',
+        title: 'Risco máximo de monstro fora da curva', step: 0.05, range: [0, 1],
+        up: 'fundo mais perigoso', down: 'fundo mais controlado',
+      },
+      {
+        kind: 'model', key: 'earlyTierCut', label: 'corte do andar 1 (linhas da tabela)',
+        title: 'Suavidade do andar 1', step: 1, range: [0, 3],
+        up: 'tutorial mais generoso', down: 'tutorial mais seco (0 = sem desconto)',
+      },
+      {
+        kind: 'model', key: 'outOfDepthChancePerLevel', label: 'cauda rara: chance por andar',
+        title: 'Chance de monstro raro (crescimento)', step: 0.005, range: [0, 0.05],
+        up: 'mais assustador — monstro raro mais cedo', down: 'mais justo (0 = nunca acontece)',
+      },
+      {
+        kind: 'model', key: 'outOfDepthChanceCap', label: 'cauda rara: teto',
+        title: 'Chance máxima de monstro raro', step: 0.01, range: [0, 0.3],
+        up: 'fundo mais imprevisível', down: 'fundo mais confiável',
+      },
     ]],
     ['quão agrupadas', [
-      ['model', 'clusterSize', 'criaturas por grupo (1 = sem grupo)', 1],
+      {
+        kind: 'model', key: 'clusterSize', label: 'criaturas por grupo (1 = sem grupo)',
+        title: 'Agrupamento de criaturas', step: 1, range: [1, 20],
+        up: 'mais concentrado — matilhas, andares que variam muito', down: 'mais espalhado e mediano',
+      },
     ]],
     ['quanto loot', [
-      ['model', 'chests',         'baús por andar', 1],
-      ['model', 'armourScarcity', 'escassez de escudo (1 em S)', 0.05],
-      ['model', 'potionScarcity', 'escassez de poção (1 em S)', 0.05],
-      ['model', 'weaponScarcity', 'escassez de arma (1 em S)', 0.5],
-      ['model', 'dropChance',     'chance de corpo largar algo', 0.05],
+      {
+        kind: 'model', key: 'chests', label: 'baús por andar',
+        title: 'Baús por andar', step: 1,
+        up: 'herói mais rico', down: 'herói mais pobre',
+      },
+      {
+        kind: 'model', key: 'armourScarcity', label: 'escassez de escudo (1 em S)',
+        title: 'Raridade de armadura', step: 0.05, range: [1, 5],
+        up: 'mais escasso', down: 'mais abundante',
+      },
+      {
+        kind: 'model', key: 'potionScarcity', label: 'escassez de poção (1 em S)',
+        title: 'Raridade de poção', step: 0.05, range: [1, 5],
+        up: 'mais escasso', down: 'mais abundante',
+      },
+      {
+        kind: 'model', key: 'weaponScarcity', label: 'escassez de arma (1 em S)',
+        title: 'Raridade de arma', step: 0.5, range: [1, 10],
+        up: 'herói mais fraco', down: 'herói mais armado',
+      },
+      {
+        kind: 'model', key: 'dropChance', label: 'chance de corpo largar algo',
+        title: 'Chance de drop', step: 0.05, range: [0, 1],
+        up: 'matar compensa mais', down: 'matar vira puro custo',
+      },
     ]],
     ['quanto a rota ramifica', [
-      ['model', 'spineThreatShare',   'massa de ameaça na espinha', 0.05],
-      ['model', 'sideRoomDepthBonus', 'aposta da sala lateral', 0.05],
-      ['model', 'sideChestBias',      'peso de baú na lateral', 0.5],
+      {
+        kind: 'model', key: 'spineThreatShare', label: 'massa de ameaça na espinha',
+        title: 'Perigo concentrado na rota principal', step: 0.05, range: [0, 1],
+        up: 'mapa mais direto — nada a evitar', down: 'mapa mais tático — laterais mortais',
+      },
+      {
+        kind: 'model', key: 'sideRoomDepthBonus', label: 'aposta da sala lateral',
+        title: 'Risco das salas laterais', step: 0.05, range: [0, 1],
+        up: 'aposta mais alta — monstro pior, baú melhor', down: 'aposta mais morna',
+      },
+      {
+        kind: 'model', key: 'sideChestBias', label: 'peso de baú na lateral',
+        title: 'Atração de baús para as laterais', step: 0.5, range: [1, 10],
+        up: 'desvio mais tentador', down: 'loot mais no caminho (1 = sem viés)',
+      },
     ]],
     ['tempo', [
-      ['run', 'turnBudget', 'turnos por travessia', 50],
+      {
+        kind: 'run', key: 'turnBudget', label: 'turnos por travessia',
+        title: 'Tempo disponível por andar', step: 50,
+        up: 'mais tolerante ao vagar', down: 'mais implacável — a run morre no relógio',
+      },
     ]],
   ]],
 ];
@@ -113,12 +237,21 @@ export function resolvedDefaults(overrides = {}) {
   const out = { model: {}, hero: {}, bot: {}, run: {} };
   for (const [, groups] of SECTIONS) {
     for (const [, list] of groups) {
-      for (const [kind, key] of list) {
+      for (const { kind, key } of list) {
         out[kind][key] = defaultOf(kind, key, overrides);
       }
     }
   }
   return out;
+}
+
+// Decimal places a dial's own step implies, so a slider's live readout
+// never shows more precision than the value actually carries (a step of
+// 0.005 wants 3 places, a step of 1 wants 0).
+function precisionOf(step) {
+  const s = String(step);
+  const i = s.indexOf('.');
+  return i === -1 ? 0 : s.length - i - 1;
 }
 
 // Fills `container` with the form and returns `{ read, reset }`.
@@ -144,26 +277,81 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
       h3.textContent = group;
       container.append(h3);
 
-      for (const [kind, key, label, step] of list) {
+      for (const dial of list) {
+        const {
+          kind, key, label, title, step, range, up, down,
+        } = dial;
         const def = defaultOf(kind, key, overrides);
+        const min = range ? range[0] : (MIN_OF[key] ?? 0);
+        const max = range ? range[1] : undefined;
+
         const row = document.createElement('div');
         row.className = 'dial';
+
+        const head = document.createElement('div');
+        head.className = 'dial-head';
         const caption = document.createElement('label');
-        caption.textContent = label;
+        caption.className = 'dial-title';
+        caption.textContent = title || label;
         caption.title = key;                    // the dial's real name
-        const input = document.createElement('input');
-        input.type = 'number';
-        input.step = String(step);
-        input.min = String(MIN_OF[key] ?? 0);
-        input.value = String(def);
-        // Yellow means "not what ships", which is the one thing a reader
-        // has to be able to see at a glance in a page full of numbers.
+        head.append(caption);
+
+        const sub = document.createElement('div');
+        sub.className = 'dial-sublabel';
+        sub.textContent = label;
+        head.append(sub);
+
+        row.append(head);
+
+        let input;
+        let valueOut;
+        if (range) {
+          const track = document.createElement('div');
+          track.className = 'dial-slider';
+          input = document.createElement('input');
+          input.type = 'range';
+          input.step = String(step);
+          input.min = String(min);
+          input.max = String(max);
+          input.value = String(def);
+          valueOut = document.createElement('span');
+          valueOut.className = 'dial-value';
+          valueOut.textContent = Number(def).toFixed(precisionOf(step));
+          track.append(input, valueOut);
+          row.append(track);
+        } else {
+          input = document.createElement('input');
+          input.type = 'number';
+          input.step = String(step);
+          input.min = String(min);
+          input.value = String(def);
+          row.append(input);
+        }
+
+        const effect = document.createElement('div');
+        effect.className = 'dial-effect';
+        const upLine = document.createElement('div');
+        upLine.textContent = `⬆️ ${up}`;
+        const downLine = document.createElement('div');
+        downLine.textContent = `⬇️ ${down}`;
+        effect.append(upLine, downLine);
+        row.append(effect);
+
         input.addEventListener('input', () => {
-          input.classList.toggle('changed', Number(input.value) !== def);
+          // Yellow means "not what ships", which is the one thing a reader
+          // has to be able to see at a glance in a page full of numbers.
+          const isChanged = Number(input.value) !== def;
+          input.classList.toggle('changed', isChanged);
+          if (valueOut) {
+            valueOut.textContent = Number(input.value).toFixed(precisionOf(step));
+            valueOut.classList.toggle('changed', isChanged);
+          }
         });
-        row.append(caption, input);
+
         container.append(row);
-        inputs.push({ kind, key, input, def, min: MIN_OF[key] ?? 0 });
+        inputs.push({
+          kind, key, input, def, min, valueOut, step,
+        });
       }
     }
   }
@@ -180,9 +368,15 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
   container.append(buttons);
 
   const reset = () => {
-    for (const { input, def } of inputs) {
+    for (const {
+      input, def, valueOut, step,
+    } of inputs) {
       input.value = String(def);
       input.classList.remove('changed');
+      if (valueOut) {
+        valueOut.textContent = Number(def).toFixed(precisionOf(step));
+        valueOut.classList.remove('changed');
+      }
     }
   };
 
@@ -202,7 +396,9 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
   // asked for.
   const read = () => {
     const out = { model: {}, hero: {}, bot: {}, run: {} };
-    for (const { kind, key, input, def, min } of inputs) {
+    for (const {
+      kind, key, input, def, min,
+    } of inputs) {
       const value = Number(input.value);
       out[kind][key] = Number.isFinite(value) ? Math.max(min, value) : def;
     }
@@ -236,7 +432,9 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
       // touched today must not be dropped just because this form never
       // re-marks it "changed" (it can't be changed from a default it IS).
       const merged = JSON.parse(JSON.stringify(overrides));
-      for (const { kind, key, input, min } of inputs) {
+      for (const {
+        kind, key, input, min,
+      } of inputs) {
         if (!input.classList.contains('changed')) continue;
         const value = Number(input.value);
         if (!Number.isFinite(value)) continue;

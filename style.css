@@ -241,6 +241,23 @@ main {
   transform: none;
 }
 
+/* Reverse progress bar: full when the shop opens, empty exactly when it
+   would auto-resolve. Width is set directly in JS on each poll tick
+   (spectator.js's showShop), so it freezes on pause for free. */
+.shop-timer {
+  width: 100%;
+  height: 4px;
+  margin-top: .6rem;
+  background: rgba(127, 127, 127, .2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.shop-timer-bar {
+  height: 100%;
+  width: 100%;
+  background: var(--accent);
+}
+
 /* ***** side panel ***** */
 
 .panel {
@@ -376,9 +393,21 @@ footer {
   margin: .7rem 0 .25rem;
 }
 
-.dial { display: flex; align-items: center; gap: .5rem; margin: .15rem 0; }
-.dial label { flex: 1; color: var(--dim); }
-.dial input {
+.dial {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  margin: 0 0 .6rem;
+  padding-bottom: .5rem;
+  border-bottom: 1px dashed var(--line);
+}
+.dial:last-child { border-bottom: none; }
+
+.dial-head { display: flex; align-items: baseline; gap: .4rem; flex-wrap: wrap; }
+.dial-title { color: var(--text); font-weight: bold; }
+.dial-sublabel { color: var(--dim); font-size: 10px; }
+
+.dial input[type="number"] {
   width: 5.5rem;
   font: inherit;
   font-size: 12px;
@@ -388,9 +417,32 @@ footer {
   border-radius: 4px;
   padding: .15rem .35rem;
   text-align: right;
+  align-self: flex-start;
 }
 /* Yellow means "not what ships" — the one thing to see at a glance. */
 .dial input.changed { border-color: #e8a33d; background: rgba(232, 163, 61, .12); }
+.dial-value.changed { color: #e8a33d; }
+
+.dial-slider { display: flex; align-items: center; gap: .5rem; }
+.dial-slider input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+.dial-value {
+  width: 3.2rem;
+  text-align: right;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.dial-effect {
+  display: flex;
+  flex-direction: column;
+  gap: .05rem;
+  font-size: 10px;
+  color: var(--dim);
+  line-height: 1.35;
+}
 
 .dial-buttons { display: flex; gap: .5rem; margin: .9rem 0 .3rem; }
 .dial-buttons button { font-size: .75rem; }
