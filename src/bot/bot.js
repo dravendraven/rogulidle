@@ -290,7 +290,15 @@ export function makeBot(options = {}) {
         const price = priceOfReaching(field, pos);
         if (!Number.isFinite(price)) return Infinity;
         const steps = field.steps.get(key(pos)) ?? 0;
-        return Math.max(0, price - steps * hero.stepCost);
+        const slack = price - steps * hero.stepCost;
+        // The route price is stepCost SUMMED once per tile and this is the
+        // same quantity MULTIPLIED — in binary the two do not agree, and the
+        // ~1e-16 that survives made a corridor with no danger on it read as a
+        // gamble. At appetite 0 the bar is exactly 0, so that residue refused
+        // every frontier, the goal went null, and the bot rested until the
+        // turn budget ran out (measured: 21 of 152 floors, all timeouts).
+        // Below the smallest danger the field can produce there is only noise.
+        return slack < 1e-9 ? 0 : slack;
       };
 
       // V5 — exploration used to be the one decision nothing gated. It
@@ -323,6 +331,22 @@ export function makeBot(options = {}) {
         goal = near ? { kind: 'frontier', pos: near.pos } : null;
       } else {
         goal = null;
+      }
+
+      // Last resort, and the reason it exists: `rest` passes the turn and
+      // changes nothing — creatures outside their chase radius do not move —
+      // so a turn with no goal reproduces itself exactly and the floor times
+      // out on the spot. Standing still is never survival, so a frontier the
+      // appetite refused still beats it. Only reached when the bar rejected
+      // every frontier AND no shrine is known: with either of those the bot
+      // already had somewhere to go.
+      if (!goal && !shrineReachable) {
+        const anywhere = frontiers(belief).reduce((a, pos) => {
+          const price = priceOfReaching(field, pos);
+          if (!Number.isFinite(price)) return a;
+          return (!a || price < a.price) ? { pos, price } : a;
+        }, null);
+        if (anywhere) goal = { kind: 'frontier', pos: anywhere.pos };
       }
 
       if (!goal && shrineReachable) {

@@ -58,6 +58,11 @@ objectives").
    guardião que a visita acordaria somado ao preço.
 4. **O mais barato vence**, com histerese. Vazio o conjunto: fronteira (se
    o escuro deve algo), senão buraco.
+5. **Nunca fica parado.** Se o apetite recusou toda fronteira e nenhum
+   buraco é conhecido, ele vai mesmo assim para a fronteira mais barata
+   das recusadas. `rest` passa o turno sem mudar nada — criatura fora do
+   raio de perseguição não se move — então um turno sem objetivo se repete
+   idêntico até o andar estourar o orçamento. Parar nunca é sobreviver.
 
 ## O que ele conhece
 
