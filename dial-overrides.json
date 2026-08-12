@@ -1,1 +1,20 @@
-{}
+{
+  "hero": {
+    "sideAppetite": 0.7
+  },
+  "model": {
+    "monsterGrowth": 1.05,
+    "strength": 0.2,
+    "tierFloorPerLevel": 0.05,
+    "tierFloorCap": 0.3,
+    "tierSlackPerLevel": 0.05,
+    "tierSlackCap": 0.35,
+    "earlyTierCut": 2,
+    "outOfDepthChancePerLevel": 0,
+    "outOfDepthChanceCap": 0.05,
+    "clusterSize": 6,
+    "weaponScarcity": 2.5,
+    "dropChance": 0.7,
+    "sideRoomDepthBonus": 0.7
+  }
+}
