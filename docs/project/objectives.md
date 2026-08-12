@@ -44,6 +44,28 @@ and will grow. Nothing below changes when it does.
 - **It has to make you want the next one.** What makes someone start another
   run is a premise that differs, not an outcome that differs.
 
+## What a session has to be
+
+**A run has to be worth watching on its own. A sitting of them has to carry
+something a single run cannot.** The properties above are the first half, and
+nothing here softens them — this section is the second half, not a correction
+to it.
+
+The player is not present for every run; the game goes on either way. So what
+reaches them is a stretch of attempts, some watched closely and some only
+arrived at.
+
+Ten losses where three got deep and one nearly finished is a good sitting. Ten
+losses that all ended in the first minute is a bad one, at the same rate of
+winning. **A sitting is judged on the distribution of how far attempts get, not
+on the rate at which they succeed.**
+
+- **Most attempts must not end in the opening.** When they do, the sitting is a
+  slot machine at the entrance, and no property above can rescue it.
+
+Some of the properties above only mean anything at this scale. "Rare enough to
+matter" describes a distribution; a single attempt cannot be rare.
+
 ## What a choice has to be
 
 The player chooses before a run and the choice pays off during it. That is the
@@ -57,16 +79,46 @@ and then watched to find out whether it was right.
   an unlock. Every option needs a real weakness, and one that shows on screen.
 - **Attributable.** It has to be possible to look at a win and say the choice
   contributed to it.
+- **Informed.** Something about what the choice will face has to be knowable
+  before it is made. A choice made blind is a preference, not a decision —
+  repetition can teach what an option is like, but never which one this run
+  wanted.
 
 ## What a loss owes
 
-**Nothing.** A run that is not completed earns nothing, and that stays.
+**Nothing.** Reward attaches to something achieved, never to failure.
 
-The tempting wrong conclusion is that a lost run must therefore feel worthless.
-**What a run grades and what it rewards are separate axes.** A loss can resolve
-at different heights, be close or not close, and cost something — none of which
-requires paying for it. Where weight is wanted on a loss it comes from the
-stake having been chosen, or from what the loss costs. Never from what it pays.
+The tempting wrong conclusion is that a lost attempt must therefore feel
+worthless. **What an attempt grades and what it rewards are separate axes.** A
+loss can resolve at different heights, be close or not close, and cost
+something — none of which requires paying for it. Where weight is wanted on a
+loss it comes from the stake having been chosen, or from what the loss costs.
+Never from what it pays.
+
+## What progression is for
+
+**The distinction is not power against variety. It is power that persists
+against power that resets.**
+
+What persists compounds: bought with wins and spent to produce more wins, the
+same currency in both directions, accumulating until it trivialises. A
+progression with nowhere to go.
+
+What resets can climb, and **a rising chance is worth having.** Under flat
+power the attempt that finally succeeds succeeded by luck — the lottery named
+above rather than a race. Power that climbs and then resets shows the approach
+happening without compounding. **That is what a reset is for: not a punishment,
+but the thing that authorises a rising chance to exist.**
+
+**The invariant is compounding, not permanence.** Permanence is only the usual
+way compounding gets in. A gain that raises the odds once and can never be
+earned again does not compound; one that can be earned twice is the circular
+case under another name. **A permanent unlock is safest when it buys a
+different way to lose rather than a lower chance of losing.**
+
+**Free variety adds options on the axes that already exist. Unlocked variety
+adds an axis.** One more of something already there is diminishing; something
+that multiplies against everything already owned is not.
 
 ## How work gets found
 

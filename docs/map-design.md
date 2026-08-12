@@ -38,9 +38,19 @@ follow it. **Variance** follows neither.
 | stretch | threat mass | death risk | variance |
 |---|---|---|---|
 | the opening | low | **high** — the buffer is small, so even a cheap floor can end the run | absolute low, **relative at its highest** |
-| the middle | rising, slowly and then faster | low, turning up towards its end | **lowest of the run** in challenge, highest in reward |
+| the build-up | rising slowly | **falling to the run's low** | lowest of the run in challenge, highest in reward |
+| the wear-down | rising faster | **rising again** | still low |
 | the turn | maximum | maximum of the descent | **lowest of the run**, absolute and relative |
 | the return | the same floors, differently populated | high, rising to the exit | **highest of the run**, rising to the exit |
+
+**The middle is two stretches, not one, and the boundary is the hero's own
+capacity peak.** Before it, capacity outgrows the floor and risk falls. After
+it, capacity is being ground down while threat keeps accelerating, so risk
+rises for two reasons at once. `balance.md` states the arc in one line — the
+hero builds up and is worn away — and that peak is where the relief ends.
+**Where the peak sits is a design decision**, not an observation to accept: an
+early peak makes the relief short and the ramp long, a late peak makes it long
+and the ramp abrupt.
 
 **The opening is hard on purpose, and cheap in time.** A run that fails there
 fails fast. That is "a decided run ends quickly" turned into geometry: a bad
@@ -218,6 +228,104 @@ the first thing to look for when this is built, and nothing owns it yet.
 **This table says which quantity moves and in which direction. It states no
 values** — what each band actually is lives in `docs/balance.md`, like
 everything else.
+
+## Drawing the curve — two lines, and the third falls out
+
+The table above is the shape. This is the language it is written in, so a
+different shape can be stated without inventing new vocabulary each time.
+
+### The two lines
+
+| line | what it is | reads |
+|---|---|---|
+| **pressure** | what a traversal costs ÷ what the hero has when it arrives | `1.0` = the traversal costs exactly everything the hero has |
+| **spread** | the traversal's upper tail ÷ its own mean | `0` = every run of that traversal costs the same |
+
+Both are ratios, so both are comparable across traversals, tiers and heroes
+without rescaling anything.
+
+**Pressure is not a new quantity** — it is what the project already calls net
+challenge. **Spread must be one-sided.** A symmetric statistic answers the
+wrong question: it treats "cheaper than average" as identical to "harder than
+average", and the whole design of the tail is about one of those two.
+
+### Why two, and never three
+
+**Death risk is an output, not a line.** It is what pressure and spread produce
+together. Draw all three and you have drawn an inconsistent triple, because the
+third was already determined by the first two.
+
+> **Draw two. Derive the third.**
+
+### Why normalising is what makes two enough
+
+The opening is the proof. Its threat is the lowest in the run and its risk is
+the highest — which looks like a contradiction until the ratio is taken. **The
+numerator is not large; the denominator is tiny.**
+
+Dividing by capacity folds the hero's whole state into the line. Without that,
+a third axis would be needed just to carry the buffer — and it is exactly that
+missing axis that made the old "starts low and accelerates" statement wrong.
+
+### The curve this project wants, in those two lines
+
+| traversal | pressure | spread |
+|---|---|---|
+| the opening | **high** — capacity is at its minimum | low |
+| the build-up | **falling to the run's minimum** | low |
+| the wear-down | **rising** — capacity has peaked and threat has not | low |
+| the turn | **the maximum, approaching 1.0 without reaching it** | **the minimum of the run** |
+| the return | **roughly flat** — mass and capacity fall together | **the maximum, rising to the exit** |
+
+Three things this shape says that a single difficulty curve cannot:
+
+- **The opening and the turn are both hard, for opposite reasons.** One has no
+  denominator; the other has a large numerator.
+- **The valley is a trough in pressure, and the trough's floor is where the
+  relief lives.**
+- **The return is carried entirely by the second line.** Pressure barely moves
+  there. If the return ever reads as a victory lap, the fault is in spread, and
+  raising the mass would be treating the wrong line.
+
+### How each line is used, and they are not used the same way
+
+| | pressure | spread |
+|---|---|---|
+| exact closed form | **yes** — the expected-mass form over the tier distribution | no |
+| can the dials be **solved** for a target? | **yes** | no |
+| can it be measured after the fact? | yes | yes |
+
+**So pressure is drawn and solved; spread is drawn and then measured.** Sweeping
+for a pressure curve that a closed form can solve is wasted work. Expecting to
+solve for a spread curve is the opposite error — `X6` already owns the case
+where the built tail does not do what it was asked.
+
+### What feeds each line
+
+```
+pressure = (count × per-creature strength × grouping) ÷ (hp + armour + weapon + consumables)
+spread   = tier band width + the out-of-depth tail + side-room variance + the return's widening
+```
+
+Both are nested sets, and every term in them is an existing dial or an existing
+probe. **Adopting this language requires no new instrument and no new
+parameter** — it renames what is already measured so that a shape can be stated
+before it is built.
+
+### The guardrail
+
+Two lines to draw a curve against is **exactly the shape of the programme that
+already failed here** — organised around approaching an external difficulty
+curve, twelve items closed, one survived. `docs/project/decisions.md` has what
+it cost.
+
+> **This is a language for saying what shape is wanted. It is not a target to
+> push.**
+
+Draw the two lines to state the intent, solve the dials for pressure, then
+**watch the game**. When the drawn curve and the watched run disagree, the
+watched run wins. The failure mode to recognise is the moment someone argues a
+line should be higher because the line should be higher.
 
 ## Nothing new is dug
 
