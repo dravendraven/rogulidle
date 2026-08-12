@@ -92,6 +92,9 @@ Two measuring notes that were each learned the hard way:
 - `/index.html` — watch the bot play. `?seed=anything` reproduces a session.
 - `/run-tests.html` — the rules (tests, not metrics).
 - `/run-check.html` — the tripwires. Keep the tab visible while it runs.
+- `/run-lab.html` — edit any map/bot dial and watch runs play with it.
+  Nothing persists; the shipped values stay in the code. A change worth
+  keeping is a `balance.md` + code edit, same as ever.
 
 Headless: `node tools/measure.mjs --selftest` first (it proves the vendored
 ROT.js is faithful), then e.g. `node tools/measure.mjs check tripwires

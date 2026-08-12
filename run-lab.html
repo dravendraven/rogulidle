@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rogulidle — lab de dials</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  /* Só o que esta página acrescenta ao style.css do jogo. */
+  .lab { display:flex; gap:1.2rem; align-items:flex-start; max-width:1200px; margin:0 auto; }
+  .dials { flex:0 0 340px; font-size:12px; max-height:92vh; overflow-y:auto; padding-right:.4rem; }
+  .dials h2 { font-size:.8rem; letter-spacing:.08em; text-transform:uppercase;
+              margin:1rem 0 .3rem; opacity:.7; }
+  .dials h2:first-child { margin-top:0; }
+  .dial { display:flex; align-items:center; gap:.5rem; margin:.15rem 0; }
+  .dial label { flex:1; opacity:.85; }
+  .dial input { width:5.5rem; font:inherit; background:rgba(0,0,0,.25);
+                color:inherit; border:1px solid rgba(127,127,127,.35);
+                border-radius:4px; padding:.15rem .35rem; text-align:right; }
+  .dial input.changed { border-color:#e8b34a; }
+  .dial-buttons { display:flex; gap:.5rem; margin:.8rem 0; position:sticky; bottom:0; }
+  .dial-buttons button { font:inherit; padding:.35rem .7rem; cursor:pointer; }
+  .labstage { flex:1; min-width:0; }
+  .labhud { display:flex; gap:1rem; flex-wrap:wrap; margin:.5rem 0; font-size:13px; }
+  .labhud .controls-inline button { font:inherit; cursor:pointer; margin-right:.35rem; }
+  .runlog { font-size:12px; opacity:.8; margin-top:.4rem; min-height:3em; }
+  .hint { font-size:11.5px; opacity:.6; max-width:60ch; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header><h1>Lab de dials</h1></header>
+
+  <div class="lab">
+    <div class="dials" id="dials"></div>
+
+    <div class="labstage">
+      <div id="stage" class="stage">
+        <div id="grid" class="grid"></div>
+      </div>
+      <div class="labhud">
+        <span id="floor"></span>
+        <span id="hp"></span>
+        <span id="tally"></span>
+        <span class="controls-inline">
+          <button id="playPause" type="button">⏸</button>
+          <button id="speed" type="button">1×</button>
+        </span>
+      </div>
+      <div class="runlog" id="runlog"></div>
+      <p class="hint">
+        Os valores editados valem a partir da <b>próxima run</b> — ou agora,
+        com «reiniciar». Campo amarelo = diferente do padrão. Nada aqui grava
+        nada: recarregar a página volta ao jogo que está no código.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { DEFAULT_MODEL, makeFloorPlan } from './src/sim/difficulty.js';
+  import {
+    CROWD_PENALTY, DANGER_FALLOFF, DEFAULT_HERO, GOAL_STICKINESS,
+  } from './src/bot/config.js';
+  import { TURN_BUDGET } from './src/sim/balance.js';
+  import { makeBot } from './src/bot/bot.js';
+  import { playDungeon } from './src/sim/dungeon.js';
+  import { replayGame } from './src/sim/game.js';
+  import { hashSeeds, seedFromString } from './src/sim/rng.js';
+  import { applyDepth, buildGrid, renderFrame } from './src/ui/render.js';
+
+  // Cada dial: de onde vem o padrão e para onde o valor vai.
+  //   kind 'model' -> makeFloorPlan(model)   (gerador do mapa)
+  //   kind 'hero'  -> makeBot({ hero })      (o herói)
+  //   kind 'bot'   -> makeBot(opções)        (mecânica do bot)
+  //   kind 'run'   -> opções da run
+  const DIALS = [
+    ['quantas criaturas', [
+      ['model', 'monstersBase',   'criaturas no andar 1', 1],
+      ['model', 'monsterGrowth',  'crescimento por andar', 0.01],
+      ['model', 'spreadPerLevel', 'sorteio do andar: largura por andar', 0.01],
+      ['model', 'spreadCap',      'sorteio do andar: teto', 0.05],
+    ]],
+    ['quão fortes', [
+      ['model', 'strength',       'teto da tabela no andar 1 (0..1)', 0.01],
+      ['model', 'strengthGrowth', 'crescimento do teto por andar', 0.01],
+    ]],
+    ['quanto varia', [
+      ['model', 'tierFloorPerLevel', 'piso do tier: sobe por andar', 0.01],
+      ['model', 'tierFloorCap',      'piso do tier: teto (share)', 0.05],
+      ['model', 'tierSlackPerLevel', 'folga acima do teto: por andar', 0.01],
+      ['model', 'tierSlackCap',      'folga acima do teto: máx (share)', 0.05],
+      ['model', 'earlyTierCut',      'corte do andar 1 (linhas da tabela)', 1],
+      ['model', 'outOfDepthChancePerLevel', 'cauda rara: chance por andar', 0.005],
+      ['model', 'outOfDepthChanceCap',      'cauda rara: teto', 0.01],
+    ]],
+    ['quão agrupadas', [
+      ['model', 'clusterSize', 'criaturas por grupo (1 = sem grupo)', 1],
+    ]],
+    ['quanto loot', [
+      ['model', 'chests',          'baús por andar', 1],
+      ['model', 'armourScarcity',  'escassez de escudo (1 em S)', 0.05],
+      ['model', 'potionScarcity',  'escassez de poção (1 em S)', 0.05],
+      ['model', 'weaponScarcity',  'escassez de arma (1 em S)', 0.5],
+      ['model', 'dropChance',      'chance de corpo largar algo', 0.05],
+    ]],
+    ['quanto a rota ramifica', [
+      ['model', 'spineThreatShare',  'massa de ameaça na espinha', 0.05],
+      ['model', 'sideRoomDepthBonus','aposta da sala lateral', 0.05],
+      ['model', 'sideChestBias',     'peso de baú na lateral', 0.5],
+    ]],
+    ['o herói (config do bot)', [
+      ['hero', 'fightMargin',  'fração do hp que uma luta pode custar', 0.05],
+      ['hero', 'sideAppetite', 'apetite pela aposta lateral (0 = nunca)', 0.1],
+      ['hero', 'stepCost',     'quanto vale um passo, em hp', 0.005],
+    ]],
+    ['mecânica do bot', [
+      ['bot', 'falloff',      'perigo decai por tile', 0.05],
+      ['bot', 'crowdPenalty', 'multa por tile cercável por 2', 0.5],
+      ['bot', 'stickiness',   'teimosia de objetivo', 0.05],
+    ]],
+    ['tempo', [
+      ['run', 'turnBudget', 'turnos por travessia', 50],
+    ]],
+  ];
+
+  const BOT_DEFAULTS = {
+    falloff: DANGER_FALLOFF, crowdPenalty: CROWD_PENALTY, stickiness: GOAL_STICKINESS,
+  };
+  const RUN_DEFAULTS = { turnBudget: TURN_BUDGET };
+
+  function defaultOf(kind, key) {
+    if (kind === 'model') return DEFAULT_MODEL[key];
+    if (kind === 'hero') return DEFAULT_HERO[key];
+    if (kind === 'bot') return BOT_DEFAULTS[key];
+    return RUN_DEFAULTS[key];
+  }
+
+  // ----- monta o formulário -----
+  const dialsBox = document.getElementById('dials');
+  const inputs = [];
+  for (const [group, list] of DIALS) {
+    const h = document.createElement('h2');
+    h.textContent = group;
+    dialsBox.append(h);
+    for (const [kind, key, label, step] of list) {
+      const def = defaultOf(kind, key);
+      const row = document.createElement('div');
+      row.className = 'dial';
+      const lab = document.createElement('label');
+      lab.textContent = label;
+      lab.title = key;
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.step = String(step);
+      input.value = String(def);
+      input.addEventListener('input', () => {
+        input.classList.toggle('changed', Number(input.value) !== def);
+      });
+      row.append(lab, input);
+      dialsBox.append(row);
+      inputs.push({ kind, key, input, def });
+    }
+  }
+  const buttons = document.createElement('div');
+  buttons.className = 'dial-buttons';
+  buttons.innerHTML = `
+    <button id="restart" type="button">↻ reiniciar com estes valores</button>
+    <button id="defaults" type="button">padrões</button>`;
+  dialsBox.append(buttons);
+
+  function readDials() {
+    const out = { model: {}, hero: {}, bot: {}, run: {} };
+    for (const { kind, key, input } of inputs) {
+      const v = Number(input.value);
+      if (Number.isFinite(v)) out[kind][key] = v;
+    }
+    return out;
+  }
+
+  document.getElementById('defaults').addEventListener('click', () => {
+    for (const { input, def } of inputs) {
+      input.value = String(def);
+      input.classList.remove('changed');
+    }
+  });
+
+  // ----- o loop: computa uma run com os dials de agora, reproduz, repete -----
+  const el = Object.fromEntries(['stage', 'grid', 'floor', 'hp', 'tally',
+    'playPause', 'speed', 'runlog', 'restart'].map(
+    (id) => [id, document.getElementById(id)]));
+
+  const session = { paused: false, speed: 1, restart: false, runNo: 0, cleared: 0, played: 0 };
+  const SPEEDS = [1, 4, 16];
+  const BASE_DELAY = 110;
+
+  el.playPause.addEventListener('click', () => {
+    session.paused = !session.paused;
+    el.playPause.textContent = session.paused ? '▶' : '⏸';
+  });
+  el.speed.addEventListener('click', () => {
+    const i = (SPEEDS.indexOf(session.speed) + 1) % SPEEDS.length;
+    session.speed = SPEEDS[i];
+    el.speed.textContent = session.speed + '×';
+  });
+  el.restart.addEventListener('click', () => { session.restart = true; });
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // Um esbarrão em parede não passa turno e o frame é idêntico ao anterior.
+  function watchable(frames) {
+    const out = [frames[0]];
+    for (let i = 1; i < frames.length; i++) {
+      if (frames[i].state.turn !== frames[i - 1].state.turn) out.push(frames[i]);
+    }
+    return out;
+  }
+
+  function log(line) {
+    el.runlog.textContent = line + '\n' + el.runlog.textContent;
+    const lines = el.runlog.textContent.split('\n').slice(0, 5);
+    el.runlog.textContent = lines.join('\n');
+  }
+
+  buildGrid(el.grid);
+  const sessionSeed = seedFromString(
+    new URLSearchParams(location.search).get('seed') || String(Date.now()));
+
+  async function loop() {
+    for (;;) {
+      session.runNo++;
+      session.restart = false;
+      const dials = readDials();
+      const seed = hashSeeds(sessionSeed, session.runNo);
+
+      // A run inteira é computada AQUI, com os dials deste instante —
+      // editar durante a reprodução vale para a próxima (ou «reiniciar»).
+      const run = playDungeon(seed, (floor) => makeBot({
+        monsterCount: floor.monsterCount,
+        chestCount: floor.chests,
+        hero: dials.hero,
+        ...dials.bot,
+      }), {
+        floorPlan: makeFloorPlan(dials.model),
+        maxTurns: dials.run.turnBudget,
+      });
+
+      replay:
+      for (const level of run.levels) {
+        applyDepth(el.stage, level.level);
+        el.floor.textContent =
+          `andar ${level.level} · travessia ${level.traversal} (${level.direction === 'down' ? '↓' : '↑'})`;
+        const frames = watchable(replayGame(level.replay));
+        for (const frame of frames) {
+          while (session.paused) await sleep(80);
+          if (session.restart) break replay;
+          renderFrame(frame.state, frame.belief);
+          const p = frame.state.player;
+          el.hp.textContent = `❤️ ${p.hp}/${p.hpMax}` + (p.armour ? ` +🛡${p.armour}` : '');
+          await sleep(BASE_DELAY / session.speed);
+        }
+      }
+
+      if (!session.restart) {
+        session.played++;
+        if (run.cleared) session.cleared++;
+        const last = run.levels[run.levels.length - 1];
+        log(`run ${session.runNo}: ` + (run.cleared
+          ? `⛩️ completou as ${run.depth} travessias`
+          : `${last.outcome === 'timeout' ? '🕳️ tempo' : '💀 ' + (run.killedBy || 'morreu')} na travessia ${run.depth}`));
+      } else {
+        log(`run ${session.runNo}: ↻ reiniciada com os dials novos`);
+      }
+      el.tally.textContent = `${session.cleared}/${session.played} completas`;
+    }
+  }
+  loop();
+</script>
+</body>
+</html>
