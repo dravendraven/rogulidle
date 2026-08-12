@@ -252,7 +252,7 @@ export const VAULT_SIZE = 9;
 // makes the Butcher easier to escape, which weakens "a detour has to be
 // able to cost the run" — the M36 half of why this room exists.
 export const VAULT_BOSS = {
-  name: 'butcher', emoji: '🧌', activation: 5, xp: 6, hp: 16,
+  name: 'butcher', emoji: '🐷', activation: 5, xp: 6, hp: 16,
 };
 
 // GUESS — what it always leaves behind, by name from ITEM_TABLE. The only
@@ -262,28 +262,30 @@ export const VAULT_BOSS = {
 export const VAULT_BOSS_DROP = 'axe';
 
 // GUESS — what the vault's chests hold, by ITEM_TABLE name, one per slot in
-// the order vault.js lists them: four corners, then the two flanking the
-// Butcher. Extra chests, on top of the floor's own CHESTS_PER_FLOOR.
+// the order vault.js lists them.
+//
+// EIGHT, AND THEY ARE THE FLOOR'S ONLY LOOT. The vault floor places no
+// ordinary chests at all: its whole reward is in this room, behind this
+// creature. That is what makes walking past the vault cost something —
+// before it, skipping was free because the floor still paid six chests
+// somewhere else, and the measured result was a room nobody needed.
 //
 // AUTHORED, NOT ROLLED, and the tension in that is real enough to write
 // down. `map-design.md` asks the middle of the run to carry variance of
 // REWARD, and a fixed payout carries none — so this pushes against a stated
-// property. It is fixed anyway for two reasons: a choice has to be
-// INFORMED (objectives.md) and a constant payout is the most informed a bet
-// can be, and the variance that actually matters here is whether the hero
-// collects any of it at all, which runs from 6% to 80% depending on how the
-// run has gone. If the vault ever reads as a flat vending machine, this
-// array is the one thing to change.
+// property. It is fixed anyway because a choice has to be INFORMED
+// (objectives.md) and a constant payout is the most informed a bet can be,
+// while the variance that actually matters is whether the hero collects any
+// of it at all.
 //
-// Three shields and three potions is about +9 armour and +9 healing against
-// a hero who reaches floor 4 holding roughly 4 armour. That is deliberately
-// large — it is what the axe-plus-buffer has to be worth to justify a fight
-// that kills the typical hero 60% of the time — and it is a first guess
-// waiting on V4's measurement, not a solved number.
+// Four shields and four potions is about +12 armour and +12 healing against
+// a hero who reaches floor 4 holding roughly 4 armour — deliberately large,
+// because it is now the entire floor's pay AND the price of a fight, not a
+// bonus on top of one.
 export const VAULT_CHEST_ITEMS = [
-  'shield', 'health',
-  'health', 'shield',
-  'shield', 'health',
+  'shield', 'health', 'shield',
+  'health', 'health',
+  'shield', 'health', 'shield',
 ];
 
 // ***** time ***** //

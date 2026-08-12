@@ -181,7 +181,8 @@ export function populate(state, map, counts = {}) {
     (counts.monsters ?? MONSTER_COUNT)
     * drawLogUniform(state, 'spawn', counts.monsterSpread ?? 0),
   ));
-  const chestCount = counts.chests ?? CHEST_COUNT;
+  // `let` because the vault takes it to zero — see step 3c.
+  let chestCount = counts.chests ?? CHEST_COUNT;
   // How far up the monster table the deepest tiles reach. The third dial of
   // difficulty, alongside how many monsters and how much loot.
   const difficultyScale = counts.difficultyScale ?? MONSTER_DIFFICULTY_SCALE;
@@ -377,6 +378,18 @@ export function populate(state, map, counts = {}) {
       zones = classifyRooms(map, playerPos, shrinePos);
       state.spine = { path: zones.path, sideRooms: zones.side.length,
         spineRooms: zones.spine.length };
+
+      // THE VAULT FLOOR PLACES NO ORDINARY CHESTS. Its whole reward is in
+      // the room, behind the creature — which is what makes walking past
+      // cost something. Measured before this: with the floor still paying
+      // six chests elsewhere, skipping the vault was free and the room was
+      // a bonus nobody needed to take.
+      //
+      // Zeroed HERE rather than in the floor plan, and only once the stamp
+      // has actually succeeded: on the ~1 seed in 150 with nowhere to put a
+      // vault, the floor keeps its own chests rather than coming out with
+      // no loot at all.
+      chestCount = 0;
     }
   }
 

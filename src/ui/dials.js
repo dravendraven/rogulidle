@@ -81,9 +81,17 @@ export const SECTIONS = [
         up: 'mais valente — aceita duelos caros', down: 'mais covarde — foge de quase tudo',
       },
       {
+        // Above 1 the hero risks MORE on the optional than on the
+        // mandatory, which is what greedy means and is the only way to say
+        // "take this fight even though it does not pay": the bar is
+        // `sideAppetite × fightMargin × ehp`, so with both sliders capped
+        // at 1 nothing above a comfortably affordable duel could ever be
+        // accepted — and the Butcher is not comfortably affordable on
+        // purpose.
         kind: 'hero', key: 'sideAppetite', label: 'apetite pela aposta lateral (0 = nunca)',
-        title: 'Ganância por desvios', step: 0.1, range: [0, 1],
-        up: 'mais ganancioso — persegue mais desvios', down: 'mais disciplinado — 0 nunca sai da rota',
+        title: 'Ganância por desvios', step: 0.1, range: [0, 2],
+        up: 'mais ganancioso — acima de 1 encara desvio que não compensa',
+        down: 'mais disciplinado — 0 nunca sai da rota',
       },
       {
         kind: 'hero', key: 'stepCost', label: 'quanto vale um passo, em hp',

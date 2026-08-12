@@ -836,3 +836,81 @@ at these values, and the lever is the free pair rather than the boss:
   outside it
 
 Nothing here is a defect to fix without that decision being made first.
+
+## The vault takes over its floor — A through D, 2026-08-12
+
+Owner design: floor 4 as a barrier, all of the floor's reward inside the
+room, and a dial that decides whether the hero tries it. Four changes, no
+new parameters: the vault floor places no ordinary chests and the vault
+holds eight; every chest sits inside the creature's reach; `sideAppetite`
+runs to 2; the approach is a corridor of at least four tiles.
+
+Measured empty-handed, 200 runs a session, shipped dials.
+
+| | before (graded room) | A–D at appetite 0.7 | A–D at appetite 1.5 |
+|---|---|---|---|
+| engaged the vault | 89.7% | **12.3%** | **56.8%** |
+| killed the Butcher | 35.6% | 12.3% | 48.0% |
+| killed BY it | 0.7% | 0.0% | 6.8% |
+| died on floor 4 | 9.5% | 14.2% | 20.7% |
+| **died on floor 5** | 10.4% | **29.1%** | 28.6% |
+| reached floor 7 | 50.5% | 35.5% | 37.5% |
+
+Floor 5 without any vault kills 8.0%.
+
+### Concentrating the reward is what made skipping cost something
+
+**Floor 5's death rate roughly triples** — 8.0% with no vault, 10.4% while
+the floor still paid six chests of its own, 29% once it does not. That is
+the design working: the hero that walks past arrives with nothing and dies
+one floor later. Before this, skipping was free.
+
+### The dial is now the decision, and that is the shape the product wants
+
+At the shipped appetite the bot enters 12.3% of vaults and wins every one
+of them. At 1.5 it enters 56.8% and dies in 6.8%. **Same room, same
+creature — the player's pre-run setting is what moves it**, which is what
+`objectives.md` asks a choice to be: made in advance and then watched.
+
+Range [0, 2] is what made that expressible. Below 1 the bar is
+`sideAppetite × fightMargin × ehp` with both factors under one, so nothing
+costlier than a comfortably affordable duel could ever be accepted — and
+the Butcher is not comfortably affordable on purpose.
+
+### What is still not there, and it is not a map problem
+
+**Nobody loses this fight by accident any more, and few lose it at all.**
+Even at appetite 1.5 the hero kills the Butcher in 48% of vaults and dies
+in 6.8%. The owner's target — a naked first run losing 80-90% of the time —
+is not reachable by tuning the creature: `duelCost` at hp 20 / xp 6 is 16.1
+hp against an `ehp` of about 12.9, so the bot refuses rather than loses. A
+Butcher the naked hero reliably dies to is a Butcher the bot never fights.
+
+**And the ratchet the design rests on does not exist.** "Each run
+accumulates coins so the odds improve" is not what the code does:
+`wallet.js` keeps no balance, `resetOnDeath` wipes the drawer, and the shop
+spends that run's coins on ONE item afterwards. The starting kit measures
+how well the LAST run went, not how many have been played — measured, a
+session sits at roughly 42% empty / 42% shield / 10% dagger / 6% axe and
+does not climb.
+
+Restoring it reopens an owner decision (`PERSIST_BALANCE_ACROSS_DEATH`,
+removed and never measured). The smallest version is not wiping the drawer
+on death; `objectives.md` warns against the uncapped form, so a bounded one
+is the one to reach for.
+
+### Two things that were checked rather than assumed
+
+**A corridor cannot hide the Butcher.** Sight here is by distance and passes
+through walls (`observe.js`, a deliberate divergence). Measured on 117
+vaults: the hero sees the occupant from the doorway on **every** seed, and
+from one tile outside it on every seed. The ambush the corridor was meant to
+create is not buildable without raycasting, which the project chose against
+— and would fight `objectives.md`'s "a choice has to be informed". What the
+corridor does buy is a longer priced approach, which sharpens the dial
+rather than hiding anything.
+
+**One chest outside the reach is enough to undo the room.** The earlier
+graded layout left two, and they were opened in 89.7% of vaults against
+39.2% for the guarded ones. The test now asserts every chest sits inside
+the radius, because that margin is what the whole barrier rests on.

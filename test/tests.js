@@ -1467,18 +1467,31 @@ test('stamping the vault consumes no randomness', () => {
     const withVault = newGame(seed, floorPlan(VAULT_LEVEL));
     const without = newGame(seed, { ...floorPlan(VAULT_LEVEL), vaultLevel: 0 });
 
-    assertEq(withVault.rng.spawn, without.rng.spawn,
-      'the spawn stream moved, so the vault drew something');
     assertEq(withVault.rng.map, without.rng.map, 'the map stream moved');
     assertEq(withVault.rng.combat, without.rng.combat, 'the combat stream moved');
     assertEq(withVault.shrine.pos.join(','), without.shrine.pos.join(','),
       'the shrine moved');
-    // The ORDINARY roster: the Butcher is placed after every draw is spent,
-    // so it is an addition, not a shift, and comparing it here would only
-    // be comparing the vault to its own absence.
-    const roster = (s) => s.monsters.filter((m) => !m.vault)
-      .map((m) => `${m.name}@${m.pos}`).join('|');
-    assertEq(roster(withVault), roster(without), 'the roster changed');
+    assertEq(withVault.player.pos.join(','), without.player.pos.join(','),
+      'the hero moved');
+
+    // The spawn stream DOES move now, and legitimately: a vault floor
+    // places no ordinary chests, so the ~30 draws that loop would have
+    // spent are not spent. What still has to hold is that the vault's own
+    // contents cost nothing — filling it with eight authored chests draws
+    // exactly as much as leaving it empty, which isolates that claim from
+    // the suppression above.
+    const empty = newGame(seed, { ...floorPlan(VAULT_LEVEL), vaultChestItems: [] });
+    assertEq(withVault.rng.spawn, empty.rng.spawn,
+      'filling the vault moved the spawn stream, so its contents are drawn');
+    assertEq(
+      withVault.monsters.map((m) => `${m.name}@${m.pos}`).join('|'),
+      empty.monsters.map((m) => `${m.name}@${m.pos}`).join('|'),
+      'filling the vault changed the roster',
+    );
+    // Deliberately NOT compared against `without`: a vault floor skips its
+    // own chest loop, so the roster placed after it legitimately differs.
+    // The `empty` comparison above is what still pins the vault itself to
+    // costing no randomness.
   }
 });
 
@@ -1549,7 +1562,7 @@ test('the Butcher is not in the tier table and cannot be drawn', () => {
     'the Butcher leaked into the tier table');
 });
 
-test('the vault holds six extra chests, at their authored positions', () => {
+test('the vault holds every chest the floor has, at authored positions', () => {
   for (const state of vaultFloors()) {
     const vaultChests = state.chests.filter((c) => c.vault);
     assertEq(vaultChests.length, VAULT_CHEST_ITEMS.length, 'wrong chest count');
@@ -1563,16 +1576,33 @@ test('the vault holds six extra chests, at their authored positions', () => {
       assert(chest.drop, 'an authored chest came out empty');
     }
 
-    // Extra, not instead of: the floor keeps every chest it would have had.
-    const ordinary = state.chests.filter((c) => !c.vault);
-    assertEq(ordinary.length, floorPlan(VAULT_LEVEL).chests,
-      'the vault ate the floor\'s own chests');
+    // The point of concentrating the reward: walking past the vault means
+    // leaving this floor with nothing. If the floor ever pays chests of its
+    // own again, skipping becomes free and the room is a bonus nobody needs.
+    assertEq(state.chests.filter((c) => !c.vault).length, 0,
+      'the vault floor placed ordinary chests, so skipping the room is free');
 
-    // Nothing shares a tile.
     const tiles = new Set(state.chests.map((c) => c.pos.join(',')));
     assertEq(tiles.size, state.chests.length, 'two chests on one tile');
     assert(!vaultChests.some((c) => c.pos.join(',') === state.vault.boss.pos.join(',')),
       'a chest is standing on the Butcher');
+  }
+});
+
+test('every vault chest is inside the Butcher\'s reach', () => {
+  // `guardCost` (src/bot/bot.js) charges the creature's whole duel against
+  // any chest within its activation radius, so what that radius covers is
+  // what the loot costs. An earlier layout left two chests outside it to
+  // grade the room; measured, those two were opened in 89.7% of vaults
+  // against 39.2% for the guarded ones and the room stopped being a
+  // barrier. One chest slipping out of reach brings that straight back.
+  for (const state of vaultFloors()) {
+    const boss = state.monsters.find((m) => m.vault);
+    for (const chest of state.chests.filter((c) => c.vault)) {
+      const away = Math.abs(chest.pos[0] - boss.pos[0]) + Math.abs(chest.pos[1] - boss.pos[1]);
+      assert(away <= boss.activation,
+        `a chest sits ${away} tiles from the Butcher, outside its reach of ${boss.activation}`);
+    }
   }
 });
 
@@ -1585,17 +1615,6 @@ test('the vault is laid out from its own door, not its rectangle', () => {
     const door = state.vault.door;
     const away = (pos) => Math.abs(pos[0] - door[0]) + Math.abs(pos[1] - door[1]);
 
-    // Split by distance from the BUTCHER, which is the quantity guardCost
-    // actually reads — not by distance from the door, which moves with the
-    // doorway's own offset along the wall.
-    const fromBoss = (pos) => Math.abs(pos[0] - boss.pos[0]) + Math.abs(pos[1] - boss.pos[1]);
-    const near = chests.filter((c) => fromBoss(c.pos) >= 6);
-    const deep = chests.filter((c) => fromBoss(c.pos) <= 5);
-    assertEq(near.length, 2, 'expected two chests out of the Butcher\'s reach');
-    assertEq(deep.length, 4, 'expected four chests inside it');
-
-    // The Butcher is at the back, not in the middle: further from the door
-    // than the room's own centre.
     assert(away(boss.pos) > away(state.vault.room.center),
       'the Butcher is no further from the door than the centre is');
 
@@ -1606,23 +1625,14 @@ test('the vault is laid out from its own door, not its rectangle', () => {
   }
 });
 
-test('two vault chests are outside the Butcher\'s reach and four are not', () => {
-  // The whole point of V7a+V7b together: `guardCost` (src/bot/bot.js)
-  // charges the occupant's entire duel against any chest within its
-  // activation radius, measured in Manhattan tiles. So the radius is what
-  // splits the room into loot bought with the fight and loot that is not,
-  // and a change to either the radius or the layout can silently collapse
-  // the room back into one all-or-nothing bet.
-  for (const state of vaultFloors()) {
-    const boss = state.monsters.find((m) => m.vault);
-    const chests = state.chests.filter((c) => c.vault);
-    const away = (c) => Math.abs(c.pos[0] - boss.pos[0]) + Math.abs(c.pos[1] - boss.pos[1]);
-
-    assertEq(chests.filter((c) => away(c) <= boss.activation).length, 4,
-      'expected four chests inside the Butcher\'s reach');
-    assertEq(chests.filter((c) => away(c) > boss.activation).length, 2,
-      'expected two chests outside it — the room has collapsed into one bet');
-  }
+test('the approach to the vault is a corridor, not a doorstep', () => {
+  // D — a longer approach hides nothing (sight passes through walls) but it
+  // makes ENTERING cost more without making the creature heavier, which
+  // matters because a heavier creature is refused rather than fought.
+  const lengths = vaultFloors().map((s) => s.vault.tunnel);
+  const long = lengths.filter((n) => n >= 4).length;
+  assert(long >= Math.ceil(lengths.length * 0.6),
+    `only ${long}/${lengths.length} vaults got a corridor of 4 tiles or more`);
 });
 
 test('the Butcher cannot be woken from outside its room', () => {

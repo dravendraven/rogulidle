@@ -36,6 +36,17 @@ const MARGIN = 1;
 // 8 at the worst, so this is the observed maximum rather than a preference.
 const MAX_TUNNEL = 8;
 
+// And how SHORT it may be. A longer approach does not hide anything — sight
+// here is by distance and passes through walls, measured, so the hero sees
+// the occupant from the doorway on every seed either way. What it does is
+// make entering cost more without making the creature heavier, which
+// matters because a heavier creature is simply refused by the bot rather
+// than fought. The frontier gate charges the danger accumulated along the
+// route, so every extra tile inside the menace field widens the gap between
+// a cautious hero and a greedy one. A preference, not a requirement: the
+// shortest tunnel available still wins when nothing reaches this.
+const MIN_TUNNEL = 4;
+
 const WALKABLE = ['room', 'corridor', 'door'];
 
 function inBounds(map, x, y) {
@@ -94,6 +105,21 @@ function freeRectangles(map, size) {
 // A tunnel that lands ON the spine path always beats one that does not,
 // however much longer it is: being walked past is the point, and length is
 // only the tie-break within each class.
+
+// Is `a` a better approach than `b`? Long enough beats too short, and then
+// the shortest of the long-enough ones wins so the corridor lands near
+// MIN_TUNNEL rather than sprawling. Among tunnels that all fall short, the
+// longest is closest to what was wanted. `b` null means anything beats it.
+function betterTunnel(a, b) {
+  if (!b) return true;
+  const aLong = a.tunnel.length >= MIN_TUNNEL;
+  const bLong = b.tunnel.length >= MIN_TUNNEL;
+  if (aLong !== bLong) return aLong;
+  return aLong
+    ? a.tunnel.length < b.tunnel.length
+    : a.tunnel.length > b.tunnel.length;
+}
+
 function tunnelFrom(map, rect, size, onPath) {
   const [x, y] = rect;
   const exits = [];
@@ -116,8 +142,8 @@ function tunnelFrom(map, rect, size, onPath) {
         if (tunnel.length) {
           const hit = { tunnel, join: [cx, cy] };
           if (onPath.has(cx + ',' + cy)) {
-            if (!best || tunnel.length < best.tunnel.length) best = hit;
-          } else if (!offSpine || tunnel.length < offSpine.tunnel.length) {
+            if (betterTunnel(hit, best)) best = hit;
+          } else if (betterTunnel(hit, offSpine)) {
             offSpine = hit;
           }
         }
@@ -176,32 +202,36 @@ export function orientationOf(room, door, size = VAULT_SIZE) {
   return (d, l) => [room.x2 - d, room.y1 + l];                          // door east
 }
 
-// Where the occupant stands and where its chests sit, in the order the
-// chests are filled: the two by the door first, then the four at the back.
+// Where the occupant stands and where its chests sit.
 //
-// THE ROOM IS GRADED RATHER THAN UNIFORM, and the grading is what the
-// pillars were wrongly expected to provide. The occupant stands two rows
-// off the far wall instead of dead centre, and `guardCost` charges its
-// whole duel against every chest within its chase radius — so the four at
-// the back are bought with the fight and the two by the door are not.
-// Where the boss's radius falls is therefore a layout decision, not only a
-// balance one: at radius 5 the near pair sits 9 tiles away and the far four
-// sit 3 to 4.
+// EVERY CHEST IS INSIDE ITS REACH, and that is the whole design rather than
+// a detail. `guardCost` (src/bot/bot.js) charges the creature's entire duel
+// against any chest within its activation radius, so what the radius covers
+// decides what the loot costs. An earlier version put two chests by the
+// door, outside the reach, meaning to offer a graded room — measured, they
+// were opened in 89.7% of vaults against 39.2% for the guarded ones, and
+// the room stopped being a barrier at all. Nearly every hero skimmed the
+// free pair and left.
 //
-// One consequence is deliberate: a hero can take the two near chests and
-// leave. That is a small free lunch bought on purpose, because a room that
-// is all-or-nothing gives the bot one decision and a graded one gives it
-// three — walk past, skim the door, or commit.
+// So the room is one bet again, deliberately. The eight sit in three rows
+// around the occupant — two tiles in front, either side of it, and two
+// behind — none further than four tiles from it, comfortably inside the
+// radius with room for that value to move without silently freeing a chest.
+//
+// The occupant still stands at the BACK rather than dead centre: a hero
+// that wants any of this has to cross the room to reach it, which is what
+// makes entering the decision instead of passing the door.
 export function layoutOf(room, door, size = VAULT_SIZE) {
   const at = orientationOf(room, door, size);
   const last = size - 1;
   const mid = Math.trunc(last / 2);
+  const depth = size - 3;
   return {
-    boss: at(size - 3, mid),
+    boss: at(depth, mid),
     chests: [
-      at(0, 1), at(0, last - 1),                       // just inside the door
-      at(last, 2), at(last, last - 2),                 // behind the occupant
-      at(size - 3, 1), at(size - 3, last - 1),         // either side of it
+      at(depth - 2, 2), at(depth - 2, mid), at(depth - 2, last - 2),  // in front
+      at(depth, 1), at(depth, last - 1),                              // flanking
+      at(depth + 2, 2), at(depth + 2, mid), at(depth + 2, last - 2),  // behind
     ],
   };
 }
@@ -265,8 +295,8 @@ export function stampVault(map, path, size = VAULT_SIZE) {
     if (!tunnel) continue;
     const slot = { rect, tunnel };
     if (tunnel.onSpine) {
-      if (!chosen || tunnel.tunnel.length < chosen.tunnel.tunnel.length) chosen = slot;
-    } else if (!offSpine || tunnel.tunnel.length < offSpine.tunnel.tunnel.length) {
+      if (betterTunnel(tunnel, chosen && chosen.tunnel)) chosen = slot;
+    } else if (betterTunnel(tunnel, offSpine && offSpine.tunnel)) {
       offSpine = slot;
     }
   }
@@ -297,6 +327,11 @@ export function stampVault(map, path, size = VAULT_SIZE) {
     door: room.doors[0],
     join: tunnel.join,
     onSpine: tunnel.onSpine,
+    // How long the approach came out. Read by the tests and worth having on
+    // the state: it is the one part of the room's shape the scan cannot
+    // guarantee, so a floor where it came out short is a floor where the
+    // vault is cheaper to enter than intended.
+    tunnel: tunnel.tunnel.length,
   };
 }
 
