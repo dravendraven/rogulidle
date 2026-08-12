@@ -914,3 +914,80 @@ rather than hiding anything.
 graded layout left two, and they were opened in 89.7% of vaults against
 39.2% for the guarded ones. The test now asserts every chest sits inside
 the radius, because that margin is what the whole barrier rests on.
+
+## M44 — `speed`, and why the bot is not allowed to price it, 2026-08-12
+
+The vault's last problem was that nobody lost the fight. The room was
+entered by the strong and refused by the weak, and the strong won ~100% of
+what they took. The owner wanted the opposite: most heroes in, most heroes
+dead, ~20% winning.
+
+### The dead end that forced a new property
+
+**Whether the bot ENTERS a fight and whether it SURVIVES one are the same
+number.** Entry is `duelCost <= sideAppetite × fightMargin × ehp`. Survival
+is close to `duelCost / ehp`. So every knob that makes a fight deadlier
+makes the bot refuse it rather than lose it — measured three times across
+very different Butchers, where the kill rate barely moved (32.4% / 31.5% /
+35.6%).
+
+**And reshaping the creature cannot separate them.** Swept every (hp, xp)
+pair whose `duelCost` lands within 1 hp of the shipped Butcher's — the bot
+treats all of them as the identical decision — at 6000 duels each:
+
+| hp | xp | biggest blow | hero wins | turns |
+|---|---|---|---|---|
+| 24 | 4 | 3 | 54% | 11.5 |
+| 16 | 6 | 5 | 47% | 7.7 |
+| 12 | 8 | 7 | 47% | 5.8 |
+| 9 | 11 | 10 | 46% | 4.3 |
+
+**Flat.** A bigger bite does not kill more at equal expected cost; it only
+shortens the fight. Variance compresses both tails toward 50% — the poor
+hero's odds rise from 4% to 12% and the rich hero's fall from 90% to 72%.
+
+### `speed` is the only lever found that separates them
+
+A creature that acts twice a turn lands about twice the blows, and
+`duelCost` models one blow per hero blow. So the fight costs double what it
+is priced at: entry barely moves, survival halves.
+
+Measured, empty-handed, 200 runs, at `activation` 10 / hp 12 / xp 5 /
+speed 2:
+
+| `sideAppetite` | enters | wins the fights it takes |
+|---|---|---|
+| 0 | 3.4% | — |
+| **0.5** | **43.5%** | **22%** |
+| 1.0 | 69.8% | 19% |
+| 2.0 | 84.6% | 19% |
+
+**hp governs entry, xp and speed govern survival**, and the two can now be
+set independently: hp is what `duelCost` reads, speed is what it does not.
+Going from xp 4 to xp 5 at the same hp dropped the win rate 40% → 22% while
+entry only fell 52% → 43%.
+
+### The uncomfortable part, stated rather than buried
+
+**This is a blind spot the design leans on.** `speed` is exposed in Belief —
+it is a visible property in the same class as `xp`, and hiding it would be
+using the fog on something the hero can plainly see — and `duelCost`
+deliberately does not read it. One word would "fix" that and would restore
+the coupling above, which is why the function now carries twenty lines
+explaining why the word is wrong. A test pins it.
+
+### What the room now is
+
+At the shipped dials: 73.5% of runs reach floor 4, 43.5% of those enter,
+9.5% kill the Butcher, 34% die to it. **Floor 4 kills 45.6% against 8.7%
+with no vault** — it is the wall the design asked for.
+
+**And winning pays: 8.9 floors against 6.6 for those who avoid it**, with
+71% of winners reaching floor 9 against 12%. Selection explains part of that
+— the bot enters when it can afford to — but the honest comparison, against
+`sideAppetite` 0 where nobody enters at all (mean 7.0, 20% reaching 9), still
+leaves a real gap.
+
+**Nobody opens a chest without killing it**: the "touched but did not kill"
+group is empty at every appetite. All eight chests sit inside the reach, so
+the room is genuinely one bet.
