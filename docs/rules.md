@@ -126,6 +126,20 @@ faixa do andar, com chance crescente na profundidade.
 
 **Todo baú tem criatura por perto**, espinha incluída. Loot não é de graça.
 
+**O vault (§2) tem um ocupante fixo.** Uma criatura só dele, que **não está
+na tabela de tiers** — não é sorteada, não escala com o andar, não é
+atingida pela cauda fora de profundidade e não é elevada por nada. Fica no
+centro da sala, entre os pilares.
+
+Ela é **muita vida contra mordida média**, e isso é o desenho: uma criatura
+de mordida alta resolveria o duelo em três turnos e poderia matar um herói
+cheio de um golpe. Esta não consegue — o maior golpe possível dela é menor
+que o hp cheio do herói — e o duelo dura o bastante para virar dos dois
+lados.
+
+**A massa dela não conta como ameaça do andar.** O andar não a exige de
+ninguém: quem passa reto não a encontra.
+
 ### Como elas se comportam
 
 **Só perseguem.** Nunca fogem, nunca vagam, nunca pegam item.
@@ -201,6 +215,11 @@ de bicho fraco, e abaixo de um limiar ela é removida do sorteio, não apenas
 tornada improvável.
 
 **Baú guarda armadura e poção.**
+
+**O ocupante do vault (§3) larga o machado, sempre.** É o único drop
+garantido do jogo — não passa pela chance de largar algo nem pelo sorteio de
+qual arma. É o que faz a recompensa pagar o risco em vez de empilhar uma
+segunda aposta sobre a primeira.
 
 **Nem todo baú tem algo.** A chance varia com a posição no mapa, e a
 profundidade compra qualidade melhor, não só mais quantidade.

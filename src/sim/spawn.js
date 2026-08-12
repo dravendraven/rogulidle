@@ -9,8 +9,8 @@ import {
   ITEM_TABLE, MONSTER_COUNT,
   MONSTER_DIFFICULTY_SCALE, MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE,
   MONSTER_WEIGHTS, PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE,
-  SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE, VAULT_LEVEL,
-  WEAPON_AXE_MIN_TIER,
+  SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE, VAULT_BOSS,
+  VAULT_BOSS_DROP, VAULT_LEVEL, WEAPON_AXE_MIN_TIER,
 } from './balance.js';
 import {
   draw, drawChance, drawInt, drawLogUniform, drawPick, drawWeighted,
@@ -818,6 +818,45 @@ export function populate(state, map, counts = {}) {
       nearest.edge = edgeAt(target);
       // side unchanged by construction — target and monster share a zone.
     }
+  }
+
+  // 9. M43 — the vault's occupant, placed LAST and for a reason at every
+  // earlier step: M3's rare reskin picks a random victim and would turn the
+  // Butcher into a t-rex, M14 can relocate the nearest creature to the
+  // shrine, and M15 can drag one off to guard a chest. None of them can
+  // reach a creature that does not exist yet. Nothing here draws.
+  //
+  // It is not a MONSTER_TABLE row and never becomes one — see balance.js.
+  // `side` is READ from the zones rather than asserted, so if the room ever
+  // stopped being a dead end this would say so instead of hiding it.
+  if (state.vault) {
+    const pos = state.vault.room.center.slice();
+    const boss = counts.vaultBoss ?? VAULT_BOSS;
+    const dropName = counts.vaultBossDrop ?? VAULT_BOSS_DROP;
+    const template = ITEM_TABLE.find((item) => item.name === dropName);
+
+    const butcher = {
+      id: nextId(state),
+      name: boss.name,
+      emoji: boss.emoji,
+      pos,
+      hp: boss.hp,
+      hpMax: boss.hp,
+      xp: boss.xp,
+      activation: boss.activation,
+      dead: false,
+      edge: edgeAt(pos),
+      side: zones.isSide(pos),
+      // The only guaranteed drop in the game — no `dropChance` roll, which
+      // is what makes the reward worth the walk rather than a second
+      // gamble stacked on the first.
+      drop: template ? makeItem(state, template, pos) : null,
+      // Read by spineShare() and threatMass(): refusable mass is not part
+      // of the floor's own pressure and must not be counted into it.
+      vault: true,
+    };
+    state.monsters.push(butcher);
+    state.vault.boss = butcher;
   }
 
   // Items lying loose on the floor. Starts empty: everything enters this list

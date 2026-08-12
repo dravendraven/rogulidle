@@ -5,7 +5,8 @@ import {
   CHEST_GUARD_RADIUS, EARLY_CHEST_QUALITY_BOOST, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP,
   PLAYER_HP, PLAYER_XP, ROOM_HEIGHT, ROOM_WIDTH, SHRINE_DISTANCE_SHARE,
-  STARTING_ITEMS, TURN_BUDGET, VAULT_LEVEL, VAULT_SIZE, WEAPON_AXE_MIN_TIER,
+  STARTING_ITEMS, TURN_BUDGET, VAULT_BOSS, VAULT_LEVEL, VAULT_SIZE,
+  WEAPON_AXE_MIN_TIER,
 } from '../src/sim/balance.js';
 import {
   driveTurns, newGame, playGame, replayGame,
@@ -25,7 +26,7 @@ import {
 } from '../src/sim/dungeon.js';
 import {
   expectedFloorMass, floorParams, floorStrength, makeFloorPlan, monstersAt,
-  outOfDepthChanceAt, saturatedAt,
+  outOfDepthChanceAt, saturatedAt, threatMass,
   CLUSTER_SIZE, MONSTERS_BASE, MONSTER_GROWTH,
   MONSTER_STRENGTH, POTION_SCARCITY, WEAPON_SCARCITY,
 } from '../src/sim/difficulty.js';
@@ -1471,11 +1472,12 @@ test('stamping the vault consumes no randomness', () => {
     assertEq(withVault.rng.combat, without.rng.combat, 'the combat stream moved');
     assertEq(withVault.shrine.pos.join(','), without.shrine.pos.join(','),
       'the shrine moved');
-    assertEq(
-      withVault.monsters.map((m) => `${m.name}@${m.pos}`).join('|'),
-      without.monsters.map((m) => `${m.name}@${m.pos}`).join('|'),
-      'the roster changed',
-    );
+    // The ORDINARY roster: the Butcher is placed after every draw is spent,
+    // so it is an addition, not a shift, and comparing it here would only
+    // be comparing the vault to its own absence.
+    const roster = (s) => s.monsters.filter((m) => !m.vault)
+      .map((m) => `${m.name}@${m.pos}`).join('|');
+    assertEq(roster(withVault), roster(without), 'the roster changed');
   }
 });
 
@@ -1485,6 +1487,7 @@ test('the ordinary roster and chests stay out of the vault', () => {
   // that would catch that ordering being changed.
   for (const state of vaultFloors()) {
     for (const monster of state.monsters) {
+      if (monster.vault) continue;                 // its own occupant belongs
       assert(!inVault(state.vault, ...monster.pos),
         `${monster.name} spawned inside the vault`);
     }
@@ -1493,6 +1496,71 @@ test('the ordinary roster and chests stay out of the vault', () => {
     }
     assert(!inVault(state.vault, ...state.player.pos), 'the hero started in the vault');
     assert(!inVault(state.vault, ...state.shrine.pos), 'the exit is inside the vault');
+  }
+});
+
+test('the Butcher stands in the vault, and only there', () => {
+  for (const state of vaultFloors()) {
+    const bosses = state.monsters.filter((m) => m.vault);
+    assertEq(bosses.length, 1, 'expected exactly one vault creature');
+
+    const boss = bosses[0];
+    assertEq(boss.name, VAULT_BOSS.name, 'wrong occupant');
+    assertEq(boss.hp, VAULT_BOSS.hp, 'wrong hp');
+    assertEq(boss.xp, VAULT_BOSS.xp, 'wrong xp');
+    assert(inVault(state.vault, ...boss.pos), 'the Butcher is not in its room');
+    assertEq(boss.pos.join(','), state.vault.room.center.join(','),
+      'the Butcher should stand at the centre, where the pillars flank it');
+    assert(boss.side, 'the Butcher came out marked as mandatory');
+  }
+
+  // And nowhere else in the run: no other floor may grow one.
+  for (const level of [1, 2, 3, 5, 8, 10]) {
+    if (level === VAULT_LEVEL) continue;
+    for (const seed of vaultSeeds) {
+      const state = newGame(seed, floorPlan(level));
+      assert(!state.monsters.some((m) => m.vault),
+        `floor ${level} has a vault creature`);
+      assert(!state.monsters.some((m) => m.name === VAULT_BOSS.name),
+        `floor ${level} rolled a Butcher out of the ordinary table`);
+    }
+  }
+});
+
+test('the Butcher always carries the axe', () => {
+  // The only guaranteed drop in the game — no dropChance roll in front of
+  // it. If this ever becomes a gamble, the reward stops paying for the risk.
+  for (const state of vaultFloors()) {
+    const boss = state.monsters.find((m) => m.vault);
+    assert(boss.drop, 'the Butcher carries nothing');
+    assertEq(boss.drop.name, 'axe', 'the Butcher carries the wrong item');
+    assertEq(boss.drop.dmgMin, ITEM_TABLE.find((i) => i.name === 'axe').dmgMin,
+      'the dropped axe lost the damage floor that makes it the real upgrade');
+  }
+});
+
+test('the Butcher is not in the tier table and cannot be drawn', () => {
+  // It must never become a MONSTER_TABLE row: the table is a ladder that
+  // depth indexes into, so a row here would appear on deep floors by
+  // accident, be reskinned by the out-of-depth roll, and be scaled.
+  assert(!MONSTER_TABLE.some((t) => t.name === VAULT_BOSS.name),
+    'the Butcher leaked into the tier table');
+});
+
+test('the vault creature is excluded from what the floor demands', () => {
+  // Its mass (hp x (xp-1)) outweighs a whole ordinary floor-4 roster, so
+  // counting it would read as the floor hiding everything in a side room,
+  // and would break the monotonic-mass guarantee. Refusable mass belongs to
+  // no zone's share.
+  for (const state of vaultFloors()) {
+    const withBoss = threatMass(state);
+    const boss = state.monsters.find((m) => m.vault);
+    const stripped = { ...state, monsters: state.monsters.filter((m) => !m.vault) };
+
+    assertEq(withBoss, threatMass(stripped), 'the Butcher counted into threat mass');
+    assertEq(spineShare(state), spineShare(stripped), 'the Butcher counted into spine share');
+    assert(boss.hpMax * (boss.xp - 1) > withBoss,
+      'the premise of this test is stale: the Butcher no longer outweighs its floor');
   }
 });
 

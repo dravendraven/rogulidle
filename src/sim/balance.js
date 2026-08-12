@@ -219,6 +219,33 @@ export const VAULT_LEVEL = 4;
 // and 11 on 90% — the size is what buys the coverage.
 export const VAULT_SIZE = 9;
 
+// GUESS — what stands in it. Deliberately NOT a MONSTER_TABLE row: the
+// table is a tier ladder that depth indexes into, and this creature is
+// never drawn, never scaled and never reskinned. Putting it in the table
+// would make it appear on deep floors by accident.
+//
+// hp 16 against xp 6 is the shape, and it was measured rather than guessed
+// (docs/project/candidates.md M43, 4000 duels a row under the real combat
+// rules). The typical floor-4 hero wins 41% of the time, a poor one 6% and
+// a rich one 80% — a spread wide enough that the outcome says something
+// about how the run went.
+//
+// MEAT, NOT BITE, and that is the design rather than a tuning accident. A
+// t-rex (hp 12, xp 10) produces almost the same win rate and reads as a
+// coin flip: bite 10 can take 9 of a full hero's 10 hp in one blow and
+// settles the duel in three turns. At xp 6 the largest possible blow is 5,
+// so it can never one-shot a hero at full health, and the fight runs about
+// ten turns with the bar moving both ways. Watchability is the reason.
+export const VAULT_BOSS = {
+  name: 'butcher', emoji: '🧌', activation: 12, xp: 6, hp: 16,
+};
+
+// GUESS — what it always leaves behind, by name from ITEM_TABLE. The only
+// guaranteed drop in the game. WEAPON_AXE_MIN_TIER is 4, which is exactly
+// VAULT_LEVEL's own ceiling, so this pulls the axe forward by about two
+// floors without putting it anywhere it could not already appear.
+export const VAULT_BOSS_DROP = 'axe';
+
 // ***** time ***** //
 
 // How many turns one TRAVERSAL may spend. Running out ends the traversal

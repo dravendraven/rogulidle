@@ -215,9 +215,14 @@ export function difficultyToParams(dial) {
 
 // What a generated floor actually demands, in the currency that predicts
 // duel cost.
+// M43 — the vault's occupant is excluded, same rule as spineShare(). This
+// function's whole job is to say what a floor DEMANDS, and a creature the
+// hero can walk past demands nothing. Including it would also break the
+// monotonic-mass guarantee below, since one authored creature outweighs
+// every ordinary one on its floor put together.
 export function threatMass(state) {
   return state.monsters
-    .filter((m) => !m.dead)
+    .filter((m) => !m.dead && !m.vault)
     .reduce((sum, m) => sum + m.hpMax * Math.max(0, m.xp - 1), 0);
 }
 

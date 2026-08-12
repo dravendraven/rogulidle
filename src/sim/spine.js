@@ -72,6 +72,12 @@ export function spineShare(state) {
   let spineMass = 0;
   let total = 0;
   for (const monster of state.monsters) {
+    // M43 — the vault's occupant is not part of the bargain this number
+    // measures. Its mass is larger than a whole ordinary floor's, so
+    // counting it would read as "the floor hid everything in a side room"
+    // when what actually happened is that one authored room was added.
+    // Refusable mass belongs to no zone's share.
+    if (monster.vault) continue;
     const mass = monster.hpMax * Math.max(0, monster.xp - 1);
     total += mass;
     if (!monster.side) spineMass += mass;

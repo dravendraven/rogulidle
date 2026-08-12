@@ -35,6 +35,8 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | | `CHEST_GUARD_RADIUS` | 8 | every chest gets a creature within this — loot is not free |
 | the authored room | `VAULT_LEVEL` | 4 | which floor carries the vault, 1-based; 0 turns it off |
 | | `VAULT_SIZE` | 9 | its side in tiles — above any generated room, so the shape says it was placed |
+| | `VAULT_BOSS` | 🧌 hp 16 / xp 6 / activation 12 | the Butcher; not a `MONSTER_TABLE` row and never drawn |
+| | `VAULT_BOSS_DROP` | `axe` | the only guaranteed drop in the game |
 
 ## Time
 
