@@ -22,8 +22,10 @@ frases:
   mais barato em hp**, caminhada e perigo incluídos.
 - **Sala lateral é a aposta:** loot guardado e luta opcional laterais são
   ignorados quando o guardião custa mais do que o apetite permite.
-- **Explora** a fronteira mais próxima enquanto o escuro ainda pode dever
-  algo (as contagens são concedidas — `rules.md` §7); **sai** pelo buraco
+- **Explora** enquanto o escuro ainda pode dever algo (as contagens são
+  concedidas — `rules.md` §7), escolhendo a fronteira pela **rota já
+  precificada** e recusando a que tenha mais perigo no caminho do que o
+  apetite permite — a mesma barra da aposta lateral. **Sai** pelo buraco
   quando nada mais vale.
 - **Mantém o objetivo atual** a menos que um novo seja claramente mais
   barato (histerese), para não vacilar entre dois quase-iguais.
@@ -36,7 +38,7 @@ frases:
 | traço | objetivo | o que faz |
 |---|---|---|
 | `fightMargin` | sobreviver | fração do hp efetivo que uma luta pode custar |
-| `sideAppetite` | chegar rico | apetite pela aposta das salas laterais (0 = nunca) |
+| `sideAppetite` | chegar rico | apetite pela aposta lateral — e por andar até o escuro caro (0 = nunca; acima de 1 arrisca mais no opcional do que no obrigatório) |
 | `stepCost` | poucos passos | quanto vale um passo em hp — mais alto = mais apressado |
 
 Um herói covarde, ganancioso ou apressado é **outro objeto de config, nunca
@@ -56,6 +58,17 @@ objectives").
 3. **Candidatos**: criaturas pagáveis (custo do duelo vem de `duelCost`),
    itens com efeito, baús — laterais filtrados pelo apetite, com o custo do
    guardião que a visita acordaria somado ao preço.
+
+   **`duelCost` não lê `velocidade`, de propósito.** Uma criatura que age
+   duas vezes por turno custa cerca do dobro do que ele paga por ela. Não é
+   descuido: entrar numa luta e sobreviver a ela são o mesmo número — o
+   portão é `duelCost ≤ barra` e a sobrevivência é ~`duelCost / hp efetivo`
+   — então tudo que deixa uma luta mais mortal faz o bot **recusá-la** em
+   vez de perdê-la. Medido sobre todos os pares (vida, xp) de mesmo
+   `duelCost`, a taxa de vitória é plana. Velocidade é a única propriedade
+   achada que move o custo real sem mover o preço, e o vault depende disso.
+   O campo **viaja no Belief** e poderia ser lido; nada o lê. Corrigir isso
+   é um ato deliberado, não uma faxina — `decisions.md`, M44.
 4. **O mais barato vence**, com histerese. Vazio o conjunto: fronteira (se
    o escuro deve algo), senão buraco.
 5. **Nunca fica parado.** Se o apetite recusou toda fronteira e nenhum

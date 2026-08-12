@@ -70,6 +70,11 @@
 </div>
 <script type="module">
   import { tripwires } from './src/analysis/check.js';
+  import { loadDialOverrides } from './src/ui/dial-overrides.js';
+  import { resolvedDefaults } from './src/ui/dials.js';
+
+  // The wires run on the SHIPPED dials, the same ones index.html plays on.
+  const dials = resolvedDefaults(await loadDialOverrides());
 
   const el = (id) => document.getElementById(id);
 
@@ -82,7 +87,7 @@
     const t0 = performance.now();
     let result;
     try {
-      result = tripwires({ runs: +el('runs').value, firstSeed: +el('seed').value });
+      result = tripwires({ runs: +el('runs').value, firstSeed: +el('seed').value, dials });
     } catch (error) {
       el('status').textContent = 'failed: ' + error.message;
       el('go').disabled = false;

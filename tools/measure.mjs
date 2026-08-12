@@ -117,16 +117,16 @@ const GENERATION = {
 // Small on purpose — it is a fidelity check, not a reading. Only the VALUES
 // are anchored; whether a wire fires is a threshold question, and moving a
 // threshold must never fail the substitution check.
-// Re-recorded from the browser twice for M43. "The gamble is dead" went
-// 0.692 -> 0.385 when the vault first landed (an authored room reshapes
-// floor 4's route), and 0.385 -> 0.556 when the vault took over the floor's
-// whole chest budget — floor 4 now places no ordinary side chests at all,
-// so they leave the denominator. The vault's OWN chests are excluded from
-// that wire in check.js: left in, they dragged it to 0.263 by being
-// correctly refused. Three runs is a fidelity check, not a reading.
+// Re-recorded from the browser whenever generation legitimately moves it.
+// Latest: the wires now run on the SHIPPED dials rather than the code
+// defaults (I3), so every value here describes the game people play. "The
+// gamble is dead" reads 1.0 at three runs because the vault floor no longer
+// places ordinary side chests and this sample meets almost none — a sample
+// artefact of runs: 3, not a defect; the wire is a fidelity anchor here, not
+// a reading. Take readings at 24+ runs from run-check.html.
 const MEASUREMENT = {
   call: { module: 'check', fn: 'tripwires', args: { runs: 3, firstSeed: 500000 } },
-  values: [0.667, 0, 0, 0, 0, 0.556],
+  values: [0.667, 0, 0, 0, 0, 1],
 };
 
 // The exact snippet that produced GENERATION, for re-recording in a browser
@@ -167,6 +167,30 @@ function fingerprint(state) {
     shrine: state.shrine.pos.join(','),
     monsters: state.monsters.map((m) => `${m.name}@${m.pos[0]},${m.pos[1]}`).join('|'),
   };
+}
+
+// The SHIPPED dials, resolved the same way `run-check.html` resolves them:
+// `dial-overrides.json` layered over the code constants, through the one
+// function that knows how that layering works. Reading a config file is
+// loading, not arithmetic — this stays a loader.
+//
+// It exists because the page and this runner reach the file differently
+// (fetch there, disk here), and `src/ui/dial-overrides.js`'s fetch of a
+// relative path silently returns {} under Node. Without this, the headless
+// numbers would describe the code defaults while the page described the
+// shipped game, and both would look fine.
+async function shippedDials() {
+  const { resolvedDefaults } = await import(moduleUrl('src/ui/dials.js'));
+  const file = path.join(REPO, 'dial-overrides.json');
+  let overrides = {};
+  if (fs.existsSync(file)) {
+    try {
+      overrides = JSON.parse(fs.readFileSync(file, 'utf8')) || {};
+    } catch {
+      overrides = {};              // same failure rule the page uses
+    }
+  }
+  return resolvedDefaults(overrides);
 }
 
 function moduleUrl(name) {
@@ -218,7 +242,7 @@ async function selftest() {
 
   // 3. a real run-check measurement reproduces, same seeds
   const mod = await import(moduleUrl(MEASUREMENT.call.module));
-  const result = mod[MEASUREMENT.call.fn](MEASUREMENT.call.args);
+  const result = mod[MEASUREMENT.call.fn]({ ...MEASUREMENT.call.args, dials: await shippedDials() });
   const got = result.tripwires.map((w) => w.value);
   const want = MEASUREMENT.values;
   const off = [];
@@ -300,6 +324,13 @@ async function main() {
       die(`arguments are not valid JSON: ${error.message}`);
     }
     callArgs = Array.isArray(parsed) ? parsed : [parsed];
+  }
+
+  // `check tripwires` describes the shipped game unless the caller says
+  // otherwise, same as the page. An explicit `dials` in the JSON args wins.
+  if (name === 'check' && exportName === 'tripwires') {
+    const given = callArgs[0] && typeof callArgs[0] === 'object' ? callArgs[0] : {};
+    callArgs = [{ dials: await shippedDials(), ...given }];
   }
 
   const started = Date.now();

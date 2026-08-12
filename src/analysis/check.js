@@ -10,14 +10,39 @@
 // modelled costs. The modelled instruments were retired for pricing the
 // fight they imagined instead of the one that happened (decisions.md).
 
-import { playDungeon, TRAVERSALS } from '../sim/dungeon.js';
+import { playDungeon, LEVELS, TRAVERSALS } from '../sim/dungeon.js';
+import { makeFloorPlan } from '../sim/difficulty.js';
 import { makeBot } from '../bot/bot.js';
 
 // One full run, the same way index.html plays it.
-function playOne(seed) {
+//
+// `dials` is the SHIPPED configuration — `dial-overrides.json` layered over
+// the code constants — and passing it is what makes these wires describe
+// the game people actually play. Left out, everything falls back to the
+// code defaults, which is a DIFFERENT GAME and has already misled this
+// project once: the backlog carried "opening deaths 0.667" as a live defect
+// for weeks while the shipped dials measured 0.247.
+//
+// It is a parameter rather than something this file loads for itself
+// because the two callers reach the file differently — `run-check.html`
+// fetches it, `tools/measure.mjs` reads it off disk — and a loader that
+// silently returns {} in one of them would put the page and the headless
+// runner on different games while both looked fine.
+function playOne(seed, dials) {
+  const plan = dials && dials.model ? makeFloorPlan(dials.model) : undefined;
   return playDungeon(seed, (floor) => makeBot({
-    monsterCount: floor.monsterCount, chestCount: floor.chests,
-  }));
+    monsterCount: floor.monsterCount,
+    chestCount: floor.chests,
+    hero: dials && dials.hero,
+    ...(dials && dials.bot),
+  }), {
+    ...(plan ? { floorPlan: plan } : {}),
+    ...(dials && dials.run ? { maxTurns: dials.run.turnBudget } : {}),
+    // The return ships off, and the analysis modules already pin the plain
+    // descent for the reason dungeon.js states — a full run would give each
+    // floor twice and average the two crossings together.
+    ...(dials && dials.run && dials.run.theReturn ? {} : { traversals: LEVELS }),
+  });
 }
 
 // The tripwires, from `runs` seeded runs starting at `firstSeed`.
@@ -28,6 +53,8 @@ function playOne(seed) {
 export function tripwires(options = {}) {
   const runs = options.runs ?? 24;
   const firstSeed = options.firstSeed ?? 500000;
+  // What the game actually ships on. See playOne.
+  const dials = options.dials;
 
   let clears = 0;
   let opening = 0;       // runs over by traversal 3
@@ -37,7 +64,7 @@ export function tripwires(options = {}) {
   let sideShut = 0;
 
   for (let i = 0; i < runs; i++) {
-    const run = playOne(firstSeed + i);
+    const run = playOne(firstSeed + i, dials);
     if (run.cleared) clears++;
     if (!run.cleared && run.depth <= 3) opening++;
     if (run.depth >= TRAVERSALS / 2) reachedTurn++;
@@ -66,6 +93,10 @@ export function tripwires(options = {}) {
   return {
     runs,
     firstSeed,
+    // Said out loud in the result, so a reading can never be quoted without
+    // it: these wires describe either the shipped game or the code
+    // defaults, and the two are not the same game.
+    shipped: Boolean(dials),
     clears,
     tripwires: [
       // "Most attempts must not end in the opening. When they do, the
