@@ -57,11 +57,6 @@ function cloneState(state) {
     // Carried through, or a hypothetical world would turn back into a real
     // one after a single step.
     sim: state.sim,
-    attackWhenAdjacent: state.attackWhenAdjacent,
-    xpFromKills: state.xpFromKills,
-    hpFromKills: state.hpFromKills,
-    weaponsWidenRoll: state.weaponsWidenRoll,
-    noPickup: state.noPickup,
     map: state.map,
     rng: { ...state.rng },
     player: {
@@ -135,9 +130,7 @@ function resolveEncounters(state, pos) {
   // lying on a chest's tile is now left alone too, which is the same rule
   // ("the hero did not enter") applied consistently.
   if (!blocked) {
-    // Loose items do not block — the player walks on and takes them. Skipped
-    // entirely under `noPickup`: the item is left exactly where it lies, as
-    // if the player had not stepped there at all.
+    // Loose items do not block — the player walks on and takes them.
     //
     // M35 — every item takes the same path, potions included. There used to
     // be a branch here that drank a potion on contact and, at full hp,
@@ -149,7 +142,7 @@ function resolveEncounters(state, pos) {
     // rules.md §5 and §10 carry the rule, decisions.md the reasoning. NOT
     // filed under rogule-spec.md §13: that list is frozen and takes no new
     // entries.
-    for (const item of (state.noPickup ? [] : itemsHere)) {
+    for (const item of itemsHere) {
       state.player.inventory.push(item);
       state.items.splice(state.items.indexOf(item), 1);
       grantArmour(state.player, item);

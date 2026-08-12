@@ -5,11 +5,10 @@
 // pool, so changing the order changes every map.
 
 import {
-  CHEST_COUNT, CHEST_DIFFICULTY_SCALE, CHEST_GUARD_RADIUS, CHEST_LOOT_RICHER_FAR,
-  CHEST_QUALITY_BY_DEPTH, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST, GUARANTEE_FIRST_WEAPON,
+  CHEST_COUNT, CHEST_DIFFICULTY_SCALE, CHEST_GUARD_RADIUS, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST,
   ITEM_TABLE, MONSTER_COUNT,
   MONSTER_DIFFICULTY_SCALE, MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE,
-  MONSTER_WEIGHTS, PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE, SIDE_ACTIVATION_CAP,
+  MONSTER_WEIGHTS, PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE,
   SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE, WEAPON_AXE_MIN_TIER,
 } from './balance.js';
 import {
@@ -182,35 +181,22 @@ export function populate(state, map, counts = {}) {
   // computed once here and reused by M13's floor and M14's guardian below,
   // rather than recomputed identically on every loop iteration.
   const ceilingIndex = Math.floor(difficultyScale * (MONSTER_TABLE.length - 1));
-  // M13 — docs/backlog.md. Share of the ceiling's own index the tier is
-  // never allowed to fall below. Zero by default (unset callers, direct
-  // populate() calls in older tooling) so this is a pure opt-in dial.
+  // The tier BAND (see balance.js): the minimum tier as a share of the
+  // floor's own ceiling index, and a signed number of whole table rows the
+  // drawn slot may sit above (or, on floor 1, must sit below) the ceiling.
+  // Both default to "no clamp" so a direct populate() call behaves like the
+  // shallowest floor.
   const tierFloorShare = counts.tierFloorShare ?? 0;
-  // M24 — docs/backlog.md. Share of the spread's own max reach (±2, from
-  // MONSTER_WEIGHTS) the tier is allowed to climb above the ceiling. Zero
-  // by default, same reasoning as tierFloorShare above — and zero is also
-  // exactly floor 1's shipped value, so an unset caller behaves like the
-  // hardest-clamped floor rather than like "no clamp at all".
-  const tierCeilingShare = counts.tierCeilingShare ?? 0;
-  // M30 — docs/backlog.md. Share of the spread's own max reach pulled BELOW
-  // the ceiling, at the shallow end only (fades to 0 by floor 2). Zero by
-  // default for the same reason tierCeilingShare is: an unset caller gets
-  // no extra cut, not "floor 1's shipped cut". Applied AFTER M24's own
-  // slack rather than combined into one expression, since floor 1 has 0 of
-  // one and up to 1 of the other — order matters when they do not cancel.
-  const earlyTierCapShare = counts.earlyTierCapShare ?? 0;
-  const rawMaxIndex = Math.min(MONSTER_TABLE.length - 1,
-    ceilingIndex + Math.floor(tierCeilingShare * 2));
+  const tierSlack = counts.tierSlack ?? 0;
+  const maxIndexOfBand = Math.min(MONSTER_TABLE.length - 1, ceilingIndex + tierSlack);
   // Needed as its own dial: piling on monsters also piles on their drops, so
   // crowding the floor arms the player as well as threatening them. Without
   // this the win rate bottoms out around 13% however many you add.
   const dropChance = counts.dropChance ?? MONSTER_DROP_CHANCE;
-  // M19 — docs/backlog.md. Floor 1 is the poorest floor under
-  // CHEST_QUALITY_BY_DEPTH (quality only comes from position, and nowhere
-  // on floor 1 is far from the entrance) at the exact moment M17 and M18
-  // made it the most dangerous one. Fades as 1/level rather than a flat
-  // bonus, so it is strongest exactly where the opening is hardest and
-  // essentially gone by the floors that were never the problem.
+  // Floor 1 is the poorest floor under quality-by-depth (nowhere on it is
+  // far from the entrance) at the exact moment it is the most dangerous.
+  // Fades as 1/level, so it is strongest exactly where the opening is
+  // hardest and essentially gone by the floors that were never the problem.
   const level = counts.level ?? 1;
   const earlyChestBoost = (counts.earlyChestQualityBoost ?? EARLY_CHEST_QUALITY_BOOST) / level;
   const scarcity = {
@@ -416,8 +402,9 @@ export function populate(state, map, counts = {}) {
     takeFree(pos);
 
     const depth = depthAt(pos, 'reward');
-    // Sweeps 10%..100% across the map; the flag decides which end is rich.
-    const emptiness = CHEST_LOOT_RICHER_FAR ? 1 - depth : depth;
+    // Sweeps 10%..100% across the map: chests FURTHER in are likelier to
+    // hold loot (our fix for spec quirk 9.3 — the original had it backwards).
+    const emptiness = 1 - depth;
     const hasLoot = drawChance(state, 'spawn', 1 - CHEST_DIFFICULTY_SCALE * emptiness);
     // Depth buys BETTER loot, not just more of it. Without this a deep chest
     // was merely likelier to hold something, and what it held was drawn from
@@ -434,8 +421,7 @@ export function populate(state, map, counts = {}) {
     // and it would start doing something the day `ITEM_TABLE` grows a
     // second armour or potion.
     const quality = Math.min(1, depth + earlyChestBoost);
-    const template = drawWeighted(state, 'spawn',
-      itemWeights(scarcity, 'chest', CHEST_QUALITY_BY_DEPTH ? quality : 0));
+    const template = drawWeighted(state, 'spawn', itemWeights(scarcity, 'chest', quality));
 
     const chest = drawPick(state, 'spawn', CHEST_TABLE);
     state.chests.push({
@@ -449,39 +435,6 @@ export function populate(state, map, counts = {}) {
       // empty slot, which is the replacement for Rogule's junk collectibles.
       drop: hasLoot && template ? makeItem(state, template, pos) : null,
     });
-  }
-
-  // 4b. M19 — docs/backlog.md, restricted by M26. A guaranteed weapon near
-  // the spawn. Gated by `GUARANTEE_FIRST_WEAPON` (balance.js) — owner
-  // request, after shipping this "structural, no flag" — so the cost of an
-  // unweighted opening can actually be measured rather than argued about.
-  // "Richer chests further in do not help a hero that dies on the way to
-  // them" — M17 put ~5 creatures on floor 1 and M18 made the bottom tier
-  // bite; an unarmed hero deals 0.83 hp/turn against 2.5 with a weapon, and
-  // that gap is what kills, not the identity of which weapon. Fires only
-  // when the flag is on and the hero is carrying none at all —
-  // floor 1, or any later floor after a run unlucky enough to still have
-  // found none — so an already-armed descent is untouched. Converts the
-  // chest nearest the spawn (never adds one — the budget is the chest
-  // count's, not this item's, same pattern as M14's guardian and M15's
-  // chest guard) to hold a weapon, never empty.
-  //
-  // M26 — docs/backlog.md. Restricted to `dagger`: the rarity the owner
-  // asked for lives in the UPGRADE (whether a kill hands over an axe), not
-  // in being armed at all. Gating the very first weapon behind a kill is
-  // circular — the hero has to win the fight the weapon exists to make
-  // winnable, which is M19's own reason for existing. No quality roll
-  // needed any more: with one candidate the outcome was already forced,
-  // this just stops computing a weight for it.
-  const guaranteeFirstWeapon = counts.guaranteeFirstWeapon ?? GUARANTEE_FIRST_WEAPON;
-  const hasWeapon = (counts.carry?.inventory ?? []).some((item) => item.dmg > 0);
-  if (guaranteeFirstWeapon && !hasWeapon && state.chests.length) {
-    const nearestChest = state.chests.reduce((closest, c) => {
-      const d = Math.abs(c.pos[0] - playerPos[0]) + Math.abs(c.pos[1] - playerPos[1]);
-      return !closest || d < closest.d ? { c, d } : closest;
-    }, null).c;
-    const dagger = ITEM_TABLE.find((item) => item.kind === 'weapon' && item.name === 'dagger');
-    nearestChest.drop = makeItem(state, dagger, nearestChest.pos);
   }
 
   // 5. Monsters, split between the mandatory route and the side rooms, and
@@ -570,11 +523,7 @@ export function populate(state, map, counts = {}) {
       hp: template.hp,
       hpMax: template.hp,
       xp: template.xp,
-      // A guard guards: capped so the room does not reach out and grab the
-      // bot from across the floor. See SIDE_ACTIVATION_CAP.
-      activation: side
-        ? Math.min(template.activation, counts.sideActivationCap ?? SIDE_ACTIVATION_CAP)
-        : template.activation,
+      activation: template.activation,
       dead: false,
       edge: edgeAt(pos),
       // Which side of the bargain this creature is on. Read by spineShare()
@@ -622,28 +571,13 @@ export function populate(state, map, counts = {}) {
     const difficulty = Math.min(1, depthAt(anchor, 'risk') * difficultyScale);
     const index = Math.floor(difficulty * (MONSTER_TABLE.length - 1));
     const rawSlot = drawWeighted(state, 'spawn', monsterWeightsAround(index));
-    // M13 — docs/backlog.md. Within-map position used to vary the tier
-    // between 0 (a rat, every floor, forever) and the floor's own ceiling.
-    // A rat is scenery — xp 1 means its damage roll is exactly `0..0` — so
-    // a tile near the entrance kept rolling one on floor 10 same as floor 1.
-    // `tierFloorShare` raises the FLOOR of the DRAWN slot, as a share of the
-    // ceiling's own index, so it can never exceed the ceiling. Clamping the
-    // final slot rather than the centre index is what actually excludes a
-    // rat once the floor is high enough — the centre index alone is not
-    // enough, since `monsterWeightsAround`'s own -2 spread still reaches
-    // down to slot 0 from a centre as high as 2.
+    // The band clamps the DRAWN slot, never the centre — the ±2 spread
+    // reaches past any clamped centre in both directions (measured mistake,
+    // twice; see balance.js "the tier band"). `Math.max(minIndex, ...)` is
+    // the same guard the closed form in difficulty.js uses, so the two
+    // cannot disagree about what the band means.
     const minIndex = Math.floor(tierFloorShare * ceilingIndex);
-    // M24 — docs/backlog.md. `difficultyScale` sets a CENTRE, not a cap —
-    // the spread above still reaches past it exactly the same way M13 found
-    // it reaches past a raised centre going down. Clamped on the DRAWN slot,
-    // same lesson, same fix, other direction.
-    //
-    // M30 — docs/backlog.md. `rawMaxIndex` is M24's own ceiling (centre plus
-    // whatever slack that floor gets); `earlyTierCapShare` then pulls it
-    // BELOW the centre at the shallow end. `Math.max(minIndex, ...)` is the
-    // same guard `expectedFloorMass`'s closed form uses — floor 1 has 0 of
-    // one and up to 1 of the other, and the two must never cross.
-    const maxIndex = Math.max(minIndex, rawMaxIndex - Math.floor(earlyTierCapShare * 2));
+    const maxIndex = Math.max(minIndex, maxIndexOfBand);
     const slot = Math.min(maxIndex, Math.max(minIndex, rawSlot));
     const template = MONSTER_TABLE[slot];
 
@@ -692,9 +626,7 @@ export function populate(state, map, counts = {}) {
     victim.hp = template.hp;
     victim.hpMax = template.hp;
     victim.xp = template.xp;
-    victim.activation = victim.side
-      ? Math.min(template.activation, counts.sideActivationCap ?? SIDE_ACTIVATION_CAP)
-      : template.activation;
+    victim.activation = template.activation;
   }
 
   // 7. M14 — docs/backlog.md. One creature guards the shrine, adjacent to
@@ -768,9 +700,7 @@ export function populate(state, map, counts = {}) {
       guardian.hp = template.hp;
       guardian.hpMax = template.hp;
       guardian.xp = template.xp;
-      guardian.activation = guardian.side
-        ? Math.min(template.activation, counts.sideActivationCap ?? SIDE_ACTIVATION_CAP)
-        : template.activation;
+      guardian.activation = template.activation;
       shrineGuardian = guardian;
     }
   }

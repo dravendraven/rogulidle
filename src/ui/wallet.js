@@ -14,16 +14,6 @@
 
 const KEY = 'rogulidle-wallet';
 
-// Off by default: die, and the balance/held items both reset to zero — the
-// owner's rule, no flag needed to get it. This flag exists so the softer
-// rule (carry through a death) can be measured against the default
-// without an argument, same pattern XP_FROM_KILLS/HP_FROM_KILLS already
-// use for a mechanic the owner wants on record both ways. Flip it here to
-// compare; nothing else in this module reads it implicitly — resetOnDeath
-// takes it as an explicit argument so a caller (or a test) is never
-// guessing which rule just ran.
-export const PERSIST_BALANCE_ACROSS_DEATH = false;
-
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
@@ -77,19 +67,10 @@ export function addHeldItem(item) {
 }
 
 // The death rule — not U6c's wiring of it into a real run ending, just the
-// rule itself, callable in isolation. `persist` takes
-// PERSIST_BALANCE_ACROSS_DEATH as its default so ordinary callers get the
-// shipped behaviour, but U6f (the end-to-end check) can pass either value
-// explicitly to compare both without touching the constant or reloading
-// the page.
-//
-// persist=false (default): balance and held items both reset to zero.
-// persist=true: both left exactly as they were — there is nothing to
-// bank on a death either way, since the run's own unbanked earnings
-// (U6b/U6c) are lost regardless of this flag. Only pre-existing state
-// survives, and only if the flag says it should.
-export function resetOnDeath(persist = PERSIST_BALANCE_ACROSS_DEATH) {
-  if (persist) return load();
+// rule itself, callable in isolation. Die, and the balance and held items
+// both reset to zero — the owner's rule. The run's own unbanked earnings
+// were already lost before this runs.
+export function resetOnDeath() {
   save({ balance: 0, heldItems: [] });
   return { balance: 0, heldItems: [] };
 }

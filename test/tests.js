@@ -2,9 +2,9 @@
 // Run them with: python tools/dev-server.py -> http://localhost:8138/run-tests.html
 
 import {
-  CHEST_GUARD_RADIUS, EARLY_CHEST_QUALITY_BOOST, HP_GRANT_AMOUNT, ITEM_TABLE,
-  MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_TAIL,
-  DUEL_SAFETY_MARGIN, PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE, STARTING_ITEMS,
+  CHEST_GUARD_RADIUS, EARLY_CHEST_QUALITY_BOOST, ITEM_TABLE,
+  MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP,
+  PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE, STARTING_ITEMS,
   TURN_BUDGET, WEAPON_AXE_MIN_TIER,
 } from '../src/sim/balance.js';
 import {
@@ -23,8 +23,8 @@ import {
 import {
   expectedFloorMass, floorParams, floorStrength, makeFloorPlan, monstersAt,
   outOfDepthChanceAt, saturatedAt,
-  CLUSTER_SIZE, DIFFICULTY_REBALANCED, MONSTERS_BASE, MONSTER_GROWTH, MONSTER_GROWTH_REBALANCED,
-  MONSTER_STRENGTH, POTION_SCARCITY, STRENGTH_GROWTH, STRENGTH_GROWTH_REBALANCED, WEAPON_SCARCITY,
+  CLUSTER_SIZE, MONSTERS_BASE, MONSTER_GROWTH,
+  MONSTER_STRENGTH, POTION_SCARCITY, WEAPON_SCARCITY,
 } from '../src/sim/difficulty.js';
 import { dangerField, makeBot } from '../src/bot/bot.js';
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
@@ -75,8 +75,6 @@ function makeState(options) {
     killedBy: null,
     nextId: 100,
     rng: { map: 1, spawn: 2, combat: options.combatSeed ?? 3 },
-    xpFromKills: options.xpFromKills,
-    hpFromKills: options.hpFromKills,
     log: [],
     map: options.map,
     player: {
@@ -682,28 +680,10 @@ test('monsters get no weapon bonus from what they carry', () => {
   assertEq(armourValue(monster), 0, 'a carried item added armour');
 });
 
-test('the player gains 1 xp every second kill, when xp growth is on', () => {
-  // The shipped default freezes xp (balance.js), so the faithful rule has to
-  // be asked for explicitly here — see the test below for the default.
-  let state = makeState({
-    map: ROOM_5x5, playerPos: [2, 2], xpFromKills: true,
-    monsters: [dummy('rat', [1, 2]), dummy('rat', [3, 2])],
-  });
-  const startXp = state.player.xp;
-
-  for (let i = 0; i < 60 && !state.monsters[0].dead; i++) state = step(state, 'left').state;
-  assert(state.monsters[0].dead, 'first rat never died');
-  assertEq(state.player.xp, startXp, 'xp rose after only one kill');
-
-  for (let i = 0; i < 60 && !state.monsters[1].dead; i++) state = step(state, 'right').state;
-  assert(state.monsters[1].dead, 'second rat never died');
-  assertEq(state.player.xp, startXp + 1, 'xp did not rise on the second kill');
-});
-
-test('by default killing does not raise xp at all', () => {
+test('killing never raises xp', () => {
   // Owner decision: the hero's power comes from gear and potions only, so
-  // the damage die never grows. Guards the shipped default, since the rule
-  // above can pass while this one silently flips.
+  // the damage die never grows. The faithful rule (+1 xp every second
+  // kill) was removed outright — decisions.md has what it measured.
   let state = makeState({
     map: ROOM_5x5, playerPos: [2, 2],
     monsters: [dummy('rat', [1, 2]), dummy('rat', [3, 2])],
@@ -717,36 +697,9 @@ test('by default killing does not raise xp at all', () => {
   assertEq(state.player.xp, startXp, 'xp grew despite the default being off');
 });
 
-test('the player gains max AND current hp every second kill, when hp-from-kills is on', () => {
-  // OFF by default (M6 adoption reversed, docs/backlog.md, ca5c6f9): M7 was
-  // expected to be next when this was adopted provisionally; the owner
-  // picked M9 instead, so the flag has to be asked for explicitly here —
-  // see the test below for the default.
-  let state = makeState({
-    map: ROOM_5x5, playerPos: [2, 2], hpFromKills: true,
-    monsters: [dummy('rat', [1, 2]), dummy('rat', [3, 2])],
-  });
-  const startHp = state.player.hp;
-  const startMax = state.player.hpMax;
-
-  for (let i = 0; i < 60 && !state.monsters[0].dead; i++) state = step(state, 'left').state;
-  assert(state.monsters[0].dead, 'first rat never died');
-  assertEq(state.player.hpMax, startMax, 'hpMax rose after only one kill');
-  assertEq(state.player.hp, startHp, 'hp rose after only one kill');
-
-  for (let i = 0; i < 60 && !state.monsters[1].dead; i++) state = step(state, 'right').state;
-  assert(state.monsters[1].dead, 'second rat never died');
-  assertEq(state.player.hpMax, startMax + HP_GRANT_AMOUNT,
-    'hpMax did not rise by HP_GRANT_AMOUNT on the second kill');
-  assertEq(state.player.hp, startHp + HP_GRANT_AMOUNT,
-    'current hp did not rise by HP_GRANT_AMOUNT on the second kill — a ceiling '
-    + 'grant with no matching current-hp grant would not move the buffer');
-});
-
-test('by default killing does not raise hp at all', () => {
-  // Guards the shipped default, since the rule above can pass while this
-  // one silently flips — it did once, when step.js's cloneState dropped the
-  // override after the first turn.
+test('killing never raises hp or hpMax', () => {
+  // The kill-funded heal (M6) was removed with its flag; decisions.md has
+  // the sweep that reversed it.
   let state = makeState({
     map: ROOM_5x5, playerPos: [2, 2],
     monsters: [dummy('rat', [1, 2]), dummy('rat', [3, 2])],
@@ -758,29 +711,8 @@ test('by default killing does not raise hp at all', () => {
   for (let i = 0; i < 60 && !state.monsters[1].dead; i++) state = step(state, 'right').state;
 
   assert(state.monsters[0].dead && state.monsters[1].dead, 'the rats did not die');
-  assertEq(state.player.hpMax, startMax, 'hpMax grew despite hpFromKills being off');
-  assertEq(state.player.hp, startHp, 'hp grew despite hpFromKills being off');
-});
-
-test('the hp grant never widens the gap between hp and hpMax', () => {
-  // Both bars move by the SAME amount on the same kill, in the same step of
-  // playerAttacks — a hero at full health before the grant is at full
-  // health after it, never left freshly "damaged" relative to a ceiling
-  // that just moved out from under them. Enabled explicitly rather than
-  // relying on the default — this test is about the grant's shape, and
-  // should keep meaning the same thing whichever way the default flips.
-  let state = makeState({
-    map: ROOM_5x5, playerPos: [2, 2], hpFromKills: true,
-    monsters: [dummy('rat', [1, 2]), dummy('rat', [3, 2])],
-  });
-  assertEq(state.player.hp, state.player.hpMax, 'fixture did not start at full health');
-
-  for (let i = 0; i < 60 && !state.monsters[0].dead; i++) state = step(state, 'left').state;
-  for (let i = 0; i < 60 && !state.monsters[1].dead; i++) state = step(state, 'right').state;
-
-  assertEq(state.player.hp, state.player.hpMax,
-    'a full-health hero fell out of sync with its own ceiling after two kills');
-  assert(state.player.hpMax > PLAYER_HP, 'the grant never fired, so this test proved nothing');
+  assertEq(state.player.hpMax, startMax, 'hpMax grew from kills');
+  assertEq(state.player.hp, startHp, 'hp grew from kills');
 });
 
 test('a dead monster drops what it carried', () => {
@@ -1431,84 +1363,6 @@ test('the early-chest quality boost is inert now that chests never hold a weapon
   }
 });
 
-test('an unarmed hero always finds a weapon in the nearest chest, when the guarantee is on', () => {
-  // M29 turned GUARANTEE_FIRST_WEAPON off by default (softened floor 1
-  // through generation instead — see MONSTERS_BASE), so this now checks
-  // the MECHANISM on request rather than the shipped default. The default
-  // itself is checked by 'the guarantee is off by default since M29' below.
-  for (let seed = 0; seed < 40; seed++) {
-    const state = newGame(950000 + seed, { ...floorPlan(1), guaranteeFirstWeapon: true });
-    if (!state.chests.length) continue;
-    const nearest = state.chests.reduce((closest, c) => {
-      const d = Math.abs(c.pos[0] - state.player.pos[0]) + Math.abs(c.pos[1] - state.player.pos[1]);
-      return !closest || d < closest.d ? { c, d } : closest;
-    }, null).c;
-    assert(nearest.drop && nearest.drop.dmg > 0,
-      `seed ${seed}: the nearest chest did not hold a weapon for an unarmed hero with the guarantee on`);
-  }
-});
-
-test('the guarantee is off by default since M29', () => {
-  // The other half — an unarmed hero's nearest chest is no longer forced,
-  // so across enough seeds at least one must come up without a weapon
-  // (M26 also means the ordinary chest roll never holds one either, so
-  // this is really checking "not always", the strongest true claim).
-  let sawNonWeapon = false;
-  for (let seed = 0; seed < 40; seed++) {
-    const state = newGame(950000 + seed, floorPlan(1)); // no override -> shipped default
-    if (!state.chests.length) continue;
-    const nearest = state.chests.reduce((closest, c) => {
-      const d = Math.abs(c.pos[0] - state.player.pos[0]) + Math.abs(c.pos[1] - state.player.pos[1]);
-      return !closest || d < closest.d ? { c, d } : closest;
-    }, null).c;
-    if (!nearest.drop || !nearest.drop.dmg) { sawNonWeapon = true; break; }
-  }
-  assert(sawNonWeapon, 'the nearest chest held a weapon every seed even with no override — the default is not off');
-});
-
-test('an armed hero does not get the nearest chest forced into a weapon', () => {
-  const carry = {
-    hp: 8, hpMax: 10, armour: 0, xp: 1,
-    inventory: [{ id: 'w1', name: 'axe', dmg: 2 }], kills: [], xpEarned: 0,
-  };
-  let sawNonWeapon = false;
-  for (let seed = 0; seed < 40; seed++) {
-    const state = newGame(951000 + seed, { ...floorPlan(2), carry });
-    if (!state.chests.length) continue;
-    const nearest = state.chests.reduce((closest, c) => {
-      const d = Math.abs(c.pos[0] - state.player.pos[0]) + Math.abs(c.pos[1] - state.player.pos[1]);
-      return !closest || d < closest.d ? { c, d } : closest;
-    }, null).c;
-    if (!nearest.drop || !nearest.drop.dmg) { sawNonWeapon = true; break; }
-  }
-  assert(sawNonWeapon,
-    'the nearest chest held a weapon on every seed even with an armed hero — the guard is not gated on carry');
-});
-
-test('GUARANTEE_FIRST_WEAPON off leaves the nearest chest to the ordinary roll', () => {
-  // Owner request: M19 shipped "structural, no flag" — GUARANTEE_FIRST_WEAPON
-  // (balance.js) is the opt-out, gating step 4b in spawn.js. This does not
-  // assert the ordinary roll never HAPPENS to hand out a weapon (chests no
-  // longer draw weapons at all since M26 — see 'the early-chest quality
-  // boost is inert' above); it asserts the guarantee no longer FORCES one,
-  // by checking across seeds that at least one unarmed opening now goes
-  // without — the same shape 'an armed hero does not get the nearest chest
-  // forced into a weapon' already uses.
-  let sawNonWeapon = false;
-  for (let seed = 0; seed < 40; seed++) {
-    const state = newGame(952000 + seed,
-      { ...floorPlan(1), guaranteeFirstWeapon: false });
-    if (!state.chests.length) continue;
-    const nearest = state.chests.reduce((closest, c) => {
-      const d = Math.abs(c.pos[0] - state.player.pos[0]) + Math.abs(c.pos[1] - state.player.pos[1]);
-      return !closest || d < closest.d ? { c, d } : closest;
-    }, null).c;
-    if (!nearest.drop || !nearest.drop.dmg) { sawNonWeapon = true; break; }
-  }
-  assert(sawNonWeapon,
-    'the nearest chest held a weapon on every seed even with the guarantee switched off');
-});
-
 test('quality never changes how often a chest is empty', () => {
   // Quality tilts WHICH item comes out; scarcity alone decides whether one
   // comes out at all. If these ever couple, the scarcity dials stop meaning
@@ -1604,21 +1458,6 @@ test('weapons no longer come from the ordinary chest draw', () => {
       assert(!state.chests.some((c) => c.drop && c.drop.dmg),
         `floor ${level} seed ${seed}: a chest held a weapon`);
     }
-  }
-});
-
-test('M19\'s guarantee only ever hands over a dagger', () => {
-  // M29 turned the guarantee off by default — forced on here to check the
-  // mechanism itself still behaves (never an axe) when it does fire.
-  for (let seed = 0; seed < 40; seed++) {
-    const state = newGame(962000 + seed, { ...floorPlan(1), guaranteeFirstWeapon: true });
-    if (!state.chests.length) continue;
-    const nearest = state.chests.reduce((closest, c) => {
-      const d = Math.abs(c.pos[0] - state.player.pos[0]) + Math.abs(c.pos[1] - state.player.pos[1]);
-      return !closest || d < closest.d ? { c, d } : closest;
-    }, null).c;
-    assert(nearest.drop && nearest.drop.name === 'dagger',
-      `seed ${seed}: the guaranteed weapon was ${nearest.drop && nearest.drop.name}, not dagger`);
   }
 });
 
@@ -1734,19 +1573,6 @@ test('spread does not break determinism', () => {
   assertEq(JSON.stringify(a.monsters), JSON.stringify(b.monsters), 'rosters differ');
 });
 
-// ***** the strength ramp is an instrument, and must stay off ***** //
-
-test('the strength ramp is a no-op at its shipped value', () => {
-  // It exists to be swept, not to be shipped. If the default ever drifts off
-  // 1.0 every measurement in balance.md silently stops describing the game.
-  assertEq(STRENGTH_GROWTH, 1, 'STRENGTH_GROWTH is no longer off by default');
-  for (let level = 0; level < 10; level++) {
-    assertEq(floorStrength(level), MONSTER_STRENGTH,
-      `floor ${level + 1} strength drifted from the flat value`);
-  }
-  assertEq(saturatedAt({}, 10), null, 'a flat ramp cannot saturate');
-});
-
 test('saturation is reported at the floor the table actually runs out', () => {
   // 0.35 x g^(N-1) >= 1 is where `min(1, depth * strength)` stops meaning
   // anything and the ramp dies. A sweep that does not know this is measuring
@@ -1756,21 +1582,6 @@ test('saturation is reported at the floor the table actually runs out', () => {
   assert(at !== null, 'a steep ramp should saturate inside ten floors');
   assert(floorStrength(at - 1, fast) >= 1, 'reported floor is not saturated');
   assert(floorStrength(at - 2, fast) < 1, 'saturation was reported a floor late');
-});
-
-// ***** M7 — the difficulty rebalance, ADOPTED (docs/backlog.md M7, Review 2) ***** //
-
-test('the rebalance is adopted at its shipped value', () => {
-  // Mirrors the strength-ramp guard above, flipped: DIFFICULTY_REBALANCED
-  // is now the shipped default, and floorParams should read the rebalanced
-  // constants at every level, not the pre-M7 ones.
-  assertEq(DIFFICULTY_REBALANCED, true, 'DIFFICULTY_REBALANCED is no longer adopted by default');
-  for (let level = 0; level < 10; level++) {
-    const p = floorParams(level);
-    assertEq(p.clusterSize, CLUSTER_SIZE, `floor ${level + 1} did not use the adopted cluster size`);
-    assertEq(p.monsters, monstersAt(MONSTERS_BASE, MONSTER_GROWTH_REBALANCED, level),
-      `floor ${level + 1} did not use the rebalanced count growth`);
-  }
 });
 
 test('the rebalanced constants hold the challenge budget, read from the generator itself', () => {
@@ -1800,10 +1611,9 @@ test('the rebalanced constants hold the challenge budget, read from the generato
   // to four decimals, while the fit moves. Same quantity on a clean
   // geometric ladder; strictly more of the ladder read.
   //
-  // Reference and band are UNCHANGED from the proxy version. `MONSTER_GROWTH`
-  // is the pre-M7 per-floor cost growth — strength was flat then, so cost
-  // growth WAS count growth — and the tolerance is the same 15% M7 shipped
-  // with. Only the numerator got honest.
+  // The reference is the calibrated pre-M7 cost climb — ~1.3 per floor,
+  // when strength was flat and cost growth WAS count growth — and the
+  // tolerance is the same 15% M7 shipped with.
   const mass = [];
   for (let level = 0; level < 10; level++) mass.push(expectedFloorMass(level));
   // Log-linear fit over all ten floors (the old shape.js growthOf, inlined
@@ -1819,17 +1629,17 @@ test('the rebalanced constants hold the challenge budget, read from the generato
     den += (i - meanX) ** 2;
   }
   const growth = Math.exp(num / den);
-  const ratio = growth / MONSTER_GROWTH;
+  const COST_GROWTH_BUDGET = 1.3;
+  const ratio = growth / COST_GROWTH_BUDGET;
   assert(Math.abs(ratio - 1) < 0.15,
     `generated mass climbs x${growth.toFixed(4)}/floor, ${(100 * (ratio - 1)).toFixed(1)}% off the shipped budget`);
 });
 
-test('the rebalanced strength ramp does not saturate before floor 10', () => {
+test('the strength ramp does not saturate before floor 10', () => {
   // A ramp that hits the table ceiling early stops being a ramp — the
-  // deepest floors would be indistinguishable from each other, quietly
-  // undermining the CV target this whole item exists to serve.
-  const at = saturatedAt({ strength: MONSTER_STRENGTH, strengthGrowth: STRENGTH_GROWTH_REBALANCED }, 10);
-  assert(at === null || at > 10, `the rebalanced ramp saturates at floor ${at}, inside the descent`);
+  // deepest floors would be indistinguishable from each other.
+  const at = saturatedAt({}, 10);
+  assert(at === null || at > 10, `the shipped ramp saturates at floor ${at}, inside the descent`);
 });
 
 test('clustering with size 1 reproduces independent placement exactly', () => {
@@ -1841,7 +1651,7 @@ test('clustering with size 1 reproduces independent placement exactly', () => {
   // byte-identical, monster for monster, position for position.
   const viaShipped = { ...floorPlan(5), clusterSize: 1 };
   const viaGeneral = makeFloorPlan({
-    clusterSize: 1, monsterGrowth: MONSTER_GROWTH_REBALANCED, strengthGrowth: STRENGTH_GROWTH_REBALANCED,
+    clusterSize: 1,
   })(5);
   const a = newGame(51015, viaShipped);
   const b = newGame(51015, viaGeneral);
@@ -1913,16 +1723,11 @@ test('a cluster too big for the map degrades instead of hanging or crashing', ()
   assert(state.monsters.length > 0, 'no monsters placed at all with an oversized cluster');
 });
 
-// ***** M3 — an out-of-depth tail, and it must stay off ***** //
+// ***** the out-of-depth tail ***** //
 
-test('the tail ships ON, zero on floor 1, rising and capped below certainty', () => {
-  // Was "the tail is a no-op at its shipped value" — a guard for the era
-  // when this was an unadopted instrument. Adopted after M24 (see
-  // docs/balance.md), so the guard now describes the opposite shipped
-  // state. What it still protects is the SHAPE, which is what keeps this a
-  // rare shock rather than a routine one.
-  assertEq(OUT_OF_DEPTH_TAIL, true, 'OUT_OF_DEPTH_TAIL is no longer on');
-
+test('the tail is zero on floor 1, rising and capped below certainty', () => {
+  // What this protects is the SHAPE, which is what keeps the tail a rare
+  // shock rather than a routine one.
   assertEq(floorParams(0).outOfDepthChance, 0,
     'floor 1 must never roll an out-of-depth creature — nothing is out of depth at the top');
 
@@ -2077,9 +1882,8 @@ test('the closed form agrees with a Monte Carlo cross-check', () => {
     const p = floorParams(level);
     const ceilingIndex = Math.floor(p.difficultyScale * (MONSTER_TABLE.length - 1));
     const minIndex = Math.floor(p.tierFloorShare * ceilingIndex);
-    const rawMaxIndex = Math.min(MONSTER_TABLE.length - 1,
-      ceilingIndex + Math.floor(p.tierCeilingShare * 2));
-    const maxIndex = Math.max(minIndex, rawMaxIndex - Math.floor(p.earlyTierCapShare * 2));
+    const maxIndex = Math.max(minIndex,
+      Math.min(MONSTER_TABLE.length - 1, ceilingIndex + p.tierSlack));
     const sampled = p.monsters * sampledMonsterMass(p.difficultyScale, minIndex, maxIndex);
     const closedForm = expectedFloorMass(level);
     const gap = Math.abs(sampled - closedForm) / closedForm;
@@ -2178,16 +1982,13 @@ test('the highest tier seen at floor 1 drops by two indices', () => {
     `floor 1 did not drop by two indices from the old unclamped reach (ceiling + 2)`);
 });
 
-test('the tier ceiling never falls below the floor\'s own centre', () => {
-  // By construction: maxIndex adds a non-negative slack on top of
-  // ceilingIndex, so it can never land below it, at any floor.
+test('slack only pulls the ceiling below the centre on floor 1', () => {
+  // The band's one signed number: negative exactly at the shallow end
+  // (the early cut), never after it.
   for (let level = 0; level < 10; level++) {
     const p = floorParams(level);
-    const ceilingIndex = Math.floor(p.difficultyScale * (MONSTER_TABLE.length - 1));
-    const maxIndex = Math.min(MONSTER_TABLE.length - 1,
-      ceilingIndex + Math.floor(p.tierCeilingShare * 2));
-    assert(maxIndex >= ceilingIndex,
-      `floor ${level + 1}: tier ceiling ${maxIndex} fell below its own centre ${ceilingIndex}`);
+    if (level === 0) assert(p.tierSlack < 0, 'floor 1 lost its early cut');
+    else assert(p.tierSlack >= 0, `floor ${level + 1} carries a negative slack`);
   }
 });
 
@@ -2206,17 +2007,12 @@ test('expectedFloorMass says floor 1 costs meaningfully less than floor 2', () =
     `floor 1 mass (${m1.toFixed(2)}) is more than 75% of floor 2's (${m2.toFixed(2)}) — too close`);
 });
 
-test('the early cap fades to exactly zero by floor 2', () => {
-  // Structural guarantee, not a measurement: PER_LEVEL is set to exactly
-  // -BASE, so this is checked directly against the formula rather than by
-  // simulation. The item's own ask was narrower than M13/M24's fade
-  // (floor 1 only, not a general early-game softening) — this is what
-  // enforces that boundary.
-  assertEq(floorParams(0).earlyTierCapShare > 0, true, 'floor 1 has no cap at all — the mechanism is inert');
-  for (let level = 1; level < 10; level++) {
-    assertEq(floorParams(level).earlyTierCapShare, 0,
-      `floor ${level + 1} still carries a nonzero early cap — the fade did not reach zero by floor 2`);
-  }
+test('the early cut applies to floor 1 alone', () => {
+  // Structural: EARLY_TIER_CUT only ever subtracts at level 0, so this is
+  // the fade M30 asked for — floor 1 specifically, never a general
+  // early-game softening.
+  assert(floorParams(0).tierSlack <= -1, 'floor 1 carries no cut at all — the mechanism is inert');
+  assertEq(floorParams(1).tierSlack, 0, 'floor 2 still carries a cut');
 });
 
 test('floor 1\'s ordinary creatures respect the new cap — the shrine guardian is the one named exception', () => {
@@ -2251,46 +2047,6 @@ test('floor 1\'s ordinary creatures respect the new cap — the shrine guardian 
     'no shrine guardian on floor 1 ever exceeded the ordinary cap — the documented exception did not reproduce');
 });
 
-// ***** M25 — a gentler floor 1, pivoted around an unchanged floor 10 ***** //
-
-test('the strength pivot leaves floor 10 exactly where it was', () => {
-  // THE promise this item makes, and the only one that is load-bearing:
-  // floor 1 gets weaker creatures, floor 10 gets the same ones it always
-  // had. Checked against the LITERAL pre-M25 pair (0.35, 1.108) rather
-  // than against the shipped constants, so that changing either one
-  // without re-solving the other fails here instead of silently sliding
-  // floor 10.
-  const PRE_M25_BASE = 0.35;
-  const PRE_M25_GROWTH = 1.108;
-  const wasAtFloor10 = PRE_M25_BASE * Math.pow(PRE_M25_GROWTH, 9);
-  const nowAtFloor10 = floorStrength(9, {
-    strength: MONSTER_STRENGTH, strengthGrowth: STRENGTH_GROWTH_REBALANCED,
-  });
-  assert(Math.abs(nowAtFloor10 - wasAtFloor10) < 1e-3,
-    `floor 10 strength moved: was ${wasAtFloor10.toFixed(4)}, now ${nowAtFloor10.toFixed(4)}`);
-
-  // And the same in the currency that actually reaches the player — the
-  // table INDEX the deepest corner reaches. A sub-1e-3 drift in scale
-  // could still cross an integer boundary; this catches that.
-  const top = MONSTER_TABLE.length - 1;
-  assertEq(Math.floor(nowAtFloor10 * top), Math.floor(wasAtFloor10 * top),
-    'floor 10\'s ceiling table index moved');
-});
-
-test('the pivot actually made floor 1 gentler', () => {
-  // The other half — without this, "floor 10 unchanged" is satisfiable by
-  // changing nothing at all.
-  const pre = 0.35;
-  const now = floorStrength(0, {
-    strength: MONSTER_STRENGTH, strengthGrowth: STRENGTH_GROWTH_REBALANCED,
-  });
-  assert(now < pre,
-    `floor 1 strength did not fall: was ${pre}, now ${now.toFixed(4)}`);
-  const top = MONSTER_TABLE.length - 1;
-  assert(Math.floor(now * top) < Math.floor(pre * top),
-    'floor 1\'s ceiling table index did not drop at all');
-});
-
 test('no floor in the descent is weaker than the one above it', () => {
   // The shape complaint this item exists to fix: the old ramp had floor 4
   // land BELOW floor 3. Read off the modelled ceiling index rather than a
@@ -2320,9 +2076,9 @@ test('creature count lands near the M29 target: ~4, ~5, ~8', () => {
   // floor 1 with GUARANTEE_FIRST_WEAPON off, re-solving the growth rate to
   // keep floor 10 pinned at the same 8 M17 already targeted — only the
   // floors near the top move.
-  const fl1 = monstersAt(MONSTERS_BASE, MONSTER_GROWTH_REBALANCED, 0);
-  const fl5 = monstersAt(MONSTERS_BASE, MONSTER_GROWTH_REBALANCED, 4);
-  const fl10 = monstersAt(MONSTERS_BASE, MONSTER_GROWTH_REBALANCED, 9);
+  const fl1 = monstersAt(MONSTERS_BASE, MONSTER_GROWTH, 0);
+  const fl5 = monstersAt(MONSTERS_BASE, MONSTER_GROWTH, 4);
+  const fl10 = monstersAt(MONSTERS_BASE, MONSTER_GROWTH, 9);
   assertEq(fl1, 4, `floor 1 holds ${fl1}, not the targeted 4`);
   assert(fl5 >= 4 && fl5 <= 6, `floor 5 holds ${fl5}, not near the targeted 5`);
   assertEq(fl10, 8, `floor 10 holds ${fl10}, not the pinned 8`);

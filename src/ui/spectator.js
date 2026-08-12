@@ -46,7 +46,7 @@ const session = {
   // src/ui/wallet.js's persisted balance. Nothing here writes to that
   // balance yet — U6c's job, not this one's. Wiped on anything short of a
   // floor actually being cleared; never survives a death regardless of
-  // wallet.js's PERSIST_BALANCE_ACROSS_DEATH flag, which only decides
+  // wallet.js's death rule, which only decides
   // whether PRE-EXISTING persisted state survives, not this run's own
   // earnings. Descent mode only.
   unbankedCoins: 0,
@@ -300,8 +300,7 @@ function tallyDescent(run, finalState) {
     // own per-floor loop zeroes it the moment a floor fails, before this
     // function ever runs — so there is nothing of the run's own to
     // discard; this call is purely the wallet-level rule (default: wipe
-    // pre-existing balance/item too; PERSIST_BALANCE_ACROSS_DEATH: leave
-    // them exactly as they were). Timeout gets the same treatment as
+    // pre-existing balance/item too). Timeout gets the same treatment as
     // death, same as U5 already treats them as one "not a completion"
     // case rather than two.
     resetOnDeath();
@@ -450,7 +449,7 @@ function wireControls() {
   el.resetSession.addEventListener('click', () => {
     if (!confirm('Reset your coin balance, held items, and lifetime total? This cannot be undone.')) return;
     resetScore();
-    resetOnDeath(false);
+    resetOnDeath();
   });
 }
 

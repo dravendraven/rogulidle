@@ -3,10 +3,7 @@
 // The blow always goes attacker -> defender and there is NO counter-attack:
 // only whoever moved gets to hit. A duel is therefore strictly alternating.
 
-import {
-  HIT_CHANCE, HP_FROM_KILLS, HP_GRANT_AMOUNT, HP_GRANT_PER_KILLS,
-  KILLS_PER_XP, WEAPONS_WIDEN_ROLL, XP_FROM_KILLS,
-} from './balance.js';
+import { HIT_CHANCE } from './balance.js';
 import { drawChance, drawInt } from './rng.js';
 
 // Monsters have no inventory at all, so they never get a weapon bonus — the
@@ -49,29 +46,22 @@ export function applyDamage(defender, damage) {
 }
 
 // Average damage of one blow, without rolling for it. The bot plans with
-// this (docs/bot-strategy.md §3) and it must stay in step with the roll
-// below — one formula, one place.
+// this and it must stay in step with the roll below — one formula, one place.
 //
-// The roll is uniform over 0 .. xp-1 and the whole thing only lands
-// `HIT_CHANCE` of the time. The defender does not enter the formula at all:
-// armour is extra hp rather than damage reduction, so how tough the target
-// is changes how many blows they survive, never how hard a blow lands.
-export function expectedDamage(attackerXp, weapons, widen = WEAPONS_WIDEN_ROLL) {
-  // Two ways a weapon can help, and they behave very differently.
-  //
-  // FLAT (faithful): the roll is 0..xp-1 and the weapon is added after, so
-  // it raises the FLOOR — an armed hero can no longer roll low. Each point
-  // of weapon is worth a full point of expected damage.
-  //
-  // WIDENED: the weapon enlarges the die instead, 0..xp-1+weapons. The floor
-  // stays at zero, so even a well-armed hero still whiffs, and each point is
-  // worth only half a point of expected damage.
-  const sides = Math.max(1, widen ? attackerXp + weapons : attackerXp);
-  const bonus = widen ? 0 : weapons;
+// A weapon WIDENS the die: the roll is uniform over 0 .. xp-1+weapons and
+// only lands `HIT_CHANCE` of the time. The floor stays at zero — a well-
+// armed hero still whiffs — and each weapon point is worth HALF a point of
+// expected damage. Divergence from the original, which added the weapon
+// after the roll; decided ON because gear is the resource that runs away
+// over a descent, and this blunts it without capping what can be carried.
+// The defender does not enter the formula: armour is extra hp, so toughness
+// changes how many blows are survived, never how hard one lands.
+export function expectedDamage(attackerXp, weapons = 0) {
+  const sides = Math.max(1, attackerXp + weapons);
 
   let total = 0;
   for (let roll = 0; roll < sides; roll++) {
-    total += roll + bonus;
+    total += roll;
   }
   return HIT_CHANCE * (total / sides);
 }
@@ -82,24 +72,21 @@ export function expectedDamage(attackerXp, weapons, widen = WEAPONS_WIDEN_ROLL) 
 // the same way the original's does (engine.cljs:257-258).
 export function resolveAttack(state, attacker, defender) {
   const weapons = weaponDamage(attacker);
-  const widen = state.weaponsWidenRoll ?? WEAPONS_WIDEN_ROLL;
 
-  // `state.sim` marks a hypothetical world the bot is thinking inside, never
-  // the real game (test/tests.js guards that). There, blows land for their
-  // average instead of being rolled: the search stays deterministic, no
-  // branch on luck, and no lucky streak fools the bot into a bad plan.
+  // `state.sim` marks a hypothetical world, never the real game. There,
+  // blows land for their average instead of being rolled, so a simulation
+  // stays deterministic and free of luck branches.
   if (state.sim) {
-    const damage = expectedDamage(attacker.xp, weapons, widen);
+    const damage = expectedDamage(attacker.xp, weapons);
     applyDamage(defender, damage);
     return { damage, killed: defender.hp <= 0, hit: true };
   }
 
   const hit = drawChance(state, 'combat', HIT_CHANCE) ? 1 : 0;
 
-  const roll = drawInt(state, 'combat', 0,
-    Math.max(0, (widen ? attacker.xp + weapons : attacker.xp) - 1));
+  const roll = drawInt(state, 'combat', 0, Math.max(0, attacker.xp + weapons - 1));
 
-  const damage = (roll + (widen ? 0 : weapons)) * hit;
+  const damage = roll * hit;
   const toHp = applyDamage(defender, damage);
 
   // `damage` is the size of the blow; `toHp` is how much got past armour.
@@ -119,25 +106,13 @@ export function playerAttacks(state, monster) {
       monster.drop = null;
     }
     state.player.kills.push(monster.name);
-    // U3, docs/backlog.md — separate from `kills` on purpose: `kills` holds
-    // only the name, and M3 can reskin a creature's stats after it was
-    // placed, so reading xp back off MONSTER_TABLE by name later would give
-    // the wrong number for a reskinned kill. Recorded here, at the moment
-    // of the kill, against the monster's actual live xp.
+    // Separate from `kills` on purpose: `kills` holds only the name, and
+    // the out-of-depth reskin can change a creature's stats after placement,
+    // so this records the monster's actual live xp at the moment of death.
+    //
+    // The hero's own xp and hpMax never grow from kills — decided, measured,
+    // recorded in decisions.md. Gear and potions are the only ladder.
     state.player.xpEarned += monster.xp;
-    // One xp every second kill. FAITHFUL engine.cljs:272.
-    const growsXp = state.xpFromKills ?? XP_FROM_KILLS;
-    if (growsXp && state.player.kills.length % KILLS_PER_XP === 0) state.player.xp++;
-
-    // Defensive half of the same idiom — M6, docs/backlog.md. Same shape as
-    // the xp grant just above: every HP_GRANT_PER_KILLS kills, both the
-    // ceiling and the current value rise, so the grant shows up in the
-    // buffer measured on arrival, not just in a maximum nothing refills.
-    const growsHp = state.hpFromKills ?? HP_FROM_KILLS;
-    if (growsHp && state.player.kills.length % HP_GRANT_PER_KILLS === 0) {
-      state.player.hpMax += HP_GRANT_AMOUNT;
-      state.player.hp += HP_GRANT_AMOUNT;
-    }
   }
 
   state.log.push({

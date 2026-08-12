@@ -1,192 +1,62 @@
-// Every tunable number in the game. Mirrors docs/balance.md — change the doc
-// first, then this file. No other file in src/sim/ may hardcode these.
+// Every tunable number in the GAME. Mirrors docs/balance.md — change the doc
+// row and this file in the same commit. No other file in src/sim/ may
+// hardcode these. The BOT's numbers live in src/bot/config.js, not here.
 //
 // FAITHFUL  = copied from the original Rogule source, don't touch casually.
-// GUESS     = ours, and what P4 tunes.
+// GUESS     = ours, and what tuning moves.
+//
+// Rules that used to be flags here — xp from kills, hp from kills, passive
+// regeneration, attack-on-adjacency, the guaranteed first weapon, flat
+// weapon bonuses, chest orientation — are DECIDED, not configurable. What
+// each alternative measured is in docs/project/decisions.md; the code no
+// longer carries the losing branch.
 
 // ***** world ***** //
 
 export const MAP_SIZE = 32;              // FAITHFUL ui.cljs:26
 
-// ***** M16 — bigger rooms, shorter corridors, docs/backlog.md M16 ***** //
-// DIVERGENCE, not FAITHFUL any more — was `[1, 5]` from generator.cljs:146.
-// Shortened deliberately so the floor reads as rooms with corridors
-// between them, not corridors with rooms attached (docs/rogule-spec.md
-// §13.10). Swept 1/2/3/4/5 alongside room size and dugPercentage — see
-// docs/balance.md for the numbers, since the three interact and cannot be
-// picked alone.
+// DIVERGENCE — shortened so the floor reads as rooms with corridors between
+// them, not corridors with rooms attached (was [1, 5]).
 export const CORRIDOR_LENGTH = [1, 3];
 
-// GUESS — `mapgen.js` passed neither `roomWidth` nor `roomHeight` to ROT's
-// Digger before this, so ROT's own defaults ([3,9] x [3,5]) applied and
-// nobody had chosen them. Raised for the same reason CORRIDOR_LENGTH
-// shrank above.
+// GUESS — raised from ROT's defaults for the same reason CORRIDOR_LENGTH
+// shrank: bigger rooms, shorter hallways.
 export const ROOM_WIDTH = [5, 9];
 export const ROOM_HEIGHT = [4, 7];
 
-// GUESS — how much of the grid the digger hollows out. ROT's default is
-// 0.2; lowering it digs fewer and smaller rooms, which is what makes the
-// floor read as a route with rooms hanging off it rather than a warren
-// with many equivalent ways through. The map-design goal of "one mandatory
-// path plus optional detours" needs the map to HAVE a mandatory path, and
-// at 0.2 there are usually several.
+// GUESS — how much of the grid the digger hollows out. Lower means fewer,
+// more separate rooms — the map design needs a MANDATORY path to exist, and
+// at ROT's default 0.2 there are usually several equivalent ways through.
+// This is the branching dial's foundation: how much route there is at all.
 export const MAP_DUG_PERCENTAGE = 0.15;
+
 export const VISIBLE_DIST = 9;           // FAITHFUL ui.cljs:27
 export const CLEAR_DIST = 7;             // FAITHFUL ui.cljs:29 (cosmetic)
-export const CHEST_COUNT = 15;           // FAITHFUL generator.cljs:326
-export const MONSTER_COUNT = 5;          // FAITHFUL generator.cljs:326
+
+// FAITHFUL single-floor defaults (generator.cljs:326) — what populate()
+// uses when no floor plan is given. Real runs get counts from floorParams.
+export const CHEST_COUNT = 15;
+export const MONSTER_COUNT = 5;
 
 // ***** player ***** //
 
 export const PLAYER_HP = 10;             // FAITHFUL generator.cljs:216
 export const PLAYER_XP = 3;              // FAITHFUL generator.cljs:26
-export const KILLS_PER_XP = 2;           // FAITHFUL engine.cljs:272
 
-// Divergence, off by default. With this false the player's xp never grows
-// and gear is the ONLY progression.
-//
-// MEASURED, and it does NOT do what you would expect over a dungeon:
-//
-//   one floor at dial 0.5   50% wins with xp,  43% without
-//   ten-floor dungeon        8/10 cleared with, 7/10 without
-//
-// Freezing xp barely changes how deep the hero gets, because GEAR compounds
-// just as freely — carried items went 2.2 -> 8.9 -> 14.6 across the ten
-// floors, higher than with xp on, since the bot values loot more when it
-// cannot level. Either resource alone is enough to trivialise the descent.
-//
-// What it does change is WHERE the danger sits: with xp frozen, three of
-// ten dungeons ended on floor ONE (against one of ten with xp), because a
-// hero who cannot level and has not yet looted is at his weakest ever.
-//
-// It also kills the snowball that bot-strategy §3 leans on: cheap kills
-// first stop making later fights cheaper, so kill order matters only
-// through drops.
-// OFF by owner decision: the hero's power comes from GEAR and health
-// potions, nothing else. xp stays at its starting value all run, so the
-// damage die never grows and the only ladder is what the map hands over.
-export const XP_FROM_KILLS = false;
-
-// ***** defensive progression (M6, docs/backlog.md) ***** //
-//
-// DECIDED by the owner: the hero gets growing maximum capacity. The buffer
-// (effectiveHp / a floor's mean blow) FALLS across the descent under
-// measurement — ×0.862 per floor on the observed ruler — while challenge
-// climbs ×1.343. Every point of variance work planned after this (M2-M5)
-// adds a lethal tail, and a lethal tail against a falling buffer is not
-// tension, it is sudden death with no arc.
-//
-// Mirrors KILLS_PER_XP's shape exactly: every HP_GRANT_PER_KILLS kills,
-// hpMax AND current hp both rise by HP_GRANT_AMOUNT. Same place in the code
-// as the xp grant (combat.js playerAttacks), same modulo-on-kill-count
-// mechanism. "Killing makes you gradually stronger" is already the game's
-// progression idiom (xp); this is its defensive half.
-//
-// BOTH bars, not just the ceiling — this is not an afterthought. There is
-// no regeneration (below), so a hero that gains ceiling without gaining
-// current hp arrives at every floor exactly as hurt as before, and the
-// MEASURED buffer (read from the hero on arrival, not its theoretical max)
-// barely moves. That makes this partly a healing mechanic, which spec
-// §13.1 deliberately removed — the difference is the reason that removal
-// existed: the original healed with TIME, so a bot could camp a cold
-// corner and refill forever, "machinery guarding a resource we did not
-// want to exist". Healing earned by KILLS cannot be camped: the supply is
-// finite, fixed at generation, and spending it costs the fight. Same
-// resource (hp), no exploit, no cap needed.
-//
-// FAITHFUL note: PLAYER_HP is FAITHFUL and this diverges from Rogule
-// knowingly, recorded in docs/rogule-spec.md §13.4. It also reopens the
-// "hpMax never moves" invariant that §13.2's armour rewrite deliberately
-// established — every place that assumed a constant hpMax needs rechecking
-// (dungeon.js and game.js already carry hpMax down the stairs field-by-
-// field rather than assuming PLAYER_HP, so they did not need a change).
-//
-// ON — Review 2 (docs/backlog.md M6), ADOPTED PROVISIONALLY. Review 1 had
-// this off because the shipped rate misses both its own bounds: buffer
-// still falls (0.910, short of >=1.00) and the real bot's finish rate hits
-// 56.7%, outside the then-15-40% band. Review 2 adopted anyway, because no
-// rate in the sweep clears both bounds and the smaller rates are strictly
-// worse — they pay the same finish-rate cost while buying back nothing on
-// buffer (0.125 hp/kill: buffer z=0.32, not even a real effect, finishes
-// already at 44.7%). The choice was never "which rate", it was "progression
-// or none", and progression was chosen.
-//
-// "Provisional" is specific: the buffer target itself (>=1.00) is now
-// suspect — the same grant read +0.095 buffer on the dumb probe against
-// +26 points of finishes on the real bot, which the probe cannot exploit
-// the way a competent bot can. That gap is I5's open question, not settled
-// here.
-//
-// REVERSED (docs/backlog.md M6, ca5c6f9): M7 was expected to be next when
-// this was adopted provisionally; the owner picked M9 instead, so what this
-// flag bought (+0.095 buffer against a target I5 may show is unreachable)
-// no longer justifies what it cost (+26 points of finishes outside band).
-// The mechanism itself is not retracted — only the default.
-export const HP_FROM_KILLS = false;
-
-// GUESS — same cadence as KILLS_PER_XP (2) on purpose: reuse the pacing
-// that already exists rather than introduce a second rhythm to reason
-// about.
-export const HP_GRANT_PER_KILLS = 2;
-
-// GUESS — measured, and the target is NOT reached; ships anyway as the best
-// point found. A rate sweep (0.125 to 0.5 hp/kill, i.e. HP_GRANT_PER_KILLS
-// 8 down to 2 at this AMOUNT) found no point where buffer approaches the
-// ~1.16/floor target without the real bot's clear rate leaving its band —
-// at this shipped rate buffer moves 0.846 -> 0.910/floor (real, z~2.1, but
-// still FALLING) while clear rate nearly doubles, 30.7% -> 56.7% (n=150,
-// paired). Smaller rates (tried down to 0.125) protect clear rate only
-// a little and buy back no buffer distinguishable from zero effect. Full
-// bracket in docs/backlog.md M6 result. Shipped here because it is the
-// only tested point with a statistically real buffer effect, not because
-// it satisfies the item's own acceptance criteria — it does not, and that
-// shortfall needs an owner decision, not a bigger constant.
-export const HP_GRANT_AMOUNT = 1;
-
-// ***** regeneration ***** //
-
-// REMOVED by owner decision: there is no PASSIVE (time-based) regeneration.
-//
-// Rogule gave +1 hp every 100 turns, uncapped, and monsters are motionless
-// outside their chase radius — so a bot that maximises winning simply camps
-// somewhere cold and heals to full before every fight. We first tried a cap
-// (spec §13.1); deleting it outright is simpler and leaves nothing to
-// exploit. Hp is renewable only by ACTING: drinking a potion, or killing
-// (HP_FROM_KILLS above) — never by waiting.
+// What every run begins holding. Empty = the hero starts with nothing, and
+// the opening is hard on purpose (owner decision, M41). To arm the hero,
+// name items from ITEM_TABLE:  ITEM_TABLE.filter((i) => i.name === 'dagger')
+export const STARTING_ITEMS = [];
 
 // ***** combat ***** //
 
 export const HIT_CHANCE = 5 / 6;         // FAITHFUL engine.cljs:257
 
-// Divergence, off by default. How a weapon helps.
-//
-//   false (faithful)  roll is 0..xp-1 and the weapon is added afterwards,
-//                     so it raises the FLOOR. Each point of weapon is worth
-//                     a full point of expected damage, and an armed hero
-//                     stops being able to roll low at all.
-//   true              the weapon enlarges the die, 0..xp-1+weapons. The
-//                     floor stays at zero, so even a well-armed hero still
-//                     whiffs, and each point is worth HALF a point of
-//                     expected damage.
-//
-// The halving is the point: gear is the resource that runs away over a
-// ten-floor descent, and this is the cheapest way to blunt it without
-// capping what can be carried.
-// ON by owner decision: a weapon always widens the range, never raises the
-// floor. The hero can still whiff however well armed, and each point of
-// weapon is worth half what a flat bonus would be.
-export const WEAPONS_WIDEN_ROLL = true;
-
 // ***** monsters ***** //
 
-// xp is both the damage stat and the number drawn above the head.
-//
-// M18 — docs/backlog.md. `rat` was `activation 3, xp 1, hp 2`: xp 1 means
-// the damage roll is `0..0`, exactly zero, so it could never land a blow —
-// not a weak creature, a non-creature. Both raised, FAITHFUL divergence,
-// docs/rogule-spec.md §13.11 — xp to 2 so it can hit, activation to 8 so
-// it chases. hp stays 2. Kept strictly below `bat` (xp 2, activation 10,
-// hp 3) on two of three so the two rows do not become interchangeable.
+// xp is both the damage stat and the number drawn above the head. The index
+// is the TIER — rising strength. rat raised from the original's xp 1
+// (damage roll 0..0, a non-creature) — divergence §13.11.
 export const MONSTER_TABLE = [
   { name: 'rat',     emoji: '🐀', activation: 8,  xp: 2,  hp: 2 },
   { name: 'bat',     emoji: '🦇', activation: 10, xp: 2,  hp: 3 },
@@ -202,204 +72,69 @@ export const MONSTER_TABLE = [
 ];
 
 export const MONSTER_SKIP_CHANCE = 0.10;       // FAITHFUL engine.cljs:353
-
-// Divergence, off by default. In Rogule a monster attacks by MOVING into
-// the player, so standing beside one is only dangerous when it chooses to
-// step in — and a monster with no route (blocked, or a pathfinding quirk)
-// stands there harmlessly while adjacent.
-//
-// With this on, adjacency alone means being hit.
-//
-// MEASURED: it changes almost nothing. Over 50 floors the two rules gave
-// byte-identical results. An adjacent monster is two path steps from the
-// player, which is under every activation in the table (the smallest is 3),
-// so under the faithful rule it already walks into the player every turn.
-// Adjacency ALREADY means being attacked. Kept as a switch because the
-// equivalence is worth being able to re-check, not because it does anything.
-export const MONSTERS_ATTACK_WHEN_ADJACENT = false;
 export const MONSTER_DROP_CHANCE = 0.50;       // FAITHFUL generator.cljs:275
 export const MONSTER_DIFFICULTY_SCALE = 0.75;  // FAITHFUL generator.cljs:262
 
 // Offset from the difficulty index -> pick weight. FAITHFUL generator.cljs:267,
-// except that we SUM weights when two offsets clamp onto the same index.
-// The original overwrites instead, which makes the intended monster rarer
-// than its neighbour at the ends of the table (spec quirk 9.2).
+// except that we SUM weights when two offsets clamp onto the same index
+// (spec quirk 9.2). The ±2 reach of this table is what "slack" below is
+// measured in.
 export const MONSTER_WEIGHTS = [
   [0, 6], [1, 2], [-1, 2], [2, 1], [-2, 1],
 ];
 
-// ***** M3 — an out-of-depth tail, docs/backlog.md M3 ("the gap M7 left") ***** //
-// The per-floor ceiling (`difficultyScale` in spawn.js) never reaches the
-// table's true top within the descent — `saturatedAt` on the M7-adopted
-// ramp stays under 1.0 through floor 10 — so the strongest possible blow is
-// frozen well below `t-rex`, and M7 raised lethality by ATTRITION (more
-// creatures acting together) rather than by a bigger single hit. This is a
-// RARE, INDEPENDENT roll — separate from the per-cluster tier draw — that
-// can reach the table's true top regardless of local depth.
+// ***** the tier band — how much the average threat varies ***** //
 //
-// ON. Archived once as a measured negative, un-archived and adopted after
-// M24 — and the archiving was a MEASUREMENT error, not a design one:
+// Each floor draws creatures from a BAND of the monster table. The centre
+// comes from positional depth × the floor's strength ceiling; the band is
+// then clamped:
 //
-//   - It was judged by CV. CV was what everything was judged by at the
-//     time, but this item exists to shrink the REACTION WINDOW, which is
-//     spike, not variance. Worse, an out-of-depth tail pushes CV the wrong
-//     way BY CONSTRUCTION — its chance grows with depth, so it fires where
-//     cost is already highest, raising the deep mean and lowering sd/mean
-//     even as it raises sd. It could never have passed that test.
-//   - The spike reading that failed it was p95/p99 pooled over EVERY turn
-//     including walking. I7 showed that was dilution.
-//   - It had no room to work: the ±2 spread made above-tier creatures
-//     ROUTINE (wolf 17%, ogre 8% of draws), so a deliberate 8% tail was
-//     invisible against a 25% background. M24 clamped that spread and made
-//     this the only source of an above-tier creature on floors 2-9.
+//   floor  — the minimum tier rises with depth as a share of the floor's own
+//            ceiling index, so a deep floor stops rolling scenery (a rat on
+//            floor 10). Zero on floor 1; never exceeds the ceiling.
+//   slack  — whole table rows the DRAWN slot may sit above the ceiling,
+//            rising with depth: 0 on shallow floors, 1 from floor 8. Clamp
+//            the drawn slot, never the centre — the ±2 spread reaches past
+//            any clamped centre (measured mistake, twice).
 //
-// Re-measured on PEAK, denominator-free (worst single turn per run), 240
-// paired descents per arm: share of runs taking a >=7 blow went 0.4% ->
-// 7.5% (z=4.05), >=8 went 0/240 -> 4.2% (z=3.23). Against a 10 hp hero
-// that is 70-80% of the bar in one turn. The effect is confined to the far
-// tail — the >=4 threshold does NOT move (z=1.21) — which is exactly what
-// "a rare shock, not a routine one" is supposed to look like.
-export const OUT_OF_DEPTH_TAIL = true;
+// GUESS, both families.
+export const TIER_FLOOR_PER_LEVEL = 0.08;
+export const TIER_FLOOR_CAP = 0.5;
+export const TIER_SLACK_PER_LEVEL = 0.08;
+export const TIER_SLACK_CAP = 0.5;
 
-// GUESS — zero on floor 1 by design: nothing is "out of depth" yet at the
-// very top of the dungeon. Grows with depth and stays capped well under
-// certainty, because this is a TAIL — the median floor must never feel it,
-// only the rare one. `PLAYER_HP` is 10 with no regeneration and damage is
-// `0..xp-1`, so a `t-rex` (xp 10) can take nearly a full health bar in one
-// blow — the cap keeps that a rare shock, not a routine one.
+// GUESS — whole table rows trimmed off floor 1's ceiling (level 0 only), so
+// floor 1 costs clearly less than floor 2. An INTEGER on purpose: the old
+// share dial produced identical cuts across its whole (0,1) range, so only
+// 0 / 1 / 2 ever existed to choose between.
+export const EARLY_TIER_CUT = 1;
+
+// ***** the out-of-depth tail ***** //
 //
-// STILL GUESSES, and deliberately left as shipped. `PER_LEVEL` has never
-// been swept; the plan was to sweep it if the peak did not move at these
-// values, and the peak moved decisively (see OUT_OF_DEPTH_TAIL above), so
-// there was nothing to buy. `CAP` was swept once and found not to move CV
-// — that sweep says nothing here, since CV is not this item's test and
-// never should have been.
-//
-// If a later item does sweep `PER_LEVEL`, note the shape it runs into:
-// `CAP` binds from floor 8 at the shipped 0.02 (chance is
-// `min(0.15, 0.02 x floorIndex)`), so raising `PER_LEVEL` alone only moves
-// the SHALLOW floors and leaves 8-10 untouched. The two have to move
-// together to change the deep end.
-export const OUT_OF_DEPTH_CHANCE_BASE = 0;
+// GUESS — a rare, independent roll that reskins one creature from the top of
+// the table, regardless of local depth. Zero on floor 1, growing with depth,
+// capped well under certainty: the median floor must never feel it. This is
+// what keeps the outcome uncertain — and the return (floors 11-20) is this
+// dial widened, not a new system.
 export const OUT_OF_DEPTH_CHANCE_PER_LEVEL = 0.02;
 export const OUT_OF_DEPTH_CHANCE_CAP = 0.15;
 
-// ***** M13 — the tier floor rises with depth, docs/backlog.md M13 ***** //
-// `difficultyScale` (above) is a CEILING — position within the map still
-// puts the tier anywhere from 0 up to it, so a tile near the entrance rolls
-// a rat on floor 10 exactly as often as on floor 1. A rat is scenery, not a
-// threat: xp 1 means its damage roll is `0..0`, and `threat.js`/`duelCost`
-// already treat it as zero. Structural, not tunable by feel: no flag, on by
-// construction, verified by a dedicated test (docs/backlog.md batch note).
+// ***** the floor's shared roll — how much the whole floor varies ***** //
 //
-// GUESS — zero on floor 1 (the entrance stays a rat's territory), rising
-// toward at most HALF the floor's own ceiling index, so there is always
-// room left between floor and ceiling for position to still matter.
-export const TIER_FLOOR_SHARE_BASE = 0;
-export const TIER_FLOOR_SHARE_PER_LEVEL = 0.08;
-export const TIER_FLOOR_SHARE_CAP = 0.5;
-
-// ***** M24 — the ceiling is a centre, not a cap, docs/backlog.md M24 ***** //
-// `difficultyScale` sets a CENTRE index — `MONSTER_WEIGHTS`'s own ±2 spread
-// (spec quirk 9.2) then walks freely above it, so floor 1's centre index 3
-// still rolls wolf (index 4, 17% of draws) and ogre (index 5, 8%) — three
-// quarters of an unarmed 10 hp hero in one creature. M13 already fixed this
-// from below; nobody fixed it from above. Structural, no flag, mirrors M13
-// exactly, including its mid-build lesson: clamp the DRAWN SLOT, not the
-// centre — clamping the centre alone does nothing, because the spread still
-// reaches past it.
-//
-// GUESS — a SHARE of the spread's own maximum reach (±2, from
-// MONSTER_WEIGHTS) allowed above the ceiling index. Zero on floor 1 (no
-// slack at all — the ceiling is a hard cap there), rising toward at most
-// HALF that reach, so even at floor 10 the top tier is trimmed back by one
-// index rather than fully released. Same growth rate as M13's floor, for
-// the same reason: symmetric treatment of a symmetric problem.
-export const TIER_CEILING_SHARE_BASE = 0;
-export const TIER_CEILING_SHARE_PER_LEVEL = 0.08;
-export const TIER_CEILING_SHARE_CAP = 0.5;
-
-// ***** M30 — floor 1 must cost less than floor 2, exactly, docs/backlog.md
-// M30 ***** //
-// M29 pushed the GLOBAL count/strength dials until three different variants
-// all landed on the SAME floor-1/floor-2 creature count (4, 4) — a shared
-// dial cannot separate two floors it treats identically. This is a LOCAL
-// lever instead, on floor 1's own tier clamp specifically: `TIER_CEILING_
-// SHARE` above only ever ADDS slack above a floor's natural centre index,
-// and floor 1's own slack is already 0 — there is no more room in that
-// direction. This pulls the ceiling BELOW the natural centre instead, and
-// only at the shallow end.
-//
-// Same share-of-the-±2-spread unit as `TIER_CEILING_SHARE`, mirrored the
-// other way: a share of `MONSTER_WEIGHTS`'s own reach subtracted from the
-// floor's ceiling index rather than added to it. Fades to exactly 0 by
-// floor 2 (`PER_LEVEL` equals `-BASE`) — this is deliberately narrower than
-// M13/M24's fade, which reaches floor 10. The problem named by the item is
-// floor 1 specifically standing too close to floor 2, not a general softening
-// of the early game M29 already spent its budget on.
-//
-// NOT a continuous dial, found by sweeping rather than assumed: the applied
-// cut is `floor(share × 2)`, an INTEGER number of table indices, so every
-// `BASE` in `(0, 1.0)` produces the identical cut (1 index) and the "0.5"
-// here is just a readable point inside that whole plateau, not a precision
-// tuning. Only three cuts exist to choose between — 0 (no-op), 1, or 2 (>=1.0,
-// forces floor 1 to rat-tier only) — and 1 is the only one that is a real cut
-// without being absurd.
-//
-// MEASURED against `expectedFloorMass`, exact, no sampling (docs/backlog.md
-// M30 has the full table): floor 1 mass 14.0 -> 10.385, floor 1 now ~70% of
-// floor 2's 14.845 (was 94%). The M7 RATIO check was untouched by this dial
-// and stayed at M29's reading — this constant did not appear in that
-// formula. But the same closed form read as an OVERALL growth rate DOES
-// move: 1.3499 -> 1.3955. Disclosed rather than hidden, and M31 acted on it:
-// that check no longer uses the proxy formula at all, it reads
-// `expectedFloorMass` fitted over all ten floors, so it can no longer go
-// blind to a dial it does not name. See docs/balance.md, M31 section.
-export const EARLY_TIER_CAP_SHARE_BASE = 0.5;
-export const EARLY_TIER_CAP_SHARE_PER_LEVEL = -0.5;
-export const EARLY_TIER_CAP_SHARE_CAP = 0.5;
-
-// ***** M15 — loot rooms have a guard, docs/backlog.md M15 ***** //
-// GUESS — "a short radius", per the item's own wording, swept 4/6/8/10/12
-// against measured guard coverage. 4 left floor 1 at 39% and floor 3 at
-// 46% — nowhere near "high". 8 is the point deep floors (7, 10) reach ~99%
-// without going so wide "short" stops meaning anything; shallow floors
-// still fall short at 8 (floor 1 ~56%, floor 3 ~64%) for a DIFFERENT
-// reason radius cannot fix — only 2-3 creatures against 6 flat chests,
-// and this item's own budget is "reuse placement, do not add" (M12's is
-// the count to spend). `SIDE_CHEST_BIAS` already puts most chests in side
-// rooms, which the ordinary placement loop already guards; this constant
-// is what closes the gap on the SPINE, where nothing else guarantees a
-// creature is nearby.
-export const CHEST_GUARD_RADIUS = 8;
+// GUESS — one log-uniform multiplier on the creature COUNT, shared by the
+// whole floor, widening with depth. Independent per-creature draws converge
+// (CV falls as 1/sqrt N), which made the climax the most predictable floor;
+// only a roll the whole floor shares escapes that law.
+export const FLOOR_SPREAD_PER_LEVEL = 0.09;
+export const FLOOR_SPREAD_CAP = 0.9;
 
 // ***** items ***** //
 
-// Pick weight is 1/value, so a HIGH value means a RARE item.
-// dmg / armour / heal are absent when the item has no effect.
-//
-// `armour` is a SECOND BAR that soaks damage before hp does (spec §13.2).
-// Max hp never moves; what a shield buys is a buffer, and the buffer is
-// spent. Two things follow, and both matter:
-//
-//   - it is consumable, so shields are a flow rather than a stock. Fifteen
-//     of them across ten floors do not make a hero permanently tougher.
-//   - max hp stays constant at PLAYER_HP, so every piece of code that
-//     assumes that keeps being right.
-//
-// Rogule's original subtracted armour from each blow with a floor of zero,
-// which made every point erase a whole tier of the monster table and then
-// saturate — the reason a ten-floor descent never got harder.
-// DIVERGENCE: Rogule's chestnut, mushroom and gem-stone are gone.
-//
-// They do nothing mechanically — they exist in the original as the score on
-// the share card, which this game does not have. They were 53% of all loot,
-// so their only real effect here was DILUTION: half the chests you opened
-// gave nothing useful. Scarcity is now set deliberately by the dials rather
-// than as a side effect of junk in the pool.
-//
-// `kind` groups the three that matter. The pool is balanced so each kind is
-// equally likely overall, and within a kind the stronger item is rarer.
+// Pick weight is 1/value, so a HIGH value means a RARE item. `kind` groups
+// them: chests hold armour and potions (exploring pays gear and sustain),
+// creatures drop weapons (the only permanent power comes from killing).
+// The original's junk collectibles are gone; scarcity is set by the dials
+// in difficulty.js instead of by chestnuts.
 export const ITEM_TABLE = [
   { name: 'health', emoji: '🥃',  value: 2, heal: 3, kind: 'potion' },  // FAITHFUL engine.cljs:209
   { name: 'shield', emoji: '🛡️', value: 3, armour: 3, kind: 'armour' },
@@ -407,502 +142,64 @@ export const ITEM_TABLE = [
   { name: 'axe',    emoji: '🪓',  value: 4, dmg: 2, kind: 'weapon' },
 ];
 
-// ***** M38 — what every run begins holding, docs/backlog.md M38 ***** //
-// Applied before the shop's own `startingItems`, which adds on top of it.
-//
-// EMPTY since M41 (owner decision, 2026-08-10): the hero starts the run with
-// nothing. M38 wrote this case in on purpose — "empty is a legal value here
-// and turns the feature off" — so switching it off is the value change that
-// item designed for, not a revert of its machinery. None of the rest of M38
-// moved: `startingItems` still means "on top of the kit", which with an empty
-// kit reduces to the old behaviour on its own.
-//
-// M38'S FINDING STILL STANDS AND IS STILL UNOWNED. Since M26 a weapon only
-// drops from a creature, so the one way to get armed is to win a fight, which
-// is what an unarmed hero does badly. That bootstrap is real. The owner's
-// decision is that the OPENING SHOULD BE HARD, and the starting dagger was
-// the largest single thing making it easy — M38 and M39 together took the
-// share of runs ending by floor 3 from 0.645 to 0.130. Turning this off is a
-// judgement about difficulty, not a correction of the measurement.
-//
-// TO PUT IT BACK, name items from ITEM_TABLE rather than writing rows out
-// again — what a dagger IS stays in one place, so a change to its damage
-// reaches the kit without anyone remembering to look here:
-//
-//     ITEM_TABLE.filter((item) => item.name === 'dagger')
-//
-// Once per run BY CONSTRUCTION, with no guard anywhere, and that holds at any
-// value: game.js applies this before `carry`, and `carry` overwrites the
-// inventory outright. Floor 1 has no carry and gets the kit; every floor
-// below has one and takes whatever the hero actually holds by then.
-export const STARTING_ITEMS = [];
-
-// ***** M26 — weapons come off creatures, docs/backlog.md M26 ***** //
-// GUESS — the minimum MONSTER_TABLE index (0 = rat, 10 = t-rex) a killed
-// creature has to reach before `axe` is even a candidate in its drop pool.
-// A FILTER, not a tilt: below this index `itemWeights` removes `axe`
-// entirely, so the owner's "axe nao dropa de criaturas fraca" is a
-// mechanism check (the axe is provably absent) rather than a rare event
-// that happens not to have shown up. `dagger` is unaffected and can still
-// drop from anything down to a rat.
-//
-// Set at `wolf` (index 4): floor 1-3's own tier ceiling under M25 never
-// reaches it (2, then 3), so those floors cannot hand out an axe by
-// construction, independent of the roll. Floor 5's ceiling (4) just
-// clears it. Needs a sweep if the measured cumulative-damage curve does
-// not land where M26's supply arithmetic predicts.
+// GUESS — the minimum MONSTER_TABLE index a killed creature must reach
+// before `axe` is even in its drop pool. A FILTER, not a tilt: below this
+// the axe is provably absent, so weak floors cannot hand one out.
 export const WEAPON_AXE_MIN_TIER = 4;
 
-// M19 — docs/backlog.md. Converts the chest nearest the spawn to a
-// guaranteed `dagger` whenever the hero is carrying no weapon at all
-// (spawn.js populate(), step 4b). Built "structural, no flag" — owner
-// request afterwards to be able to turn it off and see what an unweighted
-// opening actually costs. `true` reproduces the shipped M19 floor exactly;
-// `false` removes the guarantee and leaves that chest's contents to the
-// ordinary roll, same as every other chest.
-//
-// OFF by M29 (docs/backlog.md), owner request — the item injection retired
-// in favour of a softer floor 1 through GENERATION instead (see
-// MONSTERS_BASE / MONSTER_GROWTH_REBALANCED in difficulty.js). The two
-// changed in the same commit so the swap could be measured together: a
-// floor-1 softening measured with the guarantee still on would not say
-// whether it actually compensates for turning the guarantee off.
-//
-// Measured, n=40 seed 800000, real bot, TODAY's baseline (the item's own
-// commit reported 3.525 -> 2.95 / 32.5% -> 52.5%; both numbers had already
-// drifted by the time this item ran — M3, REVERSAL_PENALTY and the
-// shrine-reachability rule all landed in between — so this re-measured
-// fresh rather than trust the old ones):
-//
-//     mean death floor          2.425  ->  2.15   (guarantee on -> off, old MONSTERS_BASE)
-//     share dying by floor 2    60%    ->  75%
-//
-// With the guarantee off AND MONSTERS_BASE softened together: mean death
-// floor 3.25, share dying by floor 2 57.5%, 3/40 clears (zero with the
-// guarantee on) — beats the guarantee-ON baseline on both numbers the item
-// asked to match. Kept as a parameter, not deleted: `counts.
-// guaranteeFirstWeapon ?? GUARANTEE_FIRST_WEAPON` still lets a probe flip
-// it back on to isolate the two levers again later.
-export const GUARANTEE_FIRST_WEAPON = false;
-
-// DIVERGENCE: Rogule dresses these as scenery — potted plant, rock, wood
-// block — because there they are cover you kick over. Ours are the reward
-// container of the map design, so they look like what they are. One row,
-// but still a table: the pick still burns one RNG draw, so the streams
+// One row, but still a table: the pick burns one RNG draw, so the streams
 // stay aligned with runs recorded before the rename.
 export const CHEST_TABLE = [
   { name: 'chest', emoji: '📦' },
 ];
 
-export const POTION_HEAL = 3;               // FAITHFUL engine.cljs:209
 export const CHEST_DIFFICULTY_SCALE = 0.9;  // FAITHFUL generator.cljs:238
 
-// GUESS — our fix for spec quirk 9.3.
-//   true  (ours)     chests FURTHER from the player are MORE likely to hold loot
-//   false (original) chests further from the player are LESS likely
-// Either way the probability sweeps the same range, just in opposite
-// directions: from 10% at one end to 100% at the other.
-export const CHEST_LOOT_RICHER_FAR = true;
-
-// GUESS — depth buys BETTER loot, not merely more of it.
-//
-// With this off, a deep chest is likelier to hold something but what it
-// holds is drawn from the same pool as one by the front door: risk bought
-// quantity and never quality. On, the within-kind weight becomes
-// `value^(2·depth − 1)`, so the axe is rare at the entrance, even money
-// half way, and the common outcome at the shrine. See spawn.js itemWeights.
-export const CHEST_QUALITY_BY_DEPTH = true;
-
-// ***** M19 — pay for the harder opening with loot ***** //
-// GUESS — added on top of `depth` before it reaches `itemWeights`'s
-// `quality` argument, then clamped to 1. M17 raised floor 1 to ~5
-// creatures and M18 made the bottom tier bite; under CHEST_QUALITY_BY_DEPTH
-// alone, floor 1 is the poorest floor (quality only comes from position,
-// and nowhere on floor 1 is far from the entrance) at the exact moment it
-// became the most dangerous one. Fades as `EARLY_CHEST_QUALITY_BOOST /
-// level` — strongest on floor 1, roughly a tenth of that by floor 10 —
-// rather than a flat bonus, so it does not richen the floors that were
-// never the problem. The cheapest of M19's three levers: one constant, no
-// new mechanism, reusing the quality dial M12 already built.
+// GUESS — floor 1 is the poorest floor under quality-by-depth (nowhere on it
+// is far from the entrance) at the exact moment it is the most dangerous.
+// Added to chest quality as BOOST / level, so it fades by the floors that
+// were never the problem.
 export const EARLY_CHEST_QUALITY_BOOST = 0.5;
-
-// ***** the cost model under-prices crowds ***** //
-//
-// GUESS — SUPERSEDED SHAPE, corrected once, keep reading.
-//
-// The first fix here was `campaignCost *= 1.32 * n^0.106` — multiplicative,
-// no strength term. It was wrong on the strength axis by construction: a
-// factor that only reads `n` cannot fall as strength rises, and re-measured
-// with a tank hero (400 hp, so nothing is selected by dying) it does fall,
-// robustly, across two independent measurements:
-//
-//     count 2 -> 28, strength fixed at 0.35 : raw ratio ~1.73, roughly FLAT
-//     strength 0.5 -> 0.8, count fixed at 8  : raw ratio 1.48 -> 1.22, FALLS
-//
-// That is exactly the shape the original diagnosis called for and the first
-// fix did not implement: real damage is modelled cost PLUS a roughly fixed
-// overhead, not modelled cost TIMES a count-only factor. An overhead that
-// does not grow with strength shrinks as a fraction of a bare cost that
-// DOES grow with strength (bare cost is superlinear in strength — see the
-// exponent note under Strength ramp), which produces exactly the falling
-// ratio measured.
-//
-//     campaignCost += CROWD_COST_OVERHEAD * Σ expectedDamage(monster.xp, 0)
-//
-// Applied to campaignCost ONLY, never to duelCost. The one-on-one model is
-// right; the sum is what is wrong.
-//
-// HONEST LIMIT: this is a large improvement, not a perfect fit. A weighted
-// regression against the fitted constant still shows residual structure
-// (z ≈ 2.2 vs count, z ≈ -2.8 vs strength on the fitting data) — smaller by
-// roughly an order of magnitude than the multiplicative form's error, but
-// not zero. One constant is what the CPU budget (this runs inside the bot's
-// decision loop) and the measurement noise both support; chasing the last
-// bit of structure would need either a second term or far more seeds than
-// fit in one sitting.
-//
-// D1 — REDONE against the strength ramp, which M17 turned on after this was
-// fitted, and KEPT at the same value on the strength of the redo rather than
-// by default. On the shipped floors the ratio holds near 1 for floors 1-8
-// and reaches ~1.4 on floors 9-10; the constant the deep floors imply is
-// about three times this one. Re-centring a single constant makes the trend
-// WORSE — it drags the eight good floors under 1.00 to part-fix two — and a
-// second term is refused for the reason the paragraph above already gives.
-// docs/balance.md has both seed families and the alternative shapes that
-// were measured and not adopted.
-export const CROWD_COST_OVERHEAD = 0.75;
-
-// ***** floor spread: making deep floors lotteries ***** //
-//
-// GUESS — how wide the whole floor's shared roll is, by depth:
-//
-//     sigma(N) = min(CAP, BASE + PER_LEVEL × (N − 1))
-//
-// Difficulty grows by creature count, and a sum of N independent draws
-// converges on its mean — CV = CV_c / √N. Measured over 150 seeds a floor,
-// CV × √N came out flat at ~1.2 from floor 1 to floor 10, which is the law
-// holding exactly. So the deeper the floor, the more PREDICTABLE it is, and
-// the climax of a run lands where the variance is lowest. The player decides
-// nothing here, so surprise is the only tension there is.
-//
-// Nothing independent can fix that: widening the per-creature spread, or
-// giving each creature a chance of being huge, both leave the √N underneath.
-// One roll shared by the WHOLE floor does, because then cost is N·μ(F) and
-// the CV is the spread of F with no N in it at all.
-//
-// On the count rather than on strength, because cost is linear in count and
-// convex in tier — so a mean-1 multiplier on the count cannot move the
-// centre, which is the constraint that matters most here.
-export const FLOOR_SPREAD_BASE = 0;
-export const FLOOR_SPREAD_PER_LEVEL = 0.09;
-export const FLOOR_SPREAD_CAP = 0.9;
 
 // ***** map design: the spine and its detours ***** //
 //
-// docs/map-design.md. The floor should offer a choice: a short mandatory
-// route holding most of the threat, and side rooms that can be skipped,
-// holding fewer but nastier creatures and better chests.
+// docs/map-design.md. A short mandatory route holding most of the threat,
+// plus side rooms that can be skipped — fewer but nastier creatures, better
+// chests. These dials are the branching axis.
 
 // GUESS — share of a floor's THREAT MASS placed on the mandatory route.
-// Mass rather than headcount, because cost tracks hp × (xp − 1): a floor
-// can put 70% of its bodies on the spine and still hide the dangerous half
-// in a side room.
+// Mass rather than headcount, because cost tracks hp × (xp − 1).
 export const SPINE_THREAT_SHARE = 0.7;
 
-// ***** M23 — a distant shrine, not the furthest possible one ***** //
-// How close to the hero's own furthest reachable room still counts as
-// "distant" for the shrine. M20 put the shrine at the single longest
-// room-pair on the map — maximising the path — but a room is spine
-// whenever the mandatory path crosses it, so maximising the path maximises
-// spine share directly: the same quantity measured twice. That pushed
-// spine share to 0.93-0.97 against the 0.95 ceiling `SPINE_THREAT_SHARE`
-// above is calibrated against. This is the tail, not the extreme: any room
-// within this share of the furthest one reachable is a candidate, and one
-// is drawn at random — still genuinely far, just not always THE one
-// farthest point on the map. `bestPair.b` (M20's own choice) is always
-// exactly at 100% of the tail, so 1.0 reproduces M20 exactly.
-//
-// Swept 0.6 / 0.65 / 0.7 / 0.75 / 0.8 / 0.9 on floor 5, hero-shrine path
-// length, n=3000/value: 0.6 landed at 29.4, statistically flat against the
-// pre-M20 baseline of 28.6 (a difference too small to trust — the exact
-// failure mode the item warned against, the constant doing nothing). 0.7
-// reached 30.5, clearly below M20's 31.5, but pushed floor 6 spine share
-// to 0.95+ against the two spine-share tests M20 left failing, which this
-// item has to bring back to green WITHOUT editing them. 0.65 clears both:
-// spine share back in [0.6, 0.95] at every floor the split applies to, and
-// path length lands at 29.9 — ~4.7 sigma above the pre-M20 baseline and
-// ~5.8 sigma below M20's, genuinely between the two rather than pinned to
-// either end.
+// GUESS — how close to the hero's furthest reachable room still counts as
+// "distant" for the shrine. 1.0 pins it to the single farthest room, which
+// maximises spine share directly; lower widens the candidate pool.
 export const SHRINE_DISTANCE_SHARE = 0.65;
 
 // GUESS — a side room is treated as if it sat this much deeper than it is.
-//
-// ONE constant drives both halves of the bargain, which is why it is the
-// whole of the risk/reward design rather than a tweak to it: depth is what
-// picks the monster tier AND what sets chest quality, so raising it makes a
-// detour more dangerous and better paid by the same number. Raise it for a
-// sharper gamble, drop it to zero to make side rooms ordinary.
+// ONE dial drives both halves of the gamble: depth picks the monster tier
+// AND the chest quality, and each side room rolls the two INDEPENDENTLY —
+// with one shared roll every detour offered the same ratio and there was no
+// decision in any of them (measured).
 export const SIDE_ROOM_DEPTH_BONUS = 0.35;
 
-// GUESS — a creature in a side room only wakes within this many tiles,
-// however far its table entry would normally reach. 99 means no cap.
-//
-// OFF, and this is a measured negative. The hypothesis was good: activation
-// runs to 20 in the table and the strongest creatures have the longest
-// reach, so the nastiest side rooms should have been the ones grabbing the
-// bot from across the floor while safe rooms never woke. Capping it to 4
-// made the inversion WORSE, not better — the bot opened 68% of unfavourable
-// rooms against 54% of favourable, against 53%/45% uncapped.
-//
-// Kept as a dial because "a guard guards" is still a defensible rule and the
-// negative result is worth being able to re-check. See docs/map-design.md
-// for what the cause actually turned out to be.
-export const SIDE_ACTIVATION_CAP = 99;
-
 // GUESS — floors with fewer creatures than this put everything on the
-// spine. The mass split is too coarse to honour below it: on a
-// two-creature floor one side monster is already half the mass, which
-// measured 68% and 63% spine on floors 1 and 3 against a 70% target. A
-// single creature behind a detour is not a gamble either.
+// spine: on a two-creature floor one side monster is already half the mass,
+// and a single creature behind a detour is not a gamble.
 export const MIN_ROSTER_FOR_SIDE = 4;
 
-// GUESS — how much likelier a chest is to land in a side room than in a
-// spine room. A weight, not a quota: a detour nobody is paid to make is not
-// a choice, it is scenery — but a map with no side rooms must still place
-// every chest.
+// GUESS — how much likelier a chest is to land in a side room. A weight,
+// not a quota: a map with no side rooms must still place every chest.
 export const SIDE_CHEST_BIAS = 3;
 
-// ***** M42 — time has a price, docs/backlog.md M42, stage 1 ***** //
-// How many turns one TRAVERSAL may spend. Run out and the traversal ends
-// without completing, which ends the run (rules.md §8).
-//
-// NOT A NEW MECHANISM, and that is the point of stage 1. A per-traversal
-// turn cap has always existed — `playDungeon` hardcoded 1500 and the engine
-// guards at 5000 — and it was a runaway guard nobody had chosen. This gives
-// it a name and a row in balance.md so it can be TIGHTENED into a design
-// constraint by moving a value, which is CLAUDE.md's first preference.
-//
-// SCOPE IS THE TRAVERSAL, not the run. "A side room costs a countable number
-// at the moment you decide" is a per-traversal sentence, and across twenty
-// traversals a run-wide budget is a different feature.
-//
-// CURRENCY IS TURNS, which prices walking AND fighting — the broad version.
-// Narrowing it to movement later is easy; widening it is not.
-//
-// NO NEW CHANNEL FOR THE BOT, and this is not a fog-of-war concession. What
-// is left is `TURN_BUDGET − state.turn`: the turn already crosses into
-// `Observation` and the budget is a module constant the bot may import like
-// any other. Nothing that was hidden became visible.
-//
-// ENTERED LOOSE ON PURPOSE. Measured at HEAD before this landed, a traversal
-// spends a mean of 104 turns and a p99 of 952 — a heavy tail, because a bot
-// that loses its route wanders rather than dies. The old 1500 already bound
-// 0.81% of traversals, so "the cap has never fired" was not quite true. This
-// ships AT that measured behaviour rather than below it: stage 1's job is to
-// make the budget nameable and provably almost-inert, and every tightening
-// step after it is a value change with its own measurement. A budget that
-// changes everything on the first try is an event, not a dial.
+// GUESS — every chest gets a creature within this radius, spine included.
+// Loot is not free.
+export const CHEST_GUARD_RADIUS = 8;
+
+// ***** time ***** //
+
+// How many turns one TRAVERSAL may spend. Running out ends the traversal
+// without completing, which ends the run (rules.md §8). The only brake on
+// the shamble. Entered loose (at the measured p99 of wandering runs);
+// tightening it is a value change with its own measurement.
 export const TURN_BUDGET = 1500;
-
-// ***** bot ***** //
-
-export const BOT_KNOWS_MONSTER_COUNT = true;  // bot-strategy 4.1
-
-// GUESS — how much hp one step of walking is worth, which is the practical
-// form of the lambda dial in bot-strategy 0. At 0.01 the bot will walk 100
-// extra steps to save 1 hp. Raise it for a hasty bot, lower it for a
-// patient one.
-export const STEP_COST_IN_HP = 0.01;
-
-// GUESS — B10, docs/backlog.md. How much one unseen tile a candidate
-// step would reveal is worth, in hp, when routing toward a FRONTIER goal
-// only. Deliberately tiny: at the theoretical maximum reveal a single tile
-// can offer (a full sight-radius circle of dark, ~254 tiles at
-// VISIBLE_DIST 9), the discount tops out at 254 * 0.00002 = 0.00508 — half
-// of one STEP_COST_IN_HP. This has to stay a tie-breaker between routes of
-// EQUAL length, never a reason to prefer a longer one; if it ever needs
-// raising, re-check that bound first.
-export const FRONTIER_REVEAL_WEIGHT = 0.00002;
-
-// GUESS — B17, docs/backlog.md. How much less a tile costs to cross when a
-// WANTED loose item is lying on it. Walking over one collects it for free
-// (no action, no turn — see step.js's pickup path), so among routes that
-// cost the same, the one that grazes an item is strictly better.
-//
-// The lower bound is "anything above zero": ties here are EXACT equalities,
-// because on a floor with nothing awake every tile costs exactly
-// STEP_COST_IN_HP, so any positive discount decides them.
-//
-// The upper bound is the whole design, and it is what keeps this a routing
-// preference rather than goal selection by the back door: the total
-// discount along a route must never buy one extra step. At 1/25th of
-// STEP_COST_IN_HP a route would have to cross 25 wanted items to pay for a
-// single tile of detour, against a floor that generates CHEST_COUNT of
-// them at most. Raise it and `chooseGoal` stops being the only thing
-// choosing goals — two things in charge of one decision.
-//
-// MEASURED INERT, shipped on anyway because it cannot cost anything: 300
-// paired runs moved nothing past 1.4σ, and route length went slightly DOWN
-// rather than up — the direction the item warned to watch. The reason is
-// not B10's ("ties are rare"); it is that there is nothing to bend toward.
-// A wanted loose item is on the floor in 6.5% of decisions, mean 0.066 at a
-// time, and in 93% of those the bot's goal ALREADY IS that item. The
-// discount can only matter in 0.5% of turns.
-//
-// SHIPPED OFF by B17's review, overruling the report. "It cannot cost
-// anything" is not this project's test: CLAUDE.md says a new parameter is
-// the last resort, and that a measured-and-rejected mechanism is left in
-// the code with the number that killed it in the comment. That convention
-// does not say ON. Set to 0.0004 to re-enable the mechanism as measured.
-export const ROUTE_ITEM_DISCOUNT = 0;
-
-// GUESS — a new target must beat the current one by this factor before the
-// bot switches. Without it, two near-equal targets make it dither on the
-// spot instead of committing to either. Raised from 1.15 (only needed 15%
-// better to switch, not much stickiness) — see docs/balance.md for the
-// caveat this comes with: `bot.js`'s check only applies to `monster`
-// targets, chest/item goals have no hysteresis at all.
-export const GOAL_STICKINESS = 1.4;
-
-// GUESS — stand-in stats for a monster the bot has not met yet. It knows
-// how many are still unaccounted for (BOT_KNOWS_MONSTER_COUNT) but not what
-// they are, and gear has to be priced against them too. These are the
-// median of MONSTER_TABLE, which happens to be the ogre.
-export const UNKNOWN_MONSTER_ESTIMATE = { xp: 4, hp: 7 };
-
-// What the bot assumes when deciding whether opening a chest is worth the
-// two turns. A BOT belief about a GENERATOR fact, which is the whole reason
-// it can be wrong on its own — and it was.
-//
-// CORRECTED by M39, from 0.60. The old comment claimed 0.60 was measured
-// over 150 maps; against the generator that shipped alongside it, a chest
-// paid out 0.226 of the time. The bot was pricing every chest at about 2.6x
-// what it was worth.
-//
-// READ THE FORMULA BEFORE MOVING THIS. `loot.js` computes
-// `CHEST_LOOT_CHANCE x sum(ITEM_MIX)`, and its `ITEM_MIX` calls
-// `itemWeights({}, 'chest')` — an EMPTY scarcity object, so both kinds keep
-// their full 0.5 share and the empty slot gets weight zero. The generator's
-// own template gate is therefore absent from the bot's model entirely, and
-// this constant is standing in for the WHOLE payout rate, not for
-// `spawn.js`'s positional `hasLoot` gate that shares its shape. Setting this
-// to the hasLoot mean would reintroduce the same 1.3x error pointing the
-// other way.
-//
-// So: this is the product the generator produces, which M39 put on the
-// owner's 0.5 target. It is exact today only because 25/25 makes the two
-// kinds equally likely, which is the mix `ITEM_MIX` already assumes. Split
-// the kinds unevenly and the bot's mix goes wrong again, silently — flagged
-// to the bot agent rather than fixed here, since `loot.js` is theirs.
-export const CHEST_LOOT_CHANCE = 0.50;
-
-// GUESS — what share of the REMAINING descent the bot prices gear against.
-//
-// A sword taken on floor 3 is swung on floors 4 to 10, so valuing it against
-// floor 3 alone leaves the bot blind to the long game the map design is
-// built around. But counting all seven floors ahead at face value is just as
-// wrong in the other direction: it assumes the hero survives to swing it,
-// and only about 45% of dungeons are cleared.
-//
-// 0.5 is that clear rate rounded, used as a plain discount rather than a
-// modelled survival curve — a single honest constant beats a fake model.
-// At 0 the bot is myopic, which is the behaviour every measurement before
-// this was taken with.
-export const LOOT_CAMPAIGN_HORIZON = 0.5;
-
-// GUESS — how fast a monster's menace fades with distance. The hp it is
-// expected to deal is multiplied by this per tile away, so at 0.5 a wolf
-// two tiles off is charged a quarter of its bite. Lower makes the bot
-// bolder about squeezing past; higher makes it give monsters a wide berth.
-export const DANGER_FALLOFF = 0.5;
-
-// GUESS — how much an open tile multiplies the danger already on it. A tile
-// with four ways in is charged (1 + 3 * this) times its menace; a dead end
-// is charged plain. This is what makes the bot SEEK corridors when hunted
-// rather than merely tolerate them (bot-strategy §2).
-export const EXPOSURE_WEIGHT = 0.5;
-
-// GUESS — how close a hunter must be before the bot stops walking out to
-// meet it and lets it come. Waiting costs no tempo: monsters move after the
-// player, so whoever closes the last tile, the player still strikes first.
-export const HOLD_RANGE = 5;
-
-// GUESS — extra hp charged for standing where two or more awake monsters
-// could reach the bot at once. This is rule R2 (bot-strategy §2) as a
-// strong price rather than a ban: a ban can leave a goal unreachable and
-// needs fallback machinery, while a price this size is avoided whenever
-// there is any alternative. The hard version belongs at action-selection
-// time, with the tactical search.
-export const CROWD_PENALTY = 6;
-
-// GUESS — how many turns ahead the tactical search simulates, and how close
-// a monster has to be before it bothers. Away from monsters the route is
-// already the answer and searching is wasted work; nearby it decides who
-// lands the first blow and whether the bot reaches the corridor in time.
-// Depth ONE, not three. At depth 1 this is what the original plan asked
-// for: simulate the monsters' reply to the step about to be taken, and
-// refuse the step that leaves the bot between two of them. Deeper searches
-// start optimising for not being hit at all, which they achieve by never
-// closing — see bot-strategy §4.4 for the measurements.
-//
-// Range is tight: it only earns its keep in contact. Further out the
-// danger-priced route already gives the same answer for far less.
-export const TACTICAL_DEPTH = 1;
-export const TACTICAL_RANGE = 4;
-
-// GUESS — how much better, in hp, an alternative must look before the bot
-// abandons the step its plan wanted. The tactical search only holds a veto
-// (see src/bot/tactics.js); given a free choice it dithers forever, because
-// backing away always beats walking into a fight it is required to have.
-export const TACTICAL_OVERRIDE_MARGIN = 0.5;
-
-// GUESS — hp charged for undoing the step just taken.
-//
-// Without it the veto has no memory and two-cycles forever: the plan says
-// "attack", the veto refuses and steps aside, next turn the plan says
-// "go back", the veto agrees, and the bot ping-pongs between two tiles
-// until the turn limit. Seen in about one run in nine.
-//
-// LOCATED, bot-strategy §4.5: an extended trace (goal identity + which
-// layer actually chose the returned action) over two independent seed
-// families puts 61-64% of reversal episodes and turns on the TACTICAL
-// VETO overriding a STABLE goal, not on goal selection flipping (~7-11%).
-// A third, unnamed locus — the ROUTE to a stable goal alternating on its
-// own, veto never even consulted — accounts for another 14-21%, likely
-// fog-of-war revealing map on each step and flipping a tied-cost route.
-//
-// WAS 0, "measured, does not fix what it targets". That verdict was wrong,
-// and the reason is worth keeping: the old sweep read 0.238 -> 0.205 on the
-// POOLED reversal RATE, which B3 showed is mostly a measurement of how long
-// a run is, not how much it dithers. A run that ends early scores well by
-// dithering less in absolute terms. Judged on the DISTRIBUTION instead —
-// turns spent inside reversal episodes — it is the single biggest win
-// available, and it was never failing.
-//
-// RAISED to 6 on B3's reading (docs/backlog.md B3), n=60, on top of B3's
-// goal-layer fix, two independent seed families:
-//
-//                        seeds 800000      seeds 910000
-//                        0        6        0        6
-//   turns in episodes    21.4%    9.2%     25.5%    7.5%
-//   pooled rate          23.6%   16.0%     27.2%   14.8%
-//   median run's share    9.0%    5.6%      5.5%    2.8%
-//   veto-layer episodes    135       0       150       0
-//   actions per run        509     589       428     376
-//
-// The two families move run LENGTH in opposite directions (one 16% longer,
-// one 12% shorter) and agree on the distribution anyway, which is what
-// makes it a dithering result rather than a length artefact. Veto-layer
-// episodes go to exactly zero on both — a mechanism check, not a rate.
-//
-// WATCH: median depth went 4 -> 3 on the confirmation family, against
-// 4 -> 4 on the primary. Finishes were unchanged on both (6.7%/6.7% and
-// 0%/0%), so the cost the old sweep reported did not reproduce — but that
-// one wobble is the thing to hold against this if depth slips later.
-export const REVERSAL_PENALTY = 6;
-
-// GUESS — a fight is worth starting only while its EXPECTED cost stays
-// under this share of current hp. Expected is an average: a duel costing
-// exactly all the hp there is loses about half the time, so the bot needs
-// headroom rather than a break-even test.
-export const DUEL_SAFETY_MARGIN = 0.7;

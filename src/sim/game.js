@@ -31,18 +31,6 @@ export function newGame(seed, counts = {}) {
     nextId: 1,
     rng: makeStreams(rootSeed),
     log: [],
-    // Rule variant rather than a generation count, but it rides along in the
-    // same options bag so it travels into replays too.
-    attackWhenAdjacent: counts.attackWhenAdjacent,
-    xpFromKills: counts.xpFromKills,
-    hpFromKills: counts.hpFromKills,
-    weaponsWidenRoll: counts.weaponsWidenRoll,
-    // Instrumentation only, not a rule variant: suppresses item/potion/shield
-    // pickup so a probe can clear a floor without ever getting stronger from
-    // it. Chest-opening is unaffected — a shut chest still blocks the tile
-    // and still has to be opened to pass, only the drop is left on the floor
-    // unclaimed. Off by default, so ordinary play is untouched.
-    noPickup: counts.noPickup,
   };
 
   // M16 — docs/backlog.md. Passthrough so a sweep can ask "what if" without

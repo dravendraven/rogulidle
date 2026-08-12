@@ -5,7 +5,7 @@
 // their `activation`. That property is what the bot's "cold zone" is built
 // on (bot-strategy §1), so it has to stay exact.
 
-import { MONSTER_SKIP_CHANCE, MONSTERS_ATTACK_WHEN_ADJACENT } from './balance.js';
+import { MONSTER_SKIP_CHANCE } from './balance.js';
 import { drawChance } from './rng.js';
 import { findPath, isWalkable, posKey, samePos } from './mapgen.js';
 import { monsterAttacks } from './combat.js';
@@ -27,25 +27,10 @@ function moveMonster(state, monster, pos) {
   if (monster.drop) monster.drop.pos = pos.slice();
 }
 
-function isAdjacent(a, b) {
-  return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1;
-}
-
 export function updateMonsters(state, map) {
-  const attackOnTouch = state.attackWhenAdjacent ?? MONSTERS_ATTACK_WHEN_ADJACENT;
-
   for (const monster of state.monsters) {
     if (monster.dead) continue;
     if (state.outcome) return;
-
-    // Optional rule: adjacency alone is an attack, rather than the attack
-    // being a move into the player. See balance.js for why it exists.
-    if (attackOnTouch && isAdjacent(monster.pos, state.player.pos)) {
-      if (state.sim || !drawChance(state, 'combat', MONSTER_SKIP_CHANCE)) {
-        monsterAttacks(state, monster);
-      }
-      continue;
-    }
 
     const path = findPath(
       monster.pos, state.player.pos, monsterPassable(state, map, monster),

@@ -7,61 +7,12 @@
 // R1 built the structure and nothing else: traversals 11–20 reuse the map
 // their descent twins generated and are otherwise identical to them. What
 // makes the return DIFFERENT — a new creature seed, no chests, a widening
-// draw — is R2, R3 and R4 laid on top, deliberately separate so each can be
-// measured against the one before it.
-//
-// THE REQUIREMENT: floor 1 is the gentlest and floor 10 the hardest, for
-// the REAL hero — the one who arrives at floor 10 carrying everything the
-// nine floors above handed over. Not for a yardstick hero.
-//
-// MET. Measured over 24 descents (src/analysis/hardness.js, descentCurve):
-//
-//   floor        1     3     5     7     9    10
-//   capacity   10.0   8.7  11.2   9.8   9.2   6.5
-//   damage      2.7   5.0   4.1   5.8   8.0   6.5
-//   net        0.27  0.58  0.37  0.59  0.87  1.00
-//
-// Net challenge is the floor's cost over what the hero walked in with. It
-// climbs 0.27 to 1.00, and 1.00 means floor ten demands everything the hero
-// still has.
-//
-// The load-bearing column is CAPACITY, and it falls: 10.0 down to 6.5. The
-// hero reaches the bottom weaker than they started. That is what closed the
-// old problem, where the descent got easier because power ran away from the
-// floors faster than the floors grew.
-//
-// Three things did it, and none of them was the dial:
-//
-//   - armour became a second bar that is SPENT, not permanent mitigation
-//   - passive regeneration removed, so damage taken is damage kept
-//   - xp frozen, so kills stop compounding into output
-//
-// Earlier attempts that failed are worth remembering, because they all
-// share one shape: freezing xp, halving weapon value and making armour
-// scarce each slowed the RATE of accumulation, and none of them capped it.
-// Only spending the resource did.
-//
-// FRONT-LOADED ATTRITION, since fixed. Under the old additive law all 24
-// heroes met floor 2 and only 2 met floor 10 — the hardest floors were the
-// ones almost nobody saw. Exponential growth moved the jumps downward and
-// bought back the bottom of the dungeon:
-//
-//                       additive      exponential
-//   cleared               1/16            8/24
-//   average depth          5.1             7.1
-//   reached floor 10         2               9
-//
-// WHAT IS WRONG NOW: capacity climbs again, 10.0 -> 11.8. A gentle opening
-// lets the hero bank gear cheaply — six chests on a three-creature floor is
-// generous — so they outgrow the dungeon by the middle. Net challenge on
-// floor 10 fell from 1.00 to 0.71 as a result. Chests are the lever, not
-// the growth rate.
+// draw — is R2, R3 and R4 laid on top (docs/backlog.md), each measurable
+// alone.
 
 import { PLAYER_HP, PLAYER_XP, TURN_BUDGET } from './balance.js';
 import { hashSeeds } from './rng.js';
-import {
-  floorParams, monstersAt, MONSTERS_BASE, MONSTER_GROWTH,
-} from './difficulty.js';
+import { floorParams } from './difficulty.js';
 import { playGame } from './game.js';
 
 export const LEVELS = 10;
@@ -94,20 +45,10 @@ export function floorOfTraversal(traversal, floors = LEVELS) {
   return traversal <= floors ? traversal : (2 * floors) + 1 - traversal;
 }
 
-// Floor N holds `MONSTERS_BASE × MONSTER_GROWTH^(N-1)` creatures, and
-// everything else on the floor follows from that count. Floor 1 gets two,
-// floor 10 gets twenty-one.
-//
-// No interpolation, no anchors, no calibration table. Difficulty is the
-// creature count, and count is the right dial because clearing cost scales
-// linearly with how many there are — individual strength scales it
-// quadratically, which no one can steer by (see difficulty.js).
+// Everything a floor needs falls out of its depth — see difficulty.js for
+// the one curve all of it derives from.
 export function floorPlan(level) {
   return { ...floorParams(level - 1), level };
-}
-
-export function monstersOnFloor(level) {
-  return monstersAt(MONSTERS_BASE, MONSTER_GROWTH, level - 1);
 }
 
 // What survives the stairs.
@@ -165,8 +106,7 @@ export function playDungeon(seed, makePolicy, options = {}) {
       difficultyScale: plan.difficultyScale,
       clusterSize: plan.clusterSize,
       tierFloorShare: plan.tierFloorShare,
-      tierCeilingShare: plan.tierCeilingShare,
-      earlyTierCapShare: plan.earlyTierCapShare,
+      tierSlack: plan.tierSlack,
       outOfDepthChance: plan.outOfDepthChance,
       chestGuardRadius: plan.chestGuardRadius,
       dropChance: plan.dropChance,
@@ -181,7 +121,6 @@ export function playDungeon(seed, makePolicy, options = {}) {
       // Map-design dials ride along untouched; undefined means "use the
       // shipped value", which populate() resolves against balance.js.
       monsterSpread: plan.monsterSpread,
-      sideActivationCap: plan.sideActivationCap,
       sideRoomDepthBonus: plan.sideRoomDepthBonus,
       spineThreatShare: plan.spineThreatShare,
       sideChestBias: plan.sideChestBias,
@@ -196,12 +135,6 @@ export function playDungeon(seed, makePolicy, options = {}) {
       // overwrites it with the more current inventory regardless. Nothing
       // here needs to know which floor is "first".
       startingItems: options.startingItems,
-      // Rule variants apply to every floor of the descent.
-      xpFromKills: options.xpFromKills,
-      hpFromKills: options.hpFromKills,
-      attackWhenAdjacent: options.attackWhenAdjacent,
-      weaponsWidenRoll: options.weaponsWidenRoll,
-      guaranteeFirstWeapon: options.guaranteeFirstWeapon,
     };
 
     const run = playGame(
