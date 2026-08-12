@@ -103,6 +103,22 @@ main {
   gap: 0;
 }
 
+/* Health + armour sit INSIDE the stage, under the board: the state that
+   changes every turn belongs next to the thing that changes it, not in the
+   side panel with the run's slower numbers. Centred under the map, and it
+   breathes — the vertical padding is what keeps it a bar of its own rather
+   than a last row of the grid. The pips need a gap of their own too: each
+   glyph fills its whole box, so edge-to-edge they merge into one green
+   smear instead of reading as countable hearts. */
+.hp {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  padding: 24px 4px 15px;
+}
+.hp svg { width: 18px; height: 18px; }
+
 .cell {
   position: relative;
   transition: opacity .12s linear;
@@ -273,8 +289,6 @@ main {
   padding: .9rem;
 }
 
-.hp { display: flex; flex-wrap: wrap; }
-.hp svg { width: 15px; height: 15px; }
 
 .chips { display: flex; gap: .4rem; flex-wrap: wrap; }
 .chips span {
