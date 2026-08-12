@@ -4,9 +4,8 @@
 // ── Run it ────────────────────────────────────────────────────────────────
 //
 //   node tools/measure.mjs --selftest
-//   node tools/measure.mjs --list observed-ruler
-//   node tools/measure.mjs observed-ruler rewardShape '{"runs":6,"firstSeed":500000}'
-//   node tools/measure.mjs clustering descentCheck '{"runs":2,"firstSeed":1200000}'
+//   node tools/measure.mjs --list check
+//   node tools/measure.mjs check tripwires '{"runs":24,"firstSeed":500000}'
 //   node tools/measure.mjs src/sim/difficulty.js expectedFloorMass 3
 //
 // Bare module names resolve inside `src/analysis/`; anything with a `/` is
@@ -113,17 +112,14 @@ const GENERATION = {
   },
 };
 
-// A real measurement off the page: `rewardShape({ runs: 3, firstSeed: 500000 })`
-// from `src/analysis/observed-ruler.js`, the same call `run-check.html` makes.
-// Small on purpose — it is a fidelity check, not a reading.
+// A real measurement off the page: `tripwires({ runs: 3, firstSeed: 500000 })`
+// from `src/analysis/check.js`, the same call `run-check.html` makes.
+// Small on purpose — it is a fidelity check, not a reading. Only the VALUES
+// are anchored; whether a wire fires is a threshold question, and moving a
+// threshold must never fail the substitution check.
 const MEASUREMENT = {
-  call: { module: 'observed-ruler', fn: 'rewardShape', args: { runs: 3, firstSeed: 500000 } },
-  challengeMean: [
-    3.6666666666666665, 6, 4.666666666666667, 6.333333333333333, 12.666666666666666,
-    10, 26.333333333333332, 21.333333333333332, 29.333333333333332, 48.333333333333336,
-  ],
-  challengeP90: [5, 8, 7, 8, 17, 14, 32, 26, 44, 86],
-  rewardMean: [0, 1, -1, 0, 3.6666666666666665, 0, 4, 0.3333333333333333, 9, 12.666666666666666],
+  call: { module: 'check', fn: 'tripwires', args: { runs: 3, firstSeed: 500000 } },
+  values: [0.667, 0, 0, 0, 0, 0.692],
 };
 
 // The exact snippet that produced GENERATION, for re-recording in a browser
@@ -215,26 +211,22 @@ async function selftest() {
 
   // 3. a real run-check measurement reproduces, same seeds
   const mod = await import(moduleUrl(MEASUREMENT.call.module));
-  const rows = mod[MEASUREMENT.call.fn](MEASUREMENT.call.args);
-  const cols = [
-    ['challengeMean', (r) => r.challenge.mean],
-    ['challengeP90', (r) => r.challenge.p90],
-    ['rewardMean', (r) => r.reward.mean],
-  ];
-  for (const [label, pick] of cols) {
-    const want = MEASUREMENT[label];
-    const off = [];
-    for (let i = 0; i < want.length; i++) {
-      const got = pick(rows[i]);
-      if (!near(got, want[i])) off.push(`floor ${i + 1}: browser ${want[i]}  |  headless ${got}`);
+  const result = mod[MEASUREMENT.call.fn](MEASUREMENT.call.args);
+  const got = result.tripwires.map((w) => w.value);
+  const want = MEASUREMENT.values;
+  const off = [];
+  for (let i = 0; i < want.length; i++) {
+    if (!near(got[i], want[i])) {
+      off.push(`${result.tripwires[i]?.name ?? i}: browser ${want[i]}  |  headless ${got[i]}`);
     }
-    if (!off.length) {
-      say(`  ok   ${MEASUREMENT.call.fn}.${label} — all 10 floors match the page`);
-    } else {
-      fails.push(`${MEASUREMENT.call.fn}.${label} differs from the page`);
-      say(`  FAIL ${MEASUREMENT.call.fn}.${label}`);
-      for (const line of off) say(`         ${line}`);
-    }
+  }
+  if (got.length !== want.length) off.push(`wire count: browser ${want.length} | headless ${got.length}`);
+  if (!off.length) {
+    say(`  ok   ${MEASUREMENT.call.fn} — every wire's value matches the page`);
+  } else {
+    fails.push(`${MEASUREMENT.call.fn} differs from the page`);
+    say(`  FAIL ${MEASUREMENT.call.fn}`);
+    for (const line of off) say(`         ${line}`);
   }
 
   const ok = fails.length === 0;
@@ -252,7 +244,7 @@ async function selftest() {
 }
 
 async function list(name) {
-  if (!name) die('--list needs a module, e.g. --list observed-ruler');
+  if (!name) die('--list needs a module, e.g. --list check');
   const mod = await import(moduleUrl(name));
   const functions = Object.keys(mod).filter((k) => typeof mod[k] === 'function').sort();
   const values = Object.keys(mod).filter((k) => typeof mod[k] !== 'function').sort();

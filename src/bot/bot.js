@@ -25,8 +25,8 @@
 // A hero with special characteristics is a different DEFAULT_HERO handed to
 // makeBot — same code, other numbers. See src/bot/config.js.
 
-import { effectiveHp, expectedDamage } from '../sim/combat.js';
-import { duelCost } from './duel.js';
+import { effectiveHp, expectedDamage, weaponDamage } from '../sim/combat.js';
+import { MONSTER_SKIP_CHANCE } from '../sim/balance.js';
 import {
   CROWD_PENALTY, DANGER_FALLOFF, DEFAULT_CHEST_COUNT, DEFAULT_MONSTER_COUNT,
   DEFAULT_HERO, GOAL_STICKINESS,
@@ -34,6 +34,23 @@ import {
 import {
   actionToward, believedWalkable, dijkstra, flood, frontiers, key, routeTo,
 } from './nav.js';
+
+// What a fight is expected to cost, before taking it. This is the number
+// objective 1 gates on — NOT the xp above the monster's head. xp only says
+// how hard it hits; the cost also depends on how long it takes to kill, so
+// a wolf and an ogre share xp 4 while the ogre costs half again as much.
+//
+// They land (1 - skip) of their turns, and never the last one: the blow
+// that kills them happens on the player's turn.
+export function duelCost(player, monster) {
+  const mine = expectedDamage(player.xp, weaponDamage(player));
+  const theirs = expectedDamage(monster.xp, 0);
+  if (mine <= 0) return { hpLost: Infinity, turns: Infinity };
+
+  const turns = monster.hp / mine;
+  const hpLost = (1 - MONSTER_SKIP_CHANCE) * Math.max(0, turns - 1) * theirs;
+  return { hpLost, turns };
+}
 
 // A monster is awake with respect to a tile when standing there puts the
 // hero inside its chase radius. Outside it the creature is provably

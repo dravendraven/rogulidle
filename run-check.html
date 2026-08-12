@@ -3,21 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rogulidle — is this any good?</title>
+<title>Rogulidle — tripwires</title>
 <style>
   :root { --bg:#101216; --panel:#171a21; --line:#262b35; --text:#d8dee9; --dim:#7a8595;
-          --faint:#5b6472; --good:#8ce99a; --warn:#ffd8a8; --bad:#ff8787; --accent:#74c0fc;
-          --success:#cfe6ff; }
+          --faint:#5b6472; --good:#8ce99a; --bad:#ff8787; --accent:#74c0fc; }
   * { box-sizing: border-box; }
   body { margin:0; padding:1.5rem 1rem 4rem; background:var(--bg); color:var(--text);
          font:13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  .app { max-width: 960px; margin: 0 auto; }
+  .app { max-width: 760px; margin: 0 auto; }
   h1 { font-size:1rem; letter-spacing:.08em; text-transform:uppercase; margin:0 0 .3rem; }
-  h2 { font-size:.85rem; letter-spacing:.08em; text-transform:uppercase; margin:0 0 .2rem; color:var(--accent); }
-  h3 { font-size:.85rem; letter-spacing:.03em; margin:0 0 .2rem; color:var(--text); }
-  p { max-width:80ch; }
-  .lede, .note { color:var(--faint); font-size:11.5px; max-width:80ch; }
-  .lede { margin:0 0 1.2rem; font-size:13px; }
+  .lede { color:var(--faint); margin:0 0 1.2rem; max-width:72ch; }
   fieldset { border:1px solid var(--line); border-radius:8px; background:var(--panel);
              margin:0 0 .9rem; padding:.7rem 1rem 1rem; }
   legend { color:var(--dim); font-size:11px; letter-spacing:.1em; text-transform:uppercase; padding:0 .4rem; }
@@ -26,439 +21,89 @@
     border-radius:5px; padding:.35rem .5rem; width:100%; }
   .row { display:flex; gap:.9rem; flex-wrap:wrap; }
   .row > div { flex:1 1 130px; }
-  button { font:inherit; color:var(--text); background:#20242d; border:1px solid var(--line);
-    border-radius:6px; padding:.45rem 1rem; cursor:pointer; margin-right:.5rem; }
-  button.primary { background:#25333f; border-color:#33495c; color:#cfe6ff; }
+  button { font:inherit; color:#cfe6ff; background:#25333f; border:1px solid #33495c;
+    border-radius:6px; padding:.45rem 1rem; cursor:pointer; }
   button[disabled] { opacity:.45; cursor:default; }
   #status { color:var(--dim); margin:.7rem 0 1rem; }
-  table { border-collapse:collapse; width:100%; font-size:12px; margin:.3rem 0 .5rem; }
-  th, td { text-align:right; padding:.25rem .5rem; border-bottom:1px solid var(--line); white-space:nowrap; }
-  th:first-child, td:first-child { text-align:left; }
-  th { color:var(--dim); font-weight:600; }
-  section.level { border:1px solid var(--line); border-radius:10px; background:#131620;
-    padding:1rem 1.2rem 1.2rem; margin:0 0 1.2rem; }
-  .grid { display:grid; grid-template-columns:1.1fr 1fr 1fr 1fr; gap:.8rem; margin-top:.6rem; }
-  @media (max-width:800px) { .grid { grid-template-columns:1fr 1fr; } }
-  .cell { border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:.7rem .8rem; }
-  .cell.success { border-color:#33495c; background:#182231; }
-  .cell.untargeted { border-style:dashed; border-color:var(--warn); }
-  .cell.untargeted .kind { color:var(--warn); }
-  .diag-label { color:var(--faint); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; margin:.9rem 0 .3rem; }
-  .grid.diag { opacity:.8; }
-  .kind { font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); }
-  .cell.success .kind { color:var(--success); }
-  .big { font-size:1.35rem; font-weight:600; margin:.2rem 0; }
-  .cell.success .big { font-size:1.55rem; }
-  .meaning { color:var(--dim); font-size:11px; margin:.15rem 0 0; }
-  .direction { color:var(--faint); font-size:10px; margin:.1rem 0 0; }
-  .ok { color:var(--good); } .no { color:var(--bad); } .meh { color:var(--warn); }
-  .flag { color:var(--bad); font-size:11.5px; margin:.5rem 0 0; padding:.4rem .6rem;
-    background:rgba(255,135,135,.08); border:1px solid rgba(255,135,135,.3); border-radius:5px; grid-column:1/-1; }
-  .flag.none { color:var(--good); background:rgba(140,233,154,.06); border-color:rgba(140,233,154,.25); grid-column:1/-1; }
-  .subnote { grid-column:1/-1; }
-  .lede2 { color:var(--faint); font-size:11px; margin:0 0 .3rem; }
-  details summary { cursor:pointer; color:var(--dim); font-size:11px; }
-  .smallprint { color:var(--faint); font-size:10.5px; margin-top:.5rem; }
+  .wire { border:1px solid var(--line); border-radius:8px; background:var(--panel);
+    padding:.7rem .9rem; margin:0 0 .6rem; display:flex; gap:1rem; align-items:baseline; }
+  .wire .state { min-width:5.5ch; font-weight:600; }
+  .wire.fired { border-color:rgba(255,135,135,.5); background:rgba(255,135,135,.06); }
+  .wire.fired .state { color:var(--bad); }
+  .wire.quiet .state { color:var(--good); }
+  .wire .name { min-width:16ch; }
+  .wire .value { min-width:7ch; text-align:right; color:var(--accent); }
+  .wire .cond { color:var(--faint); font-size:11px; }
+  .smallprint { color:var(--faint); font-size:10.5px; margin-top:1rem; max-width:72ch; }
 </style>
 </head>
 <body>
 <div class="app">
 
-<h1>Is this any good?</h1>
+<h1>Tripwires</h1>
+<p class="lede">
+  A tripwire fires or it does not, and when it fires there is a defect to
+  find. None of these is a quantity to push — the firing condition is printed
+  next to each value, and every number comes from real runs of the real bot.
+  Keep this tab visible while it runs, or the browser throttles it.
+</p>
 
 <fieldset>
   <legend>run</legend>
   <div class="row">
-    <div><label>floor samples</label><input id="floorRuns" type="number" value="100"></div>
-    <div><label>descents</label><input id="descentRuns" type="number" value="100"></div>
-    <div><label>seed base</label><input id="firstSeed" type="number" value="500000"></div>
+    <div><label>runs (more = steadier, slower)</label><input id="runs" type="number" value="24" min="1"></div>
+    <div><label>first seed</label><input id="seed" type="number" value="500000"></div>
   </div>
+  <p><button id="go">measure</button></p>
+  <div id="status">idle</div>
 </fieldset>
 
-<button id="run" class="primary">Check</button>
-<p id="status">idle</p>
 <div id="out"></div>
 
-<script type="module">
-import {
-  rewardShape, builtShape, mortalCoinShape, topologyShape,
-} from './src/analysis/observed-ruler.js';
-import { descentCheck } from './src/analysis/clustering.js';
-import { floorPlan, LEVELS } from './src/sim/dungeon.js';
+<p class="smallprint">
+  Headless twin: <code>node tools/measure.mjs check tripwires '{"runs":24}'</code>
+  — the same function, the same numbers. Correctness lives in
+  <a href="/run-tests.html" style="color:var(--accent)">run-tests.html</a>;
+  this page only answers "is this any good?".
+</p>
 
-const $ = (id) => document.getElementById(id);
-const f = (x, d = 1) => (x === null || x === undefined || !Number.isFinite(x) ? '—' : x.toFixed(d));
-const pct = (x) => (x === null || x === undefined || !Number.isFinite(x) ? '—' : Math.round(x * 100) + '%');
-function median(xs) {
-  const s = [...xs].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
-}
-function avgOf(arr, pick) {
-  const vals = arr.map(pick).filter(Number.isFinite);
-  return vals.length ? vals.reduce((s, x) => s + x, 0) / vals.length : NaN;
-}
-
-function el(tag, cls, html) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (html !== undefined) e.innerHTML = html;
-  return e;
-}
-
-function cell(kind, label, big, hint) {
-  const extra = kind === 'success' ? ' success' : kind === 'untargeted' ? ' untargeted' : '';
-  const c = el('div', `cell${extra}`);
-  c.append(el('div', null, `<b style="font-size:11px">${label}</b>`));
-  c.append(el('div', 'big', big));
-  if (hint) c.append(el('div', 'direction', hint));
-  return c;
-}
-
-// KPI: one per declared objective, worth a band. Diagnóstico: explains why
-// a KPI moved, has no target of its own — kept visually lighter so it
-// doesn't compete with the numbers that are actually the point.
-function levelSection(title, kpiCells, diagCells, flagNode, detailNode) {
-  const s = el('section', 'level');
-  s.append(el('h2', null, title));
-  const kpiGrid = el('div', 'grid');
-  for (const c of kpiCells) kpiGrid.append(c);
-  s.append(kpiGrid);
-  if (flagNode) s.append(flagNode);
-  if (diagCells && diagCells.length) {
-    s.append(el('div', 'diag-label', 'diagnóstico'));
-    const diagGrid = el('div', 'grid diag');
-    for (const c of diagCells) diagGrid.append(c);
-    s.append(diagGrid);
-  }
-  if (detailNode) s.append(detailNode);
-  return s;
-}
-
-function render(reward, counts, dc, sonda, coins, topo) {
-  $('out').innerHTML = '';
-
-  // ***** Product *****
-  const depths = dc.depths;
-  const depthList = depths.join(', ');
-  const finCls = dc.finishRate >= 0.15 && dc.finishRate <= 0.35 ? 'ok' : 'meh';
-
-  const productKpi = [
-    // I13 — depth counts TRAVERSALS survived, so the denominator is 20, not
-    // 10. Reaching the bottom is traversal 10 and clears nothing.
-    cell('success', 'median depth', `${f(dc.medianDepth, 1)}/${dc.traversals}`, `depths: ${depthList}`),
-    cell('health', 'finishes', `<span class="${finCls}">${pct(dc.finishRate)}</span>`, `${dc.cleared}/${dc.runs}`),
-  ];
-  const productDiag = [
-    cell('health', 'turns between events', f(dc.eventGapMedian, 0), `n=${dc.eventGapN}`),
-    cell('health', 'spread of depths', `±${f(dc.depthSpread, 1)}`),
-  ];
-  $('out').append(levelSection('Product', productKpi, productDiag));
-
-  // ***** Map *****
-  const first = reward[0].challenge.mean;
-  const last = reward[reward.length - 1].challenge.mean;
-  const drops = [];
-  reward.forEach((r, i) => {
-    if (i > 0 && r.challenge.mean < reward[i - 1].challenge.mean) drops.push(r.level);
-  });
-  // hp spent as a multiple of the hp+armour a hero actually ARRIVES with.
-  //
-  // I11 — this used to come from `capacityShape({ suppressDeath: true,
-  // startHero: null })`, on the theory that suppressing death removed
-  // survivor bias. It removed the hero instead: with no regen, a suppressed
-  // hero's hp pins at 0 and never recovers, so from floor 4 on that series
-  // read ~0 and this ratio divided by zero. At the page's own defaults it
-  // printed `Infinity` on floors 5, 7, 9 and 10, and flagged nearly every
-  // floor as over budget. Measured, not inferred: 60 of 60 runs had died by
-  // floor 4, and mean hp+armour there was 0.22 with a CV of 3.8.
-  //
-  // The mortal series is the honest source and the page already runs it for
-  // the Bot section, so this costs nothing extra. SURVIVOR-SELECTED by
-  // construction — a hero who never reached floor 9 has no arrival state
-  // there — which makes the reading "what floor 9 costs someone who gets to
-  // floor 9". That is the question the ratio is asking, and it is stated on
-  // the page rather than left implicit.
-  // NO FALLBACK. `builtShape` drops floors nothing reached, and the obvious
-  // `?? PLAYER_HP` fills those holes with a number that was never measured —
-  // it printed a confident 10.00 on floors zero runs had ever seen. A blank
-  // is the honest reading: if nobody arrived, there is no arrival hp. The
-  // `of runs reaching` row below carries the support so the blank is legible
-  // rather than mysterious.
-  const capByLevel = new Map(sonda.rows.map((r) => [r.level, r.effectiveHp.mean]));
-  const reachedByLevel = new Map(sonda.rows.map((r) => [r.level, r.reached]));
-  const expectedHp = (level) => (capByLevel.has(level) ? capByLevel.get(level) : NaN);
-  const lethal = [];
-  reward.forEach((r) => {
-    const ratio = r.challenge.mean / expectedHp(r.level);
-    if (Number.isFinite(ratio) && ratio >= 1) lethal.push({ level: r.level, ratio });
-  });
-  const costTable = el('table');
-  costTable.innerHTML = '<thead><tr><th>floor</th>' + reward.map((r) => `<th>${r.level}</th>`).join('') + '</tr></thead>'
-    + '<tbody><tr><td>hp spent</td>' + reward.map((r, i) => {
-      const cheaper = i > 0 && r.challenge.mean < reward[i - 1].challenge.mean;
-      return `<td class="${cheaper ? 'no' : ''}">${f(r.challenge.mean, 1)}</td>`;
-    }).join('') + '</tr>'
-    + '<tr><td class="direction">× hp+armour on arrival</td>' + reward.map((r) => {
-      const ratio = r.challenge.mean / expectedHp(r.level);
-      const shown = Number.isFinite(ratio) ? `${f(ratio, 1)}×` : '—';
-      return `<td class="direction ${Number.isFinite(ratio) && ratio >= 1 ? 'no' : ''}">${shown}</td>`;
-    }).join('') + '</tr>'
-    + '<tr><td class="direction">hp+armour on arrival</td>' + reward.map((r) => `<td class="direction">${f(expectedHp(r.level), 1)}</td>`).join('') + '</tr>'
-    + '<tr><td class="direction">of runs reaching</td>' + reward.map((r) => `<td class="direction">${reachedByLevel.get(r.level) ?? 0}</td>`).join('') + '</tr></tbody>';
-  const costCard = el('div');
-  costCard.append(costTable);
-  const flagParts = [];
-  if (drops.length) {
-    flagParts.push(el('p', 'flag', `Cheaper than floor before: ${drops.map((l) => l).join(', ')}`));
-  }
-  if (lethal.length) {
-    flagParts.push(el('p', 'flag', `Over hp+armour budget: ${lethal.map((x) => `${x.level} (${f(x.ratio, 1)}×)`).join(', ')}`));
-  }
-  const flagNode = el('div', 'subnote');
-  for (const p of flagParts) flagNode.append(p);
-
-  const creatureRow = counts.map((c, i) => {
-    const drop = i > 0 && c < counts[i - 1];
-    return `<td class="${drop ? 'no' : ''}">${c}</td>`;
-  }).join('');
-  const xpRow = reward.map((r) => `<td>${f(r.meanXp, 1)}</td>`).join('');
-  const creatureTable = `<table><thead><tr><th>floor</th>${counts.map((_, i) => `<th>${i + 1}</th>`).join('')}</tr></thead>`
-    + `<tbody><tr><td>count</td>${creatureRow}</tr><tr><td>mean xp</td>${xpRow}</tr></tbody></table>`;
-
-  const spreadTable = `<table><thead><tr><th>floor</th>${reward.map((r) => `<th>${r.level}</th>`).join('')}</tr></thead>`
-    + `<tbody><tr><td>spread</td>${reward.map((r) => `<td>${pct(r.challenge.cv)}</td>`).join('')}</tr>`
-    + `<tr><td class="direction">pico (p90÷média)</td>${reward.map((r) => `<td class="direction">${f(r.challenge.p90 / r.challenge.mean, 2)}×</td>`).join('')}</tr></tbody></table>`;
-
-  const lootTable = `<table><thead><tr><th>floor</th>${reward.map((r) => `<th>${r.level}</th>`).join('')}</tr></thead>`
-    + `<tbody><tr><td>loot ÷ cost</td>${reward.map((r) => `<td>${pct(r.reward.mean / r.challenge.mean)}</td>`).join('')}</tr></tbody></table>`;
-
-  // ***** C1 — the two lines of docs/map-design.md *****
-  //
-  // ANCHOR, stated because I11 showed the anchors move in OPPOSITE
-  // directions and not by a level shift: mortal sonda from the shipped base,
-  // one descent, both halves off the SAME pass. Cost is what that traversal
-  // took from the hero who walked it; capacity is what that same hero
-  // arrived holding. Dividing an isolated-floor probe by a descended hero
-  // would mix two heroes and the ratio would mean nothing.
-  //
-  // The deep half is NOT READABLE from real play and that is a frontier, not
-  // a gap: the sonda's support collapses within a few floors and no sample
-  // this project runs will fix it. Blanks are blanks; the support row says
-  // why.
-  const sondaByLevel = new Map(sonda.rows.map((r) => [r.level, r]));
-  const linesTable = `<table><thead><tr><th>floor</th>${reward.map((r) => `<th>${r.level}</th>`).join('')}</tr></thead><tbody>`
-    + `<tr><td>pressure</td>${reward.map((r) => {
-      const row = sondaByLevel.get(r.level);
-      const v = row ? row.pressure : null;
-      return `<td class="${Number.isFinite(v) && v >= 1 ? 'no' : ''}">${f(v, 2)}</td>`;
-    }).join('')}</tr>`
-    + `<tr><td>spread</td>${reward.map((r) => {
-      const row = sondaByLevel.get(r.level);
-      return `<td>${f(row ? row.spread : null, 2)}</td>`;
-    }).join('')}</tr>`
-    + `<tr><td class="direction">cost hp</td>${reward.map((r) => {
-      const row = sondaByLevel.get(r.level);
-      return `<td class="direction">${f(row ? row.damage.mean : null, 1)}</td>`;
-    }).join('')}</tr>`
-    + `<tr><td class="direction">capacity on arrival</td>${reward.map((r) => {
-      const row = sondaByLevel.get(r.level);
-      return `<td class="direction">${f(row ? row.effectiveHp.mean : null, 1)}</td>`;
-    }).join('')}</tr>`
-    + `<tr><td class="direction">support (runs)</td>${reward.map((r) => {
-      const row = sondaByLevel.get(r.level);
-      return `<td class="direction">${row ? row.reached : 0}</td>`;
-    }).join('')}</tr></tbody></table>`;
-
-  // B1 (spine mass share) is deliberately NOT here — binary check, already
-  // asserted against the [0.6, 0.95] band in test/tests.js (spineShare,
-  // src/sim/spine.js). A number that should never move does not belong
-  // next to ones that do.
-  const topoTable = `<table><thead><tr><th>floor</th>${topo.map((r) => `<th>${r.level}</th>`).join('')}</tr></thead>`
-    + `<tbody><tr><td>rotas alternativas</td>${topo.map((r) => `<td>${pct(r.altRouteShare.mean)}</td>`).join('')}</tr>`
-    + `<tr><td>acordado no caminho direto</td>${topo.map((r) => `<td>${pct(r.directEncounterShare.mean)}</td>`).join('')}</tr></tbody></table>`;
-
-  const avgPico = avgOf(reward, (r) => r.challenge.p90 / r.challenge.mean);
-  const avgAltRoute = avgOf(topo, (r) => r.altRouteShare.mean);
-  const avgDirect = avgOf(topo, (r) => r.directEncounterShare.mean);
-
-  const mapKpi = [
-    cell('success', `cost, floor ${LEVELS}÷1`, `${f(last / first, 1)}×`),
-    cell('health', 'cauda (pico p90÷média)', `${f(avgPico, 2)}×`, 'avg, todos os andares'),
-    cell('untargeted', 'rotas alternativas', pct(avgAltRoute), 'sem alvo definido'),
-    cell('health', 'acordado no caminho direto', pct(avgDirect), 'alvo: 70-90%'),
-  ];
-  const mapDiag = [
-    cell('health', 'creatures',
-      `${counts[0]} → ${counts[counts.length - 1]} <span style="font-size:.85rem;color:var(--faint)">(xp ${f(reward[0].meanXp, 1)} → ${f(reward[reward.length - 1].meanXp, 1)})</span>`),
-    cell('health', 'spread within floor', `${pct(reward[0].challenge.cv)} → ${pct(reward[reward.length - 1].challenge.cv)}`),
-    cell('health', 'loot / cost',
-      `${pct(reward.reduce((s, r) => s + r.reward.mean, 0) / reward.reduce((s, r) => s + r.challenge.mean, 0))} avg`),
-  ];
-  const tables = el('div', 'subnote');
-  tables.style.marginTop = '.7rem';
-  tables.append(
-    el('h3', null, 'pressure e spread, por andar — mortal sonda, uma passada'),
-    el('div', null, linesTable),
-    el('h3', null, 'cost per floor'), costTable,
-    el('h3', null, 'creatures per floor'), el('div', null, creatureTable),
-    el('h3', null, 'spread within a floor'), el('div', null, spreadTable),
-    el('h3', null, 'loot vs cost, per floor'), el('div', null, lootTable),
-    el('h3', null, 'rota e exposição, per floor'), el('div', null, topoTable));
-  $('out').append(levelSection('Map', mapKpi, mapDiag, flagNode, tables));
-
-  // ***** Bot *****
-  // Same real mortal hero, same map, dumb sonda policy instead of the bot
-  // (builtShape vs descentCheck) — isolates bot skill from map difficulty,
-  // which damage-per-kill could not (deeper floors hit harder regardless
-  // of how well anyone plays). Median depth, not finish rate: finish rate
-  // is 0/0-noisy at the small samples this page uses, depth isn't.
-  const sondaDepth = median(sonda.depths);
-  // I13 — the bot now runs twenty traversals; `builtShape` is deliberately
-  // PINNED to a descent (it reads per-floor rows, which would otherwise get
-  // each floor twice). Comparing 20 against 10 would double this ratio for
-  // no change in skill, so the bot's depth is capped to the descent half —
-  // "how far into the first ten crossings", which is the same question the
-  // sonda answers. Both sides are a descent; neither is a run.
-  const botDepth = Math.min(dc.medianDepth, LEVELS);
-  // Moeda (xp/turno) is the bot's own declared secondary objective — the
-  // only Bot number that IS a target, not a symptom. Everything else below
-  // (skill vs a dumb baseline, movement waste, risk taken) explains why
-  // this number is what it is; none of them has a band of its own.
-  const botKpi = [
-    cell('success', 'moeda (xp/turno)', f(dc.meanCoins, 1),
-      `sonda A ${f(coins.sondaA.coins.mean, 1)} · sonda B ${f(coins.sondaB.coins.mean, 1)}`),
-  ];
-  const botDiag = [
-    cell('health', 'depth, bot÷sonda', `${f(botDepth / (sondaDepth || 1), 2)}×`,
-      `descida: bot ${f(botDepth, 1)} / sonda ${f(sondaDepth, 1)}`),
-    cell('health', 'reversal rate', pct(dc.reversalRate)),
-    cell('health', 'turns per floor', f(dc.turnsPerFloor, 0)),
-    cell('health', 'lost fights started',
-      `${dc.lostFightsStarted} <span style="font-size:.85rem;color:var(--faint)">/ ${dc.fightsStarted}</span>`),
-  ];
-
-  // Same coins formula, broken out by run — sonda A/B kept alongside the
-  // headline cell as the comparison that gives it meaning (better than
-  // what, exactly), not as a second reading of the same objective.
-  const coinsDiv = el('div');
-  coinsDiv.append(el('h3', null, 'moeda por run (xp/turno × 10, mortal, paired seed)'));
-  coinsDiv.append(el('div', null,
-    `<table><thead><tr><th></th><th>sonda A</th><th>sonda B</th><th>bot</th></tr></thead>`
-    + `<tbody><tr><td>mean/run</td><td>${f(coins.sondaA.coins.mean, 1)}</td><td>${f(coins.sondaB.coins.mean, 1)}</td><td>${f(dc.meanCoins, 1)}</td></tr></tbody></table>`));
-
-  // ***** I9 — P(finish | floor, effective hp, weapon damage) *****
-  //
-  // Collapsed on purpose. It needs roughly a thousand descents before most
-  // cells clear their support floor, and the page's default is far below
-  // that — so at defaults it is mostly blank, which is the honest reading
-  // rather than a broken one. `blank = not enough runs` is stated on the
-  // summary so nobody reads emptiness as "impossible".
-  //
-  // NOT "hope" — objectives.md's property is broader than the finish, and a
-  // zero here says the finish is decided, not that the run stopped being
-  // worth watching. Averaged over dungeons, not conditional on this one:
-  // right for design, wrong for a live on-screen number (U2, blocked on E1).
-  const surv = dc.survival;
-  // I13 — keyed by TRAVERSAL. Floor 4 down and floor 4 up are separate rows;
-  // `level` is shown alongside so a reader can see which floor each crossing
-  // was, without the two folding into one number.
-  const survCell = (t, hp, wpn) => surv.cells.find(
-    (c) => c.traversal === t && c.hp === hp && c.wpn === wpn,
-  );
-  const survRows = [];
-  for (let t = 1; t <= surv.traversals; t++) {
-    for (const hp of surv.hpLabels) {
-      if (!surv.wpnLabels.some((w) => survCell(t, hp, w))) continue;
-      const any = surv.wpnLabels.map((w) => survCell(t, hp, w)).find(Boolean);
-      survRows.push(`<tr><td>${t}</td><td class="direction">${any.direction} f${any.level}</td><td>${hp}</td>`
-        + surv.wpnLabels.map((w) => {
-          const c = survCell(t, hp, w);
-          if (!c) return '<td class="direction">·</td>';
-          if (!c.readable) return `<td class="direction">— <span style="font-size:.85em">n=${c.n}</span></td>`;
-          return `<td>${pct(c.p)} <span style="font-size:.85em;color:var(--faint)">n=${c.n}</span></td>`;
-        }).join('')
-        + '</tr>');
-    }
-  }
-  const survDetails = el('details');
-  survDetails.append(el('summary', null,
-    `P(concluir travessia ${surv.traversals} | travessia, hp efetivo, dano de arma) — `
-    + `${surv.cells.filter((c) => c.readable).length}`
-    + ` de ${surv.cells.length} células com suporte (n≥${surv.minSupport});`
-    + ' em branco = runs insuficientes, não impossível'));
-  survDetails.append(el('div', null,
-    `<table><thead><tr><th>trav</th><th>sentido</th><th>hp efetivo</th>`
-    + surv.wpnLabels.map((w) => `<th>arma ${w}</th>`).join('')
-    + `</tr></thead><tbody>${survRows.join('')}</tbody></table>`));
-  coinsDiv.append(survDetails);
-
-  $('out').append(levelSection('Bot', botKpi, botDiag, null, coinsDiv));
-}
-
-$('run').addEventListener('click', async () => {
-  $('run').disabled = true;
-  $('out').innerHTML = '';
-  const started = performance.now();
-  try {
-    const floorRuns = Number($('floorRuns').value);
-    const descentRuns = Number($('descentRuns').value);
-    const firstSeed = Number($('firstSeed').value);
-
-    $('status').textContent = 'clearing floors (map numbers)…';
-    await new Promise((r) => setTimeout(r, 20));
-    const reward = rewardShape({ runs: floorRuns, firstSeed });
-    const counts = Array.from({ length: LEVELS }, (_, i) => floorPlan(i + 1).monsters);
-
-    // Bot, mortal sonda (depth) and mortal sonda (coins, both A and B) all
-    // share this seed base and `descentRuns` — same floor draws under
-    // every policy, so differences are policy, not "who got an easier map".
-    const pairedSeed = firstSeed + 700000;
-
-    $('status').textContent = 'playing full descents with the real bot (product + bot numbers)…';
-    await new Promise((r) => setTimeout(r, 20));
-    const dc = descentCheck({ runs: descentRuns, firstSeed: pairedSeed });
-
-    // I11 — a `capacityShape({ suppressDeath: true, startHero: null })`
-    // descent used to run here purely to feed the cost table's denominator.
-    // It is gone: suppressing death does not remove survivor bias, it
-    // removes the hero — hp pins at 0 with no regen, so the series read ~0
-    // from floor 4 and the ratio printed Infinity. The mortal sonda below
-    // supplies an arrival hp+armour that is nonzero by construction, and
-    // this page was already paying for that descent. One fewer descent per
-    // click, and the number it feeds is real.
-
-    $('status').textContent = 'playing full descents with the sonda, mortal (bot vs sonda)…';
-    await new Promise((r) => setTimeout(r, 20));
-    // Sonda B, mortal, real base, pickup on — same seed/runs as the bot.
-    const sonda = builtShape({ runs: descentRuns, firstSeed: pairedSeed });
-
-    $('status').textContent = 'pricing xp/turn (theoretical coins, mortal, paired)…';
-    await new Promise((r) => setTimeout(r, 20));
-    // Sonda A (no pickup) and Sonda B (pickup), both mortal, both on the
-    // SAME floors the bot just played above.
-    const coins = {
-      sondaA: mortalCoinShape({ runs: descentRuns, firstSeed: pairedSeed, noPickup: true }),
-      sondaB: mortalCoinShape({ runs: descentRuns, firstSeed: pairedSeed, noPickup: false }),
-    };
-
-    $('status').textContent = 'lendo topologia do mapa (rotas, exposição)…';
-    await new Promise((r) => setTimeout(r, 20));
-    // Pure generation, no play — cheap like capacityShape's sonda dial, own
-    // fixed sample size for the same reason (decoupled from the expensive
-    // play-based dials on this page).
-    const topo = topologyShape({ runs: 100, firstSeed: firstSeed + 1800000 });
-
-    render(reward, counts, dc, sonda, coins, topo);
-    $('status').textContent = `done in ${((performance.now() - started) / 1000).toFixed(1)}s`;
-  } catch (error) {
-    $('status').textContent = 'failed: ' + error.message;
-    console.error(error);
-  } finally {
-    $('run').disabled = false;
-  }
-});
-</script>
 </div>
+<script type="module">
+  import { tripwires } from './src/analysis/check.js';
+
+  const el = (id) => document.getElementById(id);
+
+  el('go').addEventListener('click', async () => {
+    el('go').disabled = true;
+    el('status').textContent = 'running…';
+    el('out').innerHTML = '';
+    await new Promise((r) => setTimeout(r, 30));   // let the status paint
+
+    const t0 = performance.now();
+    let result;
+    try {
+      result = tripwires({ runs: +el('runs').value, firstSeed: +el('seed').value });
+    } catch (error) {
+      el('status').textContent = 'failed: ' + error.message;
+      el('go').disabled = false;
+      throw error;
+    }
+    const secs = ((performance.now() - t0) / 1000).toFixed(1);
+    el('status').textContent =
+      `${result.runs} runs from seed ${result.firstSeed} — ${result.clears} cleared — ${secs}s`;
+
+    for (const wire of result.tripwires) {
+      const div = document.createElement('div');
+      div.className = 'wire ' + (wire.fires ? 'fired' : 'quiet');
+      div.innerHTML = `
+        <span class="state">${wire.fires ? 'FIRED' : 'quiet'}</span>
+        <span class="name">${wire.name}</span>
+        <span class="value">${wire.value}</span>
+        <span class="cond">${wire.condition}</span>`;
+      el('out').appendChild(div);
+    }
+    el('go').disabled = false;
+  });
+</script>
 </body>
 </html>

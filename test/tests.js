@@ -28,8 +28,6 @@ import {
 } from '../src/sim/difficulty.js';
 import { dangerField, makeBot } from '../src/bot/bot.js';
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
-import { growthOf, summarise, ITEM_VALUE } from '../src/analysis/shape.js';
-import { campaignCost, crowdOverhead, duelCost } from '../src/bot/duel.js';
 
 // ***** tiny test harness ***** //
 
@@ -1736,62 +1734,6 @@ test('spread does not break determinism', () => {
   assertEq(JSON.stringify(a.monsters), JSON.stringify(b.monsters), 'rosters differ');
 });
 
-// ***** the crowd correction ***** //
-
-test('the crowd correction is confined to campaignCost', () => {
-  // The one-on-one model is right; the SUM is what was wrong. If this ever
-  // leaks into duelCost, single-target decisions get an overhead added that
-  // has nothing to do with the single target in front of them.
-  const hero = { xp: 3, inventory: [], hp: 10, hpMax: 10, armour: 0, kills: [] };
-  const wolf = { xp: 4, hp: 5 };
-  const alone = duelCost(hero, wolf).hpLost;
-  const one = campaignCost(hero, [wolf], false, false);
-  assert(Math.abs(alone - one) < 1e-9, 'duelCost and an uncorrected single-monster campaign differ');
-  assert(campaignCost(hero, [wolf], false, true) > one, 'the correction did not apply');
-});
-
-test('the crowd correction switches off exactly', () => {
-  // Off must reproduce every number measured before it, to the bit — that is
-  // what makes a before/after comparison meaningful at all.
-  const hero = { xp: 3, inventory: [], hp: 10, hpMax: 10, armour: 0, kills: [] };
-  const roster = [{ xp: 4, hp: 5 }, { xp: 3, hp: 4 }, { xp: 2, hp: 3 }];
-  assertEq(crowdOverhead(roster, false), 0, 'the flag did not disable the overhead');
-  assertEq(crowdOverhead([], true), 0, 'an empty roster produced an overhead');
-  assertEq(campaignCost(hero, roster, false, false),
-    campaignCost(hero, roster, false, false), 'not even self-consistent');
-});
-
-test('the crowd correction is additive, not multiplicative', () => {
-  // The point of the rewrite: an overhead proportional to the roster's total
-  // blow, added once, rather than a factor that only ever reads headcount.
-  // A rat (blow 0) must therefore add NOTHING, which a multiplicative factor
-  // could never express — it would still scale the whole campaign up.
-  const hero = { xp: 5, inventory: [], hp: 20, hpMax: 20, armour: 0, kills: [] };
-  const rat = { xp: 1, hp: 2 };
-  assertEq(crowdOverhead([rat], true), 0, 'a toothless creature added overhead');
-
-  const wolf = { xp: 4, hp: 5 };
-  const withoutCrowd = campaignCost(hero, [wolf], false, false);
-  const withCrowd = campaignCost(hero, [wolf], false, true);
-  const overhead = crowdOverhead([wolf], true);
-  assert(Math.abs(withCrowd - (withoutCrowd + overhead)) < 1e-9,
-    'the correction is not a plain sum of overhead onto the bare cost');
-});
-
-test('the crowd overhead scales with total roster blow, not headcount alone', () => {
-  // Two rats (blow 0 each) must add as little as one rat; one wolf must add
-  // more than one rat. Headcount-only scaling was exactly the shape that
-  // failed to fit the strength axis.
-  assertEq(crowdOverhead([{ xp: 1, hp: 2 }, { xp: 1, hp: 2 }], true), 0,
-    'two harmless creatures produced overhead');
-  const wolfOverhead = crowdOverhead([{ xp: 4, hp: 5 }], true);
-  const ogreOverhead = crowdOverhead([{ xp: 4, hp: 7 }], true);
-  assertEq(wolfOverhead, ogreOverhead,
-    'same xp, different hp changed the overhead — it should track blow, not hp');
-  assert(crowdOverhead([{ xp: 8, hp: 15 }], true) > wolfOverhead,
-    'a harder-hitting creature did not add more overhead');
-});
-
 // ***** the strength ramp is an instrument, and must stay off ***** //
 
 test('the strength ramp is a no-op at its shipped value', () => {
@@ -1864,7 +1806,19 @@ test('the rebalanced constants hold the challenge budget, read from the generato
   // with. Only the numerator got honest.
   const mass = [];
   for (let level = 0; level < 10; level++) mass.push(expectedFloorMass(level));
-  const growth = growthOf(mass).perFloor;
+  // Log-linear fit over all ten floors (the old shape.js growthOf, inlined
+  // when that module went): exp of the least-squares slope of log(mass).
+  const logs = mass.map(Math.log);
+  const n = logs.length;
+  const meanX = (n - 1) / 2;
+  const meanY = logs.reduce((a, b) => a + b, 0) / n;
+  let num = 0;
+  let den = 0;
+  for (let i = 0; i < n; i++) {
+    num += (i - meanX) * (logs[i] - meanY);
+    den += (i - meanX) ** 2;
+  }
+  const growth = Math.exp(num / den);
   const ratio = growth / MONSTER_GROWTH;
   assert(Math.abs(ratio - 1) < 0.15,
     `generated mass climbs x${growth.toFixed(4)}/floor, ${(100 * (ratio - 1)).toFixed(1)}% off the shipped budget`);
@@ -2525,49 +2479,6 @@ test('the shrine is not always the single furthest room any more', () => {
     if (actual < maxLen) sawShortOfMax = true;
   }
   assert(sawShortOfMax, 'the shrine landed on the single furthest room every time across 30 seeds');
-});
-
-// ***** curve-shape diagnostics ***** //
-//
-// growthOf is the one piece of real maths the shape report rests on: every
-// one of the six quantities is compared through it, so an error here would
-// be invisible and would contaminate all six at once.
-
-test('growth is recovered exactly from a known geometric series', () => {
-  for (const ratio of [1.3, 1.0, 0.78]) {
-    const series = Array.from({ length: 10 }, (_, i) => 5 * Math.pow(ratio, i));
-    const got = growthOf(series).perFloor;
-    assert(Math.abs(got - ratio) < 1e-9,
-      `ratio ${ratio}: recovered ${got}`);
-  }
-});
-
-test('growth ignores zeroes rather than returning nonsense', () => {
-  // A floor can legitimately hold no loot at all. log(0) would poison the
-  // whole fit, so those points are dropped and the count is reported.
-  const g = growthOf([0, 4, 8, 16, 32]);
-  assert(Math.abs(g.perFloor - 2) < 1e-9, 'growth was distorted by the zero');
-  assertEq(g.n, 4, 'the dropped point was not reported');
-});
-
-test('summarise reports the spread as CV, not raw variance', () => {
-  // Raw variance grows when the mean grows, which would make every deep
-  // floor look more random purely because it is bigger.
-  const small = summarise([1, 2, 3]);
-  const big = summarise([100, 200, 300]);
-  assert(big.sd > small.sd, 'the scaled-up series should have a bigger sd');
-  assert(Math.abs(big.cv - small.cv) < 1e-9, 'CV must be scale-free');
-});
-
-test('no item is valued as reward without a mechanical effect', () => {
-  // Collectibles are gone, but the guard stays: adding one back must not
-  // silently inflate what a floor looks like it is paying.
-  for (const item of ITEM_TABLE) {
-    const worth = ITEM_VALUE.get(item.name) || 0;
-    const does = (item.dmg || 0) + (item.armour || 0) + (item.heal || 0);
-    if (does === 0) assertEq(worth, 0, `${item.name} has no effect but is valued`);
-    else assert(worth > 0, `${item.name} has an effect but is valued at zero`);
-  }
 });
 
 // ***** B3: the bot commits instead of pacing ***** //
