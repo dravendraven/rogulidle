@@ -2,7 +2,7 @@
 // Run them with: python tools/dev-server.py -> http://localhost:8138/run-tests.html
 
 import {
-  CHEST_GUARD_RADIUS, EARLY_CHEST_QUALITY_BOOST, ITEM_TABLE,
+  CHEST_GUARD_RADIUS, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP,
   PLAYER_HP, PLAYER_XP, ROOM_HEIGHT, ROOM_WIDTH, SHRINE_DISTANCE_SHARE,
   STARTING_ITEMS, TURN_BUDGET, VAULT_BOSS, VAULT_CHEST_ITEMS, VAULT_LEVEL,
@@ -32,6 +32,7 @@ import {
 } from '../src/sim/difficulty.js';
 import { dangerField, duelCost, makeBot } from '../src/bot/bot.js';
 import { DEFAULT_HERO } from '../src/bot/config.js';
+import { tileSvg } from '../src/ui/tiles.js';
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
 
 // ***** tiny test harness ***** //
@@ -2945,6 +2946,26 @@ test('a hostile tuning value cannot hang the router', () => {
   const action = bot(foldBelief(emptyBelief(), observe(state)));
   assert(ACTIONS.includes(action),
     `the bot answered "${action}" under a negative falloff`);
+});
+
+test('every glyph the game can draw has a sprite', () => {
+  // The Butcher shipped INVISIBLE for four commits. `src/ui/tiles.js` bakes
+  // in one Twemoji SVG per glyph, `tileSvg` returns null for anything
+  // missing, and render.js then writes an empty cell — so a creature given
+  // a new emoji in balance.js and nowhere else simply does not appear, with
+  // nothing failing anywhere. Caught by the owner watching, not by any
+  // test, which is exactly the gap this closes.
+  const glyphs = [
+    ...MONSTER_TABLE.map((m) => m.emoji),
+    ...ITEM_TABLE.map((i) => i.emoji),
+    ...CHEST_TABLE.map((c) => c.emoji),
+    VAULT_BOSS.emoji,
+    '🕳️',                                    // the way out (spawn.js)
+  ];
+  for (const glyph of glyphs) {
+    assert(tileSvg(glyph),
+      `no sprite for ${glyph} — it would render as an empty cell`);
+  }
 });
 
 test('M44 — a creature with speed acts that many times a turn', () => {
