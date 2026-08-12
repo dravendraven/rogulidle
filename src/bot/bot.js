@@ -238,7 +238,10 @@ export function makeBot(options = {}) {
     }
 
     for (const item of belief.items.values()) {
-      if ((item.dmg || 0) + (item.armour || 0) + (item.heal || 0) <= 0) continue;
+      // Every field that makes an item worth walking to, or a weapon whose
+      // only gift is a higher damage floor reads as worthless.
+      if ((item.dmg || 0) + (item.dmgMin || 0)
+        + (item.armour || 0) + (item.heal || 0) <= 0) continue;
       const walk = priceOfReaching(field, item.pos);
       if (!Number.isFinite(walk)) continue;
       const guard = guardCost(belief, item.pos);

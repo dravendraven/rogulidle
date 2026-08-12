@@ -40,7 +40,10 @@ export function isVisible(playerPos, pos) {
 const PLAYER_FIELDS = ['pos', 'hp', 'hpMax', 'armour', 'xp', 'inventory', 'kills', 'xpEarned'];
 const MONSTER_FIELDS = ['id', 'name', 'emoji', 'pos', 'hp', 'hpMax', 'xp', 'activation', 'dead', 'side', 'edge'];
 const CHEST_FIELDS = ['id', 'name', 'emoji', 'pos', 'side', 'edge'];
-const ITEM_FIELDS = ['id', 'name', 'emoji', 'pos', 'dmg', 'armour', 'heal'];
+// `dmgMin` belongs here beside `dmg`: it is a plain property of an item the
+// hero can already see, not an unrevealed answer, and leaving it out made
+// the bot value a floor axe as if it only widened the die.
+const ITEM_FIELDS = ['id', 'name', 'emoji', 'pos', 'dmg', 'dmgMin', 'armour', 'heal'];
 const SHRINE_FIELDS = ['id', 'emoji', 'pos'];
 
 // `revealLoot` adds `drop` to the monster/chest allow-lists. Off (the

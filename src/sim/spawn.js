@@ -139,6 +139,12 @@ export function monsterWeightsAround(index) {
 
 // Turns a table row into a live item entity, or null when the roll says the
 // chest / corpse holds nothing.
+//
+// Every combat-relevant field of ITEM_TABLE has to be listed here. A field
+// added to the table and forgotten here is silently zero on anything found
+// in the world, while the shop's copy — which hands the template straight
+// to the wallet — keeps it: the same axe would then hit differently
+// depending on where it came from. `dmgMin` shipped that way once.
 function makeItem(state, template, pos) {
   return {
     id: nextId(state),
@@ -146,6 +152,7 @@ function makeItem(state, template, pos) {
     emoji: template.emoji,
     pos,
     dmg: template.dmg || 0,
+    dmgMin: template.dmgMin || 0,
     armour: template.armour || 0,
     heal: template.heal || 0,
   };

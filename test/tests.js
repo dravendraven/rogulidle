@@ -12,7 +12,9 @@ import {
 } from '../src/sim/game.js';
 import { step, ACTIONS, grantArmour } from '../src/sim/step.js';
 import { observe, emptyBelief, foldBelief } from '../src/sim/observe.js';
-import { weaponDamage, armourValue, effectiveHp } from '../src/sim/combat.js';
+import {
+  weaponDamage, weaponMinDamage, armourValue, effectiveHp,
+} from '../src/sim/combat.js';
 import { findPath, playerPassable, posKey } from '../src/sim/mapgen.js';
 import { drawLogUniform, drawWeighted, hashSeeds, makeRng } from '../src/sim/rng.js';
 import { classifyRooms, spineShare } from '../src/sim/spine.js';
@@ -239,6 +241,50 @@ test('the starting-item armour grant is the same rule the real pickup path uses'
   grantArmour(player, shield);
   assertEq(state.player.armour, player.armour,
     'startingItems and grantArmour disagree on what a shield is worth');
+});
+
+test('an item GENERATED into the world is worth what the same item bought is', () => {
+  // The bug this exists for: `makeItem` (spawn.js) rebuilds a table row
+  // field by field, while the shop hands the ITEM_TABLE entry straight to
+  // the wallet. `dmgMin` was added to the table and to combat.js but not
+  // to that list, so a dropped axe raised the damage die's top and not its
+  // floor — the same weapon hit differently depending on where it came
+  // from, and nothing failed.
+  //
+  // It has to reach real GENERATED loot to mean anything: `startingItems`
+  // and the shop both pass the template through untouched, so a test built
+  // on either of those passes with the bug still in (it did — that version
+  // was written, run green against the broken code, and thrown away).
+  // Creature and chest drops are the only things `makeItem` builds.
+  const combatFieldsOf = (item) => JSON.stringify({
+    dmg: item.dmg || 0, dmgMin: item.dmgMin || 0,
+    armour: item.armour || 0, heal: item.heal || 0,
+  });
+  const templateOf = (item) => ITEM_TABLE.find((t) => t.name === item.name);
+
+  // Deep floors so the axe clears WEAPON_AXE_MIN_TIER and can appear at all.
+  const generated = [];
+  for (let seed = 1; seed <= 40; seed++) {
+    const state = newGame(seed, { difficultyScale: 1, dropChance: 1, monsters: 12 });
+    for (const monster of state.monsters) if (monster.drop) generated.push(monster.drop);
+    for (const chest of state.chests) if (chest.drop) generated.push(chest.drop);
+  }
+
+  for (const item of generated) {
+    const template = templateOf(item);
+    if (!template) continue;
+    assertEq(combatFieldsOf(item), combatFieldsOf(template),
+      `a ${item.name} generated into the world is not the ${item.name} the shop sells`);
+  }
+
+  // Guard against the assertion loop silently having nothing to check —
+  // and specifically against the axe, the only row with a dmgMin today.
+  const axes = generated.filter((i) => i.name === 'axe');
+  assert(axes.length > 0, 'no axe was generated in 40 floors — the check above proved nothing');
+  assertEq(weaponMinDamage({ inventory: [axes[0]] }), 1,
+    'an axe dropped by a creature does not raise the damage floor');
+  assertEq(weaponDamage({ inventory: [axes[0]] }), 2,
+    'a dropped axe stopped widening the top of the die');
 });
 
 test('startingItems does not multiply if the hero already carries something', () => {

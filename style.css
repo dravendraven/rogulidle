@@ -351,8 +351,36 @@ footer {
 }
 .note em { color: var(--dim); font-style: normal; font-weight: bold; }
 
+/* ***** phones *****
+
+   The board is exactly 18 columns wide (.grid), so the CELL is what has to
+   scale, not the board: 18 × cell plus the app's side padding, the stage's
+   padding and its border must clear the viewport, or the page scrolls
+   sideways and the map is the thing that gets cut off. Capped at the
+   desktop 20px so this only ever shrinks. */
 @media (max-width: 620px) {
-  :root { --cell: 20px; }
+  :root { --cell: min(20px, calc((100vw - 3.25rem) / 18)); }
+
+  .app { padding: .9rem .7rem 1.5rem; }
+
+  h1 { font-size: 1.3rem; }
+
+  /* Five buttons cannot share a line with a serif title: the controls take
+     a row of their own and wrap inside it. Without this they simply ran
+     off the right edge — measured 128px past the viewport. */
+  header { flex-wrap: wrap; gap: .5rem .75rem; }
+  .controls { flex: 1 0 100%; flex-wrap: wrap; gap: .35rem; }
+  /* Natural width, not stretched: a lone button on the wrapped row should
+     not balloon to fill it. Only the tap height is forced. */
+  .controls button { padding: .45rem .6rem; min-height: 40px; }
+
+  /* Thumbs, not mouse pointers. */
+  .shop-items button, #shopSkip { min-height: 44px; }
+  .shop-items { flex-wrap: wrap; justify-content: center; }
+
+  /* The panel sits under the board rather than beside it — `main` already
+     wraps, this only stops the 220px floor from forcing a scroll. */
+  .panel { min-width: 0; flex-basis: 100%; }
 }
 
 /* ***** the dial lab — src/ui/dials.js ***** *
@@ -527,4 +555,28 @@ footer {
   color: var(--dim);
   margin: -.2rem 0 .8rem;
   max-width: 30ch;
+}
+
+/* ***** the lab on a narrow screen *****
+
+   A WIDER breakpoint than the rest of the mobile rules, and deliberately:
+   345px of dials plus the 590px board plus the gaps needs about 990px to
+   sit side by side. Between 620 and 990 the phone rules do not apply yet
+   but the two columns already do not fit — measured 973px of content in a
+   753px viewport on a tablet, i.e. the board hanging off the screen.
+
+   Last in the file on purpose: these override the lab rules above, and
+   every one of them sets a property that block also sets — same
+   specificity, so source order is what decides. */
+@media (max-width: 1000px) {
+  /* The lab stacks instead of sitting alongside, keeping a scroll of its
+     own, capped short enough that the game below stays reachable. */
+  .lab { flex-direction: column; }
+  .dials { flex: 1 1 auto; width: 100%; max-height: 55vh; padding-right: 0; }
+  .app.lab-open { max-width: none; }
+
+  /* The Bot block bleeds .6rem into the panel's own side padding on
+     desktop. There is no padding left to bleed into here, so it would push
+     a horizontal scrollbar out from under the panel instead. */
+  .dial-section[data-section="Bot"] { margin-left: 0; margin-right: 0; }
 }
