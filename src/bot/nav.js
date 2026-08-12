@@ -178,25 +178,6 @@ export function actionToward(from, next) {
   return 'rest';
 }
 
-// How many ways into a tile there are — which is exactly how many monsters
-// can hit the bot while it stands there, since they cannot stack (spec §7).
-//
-//   1  a dead end: only ever one attacker
-//   2  a corridor
-//   4  open floor: it can be surrounded
-//
-// In Rogule a dead end is the BEST place to fight, not a trap. The usual
-// roguelike instinct is inverted because R0 forbids fleeing anyway, so
-// having no way out costs nothing and having no way in is worth a lot.
-export function exposure(belief, pos) {
-  const walkable = believedWalkable(belief);
-  let ways = 0;
-  for (const [dx, dy] of STEPS) {
-    if (walkable(pos[0] + dx, pos[1] + dy)) ways++;
-  }
-  return ways;
-}
-
 // A frontier is a known walkable tile touching a tile never seen. Reaching
 // one is how the map grows — without this the bot cannot find the monsters
 // it is required to kill, nor the shrine.

@@ -26,9 +26,7 @@ import {
   CLUSTER_SIZE, DIFFICULTY_REBALANCED, MONSTERS_BASE, MONSTER_GROWTH, MONSTER_GROWTH_REBALANCED,
   MONSTER_STRENGTH, POTION_SCARCITY, STRENGTH_GROWTH, STRENGTH_GROWTH_REBALANCED, WEAPON_SCARCITY,
 } from '../src/sim/difficulty.js';
-import { expectedMonsterDropValue, monstersAhead, valueByItemName } from '../src/bot/loot.js';
-import { makeBot } from '../src/bot/bot.js';
-import { dangerField } from '../src/bot/threat.js';
+import { dangerField, makeBot } from '../src/bot/bot.js';
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
 import { growthOf, summarise, ITEM_VALUE } from '../src/analysis/shape.js';
 import { campaignCost, crowdOverhead, duelCost } from '../src/bot/duel.js';
@@ -1255,34 +1253,6 @@ test('revealLoot brings the drop back, for whoever eventually builds U4', () => 
   assert(checked, 'no seed in this sample put a drop-carrying monster within sight at generation');
 });
 
-test('stripping drop did not touch what expectedMonsterDropValue computes', () => {
-  // B9's whole reason for reading tier instead of `.drop` was that the
-  // field was never meant to be readable — this is not a coincidence to
-  // re-verify by inspection, it is the thing M28's Assert asked to
-  // confirm directly: the same belief, before and after this item, must
-  // price a creature's expected drop identically, because the function
-  // never touched the leaked field to begin with.
-  const state = newGame(4242, floorPlan(5));
-  const obs = observe(state);
-  const belief = foldBelief(emptyBelief(), obs);
-  const values = valueByItemName(belief, 6, 0, true);
-  for (const m of belief.monsters.values()) {
-    const priced = expectedMonsterDropValue(m, values);
-    assert(Number.isFinite(priced), `expectedMonsterDropValue returned a non-number for "${m.name}"`);
-  }
-  // And directly: pricing from a hand-built object with `drop` present
-  // must match pricing the same object with it stripped — proof the
-  // function's OUTPUT never depended on the field this item removes.
-  const sample = [...belief.monsters.values()][0];
-  if (sample) {
-    const withDrop = { ...sample, drop: { name: 'axe', dmg: 2 } };
-    const withoutDrop = { ...sample };
-    delete withoutDrop.drop;
-    assertEq(expectedMonsterDropValue(withDrop, values), expectedMonsterDropValue(withoutDrop, values),
-      'expectedMonsterDropValue\'s result changed depending on whether .drop was present');
-  }
-});
-
 test('the belief never leaks the full map', () => {
   const state = newGame(2024);
   const belief = foldBelief(emptyBelief(), observe(state));
@@ -1707,52 +1677,6 @@ test('potion has its own scarcity dial, independent of armour', () => {
   const expected = 0.5 / POTION_SCARCITY; // shareEach 1/2 (armour, potion) / scarcity
   assert(Math.abs(potionMass - expected) < 1e-9,
     `potion's total mass is ${potionMass}, expected shareEach/POTION_SCARCITY (${expected})`);
-});
-
-test('the bot chest mix carries no emptiness, so CHEST_LOOT_CHANCE is the whole payout', () => {
-  // M39 found this and it decides how CHEST_LOOT_CHANCE must be read.
-  // `loot.js`'s ITEM_MIX calls `itemWeights({}, 'chest')` — an EMPTY scarcity
-  // object — so both kinds keep their full share and the empty slot gets
-  // weight ZERO. The generator's template gate is therefore absent from the
-  // bot's model, and CHEST_LOOT_CHANCE stands in for the whole payout rate
-  // rather than for the positional `hasLoot` gate whose shape it resembles.
-  //
-  // Two things break silently if this stops holding, which is why it is
-  // pinned: the constant would start meaning something else, and the bot's
-  // kind mix would stop matching a generator whose kinds are unevenly scarce.
-  const mix = itemWeights({}, 'chest');
-  const empty = mix.find(([item]) => item === null);
-  assertEq(empty ? empty[1] : 0, 0, 'the bot mix grew an empty slot; CHEST_LOOT_CHANCE now double-counts emptiness');
-
-  const kindMass = (kind) => mix.reduce((s, [item, w]) => s + (item && item.kind === kind ? w : 0), 0);
-  assert(Math.abs(kindMass('armour') - kindMass('potion')) < 1e-9,
-    'the bot assumes armour and potion are equally likely; the generator no longer agrees');
-});
-
-// ***** the bot's campaign horizon ***** //
-
-test('monsters ahead sums the floors still to come', () => {
-  // Floor 9 of 10 has only floor 10 left, which holds 21 by the growth law.
-  assertEq(monstersAhead(9, 10, 2, 1.3), 21, 'the last floor was miscounted');
-  assertEq(monstersAhead(10, 10, 2, 1.3), 0, 'the last floor has nothing ahead');
-  assertEq(monstersAhead(null, null, 2, 1.3), 0,
-    'a single floor played alone must have no future');
-  assert(monstersAhead(1, 10, 2, 1.3) > monstersAhead(5, 10, 2, 1.3),
-    'the descent ahead did not shrink with depth');
-});
-
-test('a weapon is worth more with a campaign ahead than with one floor', () => {
-  const belief = foldBelief(emptyBelief(), observe(newGame(4242, floorPlan(3))));
-  const near = valueByItemName(belief, 6, 0);
-  const far = valueByItemName(belief, 6, 40);
-  assert(far.get('axe') > near.get('axe'),
-    'more monsters ahead did not raise what a weapon is worth');
-  // B14 (docs/backlog.md): a potion's value comes from its OWN horizon
-  // parameter (the 5th argument, defaulted here to LOOT_CAMPAIGN_HORIZON on
-  // both sides), never from the monster count `future` scales — a potion
-  // does not fight anything, so more monsters ahead must not move it.
-  assertEq(far.get('health'), near.get('health'),
-    'a potion\'s value moved with the monster count ahead, not just the horizon');
 });
 
 // ***** floor spread ***** //
@@ -2742,253 +2666,6 @@ test('a chest in hand beats the dark', () => {
     `the bot went exploring instead of opening the chest: ${actions.join(',')}`);
 });
 
-// ***** B9: a creature's drop is priced, and the flag ships on ***** //
-//
-// docs/backlog.md B9. First reads (n=40/n=30) looked harmful and shipped
-// this OFF, but both were taken while a concurrent session had
-// src/sim/spawn.js and difficulty.js mid-edit on disk — disclosed in the
-// backlog rather than trusted. Re-measured clean at n=80/n=60 once that
-// churn settled: side kills per floor up 31%/18% (the mechanism firing),
-// median depth and finishes UNCHANGED on both seed families, actions per
-// run down 8%/5%. Shipped ON. This locks the OFF half of the mechanism
-// instead — with the flag explicitly disabled, a side creature outside its
-// activation radius, with no other reason to approach it, is left alone.
-test('a creature out of reach is not hunted for its drop when priceDrops is off', () => {
-  const map = tinyMap([
-    '#####################',
-    '#-------------------#',
-    '#####################',
-  ]);
-  const state = makeState({
-    map,
-    playerPos: [10, 1],
-    monsters: [dummy('ogre', [14, 1], { side: true, activation: 0 })],
-  });
-
-  const trace = [];
-  const { actions } = driveBot(state, 8, { monsterCount: 1, trace, priceDrops: false });
-  assert(!trace.some((t) => t.goal.kind === 'monster'),
-    `the bot targeted the creature with priceDrops off: ${JSON.stringify(trace.map((t) => t.goal))}`);
-  assert(!state.monsters[0].dead, 'the creature was engaged despite being out of reach');
-});
-
-// ***** B10: route toward a frontier by what it would reveal ***** //
-//
-// docs/backlog.md B10. `frontierRouting`'s discount is a tie-breaker
-// between routes of otherwise-similar cost, not a re-ranking — the Do
-// section is explicit that it must sit well under a single step's price.
-// A bare corridor with nothing else on it has no alternate route to any
-// frontier at all (one way in, one way out), so there is nothing for the
-// discount to break a tie between: turning the flag on must not change a
-// single action here. This is the regression guard the item's own
-// real-play measurement leans on — n=60 on two seed families found bumps
-// per run flat to slightly down (never up) and every other number moved
-// well under 1%, consistent with ties being rare on a real map too.
-test('frontierRouting does not change a route with no alternative to prefer', () => {
-  const map = tinyMap([
-    '#####################',
-    '#-------------------#',
-    '#####################',
-  ]);
-  const state = () => makeState({ map, playerPos: [10, 1] });
-
-  const off = driveBot(state(), 6, { frontierRouting: false });
-  const on = driveBot(state(), 6, { frontierRouting: true });
-  assertEq(on.actions.join(','), off.actions.join(','),
-    `frontierRouting changed a route that had no alternative: off=${off.actions.join(',')} on=${on.actions.join(',')}`);
-});
-
-// ***** B11: combat competes with loot, but not by default ***** //
-//
-// docs/backlog.md B11. `combatCompetes` is the sharpest-risk flag this
-// series has shipped, and its exact numeric threshold (how good a fight has
-// to look before it outranks a specific chest) depends on values computed
-// from the whole item table and the current roster — not something worth
-// hand-deriving into a fragile fixture. This locks the cheap, robust half
-// instead, the same way B9/B10 did: the merge must be a true no-op when the
-// flag is off, even with a fight available. `combatCompetes`'s own
-// ship/no-ship call rests on the paired-seed measurement the item's Assert
-// section asks for, not on this test.
-//
-// The monster sits 5 tiles off, past TACTICAL_RANGE (4) — closer and the
-// SEPARATE tactical veto layer (bot.js, unrelated to chooseGoal) starts
-// simulating nearby turns and can choose to attack an adjacent threat on
-// its own terms, which would confound this test with a different bot layer
-// entirely. Walking to the chest moves further away from it, not closer,
-// so the veto never gets a turn where it could fire either.
-test('combatCompetes off leaves a chest in hand beating a fight further off', () => {
-  const map = tinyMap([
-    '#####################',
-    '#-------------------#',
-    '#####################',
-  ]);
-  const state = makeState({
-    map,
-    playerPos: [10, 1],
-    chests: [
-      { id: 'c-right', name: 'chest', emoji: '📦', pos: [14, 1], side: false, edge: false, drop: null },
-    ],
-    monsters: [dummy('rat', [5, 1], { side: false })],
-  });
-
-  const { actions } = driveBot(state, 4, { monsterCount: 1, combatCompetes: false });
-  assert(actions.every((a) => a === 'right'),
-    `the bot fought or wavered instead of opening the chest: ${actions.join(',')}`);
-});
-
-// ***** B13: a pursuer is charged where it actually collects ***** //
-//
-// docs/backlog.md B13. Unlike B9/B10/B11, the mechanism here is a pure
-// function with no dependence on the item table or the live roster, so it
-// can be checked directly instead of through a fragile whole-bot fixture.
-// Both halves are worth locking: what it charges, and that the flag is a
-// true no-op when off.
-//
-// `activation` is passed explicitly because the shared `dummy()` fixture
-// sets it to 0 — a creature that provably never acts, which is the right
-// default there and exactly wrong here.
-function beliefOf(state) {
-  return foldBelief(emptyBelief(), observe(state));
-}
-
-test('a pursuer at the hero\'s heels is charged for every stationary turn', () => {
-  const map = tinyMap([
-    '#####################',
-    '#-------------------#',
-    '#####################',
-  ]);
-  const state = makeState({
-    map,
-    playerPos: [10, 1],
-    monsters: [dummy('rat', [11, 1], { activation: 8 })],
-  });
-  const danger = dangerField(beliefOf(state));
-
-  // Standing still where the hero already is: the rat is one step behind,
-  // so it lands on the hero on the first stationary turn and swings on the
-  // second as well.
-  const two = danger.pursuerCost([10, 1], 0, 2);
-  const one = danger.pursuerCost([10, 1], 0, 1);
-  assert(two > 0, 'a rat one step behind was charged nothing for two stationary turns');
-  assert(two > one, 'the charge did not scale with the number of stationary turns');
-  assertEq(danger.pursuerCost([10, 1], 0, 0), 0, 'charged for standing still zero turns');
-});
-
-test('a pursuer that cannot arrive in time is free', () => {
-  const map = tinyMap([
-    '#####################',
-    '#-------------------#',
-    '#####################',
-  ]);
-  // Far enough that it needs more steps to arrive than the hero will spend
-  // standing there, but still inside its own chase radius so `isAwakeAt`
-  // is not what is doing the filtering.
-  const state = makeState({
-    map,
-    playerPos: [10, 1],
-    monsters: [dummy('rat', [16, 1], { activation: 20 })],
-  });
-  const danger = dangerField(beliefOf(state));
-
-  assertEq(danger.pursuerCost([10, 1], 0, 2), 0,
-    'a creature six steps away was charged for two stationary turns it cannot reach');
-  assert(danger.pursuerCost([10, 1], 0, 8) > 0,
-    'the same creature was still free over enough turns for it to arrive');
-});
-
-test('the creature being fought is not charged twice', () => {
-  const map = tinyMap([
-    '#####################',
-    '#-------------------#',
-    '#####################',
-  ]);
-  const state = makeState({
-    map,
-    playerPos: [10, 1],
-    monsters: [dummy('rat', [11, 1], { id: 'm-target', activation: 8 })],
-  });
-  const danger = dangerField(beliefOf(state));
-
-  assert(danger.pursuerCost([10, 1], 0, 3) > 0, 'fixture is wrong: nothing was charged at all');
-  assertEq(danger.pursuerCost([10, 1], 0, 3, 'm-target'), 0,
-    'the excluded target was charged anyway — its blows are already in duelCost');
-});
-
-test('chargePursuers off leaves the bot untouched with a pursuer present', () => {
-  const map = tinyMap([
-    '#####################',
-    '#-------------------#',
-    '#####################',
-  ]);
-  const build = () => makeState({
-    map,
-    playerPos: [10, 1],
-    chests: [
-      { id: 'c-right', name: 'chest', emoji: '📦', pos: [14, 1], side: false, edge: false, drop: null },
-    ],
-    monsters: [dummy('rat', [6, 1], { activation: 8 })],
-  });
-
-  const off = driveBot(build(), 4, { monsterCount: 1, chargePursuers: false });
-  assert(off.actions.every((a) => a === 'right'),
-    `the shipped default changed with a pursuer on the map: ${off.actions.join(',')}`);
-});
-
-// ***** B12: leaving competes with fighting ***** //
-//
-// docs/backlog.md B12. The obligation to kill lived in chooseGoal's
-// cheapest-fight step firing on any reachable creature, with the shrine
-// step below it and only reached when that found nothing. This is the
-// mechanism check, and it is a real one rather than a no-op guard: the two
-// arms must choose OPPOSITE DIRECTIONS on the same board.
-//
-// The rat sits well outside its own chase radius, so it never wakes and
-// the tactical veto never has a say — what is being tested is the goal
-// comparison, not the reflex layer on top of it.
-test('a reachable exit beats a fight that does not pay for itself', () => {
-  const map = tinyMap([
-    '#####################',
-    '#-------------------#',
-    '#####################',
-  ]);
-  const build = () => makeState({
-    map,
-    playerPos: [10, 1],
-    monsters: [dummy('rat', [3, 1], { activation: 8 })],
-    shrine: { id: 's', emoji: '⛩️', pos: [16, 1] },
-  });
-
-  const off = driveBot(build(), 1, { monsterCount: 1, leaveCompetes: false });
-  const on = driveBot(build(), 1, { monsterCount: 1, leaveCompetes: true });
-
-  assertEq(off.actions[0], 'left',
-    'with leaving out of the comparison the bot should still go and fight');
-  assertEq(on.actions[0], 'right',
-    'the bot fought a creature it had no reason to fight, with the exit open');
-});
-
-test('a fight worth having still beats leaving', () => {
-  // Same board, but the hero is hurt and a potion sits the other way. The
-  // exit competes at net 0, so anything that genuinely pays for itself is
-  // still taken first — leaving is the floor of the comparison, not a
-  // shortcut past it.
-  const map = tinyMap([
-    '#####################',
-    '#-------------------#',
-    '#####################',
-  ]);
-  const state = makeState({
-    map,
-    playerPos: [10, 1],
-    hp: 3,
-    items: [item('health', [8, 1], { heal: 5 })],
-    shrine: { id: 's', emoji: '⛩️', pos: [16, 1] },
-  });
-
-  const { actions } = driveBot(state, 1, { monsterCount: 0, leaveCompetes: true });
-  assertEq(actions[0], 'left', 'the bot walked out past a potion it needed');
-});
-
 // ***** B16: the shrine is a one-way door, not floor ***** //
 //
 // docs/backlog.md B16. `believedWalkable` decides passability from the tile
@@ -3083,154 +2760,18 @@ test('the shrine is still reachable as a goal', () => {
   assertEq(after.outcome, 'ascended', 'the bot would not take an exit with nothing else to do');
 });
 
-// ***** B17: the route grazes free loot when it costs nothing ***** //
+
+// ***** the bot's three objectives ***** //
 //
-// docs/backlog.md B17. Walking over a loose item collects it for free, so
-// among routes of the same length the one crossing an item is strictly
-// better. Measured inert in real play (a wanted loose item is on the floor
-// in 6.5% of decisions, and the bot is already going to get it in 93% of
-// those) — so the mechanism has to be locked by construction here, because
-// a real-play measurement cannot see it.
-//
-// Only the trap half is locked here. A fixture for the positive half was
-// attempted and abandoned: any item close enough to lie on a tie-breaking
-// route is also valuable enough that `chooseGoal` makes it the GOAL, so the
-// ablated arm collects it too and the fixture proves nothing. That is not a
-// gap in the test, it is the same finding the measurement produced — in
-// 93% of the turns a wanted item exists, the bot is already going to get it.
-test('the item discount never buys a detour', () => {
-  // The trap the item names: a discount large enough to bend the route is
-  // goal selection by the back door. Here the item is a full lane away from
-  // the only short path, so reaching it costs real extra steps. The bot must
-  // refuse — `chooseGoal` decides whether that item is worth a trip, not the
-  // router.
-  const map = tinyMap([
-    '###########',
-    '#---------#',
-    '####-######',
-    '####-######',
-  ]);
-  const state = makeState({
-    map,
-    playerPos: [1, 1],
-    items: [item('shield', [4, 3], { armour: 3 })],
-    shrine: { id: 's', emoji: '⛩️', pos: [9, 1] },
-  });
+// The bot follows three ordered goals — survive the floor, arrive rich,
+// spend few steps — and a hero with special characteristics is a different
+// CONFIGURATION handed to makeBot, never different code. These tests pin
+// both halves: the rules, and the mechanism.
 
-  const trace = [];
-  const { actions } = driveBot(state, 3, { monsterCount: 0, trace, leaveCompetes: true });
-  // Whatever it picks, the ROUTER must not have bent the path down the side
-  // passage on its own — only a goal decision may do that.
-  const wentForItem = trace.some((t) => t.goal.kind === 'item');
-  const steppedDown = actions.includes('down');
-  assert(!steppedDown || wentForItem,
-    `the router detoured toward an item without choosing it as a goal: ${actions.join(',')}`);
-});
-
-// ***** B19: the gate case, and why the proposed term cannot express it *****
-//
-// docs/backlog.md B19. A shield can move a fight from the wrong side of
-// `worthStarting` to the right side, and when it does its worth is not three
-// hp. The item proposed pricing that as
-// `duelCost(player, m) - duelCost(player + item, m)`.
-//
-// That expression is identically ZERO for armour, by construction: `hpLost`
-// is built from the hero's DAMAGE OUTPUT and the creature's bite, and armour
-// touches neither — it only raises `effectiveHp`, which enters `survivable`
-// and `worthStarting` but never `hpLost`. Locked here so the formula is not
-// proposed again from the same reasoning.
-test('the duel-cost delta is zero for armour, whatever the fight', () => {
-  const hero = { hp: 8, hpMax: 10, armour: 0, xp: PLAYER_XP, inventory: [], kills: [] };
-  const shield = ITEM_TABLE.find((t) => t.name === 'shield');
-  const armoured = { ...hero, armour: hero.armour + shield.armour, inventory: [shield] };
-
-  for (const m of MONSTER_TABLE) {
-    assertEq(duelCost(hero, m).hpLost, duelCost(armoured, m).hpLost,
-      `a shield changed hpLost against ${m.name}, which would make the proposed term non-zero`);
-  }
-  // And it is NOT zero for a weapon — so shipping the term as specified
-  // would have widened the very gap the item opens with.
-  const dagger = ITEM_TABLE.find((t) => t.name === 'dagger');
-  const wolf = MONSTER_TABLE.find((m) => m.name === 'wolf');
-  assert(duelCost(hero, wolf).hpLost
-    > duelCost({ ...hero, inventory: [dagger] }, wolf).hpLost,
-  'a weapon did not lower hpLost, so the asymmetry this test documents is gone');
-});
-
-test('a shield that opens a shut gate is taken before the fight', () => {
-  // The Assert's own case. At 6 hp the wolf's expected loss is above
-  // `effectiveHp * DUEL_SAFETY_MARGIN`, so the fight is refused; three points
-  // of armour lift the gate above it. The bot must fetch the shield first.
-  const map = tinyMap([
-    '#####################',
-    '#-------------------#',
-    '#####################',
-  ]);
-  const wolf = MONSTER_TABLE.find((m) => m.name === 'wolf');
-  const state = makeState({
-    map,
-    playerPos: [10, 1],
-    hp: 6,
-    items: [item('shield', [5, 1], { armour: 3 })],
-    monsters: [dummy('wolf', [15, 1])],
-  });
-
-  // The gate really is shut before, and really is open after — otherwise the
-  // fixture proves nothing about sequencing.
-  const bare = { hp: 6, hpMax: 10, armour: 0, xp: PLAYER_XP, inventory: [], kills: [] };
-  const armoured = { ...bare, armour: 3 };
-  const loss = duelCost(bare, wolf).hpLost;
-  assert(loss > effectiveHp(bare) * DUEL_SAFETY_MARGIN, 'fixture: the fight was already accepted');
-  assert(loss <= effectiveHp(armoured) * DUEL_SAFETY_MARGIN, 'fixture: the shield does not open the gate');
-
-  const trace = [];
-  const { state: after } = driveBot(state, 6, { monsterCount: 1, trace });
-  assertEq(trace[0].goal.kind, 'item', 'the bot went at a fight it had refused instead of arming first');
-  assert(after.player.armour > 0, 'the bot never actually collected the shield');
-});
-
-// ***** B20: "collect that, then fight this" as one candidate ***** //
-//
-// docs/backlog.md B20. `chooseGoal` compares one thing at a time from where
-// the hero stands, so a route that picks up loot on the way to a fight was
-// not outranked — it was absent. `sequenceGoals` scores the pair and enters
-// it in the same comparison.
-//
-// The arithmetic cancels to "the sequence wins when the loot is worth more
-// than the detour costs", which is why no coefficient was added. Locked
-// here, because the batch could not isolate it: the candidate fires on ~40%
-// of decisions and mostly re-selects loot the bot was already going to take.
-test('the sequence candidate is redundant with the plain loot goal it duplicates', () => {
-  // The finding that decided this item's default. The candidate carries the
-  // same `kind` and `id` as the plain loot goal it is built from, so when
-  // both are in the list the hysteresis check — which matches on kind+id and
-  // takes the FIRST hit — returns the plain one. The bot walks to the same
-  // tile either way; only the score differs.
-  const map = tinyMap([
-    '###############',
-    '#-------------#',
-    '#####-#########',
-    '#####-#########',
-    '###############',
-  ]);
-  const build = () => makeState({
-    map,
-    playerPos: [1, 1],
-    monsters: [dummy('rat', [12, 1])],
-    chests: [
-      { id: 'c1', name: 'chest', emoji: '📦', pos: [5, 3], side: false, edge: false, drop: null },
-    ],
-  });
-
-  const off = driveBot(build(), 12, { monsterCount: 1, sequenceGoals: false });
-  const on = driveBot(build(), 12, { monsterCount: 1, sequenceGoals: true });
-  assertEq(on.actions.join(','), off.actions.join(','),
-    'the flag changed behaviour on a board where the plain goal already wins');
-});
-
-test('a sequence is never scored when there is no fight to sequence with', () => {
-  // No creature, so there is no second leg and the candidate must not
-  // appear — otherwise it would be scoring a fight that does not exist.
+test('a fight over the margin is never started', () => {
+  // A dragon parked short of the route. Its expected duel cost dwarfs the
+  // hero's whole bar, so objective 1 forbids it — the bot takes the exit
+  // and leaves the fight alone.
   const map = tinyMap([
     '#####################',
     '#-------------------#',
@@ -3238,322 +2779,106 @@ test('a sequence is never scored when there is no fight to sequence with', () =>
   ]);
   const state = makeState({
     map,
-    playerPos: [1, 1],
+    playerPos: [6, 1],
+    monsters: [dummy('dragon', [14, 1])],
+    shrine: { id: 's', emoji: '⛩️', pos: [2, 1] },
+  });
+
+  const { state: after } = driveBot(state, 10, { monsterCount: 1, chestCount: 0 });
+  assertEq(after.outcome, 'ascended', 'the bot did not leave when only a lost fight remained');
+  assert(after.monsters.every((m) => !m.dead), 'the bot started a fight it could not afford');
+});
+
+test('a coward hero refuses the fight the default hero takes', () => {
+  // Same board, same seed, other hero. The default margin affords a boar;
+  // a fightMargin of 0.2 does not. That the outcome differs is the whole
+  // hero-as-configuration mechanism working.
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const build = () => makeState({
+    map,
+    playerPos: [6, 1],
+    monsters: [dummy('boar', [10, 1])],
+    shrine: { id: 's', emoji: '⛩️', pos: [2, 1] },
+  });
+
+  const brave = driveBot(build(), 30, { monsterCount: 1, chestCount: 0 });
+  assert(brave.state.monsters.some((m) => m.dead), 'the default hero left an affordable fight');
+
+  const coward = driveBot(build(), 30,
+    { monsterCount: 1, chestCount: 0, hero: { fightMargin: 0.2 } });
+  assert(coward.state.monsters.every((m) => !m.dead), 'the coward started the fight anyway');
+  assertEq(coward.state.outcome, 'ascended', 'the coward did not leave instead');
+});
+
+test('a hero with no appetite skips the gamble the default hero takes', () => {
+  // A guarded side chest. The default appetite pays the guard and opens it;
+  // sideAppetite 0 refuses the gamble and walks out — which is what makes a
+  // refused side room an attributable decision rather than an accident.
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const build = () => makeState({
+    map,
+    playerPos: [4, 1],
+    monsters: [dummy('boar', [11, 1], { side: true, activation: 6 })],
     chests: [
-      { id: 'c1', name: 'chest', emoji: '📦', pos: [10, 1], side: false, edge: false, drop: null },
+      { id: 'c-side', name: 'chest', emoji: '📦', pos: [12, 1], side: true, edge: 0, drop: null },
     ],
+    shrine: { id: 's', emoji: '⛩️', pos: [2, 1] },
   });
 
-  const trace = [];
-  driveBot(state, 6, { monsterCount: 0, trace, sequenceGoals: true });
-  assert(!trace.some((t) => t.goal && t.goal.sequencedWith),
-    'a sequence candidate appeared with no creature to sequence against');
+  const greedy = driveBot(build(), 60, { monsterCount: 1, chestCount: 1 });
+  assertEq(greedy.state.chests.length, 0, 'the default hero left the gamble on the table');
+
+  const ascetic = driveBot(build(), 60,
+    { monsterCount: 1, chestCount: 1, hero: { sideAppetite: 0 } });
+  assertEq(ascetic.state.chests.length, 1, 'the no-appetite hero opened the guarded chest');
+  assertEq(ascetic.state.outcome, 'ascended', 'the no-appetite hero did not leave instead');
 });
 
-// ***** B21: the plan's low-water mark, as a veto ***** //
-//
-// docs/backlog.md B21. Death happens when the budget touches zero, so what
-// decides survival is the minimum of (hp + armour) along a plan, not the
-// total spend. `worthStarting` already gates one duel; this gates the whole
-// trajectory — walk in, resolve, walk out.
-//
-// The fixture the item asked for: a fight the hero survives, on a floor
-// whose only exit is guarded. The rat costs 0.53 hp and is comfortably
-// winnable; the walk out past the t-rex is what kills. With the flag off
-// the bot takes the rat, because its net is positive and nothing prices the
-// exit. With it on, the plan is refused and the bot leaves instead.
-//
-// Distance alone can never trigger this — a step is 0.01 hp, so a 25-tile
-// walk out costs a quarter of one point. It takes DANGER on the exit route,
-// which is why the fixture needs a creature standing on it rather than
-// simply a distant shrine.
-test('a plan that survives its fight but dies on the way out is refused', () => {
+test('the bot drinks exactly when the missing hp covers the heal', () => {
   const map = tinyMap([
-    '##################',
-    '#----------------#',
-    '##################',
+    '#########',
+    '#-------#',
+    '#########',
   ]);
-  const rex = MONSTER_TABLE.find((m) => m.name === 't-rex');
-  const build = () => makeState({
-    map,
-    playerPos: [8, 1],
-    hp: 6,
-    monsters: [
-      dummy('rat', [5, 1]),
-      // Awake and parked on the only way out. `activation` has to be wide
-      // enough that standing anywhere on the route counts as inside its
-      // chase radius, or `dangerField` prices it at nothing.
-      { id: 'm-rex', name: 't-rex', emoji: '🦖', pos: [11, 1], hp: rex.hp, hpMax: rex.hp,
-        xp: rex.xp, activation: 30, dead: false, side: false },
-    ],
-    shrine: { id: 's', emoji: '⛩️', pos: [13, 1] },
-  });
+  const potion = { id: 'i-p', name: 'health', emoji: '?', pos: [0, 0], dmg: 0, armour: 0, heal: 3 };
 
-  const off = [];
-  driveBot(build(), 1, { monsterCount: 2, trace: off, lowWaterVeto: false });
-  const on = [];
-  driveBot(build(), 1, { monsterCount: 2, trace: on, lowWaterVeto: true });
+  const hurt = makeState({ map, playerPos: [4, 1], hp: 7, inventory: [potion] });
+  const bot = makeBot({ monsterCount: 0, chestCount: 0 });
+  assertEq(bot(foldBelief(emptyBelief(), observe(hurt))), 'drink',
+    'missing 3 hp with a 3-heal potion held did not drink');
 
-  assertEq(off[0].goal.kind, 'monster',
-    'fixture: without the veto the bot should still have taken the fight');
-  assertEq(on[0].goal.kind, 'shrine',
-    'the veto did not refuse a plan whose walk out kills the hero');
+  const fine = makeState({ map, playerPos: [4, 1], hp: 8, inventory: [{ ...potion }] });
+  const bot2 = makeBot({ monsterCount: 0, chestCount: 0 });
+  assert(bot2(foldBelief(emptyBelief(), observe(fine))) !== 'drink',
+    'drinking at a 2 hp gap wastes a third of the potion');
 });
 
-test('the veto never discards the exit itself', () => {
-  // Leaving is exempt by design: if even walking out dips below the floor,
-  // refusing it does not help, and deleting it would drop the bot through
-  // to the unconditional fight below — the opposite of a survival veto.
+test('an awake pursuer is fought rather than fled forever', () => {
+  // A bat inside its own chase radius is coming whatever the bot does, so
+  // its duel is not a cost of choosing it — the bot turns and takes the
+  // fight instead of dragging the chase across the floor.
   const map = tinyMap([
-    '##################',
-    '#----------------#',
-    '##################',
-  ]);
-  const rex = MONSTER_TABLE.find((m) => m.name === 't-rex');
-  const state = makeState({
-    map,
-    playerPos: [8, 1],
-    hp: 2,
-    monsters: [
-      { id: 'm-rex', name: 't-rex', emoji: '🦖', pos: [11, 1], hp: rex.hp, hpMax: rex.hp,
-        xp: rex.xp, activation: 30, dead: false, side: false },
-    ],
-    shrine: { id: 's', emoji: '⛩️', pos: [13, 1] },
-  });
-
-  const trace = [];
-  driveBot(state, 1, { monsterCount: 1, trace, lowWaterVeto: true });
-  assert(trace.length > 0 && trace[0].goal, 'the bot produced no goal at all');
-  assertEq(trace[0].goal.kind, 'shrine',
-    'the exit was vetoed away, leaving the bot nothing safe to choose');
-});
-
-// ***** B22: dominance ordering on (low-water mark, exit state) ***** //
-//
-// docs/backlog.md B22. With the flag on, `net` stops being the ordering and
-// becomes the last tiebreak: candidates are ranked by Pareto dominance on
-// (m, hp at exit, weapon damage at exit), ties broken by `m`.
-//
-// Both tests here guard the same edge — that switching the ranking must not
-// quietly empty the candidate pool. The first version of this shipped with
-// `planLowWater` returning an object while the B21 veto still compared it to
-// a number; every comparison was NaN, every candidate was discarded, and the
-// bot walked straight out of every floor. Nothing in the suite caught it,
-// because no test asserted that a plainly-safe goal survives the veto.
-test('the veto keeps a plainly-safe goal in the pool', () => {
-  const map = tinyMap([
-    '##################',
-    '#----------------#',
-    '##################',
+    '#####################',
+    '#-------------------#',
+    '#####################',
   ]);
   const state = makeState({
     map,
-    playerPos: [8, 1],
-    hp: 4,
-    monsters: [],
-    items: [{ id: 'i-sh', name: 'shield', emoji: '🛡️', pos: [6, 1], dmg: 0, armour: 3, heal: 0 }],
-    shrine: { id: 's', emoji: '⛩️', pos: [16, 1] },
+    playerPos: [6, 1],
+    monsters: [dummy('bat', [10, 1], { activation: 12 })],
+    shrine: { id: 's', emoji: '⛩️', pos: [2, 1] },
   });
 
-  const trace = [];
-  driveBot(state, 1, { monsterCount: 1, trace, lowWaterVeto: true });
-  assertEq(trace[0].goal.kind, 'item',
-    'a two-tile walk to a shield was vetoed — the pool is being emptied');
-});
-
-test('the exit is ranked by net, never by dominance', () => {
-  // "Maximise the minimum effective hp SUBJECT TO reaching the exit" is a
-  // constraint, not an objective. Leaving right now trivially maximises `m`
-  // because a plan that does nothing spends nothing, so ranking the shrine
-  // in would dominate every candidate on every floor. Here the shrine is one
-  // step away and the shield two: on `m` alone the shrine wins.
-  const map = tinyMap([
-    '##################',
-    '#----------------#',
-    '##################',
-  ]);
-  const state = makeState({
-    map,
-    playerPos: [8, 1],
-    hp: 4,
-    monsters: [],
-    items: [{ id: 'i-sh', name: 'shield', emoji: '🛡️', pos: [6, 1], dmg: 0, armour: 3, heal: 0 }],
-    shrine: { id: 's', emoji: '⛩️', pos: [9, 1] },
-  });
-
-  const trace = [];
-  driveBot(state, 1, { monsterCount: 1, trace, lowWaterVeto: true });
-  assertEq(trace[0].goal.kind, 'item',
-    'the shrine was ranked by dominance and beat a goal worth taking');
-});
-
-// ***** B23: the floor is phases, activation is the boundary ***** //
-//
-// docs/backlog.md B23, and the concept is the owner's, drawn from watching
-// the bot with B22 on. `dangerField` prices threat as a field that decays
-// with distance; rules.md §3 says a sleeping creature is motionless until
-// the hero is inside its activation radius. Crossing that radius is an
-// EVENT, and no continuous price says "nothing, then a whole duel".
-//
-// The fixture is the owner's own case. The serpentine matters: visibility is
-// by straight-line distance (VISIBLE_DIST) and activation is by path length,
-// so the vampire can be four tiles away as the crow flies — seen, priced,
-// competing — while still twenty steps away along the floor, and therefore
-// asleep. Without that gap the case cannot be built at all: a vampire close
-// enough to see down a straight corridor is already awake.
-test('the free region is swept before a radius is crossed', () => {
-  const map = tinyMap([
-    '###########',
-    '#---------#',
-    '#########-#',
-    '#---------#',
-    '#-#########',
-    '#---------#',
-    '###########',
-  ]);
-  const vampire = MONSTER_TABLE.find((m) => m.name === 'vampire');
-  const rat = MONSTER_TABLE.find((m) => m.name === 'rat');
-  const build = () => makeState({
-    map,
-    playerPos: [1, 1],
-    hp: 10,
-    monsters: [
-      // Awake and chasing: three steps off, inside its own radius.
-      { id: 'm-rat', name: 'rat', emoji: '🐀', pos: [4, 1], hp: rat.hp, hpMax: rat.hp,
-        xp: rat.xp, activation: rat.activation, dead: false, side: false },
-      // Asleep: twenty steps along the serpentine, well outside its radius.
-      { id: 'm-vam', name: 'vampire', emoji: '🧛', pos: [1, 5], hp: vampire.hp,
-        hpMax: vampire.hp, xp: vampire.xp, activation: vampire.activation,
-        dead: false, side: false },
-    ],
-    // Inside the vampire's radius, so taking it ends the phase.
-    items: [{ id: 'i-sh', name: 'shield', emoji: '🛡️', pos: [5, 3], dmg: 0, armour: 3, heal: 0 }],
-    shrine: { id: 's', emoji: '⛩️', pos: [9, 5] },
-  });
-
-  const off = [];
-  driveBot(build(), 1, { monsterCount: 2, trace: off, activationPhases: false });
-  const on = [];
-  driveBot(build(), 1, { monsterCount: 2, trace: on, activationPhases: true });
-
-  assertEq(off[0].goal.kind, 'item',
-    'fixture: without phases the bot should still walk into the radius for loot');
-  assertEq(on[0].goal.kind, 'monster',
-    'the bot crossed a sleeping creature\'s radius with a pursuer still awake');
-  assertEq(on[0].goal.id, 'm-rat',
-    'the phase-one fight should be the pursuer, not the sleeper');
-});
-
-// ***** B24: keep going the way you were going ***** //
-//
-// docs/backlog.md B24, reshaped by what B23 measured. The grid is
-// 4-connected — `STEPS` in nav.js has no diagonals — so any diagonal
-// progress MUST alternate axes: `RRRRRUUUUU` and `RURURURURU` cost the same
-// and Dijkstra picks between them by `STEPS` order alone.
-//
-// A tie-break, deliberately not the cost term the item was first filed as.
-// Charging the sideways step would make the bot walk further to avoid
-// changing axis, which is a worse route bought with a tidier picture. The
-// second assert below is what holds it to that: same number of moves.
-//
-// It is also not the reversal penalty, which charges undoing the last step.
-// A zig-zag is `down` then `right` — the opposite of nothing — so that
-// penalty cannot see it at all.
-test('equal-cost routes keep the current axis', () => {
-  const map = tinyMap([
-    '##########',
-    '#--------#',
-    '#--------#',
-    '#--------#',
-    '#--------#',
-    '#--------#',
-    '#--------#',
-    '#--------#',
-    '#--------#',
-    '##########',
-  ]);
-  // Open floor, nothing on it, and the exit on the far diagonal: thousands
-  // of routes there are exactly the same price.
-  const build = () => makeState({
-    map,
-    playerPos: [1, 1],
-    hp: 10,
-    monsters: [],
-    shrine: { id: 's', emoji: '⛩️', pos: [8, 8] },
-  });
-
-  const axis = { up: 'v', down: 'v', left: 'h', right: 'h' };
-  const walk = (straightRoutes) => driveBot(build(), 40, { monsterCount: 0, straightRoutes })
-    .actions.filter((a) => axis[a]);
-
-  const plain = walk(false);
-  const straight = walk(true);
-  const flips = (ms) => ms.filter((m, i) => i > 0 && axis[m] !== axis[ms[i - 1]]).length;
-
-  assertEq(straight.length, plain.length,
-    'the tie-break changed how far the bot walked, which it may not do');
-  assert(flips(straight) < flips(plain),
-    `expected fewer axis changes, got ${flips(straight)} against ${flips(plain)}`);
-});
-
-// ***** B25: the bot prices turns ***** //
-//
-// docs/backlog.md B25, paired with M42 which measured why it has to exist:
-// the budget was swept six-fold tighter and the side-room opening rate did
-// not move (z = -0.05), because nothing in the bot read the clock. A cost
-// the deciding agent never sees cannot change a decision.
-//
-// The price is `effectiveHp / turns remaining` — hyperbolic on purpose. A
-// flat price would be a second STEP_COST_IN_HP and would do nothing, since
-// the walk is already charged per step. These two tests are the two ends of
-// that curve: nearly free when the budget is far, refusing when it is close.
-//
-// No new channel crosses into Belief. `belief.turn` is already there and
-// TURN_BUDGET is a module constant the bot imports like any other.
-test('a far budget leaves a detour worth taking', () => {
-  const map = tinyMap([
-    '##################',
-    '#----------------#',
-    '##################',
-  ]);
-  const build = () => makeState({
-    map,
-    playerPos: [3, 1],
-    hp: 10,
-    monsters: [],
-    items: [{ id: 'i-sh', name: 'shield', emoji: '🛡️', pos: [11, 1], dmg: 0, armour: 3, heal: 0 }],
-    shrine: { id: 's', emoji: '⛩️', pos: [1, 1] },
-  });
-
-  const trace = [];
-  driveBot(build(), 1, { monsterCount: 1, trace, turnPricing: true, turnBudget: 1500 });
-  assertEq(trace[0].goal.kind, 'item',
-    'the shipped budget refused a detour, which it should be far too loose to do');
-});
-
-test('a close budget refuses the same detour', () => {
-  const map = tinyMap([
-    '##################',
-    '#----------------#',
-    '##################',
-  ]);
-  // Same board, same shield, same walk. Only the clock changed: the shrine
-  // is two steps behind the hero and the shield eight steps ahead, so with the
-  // budget nearly spent the detour costs more of the remaining life than the
-  // armour is worth.
-  const build = () => makeState({
-    map,
-    playerPos: [3, 1],
-    hp: 10,
-    monsters: [],
-    items: [{ id: 'i-sh', name: 'shield', emoji: '🛡️', pos: [11, 1], dmg: 0, armour: 3, heal: 0 }],
-    shrine: { id: 's', emoji: '⛩️', pos: [1, 1] },
-  });
-
-  const trace = [];
-  driveBot(build(), 1, { monsterCount: 1, trace, turnPricing: true, turnBudget: 20 });
-  assertEq(trace[0].goal.kind, 'shrine',
-    'the bot spent turns it did not have on a detour');
+  const { state: after } = driveBot(state, 20, { monsterCount: 1, chestCount: 0 });
+  assert(after.monsters.some((m) => m.dead), 'the pursuer was never dealt with');
 });
 
 export function runAll() {

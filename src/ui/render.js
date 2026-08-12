@@ -105,17 +105,13 @@ function topmost(entries) {
 }
 
 // The bot's own figure for a goal, or null if that branch does not carry
-// one. `chooseGoal` scores most candidates as `net` (higher is better) but
-// its dedicated monster branch ranks by `cost` (lower is better) and the
-// unconditional "leave" branch returns a bare {kind, pos} with no score at
-// all — so this reads defensively rather than assuming a shape. -cost is
-// the same inversion chooseGoal itself applies when a fight competes in
-// the main pool, so the sign convention on screen stays "higher is better"
-// no matter which branch decided.
+// one. The bot ranks goals by `price` (hp to acquire, lower is better);
+// shrine and frontier goals carry no score at all — so this reads
+// defensively rather than assuming a shape. Shown negated so the on-screen
+// convention stays "higher is better".
 function goalScore(goal) {
   if (!goal) return null;
-  if (Number.isFinite(goal.net)) return goal.net;
-  if (Number.isFinite(goal.cost)) return -goal.cost;
+  if (Number.isFinite(goal.price)) return -goal.price;
   return null;
 }
 
@@ -247,11 +243,6 @@ export function renderHud(elements, state, session) {
 // Reads a trace entry from src/bot/bot.js: which goal won and what it
 // scored, the step the route planner picked for it, and whether the
 // tactical search overruled that step.
-//
-// The veto is the part worth showing. Two layers decide a move — the
-// route to the goal, then a short search that may VETO it — and when the
-// bot does something that looks stupid, which layer did it is the first
-// question. bot.js records `vetoed` for exactly this.
 export function renderDebugInfo(element, entry) {
   if (!element) return;
   if (!entry) { element.textContent = ''; return; }
@@ -259,12 +250,6 @@ export function renderDebugInfo(element, entry) {
   const score = goalScore(entry.goal);
   const target = entry.goal ? entry.goal.kind : '—';
   const parts = [`goal ${target}${score === null ? '' : ' ' + signed(score)}`];
-
-  // `final`/`vetoed` are filled in after decide() returns, so a trace read
-  // mid-call has neither — show the plan alone rather than a blank line.
-  if (entry.final === undefined) parts.push(`plan ${entry.planned}`);
-  else if (entry.vetoed) parts.push(`plan ${entry.planned} → veto ${entry.final}`);
-  else parts.push(`plan ${entry.planned} ✓`);
 
   element.textContent = parts.join(' · ');
 }
