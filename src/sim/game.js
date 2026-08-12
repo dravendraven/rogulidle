@@ -44,6 +44,18 @@ export function newGame(seed, counts = {}) {
   });
   populate(state, state.map, counts);
 
+  // The return climbs back through the hole it went down. On an ascent
+  // traversal the hero emerges where this floor's shrine stood, and the way
+  // out is where the hero originally entered — a swap AFTER generation, so
+  // it draws nothing and the floor stays byte-identical to its descent
+  // twin. One consequence is deliberate: the shrine guardian stood next to
+  // the down-stairs, so on the way up it receives the hero on arrival.
+  if (counts.ascending) {
+    const heroAt = state.shrine.pos;
+    state.shrine.pos = state.player.pos;
+    state.player.pos = heroAt;
+  }
+
   // U6d — docs/backlog.md. What the hero brings into the RUN, from the
   // shop (U6e) or a test — distinct from `carry` below, which is what
   // moves floor-to-floor WITHIN a run already in progress. Applied before

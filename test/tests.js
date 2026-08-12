@@ -334,27 +334,47 @@ test('the kit is granted once per run, not once per floor', () => {
   assertEq(weaponDamage(floor2.player), 0, 'a hero who lost their weapon got it back for free');
 });
 
-// ***** R1 — twenty traversals, victory on returning to floor 1 ***** //
+// ***** the run: down and back up, victory on returning to floor 1 ***** //
 
-test('the pairing rule sends traversal k to floor 21 - k', () => {
+test('the pairing rule sends ascent traversal k to floor 2 x floors - k', () => {
   // The one rule the whole return rests on, asserted against the design's
   // own table (docs/map-design.md, "The run laid out") rather than against
-  // the implementation restated.
-  assertEq(TRAVERSALS, LEVELS * 2, 'a run is not two crossings of every floor');
+  // the implementation restated. The hero climbs OUT of the bottom — the
+  // deepest floor is crossed once, every other floor twice.
+  assertEq(TRAVERSALS, LEVELS * 2 - 1, 'a run is not down-and-back-up over ten floors');
   assertEq(floorOfTraversal(1), 1, 'traversal 1 is not floor 1');
   assertEq(floorOfTraversal(10), 10, 'traversal 10 is not the bottom');
-  assertEq(floorOfTraversal(11), 10, 'traversal 11 is not the second crossing of the bottom');
-  assertEq(floorOfTraversal(12), 9, 'traversal 12 is not floor 9');
-  assertEq(floorOfTraversal(20), 1, 'traversal 20 is not the second crossing of floor 1');
+  assertEq(floorOfTraversal(11), 9, 'the traversal after the bottom is not floor 9');
+  assertEq(floorOfTraversal(12), 8, 'traversal 12 is not floor 8');
+  assertEq(floorOfTraversal(19), 1, 'traversal 19 is not the second crossing of floor 1');
 
-  // Every floor exactly twice, no floor three times, none missed.
+  // Every floor exactly twice except the bottom, exactly once; none missed.
   const seen = new Map();
   for (let k = 1; k <= TRAVERSALS; k++) {
     const floor = floorOfTraversal(k);
     seen.set(floor, (seen.get(floor) || 0) + 1);
   }
   assertEq(seen.size, LEVELS, 'the run does not visit every floor');
-  assert([...seen.values()].every((n) => n === 2), 'some floor is not crossed exactly twice');
+  assertEq(seen.get(LEVELS), 1, 'the bottom is not crossed exactly once');
+  assert([...seen.entries()].every(([f, n]) => f === LEVELS || n === 2),
+    'some floor above the bottom is not crossed exactly twice');
+});
+
+test('an ascent traversal starts at the descent shrine and exits at its start', () => {
+  // The doors swap: the hero comes back up through the hole it went down.
+  // A post-generation swap, so map and roster stay byte-identical.
+  const floor = 3;
+  const down = newGame(hashSeeds(4242, floor), floorPlan(floor));
+  const up = newGame(hashSeeds(4242, floor), { ...floorPlan(floor), ascending: true });
+
+  assertEq(up.player.pos.join(','), down.shrine.pos.join(','),
+    'the ascent hero did not emerge where the descent shrine stood');
+  assertEq(up.shrine.pos.join(','), down.player.pos.join(','),
+    'the ascent shrine is not where the descent hero entered');
+  assertEq(up.map.tiles.join(''), down.map.tiles.join(''), 'the swap changed the map');
+  assertEq(JSON.stringify(up.monsters.map((m) => [m.name, m.pos])),
+    JSON.stringify(down.monsters.map((m) => [m.name, m.pos])),
+    'the swap changed the roster');
 });
 
 test('an ascent traversal reproduces its twin map, tile for tile', () => {
@@ -372,7 +392,7 @@ test('an ascent traversal reproduces its twin map, tile for tile', () => {
     return newGame(hashSeeds(4242, floor), floorPlan(floor));
   };
 
-  for (const k of [11, 12, 15, 20]) {
+  for (const k of [11, 12, 15, 19]) {
     const up = build(k);
     const down = build(floorOfTraversal(k));
     assertEq(up.map.tiles.join(''), down.map.tiles.join(''),
@@ -396,7 +416,7 @@ test('difficulty is indexed by floor, not by traversal', () => {
   }
   assertEq(floorPlan(floorOfTraversal(12)).monsters, floorPlan(9).monsters,
     'traversal 12 does not use floor 9\'s roster size');
-  assert(floorPlan(floorOfTraversal(11)).monsters > floorPlan(floorOfTraversal(20)).monsters,
+  assert(floorPlan(floorOfTraversal(11)).monsters > floorPlan(floorOfTraversal(19)).monsters,
     'the return does not keep each floor\'s own mass — it should fall as the hero climbs');
 });
 
@@ -444,26 +464,33 @@ test('the budget is per traversal, not per run', () => {
 });
 
 test('reaching the bottom clears nothing; completing the last traversal wins', () => {
-  // Victory moved. Run on a one-floor dungeon so the bot can actually finish
-  // inside a unit test: floors 1, traversals 2, the same pairing rule.
-  const drive = (options) => playDungeon(4242, () => {
+  // Victory is the LAST traversal. Run on a two-floor dungeon so the bot
+  // can actually finish inside a unit test: floors 2, traversals 3 (floor 1
+  // down, floor 2 — the turn — and floor 1 up), the same pairing rule.
+  const drive = (options) => playDungeon(4201, () => {
     const bot = makeBot();
     return (belief, observation) => bot(belief, observation);
-  }, { maxTurns: 600, levels: 1, ...options });
+  }, { maxTurns: 600, levels: 2, ...options });
 
   const whole = drive();
-  assertEq(whole.levels.length, 2, 'a one-floor run is not two traversals');
+  assertEq(whole.levels.length, 3, 'a two-floor run is not three traversals');
   assert(whole.cleared, 'completing every traversal did not read as a clear');
-  assertEq(whole.depth, 2, 'depth does not count traversals survived');
-  assertEq(whole.levels[1].direction, 'up', 'the last traversal is not an ascent');
-  assertEq(whole.levels[1].level, 1, 'the last traversal is not the second crossing of floor 1');
+  assertEq(whole.depth, 3, 'depth does not count traversals survived');
+  assertEq(whole.levels[1].direction, 'down', 'the turn is not reached going down');
+  assertEq(whole.levels[2].direction, 'up', 'the last traversal is not an ascent');
+  assertEq(whole.levels[2].level, 1, 'the last traversal is not the second crossing of floor 1');
+  assertEq(whole.levels[2].replay.counts.ascending, true,
+    'the ascent traversal was not built with the doors swapped');
+  assert(!whole.levels[0].replay.counts.ascending && !whole.levels[1].replay.counts.ascending,
+    'a descent traversal was built with the doors swapped');
 
   // The same seed stopped at the bottom is NOT a clear of the real run — it
   // is the halfway point, and only a caller that pinned itself to a descent
   // sees it as complete.
-  const halfway = drive({ traversals: 1 });
-  assertEq(halfway.levels.length, 1, 'the pinned descent did not stop at the bottom');
-  assertEq(halfway.levels[0].direction, 'down', 'the descent traversal is not a descent');
+  const halfway = drive({ traversals: 2 });
+  assertEq(halfway.levels.length, 2, 'the pinned descent did not stop at the bottom');
+  assert(halfway.levels.every((l) => l.direction === 'down'),
+    'the pinned descent climbed');
 });
 
 test('a run is deterministic across every traversal', () => {

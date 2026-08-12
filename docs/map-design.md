@@ -178,22 +178,29 @@ the reason the middle is worth watching.
 
 ## The run laid out — the shape to build against
 
-Ten floors, twenty traversals. **Every floor is crossed exactly twice**, and
-the second crossing is what the first one earned.
+Ten floors, nineteen traversals. **Every floor is crossed exactly twice
+except the deepest, crossed once** — the hero climbs out of the bottom, it
+does not re-cross it — and the second crossing is what the first one
+earned.
 
 | traversal | floor | direction | map | threat mass | variance | chests |
 |---|---|---|---|---|---|---|
 | 1–2 | 1–2 | down | generated | **low** | **narrow** | yes |
 | 3–8 | 3–8 | down | generated | rising, slowly then faster | widening | yes |
 | 9–10 | 9–10 | down | generated | **maximum of the run** | **narrowest of the run** | yes |
-| 11 | 10 | **up** | reused from traversal 10 | high — the deepest floor's own roster | wider than the turn | **none** |
-| 12–19 | 9–2 | up | reused from traversal `21 − k` | **falling** — each floor keeps its own | **widening** every floor | **none** |
-| 20 | 1 | up | reused from traversal 1 | **lowest of the run** | **widest of the run** | **none** |
+| 11–18 | 9–2 | up | reused from traversal `20 − k` | **falling** — each floor keeps its own | **widening** every floor | **none** |
+| 19 | 1 | up | reused from traversal 1 | **lowest of the run** | **widest of the run** | **none** |
 
-**The pairing rule.** An ascent traversal `k` crosses floor `21 − k`, and
-reuses the map that descent traversal `21 − k` generated. Traversal 11 is the
-second crossing of the deepest floor — the way out of the turn, already under
-return rules. Traversal 20 is the second crossing of the first floor.
+**The pairing rule.** An ascent traversal `k` crosses floor `20 − k`, and
+reuses the map that descent traversal `20 − k` generated. Traversal 11 is
+floor 9 — the first climb out of the turn; the deepest floor is crossed
+once. Traversal 19 is the second crossing of the first floor.
+
+**The doors swap on the way up.** The hero emerges where the floor's shrine
+stood (it climbs the stairs it went down) and exits where it originally
+entered — geometry continuity, done after generation so the floor stays
+byte-identical to its descent twin. The shrine guardian therefore receives
+the hero on arrival, which is deliberate.
 
 **Mass and variance move in opposite directions on the way up, and that is
 deliberate.** Every floor keeps its own roster size, so the mass a traversal
@@ -203,17 +210,18 @@ floor drawn at a wide band can produce a single creature the hero has nothing
 left to answer with. **The median return traversal is easier than its descent
 twin. The worst one is far harder.** That gap is the whole finale.
 
-**Three things change on a second crossing, and nothing else does.** The map is
-reused rather than generated. The creature seed is redrawn from a wider band.
-The chests are gone. How a floor is dug, how the spine is classified, how
-creatures are placed against it — all unchanged. That is what makes the return
-cheap: it is a second pass over existing machinery with two inputs swapped.
+**Four things change on a second crossing, and nothing else does.** The map
+is reused rather than generated. The doors swap (built). The creature seed is
+redrawn from a wider band (R2). The chests are gone (R3). How a floor is dug,
+how the spine is classified, how creatures are placed against it — all
+unchanged. That is what makes the return cheap: it is a second pass over
+existing machinery with a few inputs swapped.
 
-**Traversal 20 is the one to design for.** Nominally the weakest floor in the
+**Traversal 19 is the one to design for.** Nominally the weakest floor in the
 game, drawn at the widest band in the run, met by a hero whose supplies are
 gone. Two curves cross there — the band widening and the hero's stock falling —
 and that crossing is the intended climax. **A run that cannot be lost on
-traversal 20 has the wrong shape**, whatever the rest of the table says.
+traversal 19 has the wrong shape**, whatever the rest of the table says.
 
 **And the opening's variance is relative, not absolute.** Traversals 1–2 draw
 the narrowest band in the run and are still the deadliest stretch of the

@@ -20,13 +20,22 @@ Mudou o comportamento? **Este arquivo muda no mesmo commit.**
 
 ## 1. A forma de uma run
 
-**Dez andares, vinte travessias.** A run desce até o fundo e volta. Todo
-andar é cruzado exatamente duas vezes, e **concluir é completar a última
-travessia** — chegar ao fundo é a metade do caminho, e não conclui nada.
+**Dez andares, dezenove travessias.** A run desce até o fundo e volta. Todo
+andar é cruzado duas vezes — exceto o mais fundo, cruzado uma só: o herói
+sobe PARA FORA do fundo, não o cruza de novo. **Concluir é completar a
+última travessia** — chegar ao fundo é a metade do caminho, e não conclui
+nada.
 
-**A regra de pareamento.** A travessia de subida cruza o andar espelhado:
-a travessia seguinte ao fundo é a segunda passagem pelo andar mais fundo, e a
-última travessia é a segunda passagem pelo andar 1.
+**A regra de pareamento.** A travessia de subida `k` cruza o andar
+`2 × andares − k`: a travessia seguinte ao fundo é a segunda passagem pelo
+andar 9, e a última (19) é a segunda passagem pelo andar 1.
+
+**Na subida, as portas se invertem.** O herói surge onde o santuário do
+andar estava — subiu a escada que tinha descido — e a saída fica onde ele
+originalmente entrava. A troca é feita depois da geração, sem consumir
+sorteio, então o andar continua idêntico ao gêmeo da descida.
+Consequência deliberada: o guardião que vigiava a escada de descida recebe
+o herói na chegada da subida.
 
 **Dificuldade é indexada por ANDAR, não por travessia.** Cada andar guarda o
 próprio elenco na volta, então a massa *cai* enquanto o herói sobe. O que
@@ -46,8 +55,8 @@ estruturalmente idêntica à ida, e é assim de propósito, porque o que a torna
 diferente é construído separado para poder ser medido.
 
 **O que atravessa:** hp, hp máximo, barra de armadura, xp, inventário,
-mortes, xp acumulado. **A posição, não** — ela vem sempre da geração do andar
-novo, e vale igual na subida.
+mortes, xp acumulado. **A posição, não** — ela vem sempre da geração do
+andar novo (na subida, do santuário gerado, pela inversão acima).
 
 ## 2. O mapa
 
@@ -307,7 +316,7 @@ declarado como pendência em vez de deixado implícito.
 paga, ida e volta.
 
 **Moeda só é efetivamente ganha se a run for concluída** — e concluir agora é
-completar as vinte travessias, não chegar ao fundo (§1). Morrer descarta o
+completar as dezenove travessias, não chegar ao fundo (§1). Morrer descarta o
 acumulado e zera também o saldo guardado e o item comprado. Sem flag: é a
 regra, e a alternativa nunca chegou a ser medida.
 

@@ -668,5 +668,5 @@ item pricing died with their callers.
 
 At deletion time three wires FIRE, honestly: opening deaths 0.667 (the
 known Phase-A regression after M41 emptied the kit), wins too rare and
-nothing gets deep (victory needs twenty traversals and the return — R2–R4 —
+nothing gets deep (victory needs the full down-and-back-up and the return — R2–R4 —
 is not built). They are defects to fix, not numbers to push.

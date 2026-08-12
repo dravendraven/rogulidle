@@ -1,13 +1,18 @@
-// A run: ten floors, crossed twenty times — down to the bottom and back up.
+// A run: ten floors, nineteen traversals — down to the bottom and back up.
+// Every floor is crossed twice except the deepest, which is crossed once:
+// the hero climbs OUT of the bottom, it does not re-cross it.
 //
 // A single traversal is a complete game — the shrine ends it. A run strings
-// twenty of them together, and the shrine becomes a staircase for all but the
-// last. What the hero IS carries across; where they stood does not.
+// nineteen of them together, and the shrine becomes a staircase for all but
+// the last. What the hero IS carries across; where they stood does not.
 //
-// R1 built the structure and nothing else: traversals 11–20 reuse the map
-// their descent twins generated and are otherwise identical to them. What
-// makes the return DIFFERENT — a new creature seed, no chests, a widening
-// draw — is R2, R3 and R4 laid on top (docs/backlog.md), each measurable
+// On an ascent traversal the doors swap: the hero emerges where the floor's
+// shrine stood (it climbs the stairs it went down), and the way out is where
+// the hero originally entered. game.js does the swap after generation, so
+// the floor itself is byte-identical to its descent twin.
+//
+// What else makes the return DIFFERENT — a new creature seed, no chests, a
+// widening draw — is R2, R3 and R4 (docs/backlog.md), each measurable
 // alone.
 
 import { PLAYER_HP, PLAYER_XP, TURN_BUDGET } from './balance.js';
@@ -17,19 +22,18 @@ import { playGame } from './game.js';
 
 export const LEVELS = 10;
 
-// R1 — docs/backlog.md, design in docs/map-design.md ("The run laid out").
-// A run is TWENTY TRAVERSALS over ten floors: down to the bottom and back up,
-// every floor crossed exactly twice.
+// Design in docs/map-design.md ("The run laid out"). A run is NINETEEN
+// traversals over ten floors: down to the bottom and back up, every floor
+// crossed twice except the bottom, crossed once.
 //
-// DERIVED, not a dial. "Every floor is crossed exactly twice" is the shape
-// the design states, so this cannot drift away from `LEVELS` — there is
+// DERIVED, not a dial — this cannot drift away from `LEVELS`; there is
 // nothing here for balance.md to hold a row for.
-export const TRAVERSALS = LEVELS * 2;
+export const TRAVERSALS = LEVELS * 2 - 1;
 
 // Which floor a traversal crosses. THE pairing rule, written once: ascent
-// traversal `k` crosses floor `2 × floors + 1 − k`, so traversal 11 is the
-// second crossing of the deepest floor and traversal 20 the second crossing
-// of the first.
+// traversal `k` crosses floor `2 × floors − k`, so traversal 11 is floor 9
+// (the first climb out of the turn) and traversal 19 the second crossing
+// of floor 1.
 //
 // This is also what makes the map come back for free. A floor is generated
 // from `hashSeeds(seed, level)` and its `floorPlan(level)`, and neither reads
@@ -42,7 +46,7 @@ export const TRAVERSALS = LEVELS * 2;
 // a plan asks for `floorPlan(floorOfTraversal(k))`, so traversal 12 gets
 // floor 9's roster size on the way up, exactly as it had on the way down.
 export function floorOfTraversal(traversal, floors = LEVELS) {
-  return traversal <= floors ? traversal : (2 * floors) + 1 - traversal;
+  return traversal <= floors ? traversal : (2 * floors) - traversal;
 }
 
 // Everything a floor needs falls out of its depth — see difficulty.js for
@@ -71,9 +75,9 @@ function carryFrom(player) {
 // on the next map, and floor 9 met on the way up is a new problem even
 // though the tiles are familiar.
 //
-// R1 — a run is twenty traversals, not ten floors. Ends when the hero dies,
+// A run is nineteen traversals, not ten floors. Ends when the hero dies,
 // when a traversal runs out of turns, or when the LAST TRAVERSAL is cleared.
-// Reaching the bottom is now the halfway point.
+// Reaching the bottom is the halfway point.
 //
 // `options.traversals` is what a caller pins to keep measuring a plain
 // descent: the analysis modules that read per-floor rows off `levels` below
@@ -87,7 +91,7 @@ export function playDungeon(seed, makePolicy, options = {}) {
   // All overridable so a tuning page can ask "what if" without editing
   // the shipped model. Defaults ARE the shipped model.
   const floors = options.levels ?? LEVELS;
-  const depth = options.traversals ?? floors * 2;
+  const depth = options.traversals ?? floors * 2 - 1;
   const planFor = options.floorPlan ?? floorPlan;
   const levels = [];
   let carry = null;
@@ -101,6 +105,9 @@ export function playDungeon(seed, makePolicy, options = {}) {
       // off `plan`, but `plan.level` itself was never forwarded, which
       // would have made the boost a no-op outside direct populate() calls.
       level: plan.level,
+      // The doors swap on the way up — see newGame. Travels in the counts
+      // so a recorded replay rebuilds the ascent floor exactly.
+      ascending: traversal > floors,
       monsters: plan.monsters,
       chests: plan.chests,
       difficultyScale: plan.difficultyScale,

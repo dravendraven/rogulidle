@@ -10,7 +10,7 @@ thing the item is for, and update the doc the change made stale
 
 ## Order
 
-1. **The return** — R2, R3, R4. Victory already requires twenty traversals
+1. **The return** — R2, R3, R4. Victory already requires nineteen traversals
    (R1), but the return is still structurally identical to the descent, so
    the second half of every run is the first half replayed. Two tripwires
    fire because of this ("wins too rare", "nothing gets deep").
