@@ -14,6 +14,17 @@ import {
 } from '../bot/config.js';
 import { TURN_BUDGET } from '../sim/balance.js';
 
+// A dial's floor. Zero unless a smaller-than-zero value is not merely odd
+// but broken: a scarcity of 0 divides by zero on the way to the item pool,
+// and a budget of 0 turns is not a traversal. Everything else simply may
+// not go negative — see `read` below for why that is enforced twice.
+const MIN_OF = {
+  armourScarcity: 0.05,
+  potionScarcity: 0.05,
+  weaponScarcity: 0.5,
+  turnBudget: 1,
+};
+
 // Where each dial's default comes from, and where its value goes:
 //   'model' -> makeFloorPlan(model)   the map generator
 //   'hero'  -> makeBot({ hero })      the hero's own traits
@@ -119,6 +130,7 @@ export function buildDialPanel(container, { onRestart } = {}) {
         const input = document.createElement('input');
         input.type = 'number';
         input.step = String(step);
+        input.min = String(MIN_OF[key] ?? 0);
         input.value = String(def);
         // Yellow means "not what ships", which is the one thing a reader
         // has to be able to see at a glance in a page full of numbers.
@@ -127,7 +139,7 @@ export function buildDialPanel(container, { onRestart } = {}) {
         });
         row.append(caption, input);
         container.append(row);
-        inputs.push({ kind, key, input, def });
+        inputs.push({ kind, key, input, def, min: MIN_OF[key] ?? 0 });
       }
     }
   }
@@ -153,13 +165,22 @@ export function buildDialPanel(container, { onRestart } = {}) {
   restart.addEventListener('click', () => { if (onRestart) onRestart(); });
   defaults.addEventListener('click', reset);
 
-  // A blank or nonsense field falls back to the shipped value rather than
-  // handing NaN to the generator, which would fail somewhere far from here.
+  // Read twice-guarded, because `min` on the element only stops the
+  // spinner: a typed or pasted "-1" still reads back happily. A blank or
+  // nonsense field falls back to the shipped value rather than handing NaN
+  // to the generator, which would fail somewhere far from here.
+  //
+  // A negative is not merely a strange dungeon — a negative danger falloff
+  // flips the sign of a tile's price, and a router that can pay LESS by
+  // walking further never finishes. The bot clamps its own prices too
+  // (src/bot/bot.js); this is the half that keeps the number out of the
+  // engine in the first place, so the form and the run agree on what was
+  // asked for.
   const read = () => {
     const out = { model: {}, hero: {}, bot: {}, run: {} };
-    for (const { kind, key, input, def } of inputs) {
+    for (const { kind, key, input, def, min } of inputs) {
       const value = Number(input.value);
-      out[kind][key] = Number.isFinite(value) ? value : def;
+      out[kind][key] = Number.isFinite(value) ? Math.max(min, value) : def;
     }
     return out;
   };

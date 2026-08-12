@@ -200,8 +200,14 @@ export function makeBot(options = {}) {
     // number compares "walk over there" with "have this fight".
     const passable = believedWalkable(belief);
     const danger = dangerField(belief, settings);
+    // `Math.max(0, ...)` is Dijkstra's precondition, not decoration: a
+    // negative tile price makes revisiting a tile cheaper every time round
+    // and the search never terminates — the page hangs rather than throws.
+    // Reachable from a hostile tuning value (a negative falloff flips
+    // menace's sign), so the router refuses one here rather than trusting
+    // every caller.
     const field = dijkstra(belief.player.pos, passable,
-      (x, y) => hero.stepCost + danger.priceAt(x, y), shrineSink(belief));
+      (x, y) => Math.max(0, hero.stepCost + danger.priceAt(x, y)), shrineSink(belief));
 
     const ehp = effectiveHp(belief.player);
     const fightBar = hero.fightMargin * ehp;

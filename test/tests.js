@@ -2555,6 +2555,35 @@ test('the bot drinks exactly when the missing hp covers the heal', () => {
     'drinking at a 2 hp gap wastes a third of the potion');
 });
 
+test('a hostile tuning value cannot hang the router', () => {
+  // A friend typed a negative into the lab's danger falloff and the page
+  // froze. The mechanism: menace is `bite * falloff ** distance`, so a
+  // negative falloff makes half the tiles cost LESS than nothing, and
+  // Dijkstra with a negative edge never settles — it re-reaches the same
+  // tile cheaper forever. The form refuses negatives now
+  // (src/ui/dials.js), and the router clamps its own prices, which is the
+  // half that holds for any caller. This test is the second half: the bot
+  // must still answer, and quickly.
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [10, 1],
+    monsters: [dummy('wolf', [13, 1], { activation: 14 })],
+    shrine: { id: 's', emoji: '⛩️', pos: [2, 1] },
+  });
+
+  const bot = makeBot({
+    monsterCount: 1, chestCount: 0, falloff: -1, crowdPenalty: -50,
+  });
+  const action = bot(foldBelief(emptyBelief(), observe(state)));
+  assert(ACTIONS.includes(action),
+    `the bot answered "${action}" under a negative falloff`);
+});
+
 test('an awake pursuer is fought rather than fled forever', () => {
   // A bat inside its own chase radius is coming whatever the bot does, so
   // its duel is not a cost of choosing it — the bot turns and takes the
