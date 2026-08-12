@@ -53,5 +53,7 @@ was five identical risks in a row, which is what the vault answered.
 | M4 | Side-room risk/reward spread scales with depth | READY |
 | M21 | Deep floors put a creature where the hero lands | READY |
 | M36 | A detour has to be able to cost the run (the cost side of the gamble) | CLOSED by the vault — floor 4 kills 45.6% and skipping it costs the floor's whole reward |
+| M45 | The spine has no doors, a side room does — so a door means "crossing this leaves the mandatory route", and the bot reads it off terrain it already sees | READY — six steps and the design in `docs/project/line-of-sight.md` |
+| E2 | Line of sight: the hero stops seeing through walls | NOT SCHEDULED — scoped in `docs/project/line-of-sight.md`; M45e is the experiment that decides whether it is worth building |
 
 Ideas with no slot stay in `docs/project/candidates.md`.

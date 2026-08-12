@@ -198,3 +198,112 @@ watching:
 - **Frontier count and flood cost** both rise; see E2-R12.
 - **The switch must be honest.** Off has to reproduce today's game exactly,
   bit for bit, or the A/B measures two changes instead of one.
+
+---
+
+# M45 · the door convention, and the experiment that decides E2
+
+`owner idea` · **READY** — the task row is in `docs/backlog.md`
+
+**The spine has no doors; a side room does.** A door stops being decoration
+and becomes the one thing it should always have meant: *crossing this is
+leaving the mandatory route.*
+
+## Why it is the answer to D3, and a cheap one
+
+`belief.tiles` already carries `'door'` — the bot sees doors today, and the
+renderer already draws them. So the bot learns which rooms are the bet with
+**no new field, no granted fact, and nothing added to the channel**. The
+argument the three D3 options were having is simply not had.
+
+It is not a new concept either, which is what makes it fit. `spine.js` says
+side ground is ALWAYS a room (corridors are never side), and the digger puts
+doors on room boundaries and nowhere else. So "a door the mandatory path does
+not cross" ≡ "the boundary of a side room", exactly, with no approximation.
+The rule the generator already applies in private becomes visible in the
+world.
+
+Two things fall out for free:
+
+- The bot's gate needs no room model: *does the route to this goal cross a
+  door?* — computed from the belief alone.
+- A spine frontier can no longer be refused by the side bar, so the freeze
+  class fixed in `src/bot/bot.js` (the appetite-0 rest loop) becomes
+  impossible by construction rather than by numerical tolerance.
+
+## What it lets us learn BEFORE building E2
+
+E2's expensive risk is not technical, it is whether the side-room bet is
+still a decision once the contents cannot be seen. The door convention lets
+that be answered without a perception rewrite: build the doorway gate, then
+add a switch that makes the gate **deliberately ignore what the bot can see
+inside**, pricing the room from the granted counts alone. The engine, the
+fog and the viewer are untouched; only the POLICY closes its eyes.
+
+Then read "the gamble is dead" — the side-chest open rate — off the A/B:
+
+- stays in band → a blind bet is still a decision, and E2's hard half is
+  proven before a line of field-of-view exists;
+- goes to ~1 → without seeing the cost it enters everything, and the
+  appetite is decoration;
+- goes to ~0 → without seeing the prize it never enters, and side rooms are
+  scenery.
+
+Either failure saves the whole E2 project, and the door convention is worth
+having regardless.
+
+## The six steps
+
+- **M45a · the door becomes the signal.** A post-generation pass in
+  `src/sim/spawn.js`, in the same slot the vault is stamped (right after
+  `classifyRooms`, where re-classification is already documented as free and
+  RNG-neutral): a door the mandatory path crosses is retiled as floor; every
+  other door stays. Pin four invariants as tests — the path crosses no door,
+  every side room keeps at least one, the pass draws no randomness (the
+  vault already has this test to copy), the vault's own door survives.
+  **Chore, in a commit of its own that changes nothing else: re-record the
+  `--selftest` generation anchors.** The map's tiles move, so the safety net
+  has to be re-cut, and that has to be auditable.
+- **M45b · a door that looks like a door.** Today it is a pale square, the
+  same shape as a wall (`src/ui/tiles.js`), which disappears into the floor.
+  Now that it is rare and means "a choice happens here" it needs its own
+  glyph. Decision: one glyph at every depth, or keep the per-tier colour.
+  Recommendation: one — the message should not change appearance with the
+  floor.
+- **M45c · the bot decides at the threshold.** The trigger for "this is the
+  gamble" moves from `monster.side`/`guardCost` to "the route crosses a
+  door", against the same `sideBar`. Recommendation: the door replaces the
+  TRIGGER, `guardCost` stays the PRICE while the bot can still see. Watch
+  two runs to verify — appetite 0 never crosses a door, appetite 2 always
+  does. Note: `a hero with no appetite skips the gamble the default hero
+  takes` changes meaning here; rewrite it deliberately rather than repairing
+  it.
+- **M45d · blind mode.** The lab switch described above. The one modelling
+  decision in the whole item is how "N creatures and M chests are still in
+  the dark" becomes a price. The dumbest thing that works is the right one:
+  anything clever is a new parameter compensating for a parameter.
+- **M45e · measure and decide.** A/B over the same seeds, blind on and off:
+  "the gamble is dead", "the shamble", median depth. The owner decides
+  whether the blind bet survives — and that decides E2.
+- **M45f · docs.** `rules.md` (the door convention is now a visible rule of
+  the game), `bot.md` (the gate), `decisions.md` (the A/B result, and the
+  divergence: the original stamps a door on every room).
+
+## Precision details that decide whether the signal lies
+
+- **Per DOORWAY, not per room.** A spine room usually has extra doors onto
+  side branches. Clearing doors room-by-room would erase the signal exactly
+  at the forks it exists for.
+- **Crossing the tile is not entering the room.** Doors sit in the wall ring,
+  OUTSIDE the room rectangle `inRoom` tests. If a path can run over a door
+  tile without entering its room, the naive rule clears a side room's door
+  and the signal lies where it matters most. Geometrically unlikely, not
+  impossible — cheaper to assert than to trust.
+- **The signal is one-way.** A door proves side; the absence of one proves
+  nothing (it may be unexplored corridor). The gate must read "crossing a
+  door is a bet", never "no door means safe".
+- **What leaks, and why it is now acceptable.** Seeing doors still narrows
+  where the shrine is not. The difference is that it is no longer a
+  privileged field in the channel but a fact about the world, available to
+  the eye — a human player would read the same cue. That is what resolves
+  D3 rather than managing it.
