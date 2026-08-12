@@ -412,7 +412,13 @@ footer {
 .dial:last-child { border-bottom: none; }
 
 .dial-head { display: flex; align-items: baseline; gap: .4rem; flex-wrap: wrap; }
-.dial-title { color: var(--text); font-weight: bold; }
+.dial-title {
+  font-family: 'Almendra SC', Georgia, serif;
+  font-weight: normal;
+  font-size: 15px;
+  letter-spacing: .01em;
+  color: var(--text);
+}
 .dial-sublabel { color: var(--dim); font-size: 10px; }
 
 .dial input[type="number"] {
@@ -431,6 +437,15 @@ footer {
 .dial input.changed { border-color: #e8a33d; background: rgba(232, 163, 61, .12); }
 .dial-value.changed { color: #e8a33d; }
 
+.dial-switch { display: flex; align-items: center; gap: .5rem; }
+.dial-switch input[type="checkbox"] {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--accent);
+  margin: 0;
+}
+.dial-switch .dial-value { width: auto; text-align: left; }
+
 .dial-slider { display: flex; align-items: center; gap: .5rem; }
 .dial-slider input[type="range"] {
   flex: 1;
@@ -443,14 +458,16 @@ footer {
   font-variant-numeric: tabular-nums;
 }
 
+/* One line each, ⬆️ over 🔻 — the pair reads as a before/after, which a
+   single row of two columns lost. */
 .dial-effect {
   display: flex;
-  gap: .6rem;
-  font-size: 9px;
+  flex-direction: column;
+  gap: .05rem;
+  font-size: 8px;
   color: var(--dim);
-  line-height: 1.3;
+  line-height: 1.4;
 }
-.dial-effect span { flex: 1; min-width: 0; }
 
 .dial-buttons { display: flex; gap: .5rem; margin: .9rem 0 .3rem; }
 .dial-buttons button { font-size: .75rem; }

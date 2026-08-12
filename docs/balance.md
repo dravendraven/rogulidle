@@ -39,6 +39,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | dial | value | one sentence |
 |---|---|---|
 | `TURN_BUDGET` | 1500 | turns one traversal may spend; running out ends the run — the only brake on the shamble |
+| `RETURN_ENABLED` | false | whether the run the pages ask for includes the climb back out; off is a plain ten-traversal descent (rules.md §1) |
 
 ## Fixed / faithful
 

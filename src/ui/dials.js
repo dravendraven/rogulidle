@@ -12,6 +12,7 @@ import {
   CROWD_PENALTY, DANGER_FALLOFF, DEFAULT_HERO, GOAL_STICKINESS,
 } from '../bot/config.js';
 import { TURN_BUDGET } from '../sim/balance.js';
+import { RETURN_ENABLED } from '../sim/dungeon.js';
 
 // A dial's floor. Zero unless a smaller-than-zero value is not merely odd
 // but broken: a scarcity of 0 divides by zero on the way to the item pool,
@@ -36,7 +37,8 @@ const MIN_OF = {
 // adjective-led phrase, no explanation. `range: [min, max]` is what turns a
 // dial into a slider below; a dial with no natural bound (a raw count like
 // "creatures on floor 1") keeps the old plain number field and has no
-// `range`.
+// `range`. `type: 'switch'` is the third shape: a checkbox for a dial that
+// is on or off rather than more or less, and it reads back a BOOLEAN.
 //
 // The BOT comes first, because a hero is the thing you change to see a
 // different run of the same dungeon; the map is the dungeon itself.
@@ -207,13 +209,21 @@ export const SECTIONS = [
         up: 'mais tolerante ao vagar', down: 'mais implacável — a run morre no relógio',
       },
     ]],
+    ['o retorno', [
+      {
+        kind: 'run', key: 'theReturn', label: 'subir de volta depois do fundo',
+        title: 'A volta para casa', type: 'switch',
+        up: 'ligado — 19 travessias, cada andar duas vezes',
+        down: 'desligado — 10 travessias, só a descida',
+      },
+    ]],
   ]],
 ];
 
 const BOT_DEFAULTS = {
   falloff: DANGER_FALLOFF, crowdPenalty: CROWD_PENALTY, stickiness: GOAL_STICKINESS,
 };
-const RUN_DEFAULTS = { turnBudget: TURN_BUDGET };
+const RUN_DEFAULTS = { turnBudget: TURN_BUDGET, theReturn: RETURN_ENABLED };
 
 // The shipped value of a dial: `overrides` (dial-overrides.json, loaded by
 // dial-overrides.js) wins when it sets one, the code constant otherwise —
@@ -283,8 +293,9 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
 
       for (const dial of list) {
         const {
-          kind, key, label, title, step, range, up, down,
+          kind, key, label, title, step, range, up, down, type,
         } = dial;
+        const isSwitch = type === 'switch';
         const def = defaultOf(kind, key, overrides);
         const min = range ? range[0] : (MIN_OF[key] ?? 0);
         const max = range ? range[1] : undefined;
@@ -309,7 +320,18 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
 
         let input;
         let valueOut;
-        if (range) {
+        if (isSwitch) {
+          const track = document.createElement('div');
+          track.className = 'dial-switch';
+          input = document.createElement('input');
+          input.type = 'checkbox';
+          input.checked = Boolean(def);
+          valueOut = document.createElement('span');
+          valueOut.className = 'dial-value';
+          valueOut.textContent = input.checked ? 'ligado' : 'desligado';
+          track.append(input, valueOut);
+          row.append(track);
+        } else if (range) {
           const track = document.createElement('div');
           track.className = 'dial-slider';
           input = document.createElement('input');
@@ -344,17 +366,21 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
         input.addEventListener('input', () => {
           // Yellow means "not what ships", which is the one thing a reader
           // has to be able to see at a glance in a page full of numbers.
-          const isChanged = Number(input.value) !== def;
+          const isChanged = isSwitch
+            ? input.checked !== Boolean(def)
+            : Number(input.value) !== def;
           input.classList.toggle('changed', isChanged);
           if (valueOut) {
-            valueOut.textContent = Number(input.value).toFixed(precisionOf(step));
+            valueOut.textContent = isSwitch
+              ? (input.checked ? 'ligado' : 'desligado')
+              : Number(input.value).toFixed(precisionOf(step));
             valueOut.classList.toggle('changed', isChanged);
           }
         });
 
         sectionEl.append(row);
         inputs.push({
-          kind, key, input, def, min, valueOut, step,
+          kind, key, input, def, min, valueOut, step, isSwitch,
         });
       }
     }
@@ -373,12 +399,15 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
 
   const reset = () => {
     for (const {
-      input, def, valueOut, step,
+      input, def, valueOut, step, isSwitch,
     } of inputs) {
-      input.value = String(def);
+      if (isSwitch) input.checked = Boolean(def);
+      else input.value = String(def);
       input.classList.remove('changed');
       if (valueOut) {
-        valueOut.textContent = Number(def).toFixed(precisionOf(step));
+        valueOut.textContent = isSwitch
+          ? (input.checked ? 'ligado' : 'desligado')
+          : Number(def).toFixed(precisionOf(step));
         valueOut.classList.remove('changed');
       }
     }
@@ -401,8 +430,12 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
   const read = () => {
     const out = { model: {}, hero: {}, bot: {}, run: {} };
     for (const {
-      kind, key, input, def, min,
+      kind, key, input, def, min, isSwitch,
     } of inputs) {
+      if (isSwitch) {
+        out[kind][key] = input.checked;
+        continue;
+      }
       const value = Number(input.value);
       out[kind][key] = Number.isFinite(value) ? Math.max(min, value) : def;
     }
@@ -437,9 +470,14 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
       // re-marks it "changed" (it can't be changed from a default it IS).
       const merged = JSON.parse(JSON.stringify(overrides));
       for (const {
-        kind, key, input, min,
+        kind, key, input, min, isSwitch,
       } of inputs) {
         if (!input.classList.contains('changed')) continue;
+        if (isSwitch) {
+          merged[kind] = merged[kind] || {};
+          merged[kind][key] = input.checked;
+          continue;
+        }
         const value = Number(input.value);
         if (!Number.isFinite(value)) continue;
         merged[kind] = merged[kind] || {};

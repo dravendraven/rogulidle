@@ -30,6 +30,14 @@ export const LEVELS = 10;
 // nothing here for balance.md to hold a row for.
 export const TRAVERSALS = LEVELS * 2 - 1;
 
+// Whether the run the PAGES ask for includes the climb back out. Off today
+// (owner decision): a plain ten-traversal descent, with the return behind a
+// switch in the lab. `playDungeon`'s own default below is deliberately left
+// at nineteen — the tests and the analysis modules read the whole arc — so
+// this constant is what index.html turns into an explicit
+// `traversals: LEVELS`, never a second meaning for `options.traversals`.
+export const RETURN_ENABLED = false;
+
 // Which floor a traversal crosses. THE pairing rule, written once: ascent
 // traversal `k` crosses floor `2 × floors − k`, so traversal 11 is floor 9
 // (the first climb out of the turn) and traversal 19 the second crossing

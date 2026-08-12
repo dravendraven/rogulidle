@@ -26,6 +26,12 @@ sobe PARA FORA do fundo, não o cruza de novo. **Concluir é completar a
 última travessia** — chegar ao fundo é a metade do caminho, e não conclui
 nada.
 
+**O retorno é um interruptor, e hoje ele sai DESLIGADO.** Desligado, a run
+é só a descida: dez travessias, e concluir é limpar o andar 10. O motor
+continua com dezenove por padrão — quem desliga é a página, pedindo
+`traversals: LEVELS` — e o interruptor mora no lab («A volta para casa»).
+Tudo o que este item descreve abaixo vale quando ele está ligado.
+
 **A regra de pareamento.** A travessia de subida `k` cruza o andar
 `2 × andares − k`: a travessia seguinte ao fundo é a segunda passagem pelo
 andar 9, e a última (19) é a segunda passagem pelo andar 1.
@@ -325,6 +331,12 @@ run, oferece um punhado de itens a preço fixo, e **a compra múltipla é
 permitida** — o mesmo item mais de uma vez. Item comprado entra como item
 inicial da run seguinte, pelo mesmo caminho de §5, e é indistinguível de um
 achado em baú.
+
+**A tela fica aberta enquanto o saldo ainda alcança alguma coisa.** Cada
+compra desconta o preço, mostra o que sobrou e **reinicia o relógio** — a
+janela mede a próxima decisão, não a visita. Ela fecha no «skip», quando o
+relógio acaba, ou no instante em que o saldo não paga nem o item mais
+barato.
 
 **Ninguém precisa estar assistindo, e por isso a loja compra sozinha.**
 Rogulidle joga sozinho: se nada for clicado antes do tempo da tela acabar, a

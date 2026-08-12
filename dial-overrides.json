@@ -1,20 +1,23 @@
 {
   "hero": {
-    "sideAppetite": 0.7
+    "sideAppetite": 0.7,
+    "stepCost": 0.1
   },
   "model": {
     "monsterGrowth": 1.05,
     "strength": 0.2,
-    "tierFloorPerLevel": 0.05,
-    "tierFloorCap": 0.3,
+    "tierFloorPerLevel": 0.04,
+    "tierFloorCap": 0.2,
     "tierSlackPerLevel": 0.05,
-    "tierSlackCap": 0.35,
-    "earlyTierCut": 2,
-    "outOfDepthChancePerLevel": 0,
-    "outOfDepthChanceCap": 0.05,
+    "tierSlackCap": 0.6,
+    "earlyTierCut": 1,
+    "outOfDepthChancePerLevel": 0.005,
+    "outOfDepthChanceCap": 0.1,
     "clusterSize": 6,
     "weaponScarcity": 2.5,
     "dropChance": 0.7,
-    "sideRoomDepthBonus": 0.7
+    "sideRoomDepthBonus": 0.7,
+    "spreadPerLevel": 0.05,
+    "strengthGrowth": 1.4
   }
 }

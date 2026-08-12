@@ -189,34 +189,43 @@ function renderShopItems(balance) {
 // the top of the run loop, which resets it to 0 for the next run either
 // way).
 //
-// Non-blocking like showCoinPopup: a click resolves it immediately (buy or
-// explicit skip), but if nothing is clicked before the timer runs out,
-// pickDefaultPurchase applies — nobody is guaranteed to be watching a
-// spectator that never pauses for input. SHOP_MS is long enough now that a
-// present viewer has a real chance to choose; the reverse bar is what
-// tells them how long that chance lasts.
+// Non-blocking like showCoinPopup. Multi-buy: a click buys and the panel
+// stays open with what the purchase left, closing only on skip, on the
+// timer, or when nothing is affordable any more. If nothing is clicked
+// before the timer runs out, pickDefaultPurchase applies — nobody is
+// guaranteed to be watching a spectator that never pauses for input.
+// SHOP_MS is long enough now that a present viewer has a real chance to
+// choose, and the reverse bar tells them how long that chance lasts.
 async function showShop(defaultSeed) {
   if (!el.shop) return;
-  const balance = session.unbankedCoins;
-  if (el.shopBalance) el.shopBalance.textContent = `balance: ${balance} 🪙`;
-  renderShopItems(balance);
-  el.shop.classList.add('shown');
+  let balance = session.unbankedCoins;
+  let purchases = 0;
+  let skipped = false;
+  let clicked;   // set by the listener, consumed by the loop below
 
-  let chosen; // undefined = no click yet; null = explicit skip; entry = bought
   const onItemClick = (e) => {
     const btn = e.target.closest('button[data-item]');
     if (!btn || btn.disabled) return;
-    chosen = SHOP_ITEMS.find((entry) => entry.item.name === btn.dataset.item);
+    clicked = SHOP_ITEMS.find((entry) => entry.item.name === btn.dataset.item);
   };
-  const onSkipClick = () => { chosen = null; };
+  const onSkipClick = () => { skipped = true; };
   el.shopItems.addEventListener('click', onItemClick);
   if (el.shopSkip) el.shopSkip.addEventListener('click', onSkipClick);
 
-  // Nothing to wait for when nothing is affordable — the panel closes as
-  // soon as that's true instead of sitting on screen empty for the full
-  // SHOP_MS. Balance is fixed for the whole visit (spent once, see below),
-  // so this is decided once up front, not re-checked in the loop.
-  const canAffordAnything = SHOP_ITEMS.some((entry) => entry.price <= balance);
+  // One purchase spends its price and leaves the rest on the table, so what
+  // is affordable has to be re-read after every buy — this is the whole of
+  // multi-buy. The HUD's coin count follows the same number down, so the
+  // spend is visible where the earnings were.
+  const canAfford = () => SHOP_ITEMS.some((entry) => entry.price <= balance);
+  const showBalance = () => {
+    if (el.shopBalance) el.shopBalance.textContent = `balance: ${balance} 🪙`;
+    renderShopItems(balance);
+    session.unbankedCoins = balance;
+    if (el.coins) el.coins.textContent = coinsText();
+  };
+
+  showBalance();
+  el.shop.classList.add('shown');
 
   const until = SHOP_MS / session.speed;
   let waited = 0;
@@ -225,7 +234,39 @@ async function showShop(defaultSeed) {
   // waits out the timer, so it freezes on pause for free rather than
   // needing a second clock to keep in sync with this one.
   if (el.shopTimerBar) el.shopTimerBar.style.width = '100%';
-  while (canAffordAnything && waited < until && chosen === undefined) {
+
+  // The panel stays open while anything is still affordable: buy a shield,
+  // the shop is still there for the next one. It closes on an explicit
+  // skip, when the timer expires, or the moment the balance can no longer
+  // pay for the cheapest thing on the table — no point sitting on screen
+  // with three disabled buttons.
+  while (canAfford() && !skipped) {
+    if (clicked) {
+      balance -= clicked.price;
+      addHeldItem(clicked.item);
+      purchases++;
+      clicked = undefined;
+      showBalance();
+      // Each purchase buys a fresh window — the timer measures how long the
+      // NEXT decision has, not how long the visit has lasted.
+      waited = 0;
+      if (el.shopTimerBar) el.shopTimerBar.style.width = '100%';
+      continue;
+    }
+    if (waited >= until) {
+      // Timer out with nothing clicked. The no-input default applies once
+      // and then leaves — nobody is guaranteed to be watching a spectator
+      // that never pauses for input, and draining the whole balance item by
+      // item is not what "nobody chose" should mean.
+      const auto = purchases === 0 ? pickDefaultPurchase(balance, defaultSeed) : null;
+      if (auto) {
+        balance -= auto.price;
+        addHeldItem(auto.item);
+        purchases++;
+        showBalance();
+      }
+      break;
+    }
     await waitWhilePaused();
     await sleep(80);
     waited += 80;
@@ -233,18 +274,13 @@ async function showShop(defaultSeed) {
       el.shopTimerBar.style.width = `${Math.max(0, 100 * (1 - waited / until))}%`;
     }
   }
+
   el.shopItems.removeEventListener('click', onItemClick);
   if (el.shopSkip) el.shopSkip.removeEventListener('click', onSkipClick);
 
-  if (chosen === undefined) chosen = pickDefaultPurchase(balance, defaultSeed);
-
-  // The purchase spends this run's coins and nothing else — there is no
-  // balance to write back to. Whatever `balance` was NOT spent (chosen ===
-  // null, or a cheaper item than the full total) is discarded here, not
-  // saved: the next run's coin count starts at 0 regardless (see the top of
-  // runDescentForever's loop), so there is nothing to carry.
-  if (chosen) addHeldItem(chosen.item);
-
+  // Whatever is left unspent is discarded, not saved: the next run's coin
+  // count starts at 0 regardless (see the top of runDescentForever's loop),
+  // so there is nothing to carry.
   el.shop.classList.remove('shown');
 }
 
@@ -421,6 +457,12 @@ async function runDescentForever(sessionSeed) {
       maxTurns: dials.run.turnBudget,
       startingItems: getHeldItems(),
       floorPlan: makeFloorPlan(dials.model),
+      // The return switch (src/ui/dials.js). Off is a plain descent, which
+      // is `traversals: LEVELS` — the same pin the analysis modules already
+      // use. On leaves the option unset so dungeon.js's own default (the
+      // full nineteen, down and back up) applies, rather than this page
+      // carrying a second copy of that arithmetic.
+      ...(dials.run.theReturn ? {} : { traversals: LEVELS }),
     });
 
     let finalState = null;
