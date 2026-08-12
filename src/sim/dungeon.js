@@ -143,6 +143,10 @@ export function playDungeon(seed, makePolicy, options = {}) {
       // spawn.js reads shrineDistanceShare off these counts directly.
       dugPercentage: plan.dugPercentage,
       shrineDistanceShare: plan.shrineDistanceShare,
+      // M43 — 0 turns the authored room off for the whole descent, which is
+      // what a control run needs. Undefined would silently fall back to the
+      // shipped floor, so this has to travel explicitly.
+      vaultLevel: plan.vaultLevel,
       // A fixed value overrides the per-floor one, for sweeping — same
       // pattern as weaponScarcity above.
       earlyChestQualityBoost: options.earlyChestQualityBoost ?? plan.earlyChestQualityBoost,

@@ -670,3 +670,100 @@ At deletion time three wires FIRE, honestly: opening deaths 0.667 (the
 known Phase-A regression after M41 emptied the kit), wins too rare and
 nothing gets deep (victory needs the full down-and-back-up and the return — R2–R4 —
 is not built). They are defects to fix, not numbers to push.
+
+## The vault and the Butcher — V1 through V4, 2026-08-12
+
+Design and the pre-build numbers are in `candidates.md` M43. This is what
+the built thing measured. **It is a report, not a verdict** — the owner
+watches and judges.
+
+### The diagnosis the build started from was a correction
+
+The report was "the opening is boring because it is always easy". Measured
+over 150 descents on the SHIPPED dials, floors 2 through 6 kill 13%, 10%,
+16%, 14% and 13% of whoever arrives — **the same number five times.** The
+defect is flatness, not easiness, and a dial cannot fix it because every
+dial moves all five floors together.
+
+**And the backlog's own note was stale in a way that inverted the reading.**
+"Opening deaths 0.667" is the CODE DEFAULTS. On the dials that ship, runs
+over by traversal 3 measure 0.247 — that wire does not fire, and there was
+no opening-lethality problem to solve.
+
+### What the vault did, against the same seeds with it switched off
+
+| | vault on | off |
+|---|---|---|
+| cleared | 3.3% | 3.3% |
+| mean depth | 5.3 | 5.9 |
+| died on floor 4 | **33.6%** | 15.9% |
+| died on floor 5 | 16.0% | 13.7% |
+| died on floor 6 | **22.2%** | 13.4% |
+| reached floor 7 | 32.7% | 47.3% |
+
+**It is a barrier, and the barrier works.** Floor 4 doubles its death rate
+and the flat stretch is gone.
+
+**It is a real choice, which was the part most likely to fail.** 43% of
+runs engage it and 57% walk past. Not a no-brainer in either direction —
+the failure both `map-design.md` and every previous side-room attempt hit.
+
+**It costs the descent about half a floor of reach**, and floors 5 and 6
+get DEADLIER rather than easier. The obvious reading — the survivors should
+be better armed — is wrong, and the likely cause is selection: the bot
+engages when the fight is affordable, which means it engages when the hero
+is STRONG, so **the vault preferentially kills the runs that would have
+gone deep** and leaves a weaker population behind it. Not established; it
+is the explanation that fits, and the alternative (the axe and the buffer
+simply do not pay for the hp) fits too.
+
+### The dial works, and it buys the wrong half
+
+`sideAppetite` at 0 against 0.7:
+
+| | appetite 0.7 | appetite 0 |
+|---|---|---|
+| engaged the vault | 43% | **17%** |
+| Butcher killed | 18.8% | **1.2%** |
+| vault chests opened | 23% | 7% |
+| **killed BY the Butcher** | 13.4% | **11.9%** |
+
+**A cautious hero gives up the reward and keeps almost all of the risk.**
+It wins the fight 1 time in 84 and still dies to the creature 1 time in 8.
+
+**The cause is that engagement is mostly not a decision.** The refusal
+machinery — `duelCost` against `sideBar`, `guardCost` on the chests — only
+gates things the bot has CHOSEN as goals. Exploration is not gated: when the
+pool is empty the bot walks to the nearest frontier, and the route is
+priced by the danger field but never refused. So it wanders into the room,
+the Butcher wakes at `activation` 12, and a hero whose appetite forbids the
+fight flees and dies with its back turned.
+
+**That is the open item this leaves**, and it is a bot change rather than a
+map one — the same shape as `M36`'s finding that a cost nothing reads
+cannot change a decision. Lowering `activation` would treat the symptom;
+what is missing is that walking toward the dark has no price on it.
+
+### Three things that were nearly built wrong
+
+**The pillars were justified with a mechanism that does not exist.** The
+claim was that a pillar forces the danger flood around it and leaves a
+cheap pocket behind. Measured tile by tile, the price grids with and
+without them are identical — on a 4-connected grid an isolated one-tile
+obstacle never lengthens a route, because every monotone way around is the
+same length. They are kept for legibility, which is a real job here: the
+badge under a creature shows xp and never hp, so a 16-hp Butcher reads as a
+vampire until it refuses to die, and the room has to be the warning label.
+
+**Refusable mass is not the floor's mass.** The Butcher weighs 80 against a
+whole ordinary floor-4 roster's ~60, so counting it into `threatMass()` and
+`spineShare()` read as the floor hiding everything in a side room, and
+would have broken the monotonic-mass guarantee. Both now skip it. Same
+correction in `check.js`: six correctly-refused vault chests dragged "the
+gamble is dead" from 0.69 to 0.26.
+
+**Two draws hid in a loop nobody was looking at.** The side-room
+risk/reward loop draws twice per side room, so an authored room passing
+through it spent two spawn draws and shifted every roll after it on the
+floor. Caught by the test that asserts the stamp consumes no randomness —
+which is the whole reason that test was written before the feature worked.
