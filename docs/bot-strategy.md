@@ -262,6 +262,33 @@ campo é reconstruído no turno seguinte de qualquer jeito.
 `right` depois de `left`. Um zigue-zague é `right` depois de `up`, que não é o
 oposto de nada, e por isso aquela penalidade nunca o enxerga.
 
+### 3.7 Quanto vale um turno (B25)
+
+O orçamento de turnos existia no motor e **não alcançava nenhuma decisão**: um
+custo que o agente decisor nunca lê não pode mudar escolha. Apertá-lo só
+truncava runs que já estavam vagando.
+
+Agora o bot precifica o turno, e o preço é **o que um turno consome da vida
+restante do herói** — hp efetivo dividido pelos turnos que sobram. Hiperbólico
+de propósito: quase de graça enquanto o orçamento está longe, impagável quando
+ele fecha. Preço constante seria mais um custo de passo e não faria nada, já
+que a caminhada já é cobrada por passo.
+
+Cobrado **antes** do filtro que exige objetivo se pagar, porque é a única
+posição em que o relógio consegue tornar um desvio não-compensatório em vez de
+apenas reordenar a lista.
+
+O santuário é isento, pela razão do §3.2: todo andar termina naquele tile,
+então aquela caminhada é custo fixo do andar. Cobrá-la faria o bot sair mais
+cedo justamente quando o orçamento aperta, que é ao contrário.
+
+**Nada novo atravessou para o `Belief`.** O turno já cruzava para a
+`Observation` e o orçamento é constante de módulo — isto não é concessão de
+névoa.
+
+Os números da varredura, e onde a recusa aparece, estão no comentário do flag
+`turnPricing`.
+
 ---
 
 ## 4. Como as coisas são precificadas

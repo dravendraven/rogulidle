@@ -11,7 +11,7 @@ import {
   CHEST_COUNT, CROWD_PENALTY, DANGER_FALLOFF, DUEL_SAFETY_MARGIN,
   FRONTIER_REVEAL_WEIGHT, GOAL_STICKINESS, HOLD_RANGE, LOOT_CAMPAIGN_HORIZON,
   MAP_SIZE, MONSTER_COUNT, REVERSAL_PENALTY, ROUTE_ITEM_DISCOUNT, STEP_COST_IN_HP,
-  TACTICAL_OVERRIDE_MARGIN, TACTICAL_RANGE, VISIBLE_DIST,
+  TACTICAL_OVERRIDE_MARGIN, TACTICAL_RANGE, TURN_BUDGET, VISIBLE_DIST,
 } from '../sim/balance.js';
 import { MONSTERS_BASE, MONSTER_GROWTH } from '../sim/difficulty.js';
 import { scoreActions } from './tactics.js';
@@ -701,6 +701,66 @@ function freeRegion(belief, danger) {
   return flood(belief.player.pos, free).dist;
 }
 
+// B25 (docs/backlog.md): what a turn is worth, in hp.
+//
+// M42 named `TURN_BUDGET` and swept it six-fold tighter without moving the
+// side-room opening rate one standard error. The reason was structural:
+// nothing in the bot read the clock, and a cost the deciding agent never
+// sees cannot change a decision. Tightening truncated runs that were already
+// wandering and left the decisions exactly as they were.
+//
+// NO NEW CHANNEL. The remaining budget is `TURN_BUDGET - belief.turn`: the
+// turn already crosses into `Observation`, and the budget is a module
+// constant the bot imports like any other. Nothing that was hidden became
+// visible, and this is not a fog-of-war concession.
+//
+// THE SHAPE IS THE ITEM. A flat price per turn is another `STEP_COST_IN_HP`
+// and would do nothing — the walk is already charged per step. What makes a
+// turn worth something is running out of them, so the price is what one turn
+// consumes of the hero's remaining life: with `r` turns left, a turn costs
+// `effectiveHp / r`.
+//
+// Hyperbolic, so it is nearly free while the budget is far away and
+// unaffordable as it closes. At the shipped budget on a fresh floor it is
+// smaller than one step's danger-free cost, which is why this is expected to
+// measure zero there and has to be swept to be seen at all.
+//
+// NO NEW DIAL: `effectiveHp` and `TURN_BUDGET` both already exist, and the
+// division is what turns them into a price. A constant here would be a
+// second `STEP_COST_IN_HP` wearing a different name.
+//
+// `effectiveHp` rather than `hpMax` as the stake, deliberately: `net` is
+// denominated in the hp the hero actually has, so the clock and the goals
+// stay in one currency at every point of a floor. It also means a nearly
+// dead hero is not additionally paralysed by the clock — it has less to lose
+// by running out, which is the correct reading of what a bind costs.
+function turnPrice(belief, options) {
+  const remaining = Math.max(1, options.turnBudget - (belief.turn || 0));
+  return effectiveHp(belief.player) / remaining;
+}
+
+// The turns a candidate spends. Both halves already existed — `field.steps`
+// counts the walk and `duelCost` counts the fight — so this is arithmetic
+// over what the bot had already computed, not a new model.
+//
+// The shrine is exempt, and for B12's reason rather than a new one: every
+// floor ends on that tile, so its walk is a fixed cost of the floor and not
+// a marginal cost of CHOOSING to leave. Charging it would make the bot
+// leave sooner exactly when the budget is tight, which is backwards — the
+// exit is the thing the budget is pressing it toward.
+function turnsOf(goal, belief, field) {
+  if (goal.kind === 'shrine') return 0;
+  const steps = field.steps.get(key(goal.pos)) ?? 0;
+  if (goal.kind === 'chest') return steps + CHEST_TURNS;
+  if (goal.kind === 'monster') {
+    const monster = belief.monsters.get(goal.id);
+    if (!monster) return steps;
+    const { turns } = duelCost(belief.player, monster);
+    return steps + (Number.isFinite(turns) ? turns : 0);
+  }
+  return steps;
+}
+
 function chooseGoal(belief, field, danger, current, options, fieldFrom, exitField) {
   // Priced once per turn and threaded through every branch that needs it —
   // loot goals, the dark's value (B4) and now a creature's own drop (B9)
@@ -801,7 +861,18 @@ function chooseGoal(belief, field, danger, current, options, fieldFrom, exitFiel
     // the bot has already decided is worth having.
     const sequence = sequenceGoals(belief, loot, pricedEarly, field, fieldFrom, options);
 
-    const worthwhile = [...loot, ...explore, ...combat].filter((g) => g.net > 0);
+    // B25: the clock competes in the SAME comparison, charged before the
+    // `net > 0` filter so it can make a detour not worth taking at all —
+    // which is the only way a turn cost can change a decision rather than
+    // just reorder one.
+    const priced = [...loot, ...explore, ...combat];
+    if (options.turnPricing) {
+      const perTurn = turnPrice(belief, options);
+      for (const g of priced) g.net -= perTurn * turnsOf(g, belief, field);
+      for (const g of sequence) g.net -= perTurn * turnsOf(g, belief, field);
+    }
+
+    const worthwhile = priced.filter((g) => g.net > 0);
     worthwhile.push(...sequence);
 
     // B21: a filter, not a ranking. Anything whose plan dips below the
@@ -1113,6 +1184,50 @@ export function makeBot(options = {}) {
     // at 0.60 against a generator producing 0.226 precisely because nobody
     // wrote this paragraph next to it.
     lowWaterVeto: true,
+
+    // B25 (docs/backlog.md). Gives the bot a price for a turn so M42's
+    // budget can reach a decision instead of only truncating a run. See
+    // `turnPrice`.
+    //
+    // ON, and the honest case is that it does nothing at the budget that
+    // ships and something real below it. M42's sweep re-run against both
+    // halves, 50 runs a cell, seed family 3000000, side-room opening rate
+    // off against on:
+    //
+    //   1500   38.46% -> 41.74%   z +0.88    depth 6.20 -> 6.22
+    //    750   37.93% -> 40.34%   z +0.65    depth 5.98 -> 6.34
+    //    400   37.07% -> 33.33%   z -1.02    depth 5.88 -> 5.94
+    //    250   36.97% -> 31.56%   z -1.48    depth 5.50 -> 5.84
+    //    150   33.08% -> 23.36%   z -2.57    depth 4.48 -> 5.60
+    //
+    // The z is monotone in tightness and only the last cell clears 2 sigma,
+    // so 150 is the only line above that gets explained: there the bot
+    // genuinely refuses side rooms, which is what M42 swept for and did not
+    // find. Everything looser is a trend and is written down as one.
+    //
+    // THE FEARED DIRECTION DID NOT APPEAR. The item entered expecting that a
+    // budget tight enough to produce refusal would also cost depth — a bot
+    // that hurries dies. At 150 depth goes UP by 1.12 and finishes go 0/50
+    // to 1/50: the unpriced bot is being truncated by the cap mid-traversal,
+    // and the priced one spends its way out of that. The two are separable,
+    // and in the bot's favour rather than against it.
+    //
+    // At the shipped 1500 the decision rate does not move. What does move is
+    // turns per traversal, down 16% (110 -> 92) with depth and finishes flat
+    // — the price bites on the wandering tail, where the remaining budget is
+    // small and the price is therefore large, and not on the choice to enter
+    // a side room at the start of a floor.
+    //
+    // So its value is CONTINGENT on M42 tightening. Shipped on so that the
+    // next tightening measures a decision instead of measuring the same
+    // nothing M42 measured; if the budget stays at 1500 forever, this is
+    // inert and should be read as such.
+    turnPricing: true,
+    // The budget the price is measured against. Same default the engine
+    // ships, overridable so M42's sweep can move both halves together —
+    // measuring the bot against a budget the game is not enforcing would
+    // read as a refusal that never happens.
+    turnBudget: TURN_BUDGET,
 
     // B24 (docs/backlog.md). When the planned step would change axis, keep
     // going straight if that reaches the same goal for the same price. See

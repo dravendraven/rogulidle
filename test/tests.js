@@ -3496,7 +3496,65 @@ test('equal-cost routes keep the current axis', () => {
     `expected fewer axis changes, got ${flips(straight)} against ${flips(plain)}`);
 });
 
-// ***** run it ***** //
+// ***** B25: the bot prices turns ***** //
+//
+// docs/backlog.md B25, paired with M42 which measured why it has to exist:
+// the budget was swept six-fold tighter and the side-room opening rate did
+// not move (z = -0.05), because nothing in the bot read the clock. A cost
+// the deciding agent never sees cannot change a decision.
+//
+// The price is `effectiveHp / turns remaining` — hyperbolic on purpose. A
+// flat price would be a second STEP_COST_IN_HP and would do nothing, since
+// the walk is already charged per step. These two tests are the two ends of
+// that curve: nearly free when the budget is far, refusing when it is close.
+//
+// No new channel crosses into Belief. `belief.turn` is already there and
+// TURN_BUDGET is a module constant the bot imports like any other.
+test('a far budget leaves a detour worth taking', () => {
+  const map = tinyMap([
+    '##################',
+    '#----------------#',
+    '##################',
+  ]);
+  const build = () => makeState({
+    map,
+    playerPos: [3, 1],
+    hp: 10,
+    monsters: [],
+    items: [{ id: 'i-sh', name: 'shield', emoji: '🛡️', pos: [11, 1], dmg: 0, armour: 3, heal: 0 }],
+    shrine: { id: 's', emoji: '⛩️', pos: [1, 1] },
+  });
+
+  const trace = [];
+  driveBot(build(), 1, { monsterCount: 1, trace, turnPricing: true, turnBudget: 1500 });
+  assertEq(trace[0].goal.kind, 'item',
+    'the shipped budget refused a detour, which it should be far too loose to do');
+});
+
+test('a close budget refuses the same detour', () => {
+  const map = tinyMap([
+    '##################',
+    '#----------------#',
+    '##################',
+  ]);
+  // Same board, same shield, same walk. Only the clock changed: the shrine
+  // is two steps behind the hero and the shield eight steps ahead, so with the
+  // budget nearly spent the detour costs more of the remaining life than the
+  // armour is worth.
+  const build = () => makeState({
+    map,
+    playerPos: [3, 1],
+    hp: 10,
+    monsters: [],
+    items: [{ id: 'i-sh', name: 'shield', emoji: '🛡️', pos: [11, 1], dmg: 0, armour: 3, heal: 0 }],
+    shrine: { id: 's', emoji: '⛩️', pos: [1, 1] },
+  });
+
+  const trace = [];
+  driveBot(build(), 1, { monsterCount: 1, trace, turnPricing: true, turnBudget: 20 });
+  assertEq(trace[0].goal.kind, 'shrine',
+    'the bot spent turns it did not have on a detour');
+});
 
 export function runAll() {
   return results;

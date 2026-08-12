@@ -320,7 +320,7 @@ The open half of `map-design.md`'s four properties. Each of these owns a propert
 
 ### B25 · the bot has to price turns, or the budget prices nothing
 
-`bot agent` · READY · **paired with `M42`, which measured why** · the two
+`bot agent` · **REPORTED** · shipped ON · **paired with `M42`, which measured why** · the two
 halves do nothing apart
 
 `M42` named `TURN_BUDGET` and swept it from 1500 down to 250 — a six-fold
