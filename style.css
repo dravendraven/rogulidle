@@ -358,22 +358,30 @@ footer {
 /* ***** the dial lab — src/ui/dials.js ***** *
 
    Shared by index.html (behind the Lab button, hidden by default) and
-   run-lab.html (always open). Layout only; the form itself is built in JS. */
+   Layout only; the form itself is built in JS. */
 
 .lab { display: flex; gap: 1.4rem; align-items: flex-start; }
 .labgame { flex: 1; min-width: 0; }
 
 /* Wider only while the lab is open, so the plain game keeps its column. */
-.app.lab-open { max-width: 1280px; }
+.app.lab-open { max-width: 1300px; }
 
 .dials {
-  flex: 0 0 330px;
+  flex: 0 0 345px;
   font-size: 12px;
   max-height: 92vh;
   overflow-y: auto;
   padding-right: .4rem;
 }
 .dials[hidden] { display: none; }
+
+/* Bot vs Mapa read as two distinct blocks at a glance. */
+.dial-section[data-section="Bot"] {
+  background: rgba(0, 0, 0, .05);
+  border-radius: 6px;
+  padding: .4rem .6rem .8rem;
+  margin: 0 -.6rem .5rem;
+}
 
 .dials h2 {
   font-family: 'Almendra SC', Georgia, serif;
@@ -437,12 +445,12 @@ footer {
 
 .dial-effect {
   display: flex;
-  flex-direction: column;
-  gap: .05rem;
-  font-size: 10px;
+  gap: .6rem;
+  font-size: 9px;
   color: var(--dim);
-  line-height: 1.35;
+  line-height: 1.3;
 }
+.dial-effect span { flex: 1; min-width: 0; }
 
 .dial-buttons { display: flex; gap: .5rem; margin: .9rem 0 .3rem; }
 .dial-buttons button { font-size: .75rem; }

@@ -1,6 +1,5 @@
 // The dial lab: every number the map generator and the bot run on, as a
-// form. Shared by index.html (behind the Lab button) and run-lab.html, so
-// there is one list of dials rather than two that drift.
+// form, built once and reused wherever index.html opens the Lab button.
 //
 // NOTHING HERE PERSISTS and nothing here writes to balance.js. This is a
 // "what if" — a value worth keeping is still a docs/balance.md + code edit
@@ -268,14 +267,19 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
   const inputs = [];
 
   for (const [section, groups] of SECTIONS) {
+    const sectionEl = document.createElement('div');
+    sectionEl.className = 'dial-section';
+    sectionEl.dataset.section = section;
+    container.append(sectionEl);
+
     const h2 = document.createElement('h2');
     h2.textContent = section;
-    container.append(h2);
+    sectionEl.append(h2);
 
     for (const [group, list] of groups) {
       const h3 = document.createElement('h3');
       h3.textContent = group;
-      container.append(h3);
+      sectionEl.append(h3);
 
       for (const dial of list) {
         const {
@@ -330,11 +334,11 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
 
         const effect = document.createElement('div');
         effect.className = 'dial-effect';
-        const upLine = document.createElement('div');
-        upLine.textContent = `⬆️ ${up}`;
-        const downLine = document.createElement('div');
-        downLine.textContent = `⬇️ ${down}`;
-        effect.append(upLine, downLine);
+        const upSpan = document.createElement('span');
+        upSpan.textContent = `⬆️ ${up}`;
+        const downSpan = document.createElement('span');
+        downSpan.textContent = `🔻 ${down}`;
+        effect.append(upSpan, downSpan);
         row.append(effect);
 
         input.addEventListener('input', () => {
@@ -348,7 +352,7 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
           }
         });
 
-        container.append(row);
+        sectionEl.append(row);
         inputs.push({
           kind, key, input, def, min, valueOut, step,
         });

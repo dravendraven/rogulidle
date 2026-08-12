@@ -91,19 +91,19 @@ Two measuring notes that were each learned the hard way:
 
 - `/index.html` — watch the bot play. `?seed=anything` reproduces a session.
   The 🧪 Lab button opens the dial panel (`src/ui/dials.js`) beside it.
-  `?events=off` silences the floating signals (`src/ui/events.js`, U10) —
-  both pages read it, and no code change is needed to switch them off.
+  `?events=off` silences the floating signals (`src/ui/events.js`, U10).
 - `/run-tests.html` — the rules (tests, not metrics).
 - `/run-check.html` — the tripwires. Keep the tab visible while it runs.
-- `/run-lab.html` — the same dial panel, always open, without the shop and
-  the wallet.
 
-Both pages read `dial-overrides.json` (repo root) before their first run: a
+`run-lab.html` was removed — it duplicated the same dial panel `index.html`
+already opens behind the Lab button. Link to `/index.html` instead.
+
+`index.html` reads `dial-overrides.json` (repo root) before its first run: a
 value it sets wins over the code default, for EVERY visitor, whether or not
 they ever open the Lab (`src/ui/dial-overrides.js`). It starts as `{}` and
 ships no different from not existing at all.
 
-**Dev mode**: `?dev=1` on either page — no button anywhere invites this —
+**Dev mode**: `?dev=1` on `/index.html` — no button anywhere invites this —
 auto-opens the Lab and adds one more button, "💾 salvar como padrão", which
 downloads the CURRENT form as a new `dial-overrides.json`. A page cannot
 write into the repo GitHub Pages serves (no server, no build step to hook

@@ -16,7 +16,7 @@ import {
 } from './render.js';
 import { tileSvg } from './tiles.js';
 import { award, resetScore } from './score.js';
-import { getBalance, setBalance, resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
+import { resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
 import { SHOP_ITEMS, pickDefaultPurchase } from './shop.js';
 import { buildDialPanel, resolvedDefaults } from './dials.js';
 import { loadDialOverrides } from './dial-overrides.js';
@@ -26,7 +26,12 @@ const MAX_TURNS = 900;       // per floor
 const BASE_DELAY = 110;      // ms per turn at 1x
 const SUMMARY_MS = 2400;
 const COIN_POPUP_MS = 900;
-const SHOP_MS = 3200;
+// Long enough to read three options and click one — the shop now opens
+// after EVERY run, not only a rare full clear, so it earns a real second
+// look rather than the old 3.2s blink-and-it's-gone. 5x the original 6s:
+// owner wants a real window to react, not a blink. Moot when nothing is
+// affordable — see showShop's early-close below.
+const SHOP_MS = 30000;
 const HISTORY_LEN = 12;
 
 const session = {
@@ -79,7 +84,7 @@ function grab() {
     'run', 'tally', 'seed', 'summary', 'summaryTitle', 'summaryBody',
     'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
     'coins', 'coinPopup', 'debugInfo', 'app', 'lab', 'dials',
-    'shop', 'shopBalance', 'shopItems', 'shopSkip',
+    'shop', 'shopBalance', 'shopItems', 'shopSkip', 'shopTimerBar',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -175,16 +180,24 @@ function renderShopItems(balance) {
   }
 }
 
-// U6e — docs/backlog.md. Shown at every run's end, spending whatever
-// tallyDescent's bank-or-clear just left in the wallet. Non-blocking like
-// showCoinPopup: a click resolves it immediately (buy or explicit skip),
-// but if nothing is clicked before the timer runs out, pickDefaultPurchase
-// applies — and per the item's own warning that IS what happens most
-// runs, since nobody is guaranteed to be watching a spectator that never
-// pauses for input.
+// Shown after EVERY run's end, win or lose, spending exactly what THIS run
+// earned (session.unbankedCoins) — owner decision: nothing is banked for
+// later, so a run that ends in death still gets to spend what it made
+// before dying, and whatever is not spent here is simply gone, never
+// carried to the next run's balance (which always starts at zero — see the
+// per-floor loop above, which no longer wipes unbankedCoins on death, and
+// the top of the run loop, which resets it to 0 for the next run either
+// way).
+//
+// Non-blocking like showCoinPopup: a click resolves it immediately (buy or
+// explicit skip), but if nothing is clicked before the timer runs out,
+// pickDefaultPurchase applies — nobody is guaranteed to be watching a
+// spectator that never pauses for input. SHOP_MS is long enough now that a
+// present viewer has a real chance to choose; the reverse bar is what
+// tells them how long that chance lasts.
 async function showShop(defaultSeed) {
   if (!el.shop) return;
-  const balance = getBalance();
+  const balance = session.unbankedCoins;
   if (el.shopBalance) el.shopBalance.textContent = `balance: ${balance} 🪙`;
   renderShopItems(balance);
   el.shop.classList.add('shown');
@@ -199,22 +212,38 @@ async function showShop(defaultSeed) {
   el.shopItems.addEventListener('click', onItemClick);
   if (el.shopSkip) el.shopSkip.addEventListener('click', onSkipClick);
 
+  // Nothing to wait for when nothing is affordable — the panel closes as
+  // soon as that's true instead of sitting on screen empty for the full
+  // SHOP_MS. Balance is fixed for the whole visit (spent once, see below),
+  // so this is decided once up front, not re-checked in the loop.
+  const canAffordAnything = SHOP_ITEMS.some((entry) => entry.price <= balance);
+
   const until = SHOP_MS / session.speed;
   let waited = 0;
-  while (waited < until && chosen === undefined) {
+  // The reverse bar: full the instant the shop opens, empty exactly when
+  // the timer would auto-resolve. Driven by the same poll loop that already
+  // waits out the timer, so it freezes on pause for free rather than
+  // needing a second clock to keep in sync with this one.
+  if (el.shopTimerBar) el.shopTimerBar.style.width = '100%';
+  while (canAffordAnything && waited < until && chosen === undefined) {
     await waitWhilePaused();
     await sleep(80);
     waited += 80;
+    if (el.shopTimerBar) {
+      el.shopTimerBar.style.width = `${Math.max(0, 100 * (1 - waited / until))}%`;
+    }
   }
   el.shopItems.removeEventListener('click', onItemClick);
   if (el.shopSkip) el.shopSkip.removeEventListener('click', onSkipClick);
 
   if (chosen === undefined) chosen = pickDefaultPurchase(balance, defaultSeed);
 
-  if (chosen) {
-    setBalance(getBalance() - chosen.price);
-    addHeldItem(chosen.item);
-  }
+  // The purchase spends this run's coins and nothing else — there is no
+  // balance to write back to. Whatever `balance` was NOT spent (chosen ===
+  // null, or a cheaper item than the full total) is discarded here, not
+  // saved: the next run's coin count starts at 0 regardless (see the top of
+  // runDescentForever's loop), so there is nothing to carry.
+  if (chosen) addHeldItem(chosen.item);
 
   el.shop.classList.remove('shown');
 }
@@ -302,30 +331,22 @@ function tallyDescent(run, finalState) {
   const lastFloor = run.levels[run.levels.length - 1];
   if (run.cleared) {
     session.cleared++;
-    // Only a full clear pays — that gate is what keeps the rate formula
-    // from being maximised by dying early after a fast start. Total turns
-    // come from playDungeon's own per-floor records; final xpEarned comes
-    // from the replayed end-of-run state, not from run.levels — see the
-    // note on xpEarnedThisFloor below for why.
+    // Total turns come from playDungeon's own per-floor records; final
+    // xpEarned comes from the replayed end-of-run state, not from
+    // run.levels — see the note on xpEarnedThisFloor below for why.
     const totalTurns = run.levels.reduce((sum, level) => sum + level.turns, 0);
     // U4's lifetime score keeps a background record even though nothing
-    // displays it any more — the coin balance below is the on-screen
-    // "how am I doing" number now, and award() is cheap to leave running
-    // in case the display ever comes back.
+    // displays it any more; award() is cheap to leave running in case the
+    // display ever comes back.
     award(finalState.player.xpEarned, totalTurns);
-
-    // U6c — docs/backlog.md. A clear banks the run's unbanked coin into
-    // the persisted wallet balance — the spendable, on-screen record of
-    // performance now that U4's score display is gone.
-    setBalance(getBalance() + session.unbankedCoins);
   } else {
-    // U6c's death rule. session.unbankedCoins is already 0 here — U5's
-    // own per-floor loop zeroes it the moment a floor fails, before this
-    // function ever runs — so there is nothing of the run's own to
-    // discard; this call is purely the wallet-level rule (default: wipe
-    // pre-existing balance/item too). Timeout gets the same treatment as
-    // death, same as U5 already treats them as one "not a completion"
-    // case rather than two.
+    // The starting item THIS run had equipped is lost with it — owner
+    // decision. session.unbankedCoins is untouched here (unlike the old
+    // bank-only-on-clear design): it still holds whatever earlier floors
+    // in this same run earned, and showShop spends it next regardless of
+    // how the run ended. Timeout gets the same treatment as death, same as
+    // U5 already treats them as one "not a completion" case rather than
+    // two.
     resetOnDeath();
   }
 
@@ -424,8 +445,10 @@ async function runDescentForever(sessionSeed) {
 
       // U5 — docs/backlog.md. coins = round(xpEarned-this-floor /
       // turns-this-floor * 10), on floor COMPLETION only: dying or timing
-      // out mid-floor is not a completion, and wipes the run's running
-      // total rather than banking a partial one.
+      // out mid-floor is not a completion and adds nothing — but, since the
+      // shop economy changed, it no longer wipes what EARLIER floors in
+      // this same run already earned. That total simply stops growing and
+      // carries into the shop as-is, spendable whether the run won or lost.
       //
       // run.levels[i] (src/sim/dungeon.js) does not carry xpEarned — only
       // carryFrom() does, and only for the NEXT floor's starting state.
@@ -446,10 +469,10 @@ async function runDescentForever(sessionSeed) {
         session.unbankedCoins += coinsThisFloor;
         if (el.coins) el.coins.textContent = coinsText();
         await showCoinPopup(coinsThisFloor);
-      } else {
-        session.unbankedCoins = 0;
-        if (el.coins) el.coins.textContent = coinsText();
       }
+      // A floor that ends in death or timeout was not completed and pays
+      // nothing — but, unlike before, does not erase what earlier floors in
+      // this run already banked into session.unbankedCoins either.
     }
 
     // An abandoned run is not a run: it does not count, does not bank, and
