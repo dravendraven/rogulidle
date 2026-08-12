@@ -12,7 +12,7 @@
     "tierSlackCap": 0.75,
     "earlyTierCut": 1,
     "outOfDepthChancePerLevel": 0.005,
-    "outOfDepthChanceCap": 0.04,
+    "outOfDepthChanceCap": 0.1,
     "clusterSize": 6,
     "weaponScarcity": 3.5,
     "dropChance": 0.5,
@@ -23,7 +23,7 @@
     "sideChestBias": 2.5,
     "monstersBase": 4,
     "spreadCap": 0.35,
-    "dugPercentage": 0.2,
+    "dugPercentage": 0.18,
     "shrineDistanceShare": 0.7
   },
   "bot": {

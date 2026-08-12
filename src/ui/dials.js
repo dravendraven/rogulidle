@@ -383,7 +383,20 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
   // changes, not only when `strengthGrowth` does.
   const notes = [];
 
-  for (const [section, groups] of SECTIONS) {
+  // Which sections a player may touch. The map belongs to whoever ships
+  // `dial-overrides.json`: a value moved there changes the game for every
+  // visitor, and the panel is the only place it can be moved from, so
+  // leaving the map dials on the open page means the shipped balance is
+  // whatever the last person to touch a slider decided. The bot is the
+  // opposite — it IS the choice the product is about, and moving it costs
+  // nobody but the person moving it.
+  //
+  // Not a hiding trick: the map values still APPLY, they are simply not
+  // editable. `read()` below starts from the resolved defaults, so an
+  // override reaches the run whether or not its slider was drawn.
+  const sections = dev ? SECTIONS : SECTIONS.filter(([name]) => name === 'Bot');
+
+  for (const [section, groups] of sections) {
     const sectionEl = document.createElement('div');
     sectionEl.className = 'dial-section';
     sectionEl.dataset.section = section;
@@ -553,7 +566,11 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
   // engine in the first place, so the form and the run agree on what was
   // asked for.
   const read = () => {
-    const out = { model: {}, hero: {}, bot: {}, run: {} };
+    // Starts from what SHIPS, not from an empty object: sections the page
+    // did not draw (the map, outside dev mode) have no inputs to read, and
+    // an empty `model` would send makeFloorPlan to the code defaults and
+    // silently discard every override in dial-overrides.json.
+    const out = resolvedDefaults(overrides);
     for (const {
       kind, key, input, def, min, isSwitch, onOff,
     } of inputs) {

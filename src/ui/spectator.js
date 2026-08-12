@@ -12,8 +12,10 @@ import { hashSeeds, seedFromString } from '../sim/rng.js';
 import { difficultyToParams, makeFloorPlan } from '../sim/difficulty.js';
 import { dangerField, makeBot } from '../bot/bot.js';
 import {
-  buildGrid, renderFrame, renderHud, renderHistory, applyDepth, renderDebugInfo,
+  buildGrid, renderFrame, renderHud, renderHistory, renderAchievements,
+  applyDepth, renderDebugInfo,
 } from './render.js';
+import { ACHIEVEMENTS, earn, earnedBy, getAchievements } from './achievements.js';
 import { tileSvg } from './tiles.js';
 import { award, resetScore } from './score.js';
 import { resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
@@ -85,6 +87,7 @@ function grab() {
     'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
     'coins', 'coinPopup', 'damage', 'debugInfo', 'app', 'lab', 'dials',
     'shop', 'shopBalance', 'shopItems', 'shopSkip', 'shopTimerBar',
+    'achievements',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -394,6 +397,17 @@ function tallyDescent(run, finalState) {
   });
   if (session.history.length > HISTORY_LEN) session.history.length = HISTORY_LEN;
   if (el.history) renderHistory(el.history, session.history);
+
+  // U11 — what this run earned, read off playDungeon's own result. `earn`
+  // reports only the FIRST time, so the celebration fires once and a
+  // hundredth Butcher is silent.
+  let justEarned = null;
+  for (const id of earnedBy(run)) {
+    if (earn(id, session.runNumber)) justEarned = id;
+  }
+  if (el.achievements) {
+    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), justEarned);
+  }
 }
 
 async function showDescentSummary(run, finalState) {
@@ -564,10 +578,16 @@ function wireControls() {
   });
 }
 
-// Wires the Lab button and, in dev mode, opens the panel immediately.
+// Wires the Lab button and opens the panel.
+//
+// OPEN BY DEFAULT, and outside dev mode it holds the bot's dials alone —
+// the map's belong to whoever ships dial-overrides.json (see dials.js).
+// That inverts what the Lab used to be: a thing you had to find, holding
+// everything. It is now the first thing on screen, holding the half that
+// is the player's to move.
+//
 // `overrides` is dial-overrides.json's content, loaded once before this
-// runs — the panel is built on first need rather than at startup either
-// way, so a player who never presses Lab never pays for the form.
+// runs.
 function wireLab(overrides, devMode) {
   const open = () => {
     if (!session.dials) {
@@ -591,17 +611,20 @@ function wireLab(overrides, devMode) {
   // whole gate. It only unlocks the "salvar como padrão" button inside the
   // panel dials.js already builds, so this is one extra flag through code
   // that already existed, not a second UI.
-  if (devMode) {
-    open();
-    el.dials.hidden = false;
-    el.app.classList.add('lab-open');
-    el.lab.textContent = '🧪 lab on';
-  }
+  open();
+  el.dials.hidden = false;
+  el.app.classList.add('lab-open');
+  el.lab.textContent = '🧪 lab on';
 }
 
 export async function start() {
   grab();
   buildGrid(el.grid);
+  // Drawn before the first run so the board reads as "two things to do"
+  // rather than appearing out of nowhere the moment one is done.
+  if (el.achievements) {
+    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements());
+  }
   events = makeEventLayer(el.stage, el.grid, { enabled: eventsEnabled() });
   wireControls();
 

@@ -272,6 +272,39 @@ export function renderDebugInfo(element, entry) {
 // like now, and the timeout chip already owned that glyph — two identical
 // icons in one strip say nothing. Green is the same "made it" the hp bar
 // already uses.
+// U11 — the achievements strip under the history. Two rows, redrawn whole
+// on every change; `justEarned` is the id that flipped this run, which is
+// the only thing that gets the celebration class.
+export function renderAchievements(element, list, earned, justEarned = null) {
+  element.innerHTML = '';
+  for (const a of list) {
+    const got = Boolean(earned[a.id]);
+    const row = document.createElement('div');
+    row.className = 'ach' + (got ? ' earned' : '') + (a.id === justEarned ? ' just' : '');
+
+    const icon = document.createElement('span');
+    icon.className = 'ach-icon';
+    icon.innerHTML = tileSvg(a.emoji) || '';
+
+    const text = document.createElement('span');
+    text.className = 'ach-text';
+    const title = document.createElement('span');
+    title.className = 'ach-title';
+    title.textContent = a.title;
+    const sub = document.createElement('span');
+    sub.className = 'ach-sub';
+    sub.textContent = got ? a.earned : a.locked;
+    text.append(title, sub);
+
+    const stamp = document.createElement('span');
+    stamp.className = 'ach-stamp';
+    stamp.textContent = got ? `run ${earned[a.id].run}` : '';
+
+    row.append(icon, text, stamp);
+    element.append(row);
+  }
+}
+
 export function renderHistory(element, history) {
   element.innerHTML = '';
   for (const entry of history) {

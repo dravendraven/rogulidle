@@ -594,3 +594,37 @@ footer {
      a horizontal scrollbar out from under the panel instead. */
   .dial-section[data-section="Bot"] { margin-left: 0; margin-right: 0; }
 }
+
+/* U11 — the achievements strip. Locked rows are legible but drained; an
+   earned one lights up, and the run that earned it flashes once. */
+.achievements { display: flex; flex-direction: column; gap: .35rem; }
+
+.ach {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .4rem .55rem; border-radius: 6px;
+  background: var(--panel-2, #1b1e24);
+  border: 1px solid transparent;
+}
+.ach-icon { display: flex; width: 22px; height: 22px; flex: 0 0 22px; }
+.ach-icon svg { width: 22px; height: 22px; }
+/* Locked: the sprite is drawn, then drained of colour — a silhouette says
+   "there is something here" where an empty box says nothing. */
+.ach:not(.earned) .ach-icon svg { filter: grayscale(1); opacity: .35; }
+
+.ach-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.ach-title { font-weight: 600; color: var(--muted, #7a8595); }
+.ach-sub { font-size: .8em; color: var(--muted, #7a8595); opacity: .75; }
+.ach-stamp { margin-left: auto; font-size: .8em; color: var(--muted, #7a8595); opacity: .6; }
+
+.ach.earned { background: #16351f; border-color: #2f6b41; }
+.ach.earned .ach-title { color: var(--accent, #8ce99a); }
+.ach.earned .ach-sub { opacity: .95; }
+
+/* Earned THIS run: one pulse, then it settles into the ordinary earned
+   look. No loop — a thing that keeps blinking stops being an event. */
+.ach.just { animation: ach-pop 1.2s ease-out 1; }
+@keyframes ach-pop {
+  0%   { transform: scale(1); box-shadow: 0 0 0 0 rgba(140, 233, 154, .6); }
+  35%  { transform: scale(1.03); box-shadow: 0 0 0 6px rgba(140, 233, 154, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(140, 233, 154, 0); }
+}
