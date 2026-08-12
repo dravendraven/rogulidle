@@ -163,26 +163,47 @@ export function pillarsOf(rect, size = VAULT_SIZE) {
   ];
 }
 
-// Where the vault's chests stand, in the order they are filled. Four in the
-// corners and two flanking the occupant — and that IS the risk gradient,
-// since menace halves with every step away from the centre: measured on a
-// shipped floor, the middle tile prices at 2.08 hp a turn, the flanks at
-// 0.52 and the corners at 0.01.
+// The room read from its own door: `depth` 0 is the row just inside the
+// doorway and `size - 1` is the far wall, `lateral` runs across it. The
+// door can be on any of the four sides, so everything placed inside has to
+// be stated in these terms or "at the back" means a different corner on
+// every seed.
+export function orientationOf(room, door, size = VAULT_SIZE) {
+  const [dx, dy] = door;
+  if (dy < room.y1) return (d, l) => [room.x1 + l, room.y1 + d];        // door north
+  if (dy > room.y2) return (d, l) => [room.x1 + l, room.y2 - d];        // door south
+  if (dx < room.x1) return (d, l) => [room.x1 + d, room.y1 + l];        // door west
+  return (d, l) => [room.x2 - d, room.y1 + l];                          // door east
+}
+
+// Where the occupant stands and where its chests sit, in the order the
+// chests are filled: the two by the door first, then the four at the back.
 //
-// One bet, six payouts. The bot's `guardCost` charges the occupant's whole
-// duel against every chest inside its chase radius, which is the entire
-// room, so all six are gated together rather than one at a time. What the
-// gradient decides is the ORDER once the bet is taken: the corners are
-// nearly free to collect, the two beside the Butcher are not.
-export function chestSlotsOf(rect, size = VAULT_SIZE) {
-  const [x, y] = rect;
+// THE ROOM IS GRADED RATHER THAN UNIFORM, and the grading is what the
+// pillars were wrongly expected to provide. The occupant stands two rows
+// off the far wall instead of dead centre, and `guardCost` charges its
+// whole duel against every chest within its chase radius — so the four at
+// the back are bought with the fight and the two by the door are not.
+// Where the boss's radius falls is therefore a layout decision, not only a
+// balance one: at radius 5 the near pair sits 9 tiles away and the far four
+// sit 3 to 4.
+//
+// One consequence is deliberate: a hero can take the two near chests and
+// leave. That is a small free lunch bought on purpose, because a room that
+// is all-or-nothing gives the bot one decision and a graded one gives it
+// three — walk past, skim the door, or commit.
+export function layoutOf(room, door, size = VAULT_SIZE) {
+  const at = orientationOf(room, door, size);
   const last = size - 1;
   const mid = Math.trunc(last / 2);
-  return [
-    [x, y], [x + last, y],                          // the far corners
-    [x, y + last], [x + last, y + last],
-    [x + 2, y + mid], [x + last - 2, y + mid],      // either side of the boss
-  ];
+  return {
+    boss: at(size - 3, mid),
+    chests: [
+      at(0, 1), at(0, last - 1),                       // just inside the door
+      at(last, 2), at(last, last - 2),                 // behind the occupant
+      at(size - 3, 1), at(size - 3, last - 1),         // either side of it
+    ],
+  };
 }
 
 // Writes the room, its pillars, the door and the tunnel into `map.tiles`,

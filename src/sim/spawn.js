@@ -17,7 +17,7 @@ import {
 } from './rng.js';
 import { findPath, playerPassable, posKey, walkablePositions } from './mapgen.js';
 import { classifyRooms } from './spine.js';
-import { chestSlotsOf, stampVault } from './vault.js';
+import { layoutOf, stampVault } from './vault.js';
 
 // Items are drawn with weight 1/value, so a high value is a RARE item.
 //
@@ -830,7 +830,12 @@ export function populate(state, map, counts = {}) {
   // `side` is READ from the zones rather than asserted, so if the room ever
   // stopped being a dead end this would say so instead of hiding it.
   if (state.vault) {
-    const pos = state.vault.room.center.slice();
+    // V7a — read from the door, not from the rectangle: the occupant stands
+    // at the BACK of the room so the chests by the entrance sit outside its
+    // reach, which is what turns one all-or-nothing bet into a graded room.
+    const layout = layoutOf(state.vault.room, state.vault.door);
+    state.vault.layout = layout;
+    const pos = layout.boss.slice();
     const boss = counts.vaultBoss ?? VAULT_BOSS;
     const dropName = counts.vaultBossDrop ?? VAULT_BOSS_DROP;
     const template = ITEM_TABLE.find((item) => item.name === dropName);
@@ -870,7 +875,7 @@ export function populate(state, map, counts = {}) {
     // prices the guard like any other side room's.
     const chestKind = CHEST_TABLE[0];
     const wanted = counts.vaultChestItems ?? VAULT_CHEST_ITEMS;
-    const slots = chestSlotsOf([state.vault.room.x1, state.vault.room.y1]);
+    const slots = layout.chests;
 
     state.vault.chests = [];
     slots.forEach((slot, i) => {

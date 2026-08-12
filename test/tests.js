@@ -19,7 +19,7 @@ import {
 import { findPath, playerPassable, posKey } from '../src/sim/mapgen.js';
 import { drawLogUniform, drawWeighted, hashSeeds, makeRng } from '../src/sim/rng.js';
 import { classifyRooms, spineShare } from '../src/sim/spine.js';
-import { chestSlotsOf, inVault, pillarsOf } from '../src/sim/vault.js';
+import { inVault, layoutOf, pillarsOf } from '../src/sim/vault.js';
 import { itemWeights, monsterWeightsAround } from '../src/sim/spawn.js';
 import {
   floorOfTraversal, floorPlan, playDungeon, LEVELS, TRAVERSALS,
@@ -1511,8 +1511,8 @@ test('the Butcher stands in the vault, and only there', () => {
     assertEq(boss.hp, VAULT_BOSS.hp, 'wrong hp');
     assertEq(boss.xp, VAULT_BOSS.xp, 'wrong xp');
     assert(inVault(state.vault, ...boss.pos), 'the Butcher is not in its room');
-    assertEq(boss.pos.join(','), state.vault.room.center.join(','),
-      'the Butcher should stand at the centre, where the pillars flank it');
+    assertEq(boss.pos.join(','), layoutOf(state.vault.room, state.vault.door).boss.join(','),
+      'the Butcher should stand at the back of the room, read from its door');
     assert(boss.side, 'the Butcher came out marked as mandatory');
   }
 
@@ -1554,7 +1554,7 @@ test('the vault holds six extra chests, at their authored positions', () => {
     const vaultChests = state.chests.filter((c) => c.vault);
     assertEq(vaultChests.length, VAULT_CHEST_ITEMS.length, 'wrong chest count');
 
-    const slots = chestSlotsOf([state.vault.room.x1, state.vault.room.y1]);
+    const slots = layoutOf(state.vault.room, state.vault.door).chests;
     for (const chest of vaultChests) {
       assert(inVault(state.vault, ...chest.pos), 'a vault chest fell outside');
       assert(slots.some((s) => s[0] === chest.pos[0] && s[1] === chest.pos[1]),
@@ -1573,6 +1573,36 @@ test('the vault holds six extra chests, at their authored positions', () => {
     assertEq(tiles.size, state.chests.length, 'two chests on one tile');
     assert(!vaultChests.some((c) => c.pos.join(',') === state.vault.boss.pos.join(',')),
       'a chest is standing on the Butcher');
+  }
+});
+
+test('the vault is laid out from its own door, not its rectangle', () => {
+  // The door lands on any of the four sides, so "at the back" has to be
+  // read from the doorway or it means a different corner every seed.
+  for (const state of vaultFloors()) {
+    const boss = state.monsters.find((m) => m.vault);
+    const chests = state.chests.filter((c) => c.vault);
+    const door = state.vault.door;
+    const away = (pos) => Math.abs(pos[0] - door[0]) + Math.abs(pos[1] - door[1]);
+
+    // Split by distance from the BUTCHER, which is the quantity guardCost
+    // actually reads — not by distance from the door, which moves with the
+    // doorway's own offset along the wall.
+    const fromBoss = (pos) => Math.abs(pos[0] - boss.pos[0]) + Math.abs(pos[1] - boss.pos[1]);
+    const near = chests.filter((c) => fromBoss(c.pos) >= 6);
+    const deep = chests.filter((c) => fromBoss(c.pos) <= 5);
+    assertEq(near.length, 2, 'expected two chests out of the Butcher\'s reach');
+    assertEq(deep.length, 4, 'expected four chests inside it');
+
+    // The Butcher is at the back, not in the middle: further from the door
+    // than the room's own centre.
+    assert(away(boss.pos) > away(state.vault.room.center),
+      'the Butcher is no further from the door than the centre is');
+
+    for (const [x, y] of pillarsOf([state.vault.room.x1, state.vault.room.y1], VAULT_SIZE)) {
+      assert(!chests.some((c) => c.pos[0] === x && c.pos[1] === y), 'a chest is inside a pillar');
+      assert(boss.pos[0] !== x || boss.pos[1] !== y, 'the Butcher is inside a pillar');
+    }
   }
 });
 
