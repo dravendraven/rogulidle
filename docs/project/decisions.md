@@ -767,3 +767,72 @@ risk/reward loop draws twice per side room, so an authored room passing
 through it spent two spawn draws and shifted every roll after it on the
 floor. Caught by the test that asserts the stamp consumes no randomness —
 which is the whole reason that test was written before the feature worked.
+
+## V5, V7a, V7b — the vault stopped being a barrier, 2026-08-12
+
+Owner-proposed, all four ideas built. Measured empty-handed (the owner's
+stated baseline), 200 runs a session, shipped dials, same seeds throughout.
+
+### The three states
+
+| | before | +V5 | +V7a/V7b |
+|---|---|---|---|
+| died on floor 4 | 19.0% | 17.6% | **9.5%** |
+| engaged the vault | 40.7% | 37.0% | **89.7%** |
+| killed the Butcher | 32.4% | 31.5% | 35.6% |
+| **killed BY the Butcher** | 7.6% | 5.5% | **0.7%** |
+| reached floor 7 | 42.0% | 42.5% | 50.5% |
+| mean depth | 5.7 | 5.7 | 6.0 |
+
+Floor 4 without any vault kills 6.8% and mean depth is 6.2, so the last
+column is a room that has almost stopped costing anything.
+
+### V5 did what it was built for and nothing else
+
+Gating exploration by the danger on the route is nearly free at the shipped
+appetite — every column above moves by less than its own noise — and it is
+decisive at the extreme it was built for: at `sideAppetite` 0, deaths to the
+Butcher fell from 12 runs in 150 to 3.
+
+**Its cost shows only at that extreme, and it is large.** A hero that
+refuses every priced frontier stops exploring, leaves the floor early and
+arrives poorer: reaching floor 4 falls from 72% to 38% at appetite 0. **The
+open question is whether a route's SUMMED danger is the right statistic to
+compare against a one-off duel bar** — twenty tiles of harmless menace add
+up to a number that looks like a fight and is not one.
+
+### V7a+V7b deleted the risk, and the free chests are why
+
+Entering is a decision now — that was the goal and it was met. But the room
+went from doubling floor 4's lethality (19.0% against a 6.8% floor) to
+barely moving it (9.5%), and deaths to the Butcher are one run in 146.
+
+**The mechanism is not the radius on its own — it is the two unguarded
+chests.** They are opened in **89.7%** of vaults against 39.2% for the four
+behind the Butcher. Nearly every hero now walks in, takes the free pair and
+leaves; a third go on to kill it, and of those who take the fight almost
+none lose it.
+
+**So the vault is now mostly upside**, which is the failure `map-design.md`
+names in its own words: a gamble with a fixed favourable ratio is not a
+gamble. It also gives back `M36` — the reason the room was worth building
+was that a detour could end the run, and at radius 5 the Butcher is easy to
+walk away from.
+
+**Raising its hp is not the fix.** The bot engages when it can afford the
+duel, so a heavier Butcher is refused more often rather than fought harder —
+already visible above, where the kill rate barely moved across three very
+different states. What decides whether the room costs anything is which
+chests sit inside the reach, not what the creature weighs.
+
+### What that leaves for the owner to decide
+
+Whether the vault is a **barrier** or a **reward room**. It cannot be both
+at these values, and the lever is the free pair rather than the boss:
+
+- barrier — put all six chests inside the reach, and the room is one bet again
+- reward room — keep it as built, and accept that floor 4 is no longer a wall
+- something between — a radius that covers the doorway but not the corridor
+  outside it
+
+Nothing here is a defect to fix without that decision being made first.
