@@ -5,8 +5,8 @@ import {
   CHEST_GUARD_RADIUS, EARLY_CHEST_QUALITY_BOOST, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP,
   PLAYER_HP, PLAYER_XP, ROOM_HEIGHT, ROOM_WIDTH, SHRINE_DISTANCE_SHARE,
-  STARTING_ITEMS, TURN_BUDGET, VAULT_BOSS, VAULT_LEVEL, VAULT_SIZE,
-  WEAPON_AXE_MIN_TIER,
+  STARTING_ITEMS, TURN_BUDGET, VAULT_BOSS, VAULT_CHEST_ITEMS, VAULT_LEVEL,
+  VAULT_SIZE, WEAPON_AXE_MIN_TIER,
 } from '../src/sim/balance.js';
 import {
   driveTurns, newGame, playGame, replayGame,
@@ -19,7 +19,7 @@ import {
 import { findPath, playerPassable, posKey } from '../src/sim/mapgen.js';
 import { drawLogUniform, drawWeighted, hashSeeds, makeRng } from '../src/sim/rng.js';
 import { classifyRooms, spineShare } from '../src/sim/spine.js';
-import { inVault, pillarsOf } from '../src/sim/vault.js';
+import { chestSlotsOf, inVault, pillarsOf } from '../src/sim/vault.js';
 import { itemWeights, monsterWeightsAround } from '../src/sim/spawn.js';
 import {
   floorOfTraversal, floorPlan, playDungeon, LEVELS, TRAVERSALS,
@@ -1492,6 +1492,7 @@ test('the ordinary roster and chests stay out of the vault', () => {
         `${monster.name} spawned inside the vault`);
     }
     for (const chest of state.chests) {
+      if (chest.vault) continue;                   // its own chests belong
       assert(!inVault(state.vault, ...chest.pos), 'a floor chest landed in the vault');
     }
     assert(!inVault(state.vault, ...state.player.pos), 'the hero started in the vault');
@@ -1545,6 +1546,45 @@ test('the Butcher is not in the tier table and cannot be drawn', () => {
   // accident, be reskinned by the out-of-depth roll, and be scaled.
   assert(!MONSTER_TABLE.some((t) => t.name === VAULT_BOSS.name),
     'the Butcher leaked into the tier table');
+});
+
+test('the vault holds six extra chests, at their authored positions', () => {
+  for (const state of vaultFloors()) {
+    const vaultChests = state.chests.filter((c) => c.vault);
+    assertEq(vaultChests.length, VAULT_CHEST_ITEMS.length, 'wrong chest count');
+
+    const slots = chestSlotsOf([state.vault.room.x1, state.vault.room.y1]);
+    for (const chest of vaultChests) {
+      assert(inVault(state.vault, ...chest.pos), 'a vault chest fell outside');
+      assert(slots.some((s) => s[0] === chest.pos[0] && s[1] === chest.pos[1]),
+        `a vault chest at ${chest.pos} is not on an authored slot`);
+      assert(chest.side, 'a vault chest came out marked as mandatory');
+      assert(chest.drop, 'an authored chest came out empty');
+    }
+
+    // Extra, not instead of: the floor keeps every chest it would have had.
+    const ordinary = state.chests.filter((c) => !c.vault);
+    assertEq(ordinary.length, floorPlan(VAULT_LEVEL).chests,
+      'the vault ate the floor\'s own chests');
+
+    // Nothing shares a tile.
+    const tiles = new Set(state.chests.map((c) => c.pos.join(',')));
+    assertEq(tiles.size, state.chests.length, 'two chests on one tile');
+    assert(!vaultChests.some((c) => c.pos.join(',') === state.vault.boss.pos.join(',')),
+      'a chest is standing on the Butcher');
+  }
+});
+
+test('what the vault pays is authored, not drawn', () => {
+  // Same payout every seed. The bet is meant to be legible before it is
+  // taken; if this ever starts varying, the choice stopped being informed.
+  const payouts = new Set();
+  for (const state of vaultFloors()) {
+    payouts.add(state.chests.filter((c) => c.vault)
+      .map((c) => c.drop.name).join(','));
+  }
+  assertEq(payouts.size, 1, `the vault paid differently across seeds: ${[...payouts]}`);
+  assertEq([...payouts][0], VAULT_CHEST_ITEMS.join(','), 'wrong payout');
 });
 
 test('the vault creature is excluded from what the floor demands', () => {

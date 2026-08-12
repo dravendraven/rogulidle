@@ -175,6 +175,9 @@ export function playDungeon(seed, makePolicy, options = {}) {
     // from the finished state without regenerating the floor.
     const roster = run.state.monsters.map((m) => ({
       xp: m.xp, hp: m.hpMax, side: m.side, edge: m.edge, dead: m.dead,
+      // M43 — which row is the vault's occupant, so a reading can ask
+      // whether the Butcher was fought without regenerating the floor.
+      vault: !!m.vault,
     }));
 
     // Which chests were opened and which were walked past. An opened chest

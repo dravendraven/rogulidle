@@ -221,6 +221,11 @@ garantido do jogo — não passa pela chance de largar algo nem pelo sorteio de
 qual arma. É o que faz a recompensa pagar o risco em vez de empilhar uma
 segunda aposta sobre a primeira.
 
+**O vault tem baús próprios, extras aos do andar, e o conteúdo deles é
+fixo.** Mesmo pagamento em toda seed, nas mesmas posições. É a única
+recompensa do jogo que não é sorteada: quem aposta sabe exatamente o que
+está comprando antes de entrar. O que varia é se o herói chega a pegar.
+
 **Nem todo baú tem algo.** A chance varia com a posição no mapa, e a
 profundidade compra qualidade melhor, não só mais quantidade.
 

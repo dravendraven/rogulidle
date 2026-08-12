@@ -10,14 +10,14 @@ import {
   MONSTER_DIFFICULTY_SCALE, MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE,
   MONSTER_WEIGHTS, PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE,
   SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE, VAULT_BOSS,
-  VAULT_BOSS_DROP, VAULT_LEVEL, WEAPON_AXE_MIN_TIER,
+  VAULT_BOSS_DROP, VAULT_CHEST_ITEMS, VAULT_LEVEL, WEAPON_AXE_MIN_TIER,
 } from './balance.js';
 import {
   draw, drawChance, drawInt, drawLogUniform, drawPick, drawWeighted,
 } from './rng.js';
 import { findPath, playerPassable, posKey, walkablePositions } from './mapgen.js';
 import { classifyRooms } from './spine.js';
-import { stampVault } from './vault.js';
+import { chestSlotsOf, stampVault } from './vault.js';
 
 // Items are drawn with weight 1/value, so a high value is a RARE item.
 //
@@ -857,6 +857,39 @@ export function populate(state, map, counts = {}) {
     };
     state.monsters.push(butcher);
     state.vault.boss = butcher;
+
+    // Its chests, extra to the floor's own and authored the same way. The
+    // chest kind is read off CHEST_TABLE rather than drawn from it: the
+    // table has one row, so a `drawPick` here would spend a stream value to
+    // choose between one option.
+    //
+    // NOT counted in the `chestCount` the bot is granted (rules.md §7), and
+    // that omission is the design. Granted, the bot would keep exploring
+    // until it had found them and the detour would stop being optional; left
+    // out, it meets the room only because the door is on its way, and then
+    // prices the guard like any other side room's.
+    const chestKind = CHEST_TABLE[0];
+    const wanted = counts.vaultChestItems ?? VAULT_CHEST_ITEMS;
+    const slots = chestSlotsOf([state.vault.room.x1, state.vault.room.y1]);
+
+    state.vault.chests = [];
+    slots.forEach((slot, i) => {
+      const name = wanted[i];
+      if (!name) return;
+      const item = ITEM_TABLE.find((entry) => entry.name === name);
+      const chest = {
+        id: nextId(state),
+        name: chestKind.name,
+        emoji: chestKind.emoji,
+        pos: slot,
+        side: zones.isSide(slot),
+        edge: edgeAt(slot),
+        drop: item ? makeItem(state, item, slot) : null,
+        vault: true,
+      };
+      state.chests.push(chest);
+      state.vault.chests.push(chest);
+    });
   }
 
   // Items lying loose on the floor. Starts empty: everything enters this list

@@ -37,6 +37,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | | `VAULT_SIZE` | 9 | its side in tiles — above any generated room, so the shape says it was placed |
 | | `VAULT_BOSS` | 🧌 hp 16 / xp 6 / activation 12 | the Butcher; not a `MONSTER_TABLE` row and never drawn |
 | | `VAULT_BOSS_DROP` | `axe` | the only guaranteed drop in the game |
+| | `VAULT_CHEST_ITEMS` | 3 × shield, 3 × potion | its chests, extra to `CHESTS_PER_FLOOR` and authored rather than rolled |
 
 ## Time
 

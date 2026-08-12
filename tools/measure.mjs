@@ -117,9 +117,16 @@ const GENERATION = {
 // Small on purpose — it is a fidelity check, not a reading. Only the VALUES
 // are anchored; whether a wire fires is a threshold question, and moving a
 // threshold must never fail the substitution check.
+// Re-recorded from the browser for M43 (the vault). The last wire, "the
+// gamble is dead", moved from 0.692 to 0.385: floor 4 now carries an
+// authored room, which reshapes the route and changes which ordinary side
+// chests the bot passes. The vault's OWN chests are excluded from that wire
+// in check.js — left in, they dragged it to 0.263 by being correctly
+// refused, which would have read as a defect that is not there. Three runs
+// is a fidelity check, not a reading.
 const MEASUREMENT = {
   call: { module: 'check', fn: 'tripwires', args: { runs: 3, firstSeed: 500000 } },
-  values: [0.667, 0, 0, 0, 0, 0.692],
+  values: [0.667, 0, 0, 0, 0, 0.385],
 };
 
 // The exact snippet that produced GENERATION, for re-recording in a browser

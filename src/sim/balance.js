@@ -246,6 +246,31 @@ export const VAULT_BOSS = {
 // floors without putting it anywhere it could not already appear.
 export const VAULT_BOSS_DROP = 'axe';
 
+// GUESS — what the vault's chests hold, by ITEM_TABLE name, one per slot in
+// the order vault.js lists them: four corners, then the two flanking the
+// Butcher. Extra chests, on top of the floor's own CHESTS_PER_FLOOR.
+//
+// AUTHORED, NOT ROLLED, and the tension in that is real enough to write
+// down. `map-design.md` asks the middle of the run to carry variance of
+// REWARD, and a fixed payout carries none — so this pushes against a stated
+// property. It is fixed anyway for two reasons: a choice has to be
+// INFORMED (objectives.md) and a constant payout is the most informed a bet
+// can be, and the variance that actually matters here is whether the hero
+// collects any of it at all, which runs from 6% to 80% depending on how the
+// run has gone. If the vault ever reads as a flat vending machine, this
+// array is the one thing to change.
+//
+// Three shields and three potions is about +9 armour and +9 healing against
+// a hero who reaches floor 4 holding roughly 4 armour. That is deliberately
+// large — it is what the axe-plus-buffer has to be worth to justify a fight
+// that kills the typical hero 60% of the time — and it is a first guess
+// waiting on V4's measurement, not a solved number.
+export const VAULT_CHEST_ITEMS = [
+  'shield', 'health',
+  'health', 'shield',
+  'shield', 'health',
+];
+
 // ***** time ***** //
 
 // How many turns one TRAVERSAL may spend. Running out ends the traversal

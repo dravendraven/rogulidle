@@ -148,16 +148,36 @@ c . . . . . . . c
 c . . .[+]. . . c        [+] the only door
 ```
 
-`dangerField` prices a tile at `bite × falloff^distance`, and the distance
-is a flood **through walkable ground**. A pillar forces the flood around it,
-so the tile in its shadow is two steps further and costs a quarter. That
-makes cheap pockets inside an expensive room, which separates two visible
-behaviours — *grab the two chests in the shadow and leave* against *commit
-to the fight*. Without pillars the room is one uniform gradient and there is
-only one decision in it.
+**The pillars were justified with a mechanism that turned out not to exist,
+and the correction is the useful part.** The claim was that `dangerField`
+floods from the creature through walkable ground, so a pillar forces the
+flood around itself and leaves a cheap pocket behind it. Measured tile by
+tile, with the pillars and without: **the two price grids are identical.**
+On a 4-connected grid an isolated one-tile obstacle never lengthens a
+route, because every monotone way around it is the same length. There are
+no pockets, and there was never going to be a way to get them without
+turning the hall into a maze.
 
-Vision is by distance and **ignores walls** (`VISIBLE_DIST` 9), so pillars
-hide nothing. They are movement geometry, and that is the whole of it.
+**The gradient that is real is plain distance from the centre**, and it is
+steep enough on its own — menace halves every step, so the Butcher's own
+tile prices at 2.08 hp a turn, the flanks at 0.52 and the corners at 0.01,
+a two-hundredfold range inside one room.
+
+**And what gates the chests is not that gradient at all.** `guardCost`
+charges the whole duel against every chest inside the creature's chase
+radius, which is the entire room, so the six are refused or accepted
+**together**. One bet, six payouts — cleaner than six small ones, and
+legible in a way six separate rolls would not be. What the gradient decides
+is the ORDER once the bet is taken: corners first, and the two beside the
+Butcher only by dealing with it.
+
+**So the pillars are kept for legibility, and that is a real job rather
+than a consolation.** The badge under a creature shows xp and never hp, so
+a 16-hp Butcher looks exactly like a vampire until it refuses to die. The
+room has to be the warning label. Vision is by distance and ignores walls
+(`VISIBLE_DIST` 9), so the hero sees the whole hall from the door — a
+pillared room full of chests is the tell, and nothing else in the game
+looks like it.
 
 #### How it is stamped, and the three properties that fall out for free
 
@@ -206,12 +226,20 @@ at 1.0, so today only absolute maximum courage takes the fight. Widening
 its meaning is honest: above 1 the hero risks more on the optional than on
 the mandatory, which is what greedy means.
 
-**Six chests pay more than it looks.** `quality` is a no-op for chests
-while each kind holds one item, so what decides is the positional roll: at
-full depth every vault chest passes it and only scarcity empties one, which
-lands about 4.5 items — roughly +7 armour and +7 healing — on top of the
-axe. The hero arrives on floor 4 with about 4.4 armour, so the vault
-triples the buffer. Decide six against four consciously.
+**Six chests pay more than it looks, and they were built authored rather
+than rolled.** Three shields and three potions, the same every seed: about
++9 armour and +9 healing against a hero who reaches floor 4 holding roughly
+4 armour, on top of the axe. Rolling them the ordinary way would have
+landed near the same place (~4.5 items) at the cost of eighteen draws and a
+payout nobody can know in advance.
+
+**The tension in fixing it is real and is recorded rather than resolved.**
+`map-design.md` asks the middle of the run to carry variance of REWARD, and
+a constant payout carries none. It is fixed anyway because a choice has to
+be **informed**, and the variance that actually matters here is whether the
+hero collects any of it — 6% to 80% depending on the state it arrives in.
+If the vault ever reads as a vending machine, `VAULT_CHEST_ITEMS` is the
+one thing to change.
 
 **The Butcher's mass is excluded from the floor's own curve.** hp × (xp−1)
 is 80, larger than all of floor 4's ordinary roster together, so counting

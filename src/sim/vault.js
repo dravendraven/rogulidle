@@ -139,6 +139,20 @@ function tunnelFrom(map, rect, size, onPath) {
 // The four pillars, inset one tile from the rectangle's corners. Derived
 // from the size rather than listed, so the layout survives the size being
 // changed and there is no second place stating what the room looks like.
+//
+// THEY ARE LEGIBILITY, NOT TACTICS, and this is worth stating because the
+// opposite was believed and then measured. The claim was that a pillar
+// forces the danger flood around it and so makes a cheap pocket behind it.
+// It does not: on a 4-connected grid an isolated one-tile obstacle never
+// lengthens a route, because every monotone way around it is the same
+// length. Compared tile by tile, the vault's price grid is identical with
+// the pillars and without them — only the pillar tiles themselves differ,
+// by not existing.
+//
+// What they do instead is the job nothing else can do here: the xp badge
+// under a creature shows xp and never hp, so a 16-hp Butcher looks exactly
+// like a vampire until it refuses to die. The ROOM has to be the warning
+// label, and a pillared hall is what makes it one on sight.
 export function pillarsOf(rect, size = VAULT_SIZE) {
   const [x, y] = rect;
   const near = 1;
@@ -146,6 +160,28 @@ export function pillarsOf(rect, size = VAULT_SIZE) {
   return [
     [x + near, y + near], [x + far, y + near],
     [x + near, y + far], [x + far, y + far],
+  ];
+}
+
+// Where the vault's chests stand, in the order they are filled. Four in the
+// corners and two flanking the occupant — and that IS the risk gradient,
+// since menace halves with every step away from the centre: measured on a
+// shipped floor, the middle tile prices at 2.08 hp a turn, the flanks at
+// 0.52 and the corners at 0.01.
+//
+// One bet, six payouts. The bot's `guardCost` charges the occupant's whole
+// duel against every chest inside its chase radius, which is the entire
+// room, so all six are gated together rather than one at a time. What the
+// gradient decides is the ORDER once the bet is taken: the corners are
+// nearly free to collect, the two beside the Butcher are not.
+export function chestSlotsOf(rect, size = VAULT_SIZE) {
+  const [x, y] = rect;
+  const last = size - 1;
+  const mid = Math.trunc(last / 2);
+  return [
+    [x, y], [x + last, y],                          // the far corners
+    [x, y + last], [x + last, y + last],
+    [x + 2, y + mid], [x + last - 2, y + mid],      // either side of the boss
   ];
 }
 
