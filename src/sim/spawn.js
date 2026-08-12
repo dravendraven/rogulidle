@@ -9,13 +9,15 @@ import {
   ITEM_TABLE, MONSTER_COUNT,
   MONSTER_DIFFICULTY_SCALE, MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE,
   MONSTER_WEIGHTS, PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE,
-  SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE, WEAPON_AXE_MIN_TIER,
+  SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE, VAULT_LEVEL,
+  WEAPON_AXE_MIN_TIER,
 } from './balance.js';
 import {
   draw, drawChance, drawInt, drawLogUniform, drawPick, drawWeighted,
 } from './rng.js';
 import { findPath, playerPassable, posKey, walkablePositions } from './mapgen.js';
 import { classifyRooms } from './spine.js';
+import { stampVault } from './vault.js';
 
 // Items are drawn with weight 1/value, so a high value is a RARE item.
 //
@@ -345,9 +347,38 @@ export function populate(state, map, counts = {}) {
   //
   // Purely a reading of the map the digger already made — nothing is dug
   // differently for it, so this cannot fail to produce a floor.
-  const zones = classifyRooms(map, playerPos, shrinePos);
+  let zones = classifyRooms(map, playerPos, shrinePos);
   state.spine = { path: zones.path, sideRooms: zones.side.length,
     spineRooms: zones.spine.length };
+
+  // 3c. M43 — docs/project/candidates.md. The vault, stamped HERE and
+  // nowhere else, and the position in this function is the whole design:
+  //
+  //   after the shrine   the hero->shrine path exists, so the vault's door
+  //                      can be aimed at it — and the shrine is already
+  //                      placed, so it can never land inside the vault.
+  //                      Together those make the room a dead end off the
+  //                      mandatory route, by construction rather than by a
+  //                      dial.
+  //   after `free`       the walkable pool was taken before these tiles
+  //                      existed, so the ordinary roster and the ordinary
+  //                      chests cannot spill into an authored room. Nothing
+  //                      needs to exclude it; it was never in the pool.
+  //
+  // Re-classifying afterwards is not a patch and costs nothing: spine.js is
+  // a read-only pass that consumes no randomness, so running it twice is
+  // free and cannot desync a seed. Without it `zones.side` would predate
+  // the vault and its occupants would come out marked spine.
+  const vaultLevel = counts.vaultLevel ?? VAULT_LEVEL;
+  state.vault = null;
+  if (vaultLevel > 0 && level === vaultLevel) {
+    state.vault = stampVault(map, zones.path);
+    if (state.vault) {
+      zones = classifyRooms(map, playerPos, shrinePos);
+      state.spine = { path: zones.path, sideRooms: zones.side.length,
+        spineRooms: zones.spine.length };
+    }
+  }
 
   // Every side room rolls its risk and its reward SEPARATELY.
   //
@@ -364,6 +395,12 @@ export function populate(state, map, counts = {}) {
   // it and some are not, and which is which differs per room and per floor.
   const sideRolls = new Map();
   for (const room of zones.side) {
+    // The vault is authored, not rolled — its risk and its reward are both
+    // decided in balance.js. Skipping it here is not a cosmetic exclusion:
+    // this loop draws TWICE per side room, so letting the vault through
+    // would spend two spawn draws and shift every roll after it on the
+    // floor. The "consumes no randomness" test guards exactly this.
+    if (room.vault) continue;
     sideRolls.set(room, {
       risk: draw(state, 'spawn') * 2 * sideBonus,
       reward: draw(state, 'spawn') * 2 * sideBonus,

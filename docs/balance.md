@@ -33,6 +33,8 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | | `MIN_ROSTER_FOR_SIDE` | 4 | below this many creatures, everything goes on the spine |
 | | `SHRINE_DISTANCE_SHARE` | 0.65 | how far still counts as "distant" for the exit hole; a model field, so the lab reaches it |
 | | `CHEST_GUARD_RADIUS` | 8 | every chest gets a creature within this — loot is not free |
+| the authored room | `VAULT_LEVEL` | 4 | which floor carries the vault, 1-based; 0 turns it off |
+| | `VAULT_SIZE` | 9 | its side in tiles — above any generated room, so the shape says it was placed |
 
 ## Time
 

@@ -200,6 +200,25 @@ export const SIDE_CHEST_BIAS = 3;
 // Loot is not free.
 export const CHEST_GUARD_RADIUS = 8;
 
+// ***** M43 — the vault ***** //
+//
+// docs/project/candidates.md. One AUTHORED room on one floor, against a
+// stretch of floors that measured at the same risk as each other — which is
+// the defect a dial cannot reach, since every dial moves all of them.
+
+// GUESS — which floor carries it, 1-based. 0 turns the vault off entirely.
+// Floor 4 rather than 3 for a reason with a number behind it: the typical
+// hero wins the duel 41% of the time there against 24% a floor earlier, and
+// WEAPON_AXE_MIN_TIER below is exactly floor 4's own ceiling, so the
+// guaranteed axe is early rather than off-schedule.
+export const VAULT_LEVEL = 4;
+
+// GUESS — the vault's side in tiles. Above ROOM_HEIGHT's ceiling on
+// purpose: no generated room can be 9 tall, so the shape alone says the
+// room was placed rather than rolled. Measured, 9 fits on 99.5% of floors
+// and 11 on 90% — the size is what buys the coverage.
+export const VAULT_SIZE = 9;
+
 // ***** time ***** //
 
 // How many turns one TRAVERSAL may spend. Running out ends the traversal

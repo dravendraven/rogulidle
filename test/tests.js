@@ -4,8 +4,8 @@
 import {
   CHEST_GUARD_RADIUS, EARLY_CHEST_QUALITY_BOOST, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP,
-  PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE, STARTING_ITEMS,
-  TURN_BUDGET, WEAPON_AXE_MIN_TIER,
+  PLAYER_HP, PLAYER_XP, ROOM_HEIGHT, ROOM_WIDTH, SHRINE_DISTANCE_SHARE,
+  STARTING_ITEMS, TURN_BUDGET, VAULT_LEVEL, VAULT_SIZE, WEAPON_AXE_MIN_TIER,
 } from '../src/sim/balance.js';
 import {
   driveTurns, newGame, playGame, replayGame,
@@ -18,6 +18,7 @@ import {
 import { findPath, playerPassable, posKey } from '../src/sim/mapgen.js';
 import { drawLogUniform, drawWeighted, hashSeeds, makeRng } from '../src/sim/rng.js';
 import { classifyRooms, spineShare } from '../src/sim/spine.js';
+import { inVault, pillarsOf } from '../src/sim/vault.js';
 import { itemWeights, monsterWeightsAround } from '../src/sim/spawn.js';
 import {
   floorOfTraversal, floorPlan, playDungeon, LEVELS, TRAVERSALS,
@@ -1359,6 +1360,140 @@ test('a floor puts most of its threat mass on the mandatory route', () => {
   const mean = total / floors;
   assert(mean >= 0.6, `mean spine share ${mean.toFixed(2)} is far below the 0.7 target`);
   assert(mean <= 0.95, `mean spine share ${mean.toFixed(2)} means side rooms are empty`);
+});
+
+// ***** M43 — the vault ***** //
+
+// Real generated floors, not a fixture: every property this section checks
+// is about what the stamp does to a map the digger actually produced.
+const vaultSeeds = [7100, 7101, 7102, 7103, 7104, 7105, 7106, 7107];
+
+function vaultFloors() {
+  return vaultSeeds
+    .map((seed) => newGame(seed, floorPlan(VAULT_LEVEL)))
+    .filter((state) => state.vault);
+}
+
+test('the vault lands on its own floor and nowhere else', () => {
+  const floors = vaultFloors();
+  assert(floors.length >= vaultSeeds.length - 1,
+    `only ${floors.length}/${vaultSeeds.length} floors got a vault — `
+    + 'measured at 199 in 200, so this is a regression, not the known gap');
+
+  for (const seed of vaultSeeds) {
+    for (const level of [VAULT_LEVEL - 1, VAULT_LEVEL + 1]) {
+      assertEq(newGame(seed, floorPlan(level)).vault, null,
+        `floor ${level} grew a vault it should not have`);
+    }
+  }
+});
+
+test('the vault is switched off by its own dial', () => {
+  for (const seed of vaultSeeds) {
+    const state = newGame(seed, { ...floorPlan(VAULT_LEVEL), vaultLevel: 0 });
+    assertEq(state.vault, null, 'vaultLevel 0 still stamped a vault');
+  }
+});
+
+test('the vault is larger than any room the digger can make', () => {
+  // The size IS the tell — a player has to be able to see on sight that
+  // this room was placed rather than rolled.
+  assert(VAULT_SIZE > ROOM_HEIGHT[1] || VAULT_SIZE > ROOM_WIDTH[1],
+    'the vault is within generated-room dimensions and reads as ordinary');
+
+  for (const state of vaultFloors()) {
+    const room = state.vault.room;
+    assertEq(room.x2 - room.x1 + 1, VAULT_SIZE, 'vault width');
+    assertEq(room.y2 - room.y1 + 1, VAULT_SIZE, 'vault height');
+  }
+});
+
+test('the vault is always side — the mandatory route never enters it', () => {
+  // The property the whole design rests on, and it is structural: one door,
+  // a dead end, and the shrine placed before the vault existed. If this
+  // ever fires, the room stopped being refusable and the choice is gone.
+  for (const state of vaultFloors()) {
+    const zones = classifyRooms(state.map, state.player.pos, state.shrine.pos);
+    assert(zones.side.includes(state.vault.room),
+      'the vault came out on the spine');
+    for (const [x, y] of zones.path) {
+      assert(!inVault(state.vault, x, y),
+        `the hero->shrine route crosses the vault at ${x},${y}`);
+    }
+    assertEq(state.vault.room.doors.length, 1, 'a vault with two ways in');
+  }
+});
+
+test('the vault is reachable, and its door opens onto the route', () => {
+  const floors = vaultFloors();
+  let onSpine = 0;
+
+  for (const state of floors) {
+    const passable = playerPassable(state.map);
+    const route = findPath(state.player.pos, state.vault.room.center, passable);
+    assert(route.length > 0, 'the vault is walled off from the hero');
+    if (state.vault.onSpine) onSpine++;
+  }
+
+  // Measured at 86% over 200 floors. A door off the route still makes a
+  // vault worth having, so this is a floor under the property rather than
+  // the property itself.
+  assert(onSpine >= Math.ceil(floors.length * 0.6),
+    `only ${onSpine}/${floors.length} vault doors opened onto the mandatory route`);
+});
+
+test('the pillars stand, and they stand inside the room', () => {
+  for (const state of vaultFloors()) {
+    const pillars = pillarsOf([state.vault.room.x1, state.vault.room.y1], VAULT_SIZE);
+    assertEq(pillars.length, 4, 'expected four pillars');
+    for (const [x, y] of pillars) {
+      assert(inVault(state.vault, x, y), 'a pillar landed outside the vault');
+      assert(!playerPassable(state.map)(x, y),
+        `the pillar at ${x},${y} is walkable, so it is not a pillar`);
+    }
+    // And the room is still a room around them.
+    assert(playerPassable(state.map)(...state.vault.room.center),
+      'the vault centre is not walkable');
+  }
+});
+
+test('stamping the vault consumes no randomness', () => {
+  // The property that lets classifyRooms simply be run twice, and the one
+  // that keeps every recorded replay valid. A single draw taken here would
+  // shift every later roll on the floor.
+  for (const seed of vaultSeeds) {
+    const withVault = newGame(seed, floorPlan(VAULT_LEVEL));
+    const without = newGame(seed, { ...floorPlan(VAULT_LEVEL), vaultLevel: 0 });
+
+    assertEq(withVault.rng.spawn, without.rng.spawn,
+      'the spawn stream moved, so the vault drew something');
+    assertEq(withVault.rng.map, without.rng.map, 'the map stream moved');
+    assertEq(withVault.rng.combat, without.rng.combat, 'the combat stream moved');
+    assertEq(withVault.shrine.pos.join(','), without.shrine.pos.join(','),
+      'the shrine moved');
+    assertEq(
+      withVault.monsters.map((m) => `${m.name}@${m.pos}`).join('|'),
+      without.monsters.map((m) => `${m.name}@${m.pos}`).join('|'),
+      'the roster changed',
+    );
+  }
+});
+
+test('the ordinary roster and chests stay out of the vault', () => {
+  // Nothing excludes the vault explicitly — it is stamped after the free
+  // pool was taken, so its tiles were never candidates. This is the test
+  // that would catch that ordering being changed.
+  for (const state of vaultFloors()) {
+    for (const monster of state.monsters) {
+      assert(!inVault(state.vault, ...monster.pos),
+        `${monster.name} spawned inside the vault`);
+    }
+    for (const chest of state.chests) {
+      assert(!inVault(state.vault, ...chest.pos), 'a floor chest landed in the vault');
+    }
+    assert(!inVault(state.vault, ...state.player.pos), 'the hero started in the vault');
+    assert(!inVault(state.vault, ...state.shrine.pos), 'the exit is inside the vault');
+  }
 });
 
 test('small floors put everything on the spine', () => {

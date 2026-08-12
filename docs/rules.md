@@ -80,6 +80,22 @@ sala distante, não na mais distante possível.
 está é o comprimento do caminho até ele sobre o caminho mais longo do mapa.
 Perto da entrada, a profundidade cai a zero em qualquer andar.
 
+**Um andar tem uma sala desenhada, não sorteada.** Num andar fixo do jogo
+existe um **vault**: uma sala quadrada de tamanho fixo, maior que qualquer
+sala que o gerador produz, com quatro pilares dentro dela. Ela é carimbada
+sobre o mapa já pronto, depois que herói e buraco já foram colocados.
+
+Três coisas valem por construção, não por sorteio:
+
+- **Tem uma porta só e é um beco sem saída**, então a rota obrigatória nunca
+  passa por dentro dela — é sempre lateral, sempre recusável.
+- **A porta dá para a rota obrigatória**, então o herói passa na frente dela.
+- **Nada nela é sorteado**, nem onde ela fica: a busca é uma varredura
+  determinística. Ela não gasta nenhum número do gerador.
+
+Quando não há espaço para ela no mapa, o andar simplesmente não tem vault.
+O que fica dentro dela está em §3 e §5.
+
 ## 3. Criaturas
 
 Onze tipos numa tabela. O índice é o **tier** — força crescente.
