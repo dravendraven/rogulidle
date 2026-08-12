@@ -117,16 +117,18 @@ const GENERATION = {
 // Small on purpose — it is a fidelity check, not a reading. Only the VALUES
 // are anchored; whether a wire fires is a threshold question, and moving a
 // threshold must never fail the substitution check.
-// Re-recorded from the browser whenever generation legitimately moves it.
-// Latest: the wires now run on the SHIPPED dials rather than the code
-// defaults (I3), so every value here describes the game people play. "The
-// gamble is dead" reads 1.0 at three runs because the vault floor no longer
-// places ordinary side chests and this sample meets almost none — a sample
-// artefact of runs: 3, not a defect; the wire is a fidelity anchor here, not
-// a reading. Take readings at 24+ runs from run-check.html.
+// Re-recorded from the browser whenever GENERATION legitimately moves it.
+//
+// Anchored on the CODE DEFAULTS, deliberately — this call passes no
+// `dials`. I3 made readings run on the shipped `dial-overrides.json`, and
+// briefly anchored this on them too, which meant every tuning edit broke
+// the fidelity check and taught people to re-record on autopilot. This
+// asks one question — does the substituted ROT.js produce the browser's
+// dungeons — and that question has nothing to do with how the game is
+// tuned. Readings still default to the shipped game; see main().
 const MEASUREMENT = {
   call: { module: 'check', fn: 'tripwires', args: { runs: 3, firstSeed: 500000 } },
-  values: [0.667, 0, 0, 0, 0, 1],
+  values: [0.667, 0, 0, 0, 0, 0.556],
 };
 
 // The exact snippet that produced GENERATION, for re-recording in a browser
@@ -242,7 +244,7 @@ async function selftest() {
 
   // 3. a real run-check measurement reproduces, same seeds
   const mod = await import(moduleUrl(MEASUREMENT.call.module));
-  const result = mod[MEASUREMENT.call.fn]({ ...MEASUREMENT.call.args, dials: await shippedDials() });
+  const result = mod[MEASUREMENT.call.fn](MEASUREMENT.call.args);
   const got = result.tripwires.map((w) => w.value);
   const want = MEASUREMENT.values;
   const off = [];

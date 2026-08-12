@@ -102,22 +102,11 @@ Giving creatures the same rule turns walls into stealth and is a much larger
 game. Recommendation: NO — out of scope, stated explicitly so nobody
 "fixes" the asymmetry later by accident.
 
-**D3 · How does the bot learn a room is a side room?** It does not know
-today: the `side` flag rides on ENTITIES it can see, and the belief has no
-notion of rooms at all. Options:
-
-  1. **Grant it as terrain**, the way creature and chest counts are already
-     granted. Cheap, and consistent with `rules.md` §7. Cost: "side" is
-     derived from the hero→shrine path, so telling the bot before it has
-     found the shrine leaks a hint about where the exit is not.
-  2. **Grant it only once the room's door has been seen.** Keeps the leak
-     inside what the hero could plausibly infer.
-  3. **Do not tell it at all** — the appetite applies to any unexplored room.
-     Purest, and it makes the dial about the dark rather than about the map's
-     topology.
-
-Recommendation: 2 or 3. Both survive the channel rule without argument; 1
-needs the owner to accept a documented leak.
+**D3 · How does the bot learn a room is a side room?** ANSWERED by M45, the
+door convention — see below. It supersedes the three options this decision
+originally listed (grant it as terrain / grant it once the door is seen /
+never tell it), all of which argued about what to put in the channel. The
+door puts it in the WORLD instead, and the channel needs nothing new.
 
 **D4 · How does a memory go stale?** None / by age / by whether the creature
 was AWAKE when last seen. Recommendation: the third — a sleeping creature's
