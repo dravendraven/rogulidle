@@ -92,21 +92,45 @@ const BOT_DEFAULTS = {
 };
 const RUN_DEFAULTS = { turnBudget: TURN_BUDGET };
 
-// The shipped value of a dial — read live from the modules rather than
-// written down here, so the form can never quote a number the game
-// abandoned.
-function defaultOf(kind, key) {
-  if (kind === 'model') return DEFAULT_MODEL[key];
-  if (kind === 'hero') return DEFAULT_HERO[key];
-  if (kind === 'bot') return BOT_DEFAULTS[key];
-  return RUN_DEFAULTS[key];
+// The shipped value of a dial: `overrides` (dial-overrides.json, loaded by
+// dial-overrides.js) wins when it sets one, the code constant otherwise —
+// so "shipped" always means what a fresh visitor actually gets today, not
+// what the source code says in isolation.
+function defaultOf(kind, key, overrides = {}) {
+  const shipped = kind === 'model' ? DEFAULT_MODEL[key]
+    : kind === 'hero' ? DEFAULT_HERO[key]
+    : kind === 'bot' ? BOT_DEFAULTS[key]
+    : RUN_DEFAULTS[key];
+  const override = overrides[kind] ? overrides[kind][key] : undefined;
+  return override !== undefined ? override : shipped;
+}
+
+// Every dial's effective default, resolved once — what dials.read() would
+// return if nothing were touched. This is what a player who never opens the
+// panel actually plays with, so the caller can use it as the run's
+// configuration without building the form at all.
+export function resolvedDefaults(overrides = {}) {
+  const out = { model: {}, hero: {}, bot: {}, run: {} };
+  for (const [, groups] of SECTIONS) {
+    for (const [, list] of groups) {
+      for (const [kind, key] of list) {
+        out[kind][key] = defaultOf(kind, key, overrides);
+      }
+    }
+  }
+  return out;
 }
 
 // Fills `container` with the form and returns `{ read, reset }`.
 //
 // `onRestart` is what the ↻ button calls — the page owns what "restart"
-// means, since only it knows what a run in flight is.
-export function buildDialPanel(container, { onRestart } = {}) {
+// means, since only it knows what a run in flight is. `overrides` is
+// dial-overrides.json's content, already loaded — every field starts from
+// it rather than from the raw code constant. `dev` adds one more button,
+// "salvar como padrão", that turns the CURRENT form into a new
+// dial-overrides.json download; see that button's own handler for why a
+// download is the honest stopping point on a static site.
+export function buildDialPanel(container, { onRestart, overrides = {}, dev = false } = {}) {
   container.innerHTML = '';
   const inputs = [];
 
@@ -121,7 +145,7 @@ export function buildDialPanel(container, { onRestart } = {}) {
       container.append(h3);
 
       for (const [kind, key, label, step] of list) {
-        const def = defaultOf(kind, key);
+        const def = defaultOf(kind, key, overrides);
         const row = document.createElement('div');
         row.className = 'dial';
         const caption = document.createElement('label');
@@ -184,6 +208,55 @@ export function buildDialPanel(container, { onRestart } = {}) {
     }
     return out;
   };
+
+  // Dev mode only. Reachable through the page by `?dev=1` alone — nothing
+  // in the ordinary UI links here, which is what makes this different from
+  // "reiniciar" above: that one is for anyone, this one changes what every
+  // FUTURE visitor gets.
+  //
+  // A browser cannot write into the repo GitHub Pages serves — there is no
+  // server here to ask. So this does the honest thing a static site can
+  // do: it downloads the real dial-overrides.json content, ready to drop
+  // in. Committing and pushing that file is the step that actually makes
+  // it live, and that step needs push access to the repo — which is
+  // already the real security boundary, not this button.
+  if (dev) {
+    const save = document.createElement('button');
+    save.type = 'button';
+    save.textContent = '💾 salvar como padrão';
+    buttons.append(save);
+
+    const note = document.createElement('div');
+    note.className = 'dial-savenote';
+    container.append(note);
+
+    save.addEventListener('click', () => {
+      // Starts from what was already shipped (`overrides`), not from an
+      // empty object — a value pinned in an earlier session and never
+      // touched today must not be dropped just because this form never
+      // re-marks it "changed" (it can't be changed from a default it IS).
+      const merged = JSON.parse(JSON.stringify(overrides));
+      for (const { kind, key, input, min } of inputs) {
+        if (!input.classList.contains('changed')) continue;
+        const value = Number(input.value);
+        if (!Number.isFinite(value)) continue;
+        merged[kind] = merged[kind] || {};
+        merged[kind][key] = Math.max(min, value);
+      }
+
+      const blob = new Blob([JSON.stringify(merged, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'dial-overrides.json';
+      a.click();
+      URL.revokeObjectURL(url);
+
+      note.textContent = 'baixado dial-overrides.json — substitua o arquivo '
+        + 'na raiz do repositório e publique (commit + push) para valer '
+        + 'para todo mundo. Até lá, isto só mudou esta aba.';
+    });
+  }
 
   return { read, reset };
 }

@@ -432,3 +432,10 @@ footer {
   25%  { opacity: 1; }
   to   { opacity: 0; transform: translate(-50%, -22px); }
 }
+
+.dial-savenote {
+  font-size: 11px;
+  color: var(--dim);
+  margin: -.2rem 0 .8rem;
+  max-width: 30ch;
+}

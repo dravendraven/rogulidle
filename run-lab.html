@@ -92,6 +92,7 @@
     renderHud,
   } from './src/ui/render.js';
   import { buildDialPanel } from './src/ui/dials.js';
+  import { loadDialOverrides } from './src/ui/dial-overrides.js';
   import { eventsEnabled, makeEventLayer } from './src/ui/events.js';
 
   const el = Object.fromEntries(['stage', 'grid', 'floor', 'hp', 'xpEarned',
@@ -110,9 +111,15 @@
   const HISTORY_LEN = 12;
 
   // The same form index.html builds behind its Lab button — one list of
-  // dials, not two that drift.
+  // dials, not two that drift. Gated the same way: ?dev=1 is what unlocks
+  // "salvar como padrão" here too, so a link to this sandbox cannot change
+  // what other players get by accident.
+  const devMode = new URLSearchParams(location.search).get('dev') === '1';
+  const overrides = await loadDialOverrides();
   const dials = buildDialPanel(el.dials, {
     onRestart: () => { session.restart = true; },
+    overrides,
+    dev: devMode,
   });
 
   el.playPause.addEventListener('click', () => {

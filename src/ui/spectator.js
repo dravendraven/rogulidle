@@ -18,7 +18,8 @@ import { tileSvg } from './tiles.js';
 import { award, resetScore } from './score.js';
 import { getBalance, setBalance, resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
 import { SHOP_ITEMS, pickDefaultPurchase } from './shop.js';
-import { buildDialPanel } from './dials.js';
+import { buildDialPanel, resolvedDefaults } from './dials.js';
+import { loadDialOverrides } from './dial-overrides.js';
 import { eventsEnabled, makeEventLayer } from './events.js';
 
 const MAX_TURNS = 900;       // per floor
@@ -56,9 +57,13 @@ const session = {
   speed: 1,
   debug: false,
   // The dial lab (src/ui/dials.js), hidden until the Lab button opens it.
-  // `dials` is the panel's reader; `restart` is the ↻ button asking the
-  // run in flight to stop so the next one picks up the new values.
+  // `dials` is the panel's reader once built; `shippedDials` is what plays
+  // for everyone who never opens it — dial-overrides.json's values layered
+  // over the code defaults (src/ui/dial-overrides.js), resolved once at
+  // start(). `restart` is the ↻ button asking the run in flight to stop so
+  // the next one picks up new values.
   dials: null,
+  shippedDials: null,
   restart: false,
 };
 
@@ -375,10 +380,11 @@ async function runDescentForever(sessionSeed) {
     // carry() wins over it from floor 2 on, so it only ever actually arms
     // floor 1 — exactly "the run about to start", per the item's framing.
     // The lab's values, read at the moment the run is BUILT — so editing a
-    // dial mid-playback lands on the next run, or on this one via ↻. With
-    // the lab closed these are the shipped defaults, so the ordinary game
-    // is byte-identical to one built with no dials at all.
-    const dials = session.dials ? session.dials.read() : null;
+    // dial mid-playback lands on the next run, or on this one via ↻. A
+    // player who never opens the Lab panel still gets `shippedDials`
+    // (dial-overrides.json layered on the code defaults), so a value dev
+    // mode pinned reaches every visitor, not only the ones who look.
+    const dials = session.dials ? session.dials.read() : session.shippedDials;
     const traces = [];
     const run = playDungeon(seed, (floor) => {
       const trace = [];
@@ -387,12 +393,13 @@ async function runDescentForever(sessionSeed) {
         trace,
         monsterCount: floor.monsterCount,
         chestCount: floor.chests,
-        ...(dials ? { hero: dials.hero, ...dials.bot } : {}),
+        hero: dials.hero,
+        ...dials.bot,
       });
     }, {
-      maxTurns: dials ? dials.run.turnBudget : MAX_TURNS,
+      maxTurns: dials.run.turnBudget,
       startingItems: getHeldItems(),
-      ...(dials ? { floorPlan: makeFloorPlan(dials.model) } : {}),
+      floorPlan: makeFloorPlan(dials.model),
     });
 
     let finalState = null;
@@ -475,21 +482,6 @@ function wireControls() {
     if (!session.debug) renderDebugInfo(el.debugInfo, null);
   });
 
-  // The lab is built on first open rather than at startup: a player who
-  // never presses it never pays for the form, and the panel cannot be
-  // out of step with the modules it reads its defaults from.
-  el.lab.addEventListener('click', () => {
-    if (!session.dials) {
-      session.dials = buildDialPanel(el.dials, {
-        onRestart: () => { session.restart = true; },
-      });
-    }
-    const open = el.dials.hidden;
-    el.dials.hidden = !open;
-    el.app.classList.toggle('lab-open', open);
-    el.lab.textContent = open ? '🧪 lab on' : '🧪 lab';
-  });
-
   el.speed.addEventListener('click', () => {
     const speeds = [0.5, 1, 2, 4, 8];
     session.speed = speeds[(speeds.indexOf(session.speed) + 1) % speeds.length];
@@ -507,7 +499,42 @@ function wireControls() {
   });
 }
 
-export function start() {
+// Wires the Lab button and, in dev mode, opens the panel immediately.
+// `overrides` is dial-overrides.json's content, loaded once before this
+// runs — the panel is built on first need rather than at startup either
+// way, so a player who never presses Lab never pays for the form.
+function wireLab(overrides, devMode) {
+  const open = () => {
+    if (!session.dials) {
+      session.dials = buildDialPanel(el.dials, {
+        onRestart: () => { session.restart = true; },
+        overrides,
+        dev: devMode,
+      });
+    }
+  };
+
+  el.lab.addEventListener('click', () => {
+    open();
+    const opening = el.dials.hidden;
+    el.dials.hidden = !opening;
+    el.app.classList.toggle('lab-open', opening);
+    el.lab.textContent = opening ? '🧪 lab on' : '🧪 lab';
+  });
+
+  // ?dev=1 — no button anywhere invites this; knowing the URL param is the
+  // whole gate. It only unlocks the "salvar como padrão" button inside the
+  // panel dials.js already builds, so this is one extra flag through code
+  // that already existed, not a second UI.
+  if (devMode) {
+    open();
+    el.dials.hidden = false;
+    el.app.classList.add('lab-open');
+    el.lab.textContent = '🧪 lab on';
+  }
+}
+
+export async function start() {
   grab();
   buildGrid(el.grid);
   events = makeEventLayer(el.stage, el.grid, { enabled: eventsEnabled() });
@@ -517,9 +544,18 @@ export function start() {
   session.speed = 0.5;
   el.speed.textContent = '0.5×';
 
+  const params = new URL(location.href).searchParams;
+
+  // dial-overrides.json, resolved against the code defaults once — this is
+  // what EVERY visitor plays with, whether or not they ever open the Lab.
+  // See src/ui/dial-overrides.js for why a fetch failure resolves to {}
+  // rather than breaking the page.
+  const overrides = await loadDialOverrides();
+  session.shippedDials = resolvedDefaults(overrides);
+  wireLab(overrides, params.get('dev') === '1');
+
   // ?seed=whatever makes a whole session reproducible, which is how you go
   // back and look at a run the bot played badly.
-  const params = new URL(location.href).searchParams;
   const requested = params.get('seed');
   const sessionSeed = requested
     ? seedFromString(requested)

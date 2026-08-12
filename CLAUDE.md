@@ -96,9 +96,26 @@ Two measuring notes that were each learned the hard way:
 - `/run-tests.html` — the rules (tests, not metrics).
 - `/run-check.html` — the tripwires. Keep the tab visible while it runs.
 - `/run-lab.html` — the same dial panel, always open, without the shop and
-  the wallet. Nothing either page edits persists; the shipped values stay in
-  the code. A change worth keeping is a `balance.md` + code edit, same as
-  ever.
+  the wallet.
+
+Both pages read `dial-overrides.json` (repo root) before their first run: a
+value it sets wins over the code default, for EVERY visitor, whether or not
+they ever open the Lab (`src/ui/dial-overrides.js`). It starts as `{}` and
+ships no different from not existing at all.
+
+**Dev mode**: `?dev=1` on either page — no button anywhere invites this —
+auto-opens the Lab and adds one more button, "💾 salvar como padrão", which
+downloads the CURRENT form as a new `dial-overrides.json`. A page cannot
+write into the repo GitHub Pages serves (no server, no build step to hook
+into); replacing the file with the download and pushing is what actually
+ships it. That push is the real security boundary — anyone who finds
+`?dev=1` can only change their own downloads folder.
+
+Ordinary lab edits (no `?dev=1`) still persist nothing; the shipped values
+stay in the code (or in `dial-overrides.json`, once one exists). A change
+worth keeping FOREVER is still a `balance.md` + code edit, same as ever —
+the overrides file is for shipping a live experiment fast, not a
+replacement for that.
 
 Headless: `node tools/measure.mjs --selftest` first (it proves the vendored
 ROT.js is faithful), then e.g. `node tools/measure.mjs check tripwires
