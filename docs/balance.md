@@ -26,12 +26,12 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | | `WEAPON_SCARCITY` | 4 | 1 creature drop roll in S holds a weapon |
 | | `MONSTER_DROP_CHANCE` | 0.50 | FAITHFUL — chance a corpse leaves anything |
 | | `EARLY_CHEST_QUALITY_BOOST` | 0.5 | floor 1's chests pay better; fades as 1/level |
-| how much the route branches | `MAP_DUG_PERCENTAGE` | 0.15 | less dug = a mandatory path actually exists |
+| how much the route branches | `MAP_DUG_PERCENTAGE` | 0.15 | less dug = a mandatory path actually exists; a model field, so the lab reaches it |
 | | `SPINE_THREAT_SHARE` | 0.7 | share of threat MASS placed on the mandatory route |
 | | `SIDE_ROOM_DEPTH_BONUS` | 0.35 | the whole gamble: side rooms roll risk and reward independently over [0, 2×this] |
 | | `SIDE_CHEST_BIAS` | 3 | how much likelier a chest lands in a side room |
 | | `MIN_ROSTER_FOR_SIDE` | 4 | below this many creatures, everything goes on the spine |
-| | `SHRINE_DISTANCE_SHARE` | 0.65 | how far still counts as "distant" for the shrine |
+| | `SHRINE_DISTANCE_SHARE` | 0.65 | how far still counts as "distant" for the shrine; a model field, so the lab reaches it |
 | | `CHEST_GUARD_RADIUS` | 8 | every chest gets a creature within this — loot is not free |
 
 ## Time

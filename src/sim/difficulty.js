@@ -12,8 +12,10 @@
 
 import {
   CHEST_GUARD_RADIUS, EARLY_TIER_CUT,
-  FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL, MONSTER_DROP_CHANCE, MONSTER_TABLE,
+  FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL, MAP_DUG_PERCENTAGE,
+  MONSTER_DROP_CHANCE, MONSTER_TABLE,
   OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_CHANCE_PER_LEVEL,
+  SHRINE_DISTANCE_SHARE,
   SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE,
   TIER_FLOOR_CAP, TIER_FLOOR_PER_LEVEL, TIER_SLACK_CAP, TIER_SLACK_PER_LEVEL,
 } from './balance.js';
@@ -134,6 +136,8 @@ export function floorParams(level) {
     weaponScarcity: WEAPON_SCARCITY,
     armourScarcity: ARMOUR_SCARCITY,
     potionScarcity: POTION_SCARCITY,
+    dugPercentage: MAP_DUG_PERCENTAGE,
+    shrineDistanceShare: SHRINE_DISTANCE_SHARE,
   };
 }
 
@@ -166,6 +170,12 @@ export const DEFAULT_MODEL = {
   spineThreatShare: SPINE_THREAT_SHARE,
   sideRoomDepthBonus: SIDE_ROOM_DEPTH_BONUS,
   sideChestBias: SIDE_CHEST_BIAS,
+  // The map's own SHAPE, as opposed to what gets placed on it. Both were
+  // already read by the generator — dugPercentage by mapgen.js through
+  // game.js's passthrough, shrineDistanceShare by spawn.js — but neither
+  // travelled in the model, so the lab could not reach them.
+  dugPercentage: MAP_DUG_PERCENTAGE,
+  shrineDistanceShare: SHRINE_DISTANCE_SHARE,
 };
 
 // Turns a model into the `floorPlan(level)` function the dungeon wants.
@@ -190,6 +200,8 @@ export function makeFloorPlan(model = {}) {
     sideRoomDepthBonus: m.sideRoomDepthBonus,
     spineThreatShare: m.spineThreatShare,
     sideChestBias: m.sideChestBias,
+    dugPercentage: m.dugPercentage,
+    shrineDistanceShare: m.shrineDistanceShare,
   });
 }
 

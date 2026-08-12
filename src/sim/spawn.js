@@ -319,7 +319,8 @@ export function populate(state, map, counts = {}) {
   // 1.0 reproduces M20 exactly; lower values widen the candidate pool.
   // Falls back to the furthest room if none clear the bar (small floors,
   // or a `furthestLength` of 0).
-  const distanceThreshold = furthestLength * SHRINE_DISTANCE_SHARE;
+  const distanceThreshold = furthestLength
+    * (counts.shrineDistanceShare ?? SHRINE_DISTANCE_SHARE);
   const distantRooms = roomPaths.filter((entry) => entry.path.length >= distanceThreshold);
   const shrineEntry = distantRooms.length
     ? distantRooms[drawInt(state, 'spawn', 0, distantRooms.length - 1)]

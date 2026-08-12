@@ -139,6 +139,10 @@ export function playDungeon(seed, makePolicy, options = {}) {
       sideRoomDepthBonus: plan.sideRoomDepthBonus,
       spineThreatShare: plan.spineThreatShare,
       sideChestBias: plan.sideChestBias,
+      // The map's shape. game.js forwards dugPercentage on to mapgen.js;
+      // spawn.js reads shrineDistanceShare off these counts directly.
+      dugPercentage: plan.dugPercentage,
+      shrineDistanceShare: plan.shrineDistanceShare,
       // A fixed value overrides the per-floor one, for sweeping — same
       // pattern as weaponScarcity above.
       earlyChestQualityBoost: options.earlyChestQualityBoost ?? plan.earlyChestQualityBoost,

@@ -458,6 +458,18 @@ footer {
   font-variant-numeric: tabular-nums;
 }
 
+/* What the dial's own number cannot say: where the ramp saturates, whether
+   a cap is reachable at all. Recomputed live from the whole form. */
+.dial-note {
+  font-size: 9px;
+  color: #8a6d2f;
+  background: rgba(232, 163, 61, .1);
+  border-radius: 3px;
+  padding: .1rem .3rem;
+  margin-top: .15rem;
+  align-self: flex-start;
+}
+
 /* One line each, ⬆️ over 🔻 — the pair reads as a before/after, which a
    single row of two columns lost. */
 .dial-effect {
