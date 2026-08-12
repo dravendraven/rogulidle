@@ -252,7 +252,7 @@ export const VAULT_SIZE = 9;
 // makes the Butcher easier to escape, which weakens "a detour has to be
 // able to cost the run" — the M36 half of why this room exists.
 export const VAULT_BOSS = {
-  name: 'butcher', emoji: '🐷', activation: 5, xp: 6, hp: 16,
+  name: 'butcher', emoji: '🐷', activation: 10, xp: 5, hp: 12, speed: 2,
 };
 
 // GUESS — what it always leaves behind, by name from ITEM_TABLE. The only

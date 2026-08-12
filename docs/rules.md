@@ -140,8 +140,10 @@ lados.
 **A massa dela não conta como ameaça do andar.** O andar não a exige de
 ninguém: quem passa reto não a encontra.
 
-**Ela fica no fundo da sala e tem raio curto**, então acorda só com o herói
-já dentro e atravessando o cômodo — passar na porta não basta. O raio dela
+**Ela fica no fundo da sala, acorda quando o herói entra no corredor, e é a
+única criatura rápida do jogo** — age duas vezes por turno, então uma luta
+com ela custa cerca do dobro do que a mesma vida e a mesma mordida custariam
+numa criatura comum. O raio dela
 também é o que cobra os baús: todos ficam dentro dele, então nenhum sai sem
 a luta entrar na conta.
 
@@ -152,6 +154,11 @@ encarecer a criatura: criatura mais pesada o bot simplesmente recusa.
 ### Como elas se comportam
 
 **Só perseguem.** Nunca fogem, nunca vagam, nunca pegam item.
+
+**Quase todas agem uma vez por turno.** Uma criatura pode ter **velocidade**,
+que é quantas ações ela toma por turno do herói — cada ação é um passo *ou*
+um golpe, e o dado de hesitar é rolado por ação, não por turno. Nenhuma
+criatura da tabela de tiers tem isso; hoje só o ocupante do vault tem.
 
 **São estáticas enquanto o herói estiver mais longe que o raio de ativação
 delas.** O raio não correlaciona com força.

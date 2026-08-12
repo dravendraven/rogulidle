@@ -29,31 +29,50 @@ function moveMonster(state, monster, pos) {
 
 export function updateMonsters(state, map) {
   for (const monster of state.monsters) {
-    if (monster.dead) continue;
-    if (state.outcome) return;
+    // How many ACTIONS this creature takes per hero turn, each one a step
+    // or a blow. DIVERGENCE: the original has no such thing and neither did
+    // this game until M44 — every row of MONSTER_TABLE leaves it unset and
+    // therefore acts once, exactly as before, so the shipped bestiary is
+    // untouched. Only the vault's occupant sets it.
+    //
+    // It exists because it is the ONLY property found that raises what a
+    // fight costs without raising what the bot prices it at (see duelCost
+    // in src/bot/bot.js, and docs/project/decisions.md for the sweep that
+    // established there is no other). Everything reachable through hp and
+    // xp moves entry and lethality together.
+    const actions = monster.speed ?? 1;
+    for (let act = 0; act < actions; act++) {
+      if (monster.dead) break;
+      if (state.outcome) return;
 
-    const path = findPath(
-      monster.pos, state.player.pos, monsterPassable(state, map, monster),
-    );
+      const path = findPath(
+        monster.pos, state.player.pos, monsterPassable(state, map, monster),
+      );
 
-    // The original short-circuits: when the activation test fails the skip
-    // die is never rolled. Drawing it anyway would desync every later roll,
-    // so the order here is load-bearing. FAITHFUL engine.cljs:350.
-    if (path.length >= monster.activation) continue;
-    // Inside a hypothetical world the bot assumes monsters never skip a
-    // turn: pessimistic in both directions, and it keeps the search free of
-    // chance branches.
-    if (!state.sim && drawChance(state, 'combat', MONSTER_SKIP_CHANCE)) continue;
+      // The original short-circuits: when the activation test fails the skip
+      // die is never rolled. Drawing it anyway would desync every later roll,
+      // so the order here is load-bearing. FAITHFUL engine.cljs:350.
+      if (path.length >= monster.activation) break;
+      // Inside a hypothetical world the bot assumes monsters never skip a
+      // turn: pessimistic in both directions, and it keeps the search free of
+      // chance branches.
+      //
+      // `continue`, not `break`: the die is rolled per ACTION, so a fast
+      // creature that fumbles its first step may still take the second.
+      // Rolling once for the whole turn would make speed 2 exactly twice as
+      // reliable as speed 1, which is a different creature.
+      if (!state.sim && drawChance(state, 'combat', MONSTER_SKIP_CHANCE)) continue;
 
-    // path[0] is the monster itself, so path[1] is the step it wants. With
-    // no route at all the path is empty and it simply rests.
-    const next = path[1];
-    if (!next) continue;
+      // path[0] is the monster itself, so path[1] is the step it wants. With
+      // no route at all the path is empty and it simply rests.
+      const next = path[1];
+      if (!next) break;
 
-    if (samePos(next, state.player.pos)) {
-      monsterAttacks(state, monster);
-    } else {
-      moveMonster(state, monster, next);
+      if (samePos(next, state.player.pos)) {
+        monsterAttacks(state, monster);
+      } else {
+        moveMonster(state, monster, next);
+      }
     }
   }
 }

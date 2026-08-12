@@ -21,8 +21,16 @@ export const DEFAULT_HERO = {
   // Side rooms are the map's gamble, and this is the appetite for it: a
   // side-room fight or guarded chest is only a candidate while its cost
   // stays under `sideAppetite × fightMargin × effectiveHp`. 0 never leaves
-  // the mandatory route, 1 gambles at the same bar as any other fight.
-  sideAppetite: 1,
+  // the mandatory route, 1 gambles at the same bar as any other fight, and
+  // above 1 it risks MORE on the optional than on the mandatory — which is
+  // the only way to say "take this even though it does not pay".
+  //
+  // 0.5 rather than 1, and the number came from the vault (M43/M44). Swept
+  // over 200 runs: 0 enters the room in 3% of floors, 0.5 in 44%, 1.0 in
+  // 70%, 2.0 in 85%. At 0.5 the hero wins 22% of the fights it takes, which
+  // is the band the room was built for — high enough that entering is not
+  // suicide, low enough that it is a bet.
+  sideAppetite: 0.5,
 
   // What one step is worth in hp. This is the exchange rate between goal 3
   // and the other two: raising it makes near goals win harder and empties

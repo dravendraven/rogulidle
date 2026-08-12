@@ -38,7 +38,14 @@ export function isVisible(playerPos, pos) {
 // alone — a clone of a growing object is exactly the pattern that leaks the
 // next field someone adds to `MONSTER_TABLE` or a live entity too.
 const PLAYER_FIELDS = ['pos', 'hp', 'hpMax', 'armour', 'xp', 'inventory', 'kills', 'xpEarned'];
-const MONSTER_FIELDS = ['id', 'name', 'emoji', 'pos', 'hp', 'hpMax', 'xp', 'activation', 'dead', 'side', 'edge'];
+// `speed` (M44) is here on purpose. It is a plain property of a creature
+// the hero can already see, in the same class as `xp` and `activation` —
+// not an unrevealed answer — so hiding it would be using the fog to conceal
+// something visible, which is the opposite of what the rule protects. The
+// bot does not PRICE it (see duelCost's own note); that is a design
+// decision, not an information one, and `edge` is already exposed and read
+// by nothing but the instruments.
+const MONSTER_FIELDS = ['id', 'name', 'emoji', 'pos', 'hp', 'hpMax', 'xp', 'activation', 'speed', 'dead', 'side', 'edge'];
 const CHEST_FIELDS = ['id', 'name', 'emoji', 'pos', 'side', 'edge'];
 // `dmgMin` belongs here beside `dmg`: it is a plain property of an item the
 // hero can already see, not an unrevealed answer, and leaving it out made

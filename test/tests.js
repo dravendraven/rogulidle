@@ -30,7 +30,7 @@ import {
   CLUSTER_SIZE, MONSTERS_BASE, MONSTER_GROWTH,
   MONSTER_STRENGTH, POTION_SCARCITY, WEAPON_SCARCITY,
 } from '../src/sim/difficulty.js';
-import { dangerField, makeBot } from '../src/bot/bot.js';
+import { dangerField, duelCost, makeBot } from '../src/bot/bot.js';
 import { DEFAULT_HERO } from '../src/bot/config.js';
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
 
@@ -2945,6 +2945,68 @@ test('a hostile tuning value cannot hang the router', () => {
   const action = bot(foldBelief(emptyBelief(), observe(state)));
   assert(ACTIONS.includes(action),
     `the bot answered "${action}" under a negative falloff`);
+});
+
+test('M44 — a creature with speed acts that many times a turn', () => {
+  const map = tinyMap([
+    '###########',
+    '#---------#',
+    '###########',
+  ]);
+  // `sim` suppresses the skip die, so this measures the loop and not luck.
+  const run = (speed) => {
+    const state = makeState({
+      map,
+      playerPos: [1, 1],
+      monsters: [dummy('ogre', [8, 1], { activation: 20, speed })],
+      shrine: { id: 's', emoji: '🕳️', pos: [9, 1] },
+    });
+    state.sim = true;
+    const after = step(state, 'rest').state;
+    return 8 - after.monsters[0].pos[0];
+  };
+
+  assertEq(run(1), 1, 'an ordinary creature moved more than one tile');
+  assertEq(run(2), 2, 'a speed-2 creature did not take two actions');
+  assertEq(run(undefined), 1, 'an unset speed must behave exactly as before');
+});
+
+test('M44 — nothing on the tier table is fast', () => {
+  // The shipped bestiary is untouched: speed exists for the vault's
+  // occupant alone. A row that quietly grows one would change every floor.
+  for (const template of MONSTER_TABLE) {
+    assert(!template.speed || template.speed === 1,
+      `${template.name} has speed ${template.speed}`);
+  }
+  for (const state of vaultFloors()) {
+    for (const monster of state.monsters) {
+      if (monster.vault) continue;
+      assertEq(monster.speed, 1, `${monster.name} came out fast`);
+    }
+    assertEq(state.monsters.find((m) => m.vault).speed, VAULT_BOSS.speed ?? 1,
+      'the Butcher lost its speed on the way to the floor');
+  }
+});
+
+test('the bot can see speed but does not price it', () => {
+  // The blind spot the vault leans on, pinned so that "fixing" duelCost is
+  // a deliberate act rather than a tidy-up. See duelCost's own note.
+  const slow = dummy('ogre', [2, 1], { speed: 1 });
+  const fast = dummy('ogre', [2, 1], { speed: 2 });
+  const hero = { hp: 10, armour: 0, xp: 3, inventory: [] };
+  assertEq(duelCost(hero, slow).hpLost, duelCost(hero, fast).hpLost,
+    'duelCost started pricing speed — the room stops being a gamble');
+
+  // But it IS observable: hiding it would be using the fog on something
+  // the hero can plainly see.
+  const state = makeState({
+    map: tinyMap(['#####', '#---#', '#####']),
+    playerPos: [1, 1],
+    monsters: [dummy('ogre', [3, 1], { speed: 2 })],
+    shrine: { id: 's', emoji: '🕳️', pos: [3, 1] },
+  });
+  const belief = foldBelief(emptyBelief(), observe(state));
+  assertEq([...belief.monsters.values()][0].speed, 2, 'speed does not reach Belief');
 });
 
 test('V5 — a cautious hero does not explore into danger', () => {

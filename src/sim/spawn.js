@@ -587,6 +587,9 @@ export function populate(state, map, counts = {}) {
       hpMax: template.hp,
       xp: template.xp,
       activation: template.activation,
+      // M44 — unset on every MONSTER_TABLE row, so this is 1 for everything
+      // the tiers produce and the shipped bestiary is unchanged.
+      speed: template.speed ?? 1,
       dead: false,
       edge: edgeAt(pos),
       // Which side of the bargain this creature is on. Read by spineShare()
@@ -862,6 +865,8 @@ export function populate(state, map, counts = {}) {
       hpMax: boss.hp,
       xp: boss.xp,
       activation: boss.activation,
+      // M44 — the one creature in the game that acts more than once a turn.
+      speed: boss.speed ?? 1,
       dead: false,
       edge: edgeAt(pos),
       side: zones.isSide(pos),

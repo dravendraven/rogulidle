@@ -44,6 +44,27 @@ import {
 //
 // They land (1 - skip) of their turns, and never the last one: the blow
 // that kills them happens on the player's turn.
+//
+// ***** IT DOES NOT PRICE `speed`, AND THAT IS DELIBERATE (M44) *****
+//
+// A creature with `speed` 2 lands roughly twice the blows this returns, so
+// its real cost is about double what the bot pays for. Multiplying `theirs`
+// by `monster.speed` here would be one word and it is the wrong word.
+//
+// The reason is a measured dead end. Entry and survival are the same
+// number: whether the bot takes a fight is `duelCost <= bar`, and whether
+// it survives one is roughly `duelCost / effectiveHp` — so anything that
+// makes a fight deadlier makes the bot refuse it instead of losing it.
+// Swept across every (hp, xp) pair with the same duelCost, from hp 24 / xp 4
+// to hp 9 / xp 11, the win rate is flat at 45-54%: reshaping the creature
+// cannot separate them. `speed` is the only property found that moves what
+// a fight COSTS without moving what it is PRICED at, and the vault needs
+// exactly that — a room most heroes enter and most heroes lose.
+//
+// So this is a blind spot the design leans on, not an oversight. `speed`
+// travels in Belief (src/sim/observe.js) and could be read; nothing reads
+// it. Pricing it here would restore the coupling and delete the room's
+// whole point — docs/project/decisions.md carries the numbers.
 export function duelCost(player, monster) {
   const mine = expectedDamage(player.xp, weaponDamage(player), weaponMinDamage(player));
   // Monsters carry nothing that fights (their drop is not inventory), so

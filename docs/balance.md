@@ -35,7 +35,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | | `CHEST_GUARD_RADIUS` | 8 | every chest gets a creature within this — loot is not free |
 | the authored room | `VAULT_LEVEL` | 4 | which floor carries the vault, 1-based; 0 turns it off |
 | | `VAULT_SIZE` | 9 | its side in tiles — above any generated room, so the shape says it was placed |
-| | `VAULT_BOSS` | 🐷 hp 16 / xp 6 / activation 5 | the Butcher; not a `MONSTER_TABLE` row and never drawn. The radius also decides which chests are bought with the fight |
+| | `VAULT_BOSS` | 🐷 hp 12 / xp 5 / activation 10 / **speed 2** | the Butcher; not a `MONSTER_TABLE` row and never drawn. hp sets who ENTERS (it is what `duelCost` reads), xp and speed set who WINS |
 | | `VAULT_BOSS_DROP` | `axe` | the only guaranteed drop in the game |
 | | `VAULT_CHEST_ITEMS` | 4 × shield, 4 × potion | the vault floor's ONLY chests — it places none of its own; authored rather than rolled |
 
@@ -67,7 +67,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 ## The bot's numbers — `src/bot/config.js`, not this file's business
 
 The bot's dials belong to the bot. `DEFAULT_HERO` (fightMargin 0.7,
-sideAppetite 1, stepCost 0.01) is the shipped hero and the whole
+sideAppetite 0.5, stepCost 0.01) is the shipped hero and the whole
 hero-as-configuration mechanism; `DANGER_FALLOFF` 0.5, `CROWD_PENALTY` 6,
 `GOAL_STICKINESS` 1.4 are its mechanics. See `docs/bot.md`.
 
