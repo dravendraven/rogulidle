@@ -279,13 +279,46 @@ export function makeBot(options = {}) {
       const shrineReachable = belief.shrine
         && Number.isFinite(priceOfReaching(field, belief.shrine.pos));
 
-      if (held && held.kind === 'frontier' && (owed || !shrineReachable)) {
+      // V5 — what the walk into the dark costs in HP, with the walking
+      // itself taken back out. The route price mixes two things the rest of
+      // this function keeps apart: `stepCost` per tile (objective 3, time)
+      // and the danger field (objective 1, survival). Every other gate here
+      // charges hp alone — `duelCost` and `guardCost` are both pure hp and
+      // neither counts the walk — so the bar has to be shown the same
+      // currency or a long safe corridor reads as a gamble.
+      const dangerOnTheWay = (pos) => {
+        const price = priceOfReaching(field, pos);
+        if (!Number.isFinite(price)) return Infinity;
+        const steps = field.steps.get(key(pos)) ?? 0;
+        return Math.max(0, price - steps * hero.stepCost);
+      };
+
+      // V5 — exploration used to be the one decision nothing gated. It
+      // picked the frontier with the fewest STEPS, a danger-blind ruler
+      // nothing else in the bot uses, and no bar could refuse it. So a
+      // hero forbidden from a fight still walked into the room holding it,
+      // woke what was inside, and then fled from a duel its own appetite
+      // would not let it finish. Measured: `sideAppetite` 0 cut the
+      // Butcher's kills to a twentieth and barely moved its deaths.
+      //
+      // Now the frontier is chosen by the same priced route everything else
+      // is, and refused by the same bar the side-room gamble uses. At
+      // appetite 0 that leaves exactly the frontiers with no danger on the
+      // way — which is what "never leaves the mandatory route" was always
+      // supposed to mean.
+      const frontierOk = (pos) => dangerOnTheWay(pos) <= sideBar;
+
+      if (held && held.kind === 'frontier' && (owed || !shrineReachable)
+        && frontierOk(held.pos)) {
+        // Re-checked rather than held blind: the danger on the way is what
+        // changes while the bot walks, since a creature waking mid-route is
+        // exactly the case this exists for.
         goal = held;
       } else if (owed || !shrineReachable) {
         const near = frontiers(belief).reduce((a, pos) => {
-          const steps = field.steps.get(key(pos));
-          if (steps === undefined) return a;
-          return (!a || steps < a.steps) ? { pos, steps } : a;
+          const price = priceOfReaching(field, pos);
+          if (!Number.isFinite(price) || !frontierOk(pos)) return a;
+          return (!a || price < a.price) ? { pos, price } : a;
         }, null);
         goal = near ? { kind: 'frontier', pos: near.pos } : null;
       } else {

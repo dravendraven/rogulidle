@@ -31,6 +31,7 @@ import {
   MONSTER_STRENGTH, POTION_SCARCITY, WEAPON_SCARCITY,
 } from '../src/sim/difficulty.js';
 import { dangerField, makeBot } from '../src/bot/bot.js';
+import { DEFAULT_HERO } from '../src/bot/config.js';
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
 
 // ***** tiny test harness ***** //
@@ -2871,6 +2872,54 @@ test('a hostile tuning value cannot hang the router', () => {
   const action = bot(foldBelief(emptyBelief(), observe(state)));
   assert(ACTIONS.includes(action),
     `the bot answered "${action}" under a negative falloff`);
+});
+
+test('V5 — a cautious hero does not explore into danger', () => {
+  // The gap the vault exposed: exploration was the one decision nothing
+  // gated. It picked the frontier with the fewest STEPS and no bar could
+  // refuse it, so a hero forbidden from a fight still walked into the room
+  // holding one, woke it, and then fled from a duel it would not finish.
+  //
+  // A corridor with exactly one dark end, and a sleeping ogre between the
+  // hero and it. The left end is already in sight, so exploring right is
+  // the only exploration on offer — and the shrine is the only alternative.
+  const wide = 31;
+  // The bottom row is walled so the shrine's own tile is not itself a
+  // frontier — an unknown tile below it would make the exit the cheapest
+  // "dark" on the map and there would be no decision to test.
+  const map = tinyMap([
+    '#'.repeat(wide),
+    `#${'-'.repeat(wide - 2)}#`,
+    `${'#'.repeat(6)}.${'#'.repeat(wide - 7)}`,
+    `${'#'.repeat(6)}.${'#'.repeat(wide - 7)}`,
+    '#'.repeat(wide),
+  ]);
+
+  const run = (sideAppetite) => {
+    const state = makeState({
+      map,
+      playerPos: [6, 1],
+      // Asleep at this range (activation 6 against 7 tiles away), so it
+      // never moves and the frontier stays where it is for the whole test.
+      monsters: [dummy('ogre', [13, 1], { activation: 6 })],
+      shrine: { id: 's', emoji: '🕳️', pos: [6, 3] },
+    });
+    // Something is still owed, so the pool is empty and the only decision
+    // left is whether to walk into the dark.
+    const { actions } = driveBot(state, 4, {
+      monsterCount: 3, chestCount: 3, hero: { ...DEFAULT_HERO, sideAppetite },
+    });
+    return actions;
+  };
+
+  const brave = run(1);
+  const cautious = run(0);
+  assert(brave.includes('right'),
+    'a greedy hero should still explore toward the guarded dark');
+  assert(!cautious.includes('right'),
+    'appetite 0 walked into the guarded dark anyway — the frontier is ungated');
+  assert(cautious.includes('down'),
+    'appetite 0 refused the dark but did not fall through to the shrine');
 });
 
 test('an awake pursuer is fought rather than fled forever', () => {
