@@ -10,7 +10,7 @@ of this file carried a table of spine-mass readings that drifted about twenty
 points below reality while nobody noticed — the dials it quoted stayed
 accurate, because `docs/balance.md`'s table has an owner and a rule, and the
 measurements rotted because they had neither. **Dial values live in
-`balance.md`. Readings come from `run-check.html` and `run-shape.html`.
+`balance.md`. Readings come from `run-check.html`'s tripwires.
 Findings live in `docs/project/decisions.md`.**
 
 ---
@@ -454,9 +454,9 @@ exactly the floors most sensitive to it. This has bitten before.
 
 **Spine share against its band.** It has been broken and restored more than
 once — by clustering, and again by shrine placement — and it is not
-self-correcting. `run-shape.html` reads it; `docs/project/decisions.md` records
-why it and CV pull against each other, and that the fix is never to widen the
-band or edit the test.
+self-correcting. `test/tests.js`'s spine tests guard it;
+`docs/project/decisions.md` records why it and CV pull against each other,
+and that the fix is never to widen the band or edit the test.
 
 ## What was tried here and did not work
 
@@ -466,6 +466,5 @@ threat-scaled crowd penalty, and the retracted mass-quota diagnosis are all in
 
 The one lesson worth restating because it was learned in this file: a gap was
 reported as a finding at 1.3 standard errors and a causal story was built on it
-within the same session. It later measured at nothing.
-`descentCurve().discrimination` returns `z` alongside its rates now, so the
-next such gap has to clear the bar before it earns an explanation.
+within the same session. It later measured at nothing. Do not explain a
+difference until it clears 2 sigma.

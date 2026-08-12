@@ -167,7 +167,7 @@ export function foldBelief(belief, obs) {
   // Monsters are the only entity whose remembered position goes stale. They
   // are static outside their activation radius though, so a memory taken
   // from far away stays exact for as long as the bot keeps its distance —
-  // see bot-strategy §1.
+  // see docs/bot.md.
   b.monsters = refresh(b.monsters, obs.monsters, obs.visible, obs.turn);
 
   if (obs.shrine) b.shrine = { ...obs.shrine, lastSeenTurn: obs.turn };

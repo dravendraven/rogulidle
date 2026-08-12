@@ -3,7 +3,7 @@
 // Monsters only ever chase. They never flee, never wander, never pick items
 // up — and they are completely STATIC while the player is further away than
 // their `activation`. That property is what the bot's "cold zone" is built
-// on (bot-strategy §1), so it has to stay exact.
+// on (docs/bot.md), so it has to stay exact.
 
 import { MONSTER_SKIP_CHANCE } from './balance.js';
 import { drawChance } from './rng.js';
@@ -42,7 +42,7 @@ export function updateMonsters(state, map) {
     if (path.length >= monster.activation) continue;
     // Inside a hypothetical world the bot assumes monsters never skip a
     // turn: pessimistic in both directions, and it keeps the search free of
-    // chance branches (docs/bot-strategy.md §4.3).
+    // chance branches.
     if (!state.sim && drawChance(state, 'combat', MONSTER_SKIP_CHANCE)) continue;
 
     // path[0] is the monster itself, so path[1] is the step it wants. With

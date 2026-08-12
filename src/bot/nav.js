@@ -2,7 +2,7 @@
 // dungeon (CLAUDE.md), so everything here works from remembered tiles.
 //
 // Unknown tiles count as walkable. That is deliberate and documented in
-// docs/bot-strategy.md §4.3: it is what lets a route aim into the dark,
+// docs/bot.md: it is what lets a route aim into the dark,
 // which is how the bot explores. The risk of the dark is charged once, in
 // the target score — not twice, by also pretending it is solid.
 

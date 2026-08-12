@@ -2277,7 +2277,7 @@ test('two equidistant chests do not make the bot pace between them', () => {
   // inside VISIBLE_DIST, both are worth the same, and the walk to each costs
   // the same — so the ranking is a coin flip that flips back the moment the
   // bot takes a step, which is exactly how the ~7-11% goal-switching share
-  // of the ping-pong episodes arises (bot-strategy §4.5).
+  // of the ping-pong episodes arose in the old bot (decisions.md).
   const map = tinyMap([
     '#####################',
     '#-------------------#',

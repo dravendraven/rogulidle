@@ -554,3 +554,119 @@ compared across it is comparing two different bots.
 nothing. What it bought is that "prefer loot before combat" is now a measured
 dead end rather than a recurring suggestion, and the low-water machinery exists
 behind a flag with the number that killed it.
+
+## The simplification — 2026-08-11
+
+The project was reduced to the smallest thing that still satisfies
+`objectives.md` (`docs/project/simplification-brief.md` is the mandate,
+`simplification-plan.md` the plan). Everything below was deleted from the
+CODE; the numbers that justified each deletion live on here, so nothing has
+to be re-measured to stay dead.
+
+### What cannot be simplified without losing an objective
+
+The short list, each item naming the objective that would notice:
+
+1. **Determinism, `step()` purity, the Observation/Belief channel.**
+   Attribution — "say why a run went the way it did" — needs replay, and
+   fog that leaks is decoration.
+2. **The spine/side split with risk and reward rolled independently.**
+   The route objective: several routes can win, the good one is hard to
+   find. One shared roll made every detour the same free lunch (measured:
+   forbid/require/permit produced identical dungeons).
+3. **Exponential count growth + strength ramp anchored at floor 10.**
+   "Most attempts must not end in the opening" — the additive law put all
+   attrition in floors 1–3 (24/24 met floor 2, 2 met floor 10).
+4. **The out-of-depth tail and the floor's shared roll.** "The outcome
+   stays uncertain": independent draws converge as 1/√N, making the climax
+   the most predictable stretch. The return is these dials widened.
+5. **`TURN_BUDGET`.** The only brake on the shamble.
+6. **In the bot: danger-priced routing and the duel-survivability veto.**
+   Objective 1 is survival; without these it dies by routing accident, and
+   an unattributable death is a lottery, not a race.
+7. **Shrine guardian and chest guards.** "Loot is not free" is what makes a
+   win attributable to fights chosen.
+8. **`run-tests.html`, the M11 monotonicity closed form, the fog guard.**
+   Correctness is not measurement; these protect all of the above.
+
+### The bot rewrite
+
+Seven modules (1,707 lines in bot.js alone) became three: a bot whose whole
+policy is the three ordered objectives, `nav.js`, and `config.js`. A hero
+with special characteristics is a `DEFAULT_HERO` override — configuration,
+never code. Deleted with their measurements kept:
+
+- **B22 dominance ordering** — measured WORSE on four axes past 2σ (depth
+  z −3.46, fights z −5.89, items at exit z −5.56, lost-fight rate 1.30 →
+  2.53%); was ON to be watched, and the watching is over.
+- **B23 activation phases** — recovered most of B22's cost (depth +0.62
+  z 3.44); with B22 gone there is nothing left to recover.
+- **B25 turn pricing** — inert at the shipped budget (z +0.88); only real
+  at budget 150. If M42 ever tightens, re-read that entry first.
+- **B21 low-water veto** — cut 15% of candidates and changed no outcome
+  past 1.2σ.
+- **B20 sequence goals** — fired on 40% of decisions, redundant in almost
+  all; the one signed movement was the failure direction (route +6.3%).
+- **B17 route item discount** — could matter on 0.5% of turns; measured
+  inert at 1.4σ over 300 paired runs.
+- **B13 pursuer pricing** — 91% of blows land while stationary, but only
+  9–13% come from a second creature; moving 2–3 blows a run moved nothing.
+- **B10 frontier routing / B4 explore-competes** — unmeasured / actively
+  harmful (median depth 3 → 2, chests 4.48 → 3.85).
+- **Chokepoint standoff** — win rate 55% → 45%; **exposure pricing** —
+  −11 points; the tactical veto + reversal penalty — 61–64% of ping-pong
+  episodes were the VETO layer, which no longer exists to ping.
+
+Cost of the rewrite, measured at 40 seeds against HEAD: clears 0/40 on
+both arms; median depth 6 → 5, runs ending by traversal 3 22.5% → 35% —
+both under this project's own 2σ bar at that n; turns per run −29%. The
+tripwires are what watches this now.
+
+### The dial collapse
+
+104 exported dials became ~56, byte-identical generation (the measure.mjs
+fingerprints and the tripwire anchor pass unchanged across the collapse):
+
+- **Three tier-clamp families (9 dials) → one floor family + one SIGNED
+  slack + an integer `EARLY_TIER_CUT` (5).** `tierCeilingShare` and
+  `earlyTierCapShare` were literally the same expression; M30's own sweep
+  showed the share dial's whole (0,1) range produced the identical cut.
+- **Shadow pairs deleted** — `MONSTER_GROWTH(_REBALANCED)`,
+  `STRENGTH_GROWTH(_REBALANCED)`, `DIFFICULTY_REBALANCED`, `DROP_CHANCE` ≡
+  `MONSTER_DROP_CHANCE`. One name per concept; the pre-M7 values are these
+  entries, not exports.
+- **Dead rule flags deleted**, decision recorded here:
+  - `XP_FROM_KILLS` OFF: freezing xp barely moved depth (gear compounds
+    regardless); the ladder is gear and potions. The faithful +1/2-kills
+    rule is gone from combat.js.
+  - `HP_FROM_KILLS` OFF: the sweep found no rate that fixed the buffer
+    (0.846 → 0.910/floor, still falling) without doubling clears
+    (30.7% → 56.7%); adoption reversed by owner.
+  - `WEAPONS_WIDEN_ROLL` ON → now the unconditional rule: a weapon widens
+    the die, half a point of expected damage per point.
+  - `MONSTERS_ATTACK_WHEN_ADJACENT` — byte-identical over 50 floors (an
+    adjacent monster already attacks every turn under the faithful rule).
+  - `GUARANTEE_FIRST_WEAPON` OFF (M29): generation softening beat the item
+    injection — mean death floor 3.25 vs 2.425, 3/40 clears vs 0.
+  - `CHEST_LOOT_RICHER_FAR` / `CHEST_QUALITY_BY_DEPTH` ON → the rule.
+  - `SIDE_ACTIVATION_CAP` — capping made the inversion WORSE (68%/54% vs
+    53%/45% unfavourable/favourable rooms opened).
+  - `PERSIST_BALANCE_ACROSS_DEATH` — never measured; the owner's rule
+    (death wipes) is now the only rule.
+  - `noPickup` and the rule-variant plumbing (state fields, dungeon
+    options) went with the probes that used them.
+
+### The instruments
+
+Nine analysis modules and six one-off pages became `src/analysis/check.js`:
+six tripwires from real runs, each printing its own firing condition. The
+modelled instruments (curve.js pricing clean duels read 0.23 on a floor
+that killed four heroes of seven) and the probe-based ruler (understates
+anything a competent player exploits) are retired for good — this section
+and "Measurement" above are their obituary. `campaignCost` and the marginal
+item pricing died with their callers.
+
+At deletion time three wires FIRE, honestly: opening deaths 0.667 (the
+known Phase-A regression after M41 emptied the kit), wins too rare and
+nothing gets deep (victory needs twenty traversals and the return — R2–R4 —
+is not built). They are defects to fix, not numbers to push.

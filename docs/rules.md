@@ -144,9 +144,11 @@ sobrevive a ler §3 e §6 juntos.
 ### O que NÃO cresce
 
 **O xp do herói não cresce com as mortes.** Divergência do original, que dava
-+1 a cada duas mortes.
++1 a cada duas mortes. O mecanismo foi removido, não desligado — o que a
+alternativa mediu está em `docs/project/decisions.md`.
 
-**O hp máximo não cresce com as mortes.** Mecanismo existe, desligado.
+**O hp máximo não cresce com as mortes.** Idem: removido, com a medição que
+reverteu a adoção registrada em `decisions.md`.
 
 **Não existe regeneração passiva.** Divergência: o original curava com o
 tempo, o que dá para acampar.
@@ -253,7 +255,8 @@ não revelada já a vazou, mesmo que ninguém o leia — foi por isso que o item
 já sorteado de uma criatura saiu do Belief. O que atravessa é lista
 explícita por tipo de entidade, não cópia do objeto inteiro.
 
-**Quantas criaturas o andar tem é concedido**, de propósito.
+**Quantas criaturas e quantos baús o andar tem é concedido**, de
+propósito — é o que deixa o bot saber quando o escuro não deve mais nada.
 
 ## 8. Como uma travessia e uma run terminam
 
@@ -275,9 +278,9 @@ nunca obrigou a limpar nada — quem já obrigou foi o bot, e de propósito, par
 que se pudesse medir o custo de relaxar. Hoje o bot também não obriga: sai
 assim que o santuário estiver alcançável.
 
-Quanto o bot escolhe lutar é decisão dele e vive em
-`docs/bot-strategy.md`, não aqui — este arquivo descreve o que o jogo
-permite, e o jogo permite sair de mãos vazias no primeiro turno.
+Quanto o bot escolhe lutar é decisão dele e vive em `docs/bot.md`, não
+aqui — este arquivo descreve o que o jogo permite, e o jogo permite sair
+de mãos vazias no primeiro turno.
 
 **Morte quando o hp chega a zero.**
 
@@ -305,11 +308,8 @@ paga, ida e volta.
 
 **Moeda só é efetivamente ganha se a run for concluída** — e concluir agora é
 completar as vinte travessias, não chegar ao fundo (§1). Morrer descarta o
-acumulado e, por padrão, zera também o saldo guardado e o item comprado.
-
-**Guardar o saldo através de uma morte é um flag, desligado por padrão**
-(`PERSIST_BALANCE_ACROSS_DEATH`, `src/ui/wallet.js`). Existe para que a regra
-alternativa possa ser medida contra a padrão, não porque esteja indeciso.
+acumulado e zera também o saldo guardado e o item comprado. Sem flag: é a
+regra, e a alternativa nunca chegou a ser medida.
 
 **A moeda compra item para a run seguinte.** A loja aparece ao fim de uma
 run, oferece um punhado de itens a preço fixo, e **a compra múltipla é
