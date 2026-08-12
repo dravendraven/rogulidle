@@ -11,7 +11,7 @@ import { DEFAULT_MODEL, saturatedAt } from '../sim/difficulty.js';
 import {
   CROWD_PENALTY, DANGER_FALLOFF, DEFAULT_HERO, GOAL_STICKINESS,
 } from '../bot/config.js';
-import { TURN_BUDGET } from '../sim/balance.js';
+import { TURN_BUDGET, VAULT_LEVEL } from '../sim/balance.js';
 import { RETURN_ENABLED } from '../sim/dungeon.js';
 
 // A dial's floor. Zero unless a smaller-than-zero value is not merely odd
@@ -299,6 +299,19 @@ export const SECTIONS = [
         down: 'desligado — 10 travessias, só a descida',
       },
     ]],
+    ['a sala do Butcher', [
+      {
+        // A switch over the ENGINE's own dial rather than a second flag
+        // beside it: `vaultLevel` names the floor, and 0 means no vault
+        // anywhere. Off restores the game exactly as it was before the
+        // vault existed — the stamp is the only thing on that branch that
+        // touches what the game does, so skipping it skips all of it.
+        kind: 'model', key: 'vaultLevel', label: 'sala fixa com o Butcher no andar 4',
+        title: 'O Butcher', type: 'switch', onValue: VAULT_LEVEL, offValue: 0,
+        up: `ligado — andar ${VAULT_LEVEL} ganha a sala 9x9, o troll e 6 baús`,
+        down: 'desligado — o jogo volta ao que era antes da sala existir',
+      },
+    ]],
   ]],
 ];
 
@@ -380,8 +393,16 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
       for (const dial of list) {
         const {
           kind, key, label, title, step, range, up, down, type, note,
+          onValue, offValue,
         } = dial;
         const isSwitch = type === 'switch';
+        // A switch normally carries a boolean. `onValue`/`offValue` let one
+        // stand in front of a dial whose off position is a NUMBER — the
+        // vault's floor, where 0 means "nowhere" — so the engine keeps a
+        // single dial instead of growing a flag beside it.
+        const onOff = onValue !== undefined
+          ? { on: onValue, off: offValue }
+          : { on: true, off: false };
         const def = defaultOf(kind, key, overrides);
         const min = range ? range[0] : (MIN_OF[key] ?? 0);
         const max = range ? range[1] : undefined;
@@ -475,7 +496,7 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
 
         sectionEl.append(row);
         inputs.push({
-          kind, key, input, def, min, valueOut, step, isSwitch,
+          kind, key, input, def, min, valueOut, step, isSwitch, onOff,
         });
       }
     }
@@ -526,10 +547,10 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
   const read = () => {
     const out = { model: {}, hero: {}, bot: {}, run: {} };
     for (const {
-      kind, key, input, def, min, isSwitch,
+      kind, key, input, def, min, isSwitch, onOff,
     } of inputs) {
       if (isSwitch) {
-        out[kind][key] = input.checked;
+        out[kind][key] = input.checked ? onOff.on : onOff.off;
         continue;
       }
       const value = Number(input.value);
@@ -582,12 +603,12 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
       // re-marks it "changed" (it can't be changed from a default it IS).
       const merged = JSON.parse(JSON.stringify(overrides));
       for (const {
-        kind, key, input, min, isSwitch,
+        kind, key, input, min, isSwitch, onOff,
       } of inputs) {
         if (!input.classList.contains('changed')) continue;
         if (isSwitch) {
           merged[kind] = merged[kind] || {};
-          merged[kind][key] = input.checked;
+          merged[kind][key] = input.checked ? onOff.on : onOff.off;
           continue;
         }
         const value = Number(input.value);
