@@ -236,8 +236,23 @@ export const VAULT_SIZE = 9;
 // settles the duel in three turns. At xp 6 the largest possible blow is 5,
 // so it can never one-shot a hero at full health, and the fight runs about
 // ten turns with the bar moving both ways. Watchability is the reason.
+// V7b — `activation` 5, down from 12. At 12 the creature woke while the
+// hero was still five tiles OUTSIDE the door, so entering was never a
+// decision: it was a thing that had already happened. At 5 it wakes at
+// three steps, which from two rows off the far wall means the hero has to
+// come in and cross most of the room.
+//
+// It also changes what the room costs, not only when it starts: the bot's
+// `guardCost` charges the whole duel against every chest within this many
+// tiles, so the radius is what decides which chests are bought with the
+// fight. At 5, the two by the door (9 tiles away) are free and the four at
+// the back (3 to 4) are not.
+//
+// The price is real and was accepted knowingly: a smaller radius also
+// makes the Butcher easier to escape, which weakens "a detour has to be
+// able to cost the run" — the M36 half of why this room exists.
 export const VAULT_BOSS = {
-  name: 'butcher', emoji: '🧌', activation: 12, xp: 6, hp: 16,
+  name: 'butcher', emoji: '🧌', activation: 5, xp: 6, hp: 16,
 };
 
 // GUESS — what it always leaves behind, by name from ITEM_TABLE. The only

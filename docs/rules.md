@@ -140,6 +140,11 @@ lados.
 **A massa dela não conta como ameaça do andar.** O andar não a exige de
 ninguém: quem passa reto não a encontra.
 
+**Ela fica no fundo da sala e tem raio curto**, então acorda só com o herói
+já dentro e atravessando o cômodo — passar na porta não basta. O raio dela
+também decide quais baús saem de graça: os que ficam fora do alcance não
+cobram a luta.
+
 ### Como elas se comportam
 
 **Só perseguem.** Nunca fogem, nunca vagam, nunca pegam item.
@@ -225,6 +230,12 @@ segunda aposta sobre a primeira.
 fixo.** Mesmo pagamento em toda seed, nas mesmas posições. É a única
 recompensa do jogo que não é sorteada: quem aposta sabe exatamente o que
 está comprando antes de entrar. O que varia é se o herói chega a pegar.
+
+**E eles não custam todos a mesma coisa.** Dois ficam logo dentro da porta,
+fora do alcance do ocupante, e podem ser pegos sem luta; os outros quatro
+ficam no fundo, dentro do alcance, e só saem junto com o combate. A sala
+oferece três respostas em vez de duas: passar reto, raspar a entrada, ou
+encarar.
 
 **Nem todo baú tem algo.** A chance varia com a posição no mapa, e a
 profundidade compra qualidade melhor, não só mais quantidade.

@@ -1606,6 +1606,39 @@ test('the vault is laid out from its own door, not its rectangle', () => {
   }
 });
 
+test('two vault chests are outside the Butcher\'s reach and four are not', () => {
+  // The whole point of V7a+V7b together: `guardCost` (src/bot/bot.js)
+  // charges the occupant's entire duel against any chest within its
+  // activation radius, measured in Manhattan tiles. So the radius is what
+  // splits the room into loot bought with the fight and loot that is not,
+  // and a change to either the radius or the layout can silently collapse
+  // the room back into one all-or-nothing bet.
+  for (const state of vaultFloors()) {
+    const boss = state.monsters.find((m) => m.vault);
+    const chests = state.chests.filter((c) => c.vault);
+    const away = (c) => Math.abs(c.pos[0] - boss.pos[0]) + Math.abs(c.pos[1] - boss.pos[1]);
+
+    assertEq(chests.filter((c) => away(c) <= boss.activation).length, 4,
+      'expected four chests inside the Butcher\'s reach');
+    assertEq(chests.filter((c) => away(c) > boss.activation).length, 2,
+      'expected two chests outside it — the room has collapsed into one bet');
+  }
+});
+
+test('the Butcher cannot be woken from outside its room', () => {
+  // At activation 12 it woke while the hero was still five tiles OUTSIDE
+  // the door, so entering was never a decision. The engine's rule is
+  // `path.length >= activation` (src/sim/monsters.js), and path length
+  // counts both ends.
+  for (const state of vaultFloors()) {
+    const boss = state.monsters.find((m) => m.vault);
+    const passable = playerPassable(state.map);
+    const path = findPath(boss.pos, state.vault.door, passable);
+    assert(path.length >= boss.activation,
+      `standing in the doorway already wakes it (path ${path.length} vs activation ${boss.activation})`);
+  }
+});
+
 test('what the vault pays is authored, not drawn', () => {
   // Same payout every seed. The bet is meant to be legible before it is
   // taken; if this ever starts varying, the choice stopped being informed.
