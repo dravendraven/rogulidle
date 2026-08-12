@@ -19,6 +19,7 @@ import { award, resetScore } from './score.js';
 import { getBalance, setBalance, resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
 import { SHOP_ITEMS, pickDefaultPurchase } from './shop.js';
 import { buildDialPanel } from './dials.js';
+import { eventsEnabled, makeEventLayer } from './events.js';
 
 const MAX_TURNS = 900;       // per floor
 const BASE_DELAY = 110;      // ms per turn at 1x
@@ -62,6 +63,10 @@ const session = {
 };
 
 const el = {};
+
+// U10 — the floating signals over the map. Built in start(), and a no-op
+// object when `?events=off` asked for silence.
+let events = { show: () => {} };
 
 function grab() {
   for (const id of [
@@ -112,6 +117,9 @@ async function playFrames(frames, trace, tallyText) {
       : null;
 
     renderFrame(frame.state, frame.belief, debug);
+    // After the frame, so a signal is never painted under the tile it
+    // belongs to.
+    events.show(frame.state);
     renderDebugInfo(el.debugInfo, session.debug ? entry : null);
     renderHud(el, frame.state, session);
     if (el.tally) el.tally.textContent = tallyText();
@@ -502,6 +510,7 @@ function wireControls() {
 export function start() {
   grab();
   buildGrid(el.grid);
+  events = makeEventLayer(el.stage, el.grid, { enabled: eventsEnabled() });
   wireControls();
 
   // Half speed by default — easier to follow than the old 1x default.

@@ -28,7 +28,6 @@ thing the item is for, and update the doc the change made stale
 | R2 | The return repopulates: same map seed, new creature seed | READY |
 | R4 | Variance rises through the return (widen the band via the tail/spread dials) | after R2 |
 | U7 | The player chooses which hero to play — UI over the existing `hero` config; the mechanism is built and tested, the roster is not | READY |
-| U10 | The run is watched, and half of what happens is invisible (overlay work) | READY |
 | B15 | Drinking reads the danger field before spending the turn | READY |
 | M4 | Side-room risk/reward spread scales with depth | READY |
 | M21 | Deep floors put a creature where the hero lands | READY |

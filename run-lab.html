@@ -92,6 +92,7 @@
     renderHud,
   } from './src/ui/render.js';
   import { buildDialPanel } from './src/ui/dials.js';
+  import { eventsEnabled, makeEventLayer } from './src/ui/events.js';
 
   const el = Object.fromEntries(['stage', 'grid', 'floor', 'hp', 'xpEarned',
     'xpRate', 'steps', 'kills', 'inventory', 'run', 'tally', 'seed',
@@ -165,6 +166,7 @@
   }
 
   buildGrid(el.grid);
+  const events = makeEventLayer(el.stage, el.grid, { enabled: eventsEnabled() });
   const sessionSeed = seedFromString(
     new URLSearchParams(location.search).get('seed') || String(Date.now()));
 
@@ -211,6 +213,7 @@
             ? { danger: dangerField(frame.belief), goal: entry ? entry.goal : null }
             : null;
           renderFrame(frame.state, frame.belief, debug);
+          events.show(frame.state);
           renderDebugInfo(el.debugInfo, session.debug ? entry : null);
           renderHud(el, frame.state, session);
           el.tally.textContent = `${session.cleared}/${session.played} completas`;

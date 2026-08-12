@@ -394,3 +394,41 @@ footer {
 
 .dial-buttons { display: flex; gap: .5rem; margin: .9rem 0 .3rem; }
 .dial-buttons button { font-size: .75rem; }
+
+/* ***** U10 — the events the map does not show (src/ui/events.js) *****
+
+   A transparent layer over the grid; each signal rises once and removes
+   itself. `?events=off` never creates the layer at all. */
+
+.event-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.event-float {
+  position: absolute;
+  transform: translate(-50%, 0);
+  font-weight: bold;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px var(--floor), 0 -1px 2px var(--floor),
+               1px 0 2px var(--floor), -1px 0 2px var(--floor);
+  animation: event-rise 900ms ease-out forwards;
+}
+.event-float svg { width: 13px; height: 13px; vertical-align: -2px; }
+
+.event-float.hurt   { color: #c0392b; }
+.event-float.deal   { color: #a06a1b; }
+.event-float.armour { color: #3b6ea5; }
+.event-float.heal   { color: #2e7d4f; }
+.event-float.gain   { color: #2e7d4f; }
+.event-float.miss   { color: #8a7f6c; }
+
+@keyframes event-rise {
+  from { opacity: 0; transform: translate(-50%, 4px); }
+  25%  { opacity: 1; }
+  to   { opacity: 0; transform: translate(-50%, -22px); }
+}

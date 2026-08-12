@@ -131,9 +131,13 @@ export function monsterAttacks(state, monster) {
     state.killedBy = monster.name;
   }
 
+  // `toHp` is how much of the blow got past the armour bar. Recorded so a
+  // reader of the log can tell a blow the shield ate from one the hero took
+  // — U10; `damage` alone cannot say it, and the two look identical on the
+  // hp bar because armour is a second bar.
   state.log.push({
     type: 'attack', by: monster.name, target: 'player',
-    damage: result.damage, killed: result.killed, turn: state.turn,
+    damage: result.damage, toHp: result.toHp, killed: result.killed, turn: state.turn,
   });
   return result;
 }

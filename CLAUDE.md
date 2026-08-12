@@ -91,6 +91,8 @@ Two measuring notes that were each learned the hard way:
 
 - `/index.html` — watch the bot play. `?seed=anything` reproduces a session.
   The 🧪 Lab button opens the dial panel (`src/ui/dials.js`) beside it.
+  `?events=off` silences the floating signals (`src/ui/events.js`, U10) —
+  both pages read it, and no code change is needed to switch them off.
 - `/run-tests.html` — the rules (tests, not metrics).
 - `/run-check.html` — the tripwires. Keep the tab visible while it runs.
 - `/run-lab.html` — the same dial panel, always open, without the shop and
