@@ -13,6 +13,16 @@ export function weaponDamage(entity) {
   return entity.inventory.reduce((sum, item) => sum + (item.dmg || 0), 0);
 }
 
+// The other half of a weapon: how far off the FLOOR of the die it lifts the
+// roll. `dmg` widens the die upward, `dmgMin` raises its bottom — a weapon
+// with `dmgMin` cannot whiff for zero the way a bare fist can. Most items
+// leave it unset (0), so this reads as "no weapon changes the floor" until
+// one does.
+export function weaponMinDamage(entity) {
+  if (!entity.inventory) return 0;
+  return entity.inventory.reduce((sum, item) => sum + (item.dmgMin || 0), 0);
+}
+
 // Armour a shield is worth when picked up. The hero's CURRENT armour lives
 // in `player.armour`, not here — this only reads the item side.
 export function armourValue(entity) {
@@ -48,22 +58,30 @@ export function applyDamage(defender, damage) {
 // Average damage of one blow, without rolling for it. The bot plans with
 // this and it must stay in step with the roll below — one formula, one place.
 //
-// A weapon WIDENS the die: the roll is uniform over 0 .. xp-1+weapons and
-// only lands `HIT_CHANCE` of the time. The floor stays at zero — a well-
-// armed hero still whiffs — and each weapon point is worth HALF a point of
-// expected damage. Divergence from the original, which added the weapon
-// after the roll; decided ON because gear is the resource that runs away
-// over a descent, and this blunts it without capping what can be carried.
+// A weapon WIDENS the die: the roll is uniform over min .. xp-1+weapons and
+// only lands `HIT_CHANCE` of the time. `dmg` raises the top, and each point
+// of it is worth HALF a point of expected damage. Divergence from the
+// original, which added the weapon after the roll; decided ON because gear
+// is the resource that runs away over a descent, and this blunts it without
+// capping what can be carried.
+//
+// `minDamage` raises the BOTTOM instead, and a point there is worth a point
+// of expected damage on the blows that land — twice what a point of `dmg`
+// buys, because it lifts every face of the die rather than adding one more
+// face at the top. It cannot cross the top: a floor above the ceiling would
+// be an empty range, so it clamps and the die simply becomes a constant.
+//
 // The defender does not enter the formula: armour is extra hp, so toughness
 // changes how many blows are survived, never how hard one lands.
-export function expectedDamage(attackerXp, weapons = 0) {
-  const sides = Math.max(1, attackerXp + weapons);
+export function expectedDamage(attackerXp, weapons = 0, minDamage = 0) {
+  const max = Math.max(0, attackerXp + weapons - 1);
+  const min = Math.min(Math.max(0, minDamage), max);
 
   let total = 0;
-  for (let roll = 0; roll < sides; roll++) {
+  for (let roll = min; roll <= max; roll++) {
     total += roll;
   }
-  return HIT_CHANCE * (total / sides);
+  return HIT_CHANCE * (total / (max - min + 1));
 }
 
 // One blow. Mutates `defender.hp` and returns what happened.
@@ -72,19 +90,24 @@ export function expectedDamage(attackerXp, weapons = 0) {
 // the same way the original's does (engine.cljs:257-258).
 export function resolveAttack(state, attacker, defender) {
   const weapons = weaponDamage(attacker);
+  const weaponFloor = weaponMinDamage(attacker);
 
   // `state.sim` marks a hypothetical world, never the real game. There,
   // blows land for their average instead of being rolled, so a simulation
   // stays deterministic and free of luck branches.
   if (state.sim) {
-    const damage = expectedDamage(attacker.xp, weapons);
+    const damage = expectedDamage(attacker.xp, weapons, weaponFloor);
     applyDamage(defender, damage);
     return { damage, killed: defender.hp <= 0, hit: true };
   }
 
   const hit = drawChance(state, 'combat', HIT_CHANCE) ? 1 : 0;
 
-  const roll = drawInt(state, 'combat', 0, Math.max(0, attacker.xp + weapons - 1));
+  // Same clamp as expectedDamage above, for the same reason — and drawInt
+  // spends exactly one stream value whatever the range, so raising the
+  // floor cannot shift any later draw.
+  const max = Math.max(0, attacker.xp + weapons - 1);
+  const roll = drawInt(state, 'combat', Math.min(weaponFloor, max), max);
 
   const damage = roll * hit;
   const toHp = applyDamage(defender, damage);

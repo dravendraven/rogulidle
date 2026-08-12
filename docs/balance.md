@@ -31,7 +31,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | | `SIDE_ROOM_DEPTH_BONUS` | 0.35 | the whole gamble: side rooms roll risk and reward independently over [0, 2×this] |
 | | `SIDE_CHEST_BIAS` | 3 | how much likelier a chest lands in a side room |
 | | `MIN_ROSTER_FOR_SIDE` | 4 | below this many creatures, everything goes on the spine |
-| | `SHRINE_DISTANCE_SHARE` | 0.65 | how far still counts as "distant" for the shrine; a model field, so the lab reaches it |
+| | `SHRINE_DISTANCE_SHARE` | 0.65 | how far still counts as "distant" for the exit hole; a model field, so the lab reaches it |
 | | `CHEST_GUARD_RADIUS` | 8 | every chest gets a creature within this — loot is not free |
 
 ## Time
@@ -57,6 +57,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | `WEAPON_AXE_MIN_TIER` | 4 | below wolf, the axe is absent from the pool, not just rare |
 | `STARTING_ITEMS` | [] | the run starts empty-handed — the opening is hard on purpose |
 | `MONSTER_TABLE` / `ITEM_TABLE` / `MONSTER_WEIGHTS` | — | in `src/sim/balance.js`, values visible there |
+| `ITEM_TABLE.axe.dmgMin` | 1 | the axe raises the damage die's FLOOR, not just its top — worth twice a point of `dmg` (rules.md §4) |
 
 ## The bot's numbers — `src/bot/config.js`, not this file's business
 

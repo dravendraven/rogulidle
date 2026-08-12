@@ -327,7 +327,12 @@ export function populate(state, map, counts = {}) {
     : (roomPaths.length ? roomPaths[roomPaths.length - 1] : null);
   const shrinePos = shrineEntry ? shrineEntry.center : playerPos;
   takeFree(shrinePos);
-  state.shrine = { id: nextId(state), emoji: '⛩️', pos: shrinePos };
+  // The way OUT of the floor. Drawn as a hole rather than the original's
+  // shrine gate: this dungeon is descended, not ascended out of, and a
+  // torii read as somewhere to arrive at. The internal name stays `shrine`
+  // — it is 130-odd references across the engine, the bot's belief and the
+  // tests, and none of them are what a player sees.
+  state.shrine = { id: nextId(state), emoji: '🕳️', pos: shrinePos };
 
   // 3b. Which rooms the hero cannot avoid on the way to the shrine.
   //

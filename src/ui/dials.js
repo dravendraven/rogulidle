@@ -261,10 +261,10 @@ export const SECTIONS = [
         down: 'mais linear — uma rota obrigatória clara',
       },
       {
-        kind: 'model', key: 'shrineDistanceShare', label: 'quão longe o santuário fica',
-        title: 'Mapa: distância do santuário', step: 0.05, range: [0, 1],
-        up: 'travessia mais longa — a saída no ponto mais distante',
-        down: 'travessia mais curta — a saída pode cair perto',
+        kind: 'model', key: 'shrineDistanceShare', label: 'quão longe fica o buraco de descida',
+        title: 'Mapa: distância do buraco', step: 0.05, range: [0, 1],
+        up: 'travessia mais longa — o buraco no ponto mais distante',
+        down: 'travessia mais curta — o buraco pode cair perto',
       },
     ]],
     ['quanto a rota ramifica', [

@@ -6,6 +6,7 @@
 // of the fog decision being real — you can watch the map fill in.
 
 import { CLEAR_DIST, VISIBLE_DIST } from '../sim/balance.js';
+import { weaponDamage, weaponMinDamage } from '../sim/combat.js';
 import { distSq, posKey } from '../sim/mapgen.js';
 import { tileSvg } from './tiles.js';
 import { depthTheme } from './depth-theme.js';
@@ -231,6 +232,16 @@ export function renderHud(elements, state, session) {
     ? '⚔️ ' + player.kills.length
     : '⚔️ —';
 
+  // The damage DIE, not the average: what one blow can roll between. Reads
+  // straight off the same two functions combat.js rolls with, so it cannot
+  // drift from what actually happens — a weapon that widens the die shows
+  // up here the turn it is picked up.
+  if (elements.damage) {
+    const max = Math.max(0, player.xp + weaponDamage(player) - 1);
+    const min = Math.min(weaponMinDamage(player), max);
+    elements.damage.textContent = `🗡️ ${min} - ${max}`;
+  }
+
   elements.inventory.innerHTML = player.inventory.length
     ? player.inventory.map((item) => tileSvg(item.emoji) || '').join('')
     : '—';
@@ -255,13 +266,18 @@ export function renderDebugInfo(element, entry) {
 }
 
 // Recent runs, newest first: how far each one got and how it ended.
-// ⛩️ cleared the descent, 💀 died, 🕳️ ran out of turns.
+// 🟩 cleared the descent, 💀 died, 🕳️ ran out of turns.
+//
+// Cleared is NOT the hole any more: the hole is what a floor's exit looks
+// like now, and the timeout chip already owned that glyph — two identical
+// icons in one strip say nothing. Green is the same "made it" the hp bar
+// already uses.
 export function renderHistory(element, history) {
   element.innerHTML = '';
   for (const entry of history) {
     const chip = document.createElement('span');
     chip.className = 'history-chip' + (entry.cleared ? ' cleared' : '');
-    const icon = entry.cleared ? '⛩️' : entry.cause === 'timeout' ? '🕳️' : '💀';
+    const icon = entry.cleared ? '🟩' : entry.cause === 'timeout' ? '🕳️' : '💀';
     chip.innerHTML = `<span class="depth">${entry.depth}</span>${tileSvg(icon)}`;
     chip.title = `run ${entry.run}`;
     element.append(chip);

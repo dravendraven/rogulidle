@@ -36,8 +36,8 @@ Tudo o que este item descreve abaixo vale quando ele está ligado.
 `2 × andares − k`: a travessia seguinte ao fundo é a segunda passagem pelo
 andar 9, e a última (19) é a segunda passagem pelo andar 1.
 
-**Na subida, as portas se invertem.** O herói surge onde o santuário do
-andar estava — subiu a escada que tinha descido — e a saída fica onde ele
+**Na subida, as portas se invertem.** O herói surge onde o buraco do andar
+estava — subiu a escada que tinha descido — e a saída fica onde ele
 originalmente entrava. A troca é feita depois da geração, sem consumir
 sorteio, então o andar continua idêntico ao gêmeo da descida.
 Consequência deliberada: o guardião que vigiava a escada de descida recebe
@@ -62,19 +62,19 @@ diferente é construído separado para poder ser medido.
 
 **O que atravessa:** hp, hp máximo, barra de armadura, xp, inventário,
 mortes, xp acumulado. **A posição, não** — ela vem sempre da geração do
-andar novo (na subida, do santuário gerado, pela inversão acima).
+andar novo (na subida, do buraco gerado, pela inversão acima).
 
 ## 2. O mapa
 
 Grade quadrada fixa. Salas ligadas por corredores, escavando até uma fração
 alvo do mapa.
 
-**Espinha e lateral.** Uma rota obrigatória liga o herói ao santuário; o resto
+**Espinha e lateral.** Uma rota obrigatória liga o herói ao buraco; o resto
 são salas laterais, opcionais. A divisão é o eixo de desenho do mapa — risco
 obrigatório contra risco escolhido.
 
-**Herói e santuário nascem em salas distantes entre si**, e o santuário fica
-numa sala distante, não na mais distante possível.
+**Herói e buraco nascem em salas distantes entre si**, e o buraco fica numa
+sala distante, não na mais distante possível.
 
 **Profundidade é posicional, não o número do andar.** O quão "fundo" um tile
 está é o comprimento do caminho até ele sobre o caminho mais longo do mapa.
@@ -106,7 +106,7 @@ corpos, não vários sorteios.
 **Cauda fora de profundidade.** Uma criatura pode raramente vir de acima da
 faixa do andar, com chance crescente na profundidade.
 
-**O santuário tem um guardião**, elevado ao teto do andar.
+**O buraco tem um guardião**, elevado ao teto do andar.
 
 **Todo baú tem criatura por perto**, espinha incluída. Loot não é de graça.
 
@@ -132,12 +132,17 @@ portanto, alterna estritamente: só quem se moveu bate.
 
 **O dano é um sorteio, e o golpe pode errar.**
 
-**Arma alarga o dado, não soma depois dele.** Consequência: o piso continua
-em zero — herói bem armado ainda erra feio — e cada ponto de arma vale meio
-ponto de dano esperado, não um inteiro. **Isto é uma divergência do original**,
-que somava depois.
+**Arma alarga o dado, não soma depois dele.** Cada ponto de `dmg` levanta o
+TOPO do dado e vale meio ponto de dano esperado, não um inteiro. **Isto é uma
+divergência do original**, que somava depois.
 
-**Arma soma o inventário inteiro.** Duas armas somam.
+**Uma arma pode também levantar o PISO do dado** (`dmgMin`). Um ponto de piso
+vale um ponto inteiro de dano esperado nos golpes que acertam — o dobro de um
+ponto de topo, porque levanta toda face do dado em vez de acrescentar uma face
+no fim. Sem arma de piso o dado começa em zero: herói bem armado ainda erra
+feio. O piso nunca ultrapassa o topo; se chegar lá, o dado vira constante.
+
+**Arma soma o inventário inteiro.** Duas armas somam, os dois lados do dado.
 
 **Armadura é uma segunda barra consumida, nunca redução.** O golpe cai
 inteiro; só pode cair na barra. Gasto é gasto. O que o herói aguenta é hp mais
@@ -149,7 +154,7 @@ armadura — qualquer coisa que julgue sobrevivência tem que somar as duas.
 aluguel.** Como adjacência sozinha não ataca, o ataque é o movimento, e as
 criaturas agem depois do herói, **fugir de um perseguidor de mesma velocidade
 não custa nada** — ele cola e nunca acerta. O golpe é pago exatamente quando o
-herói deixa de aumentar a distância: atacar, abrir baú, pisar no santuário, ou
+herói deixa de aumentar a distância: atacar, abrir baú, pisar no buraco, ou
 estar encurralado.
 
 Isto está escrito porque já foi modelado errado uma vez, como custo por turno
@@ -230,13 +235,13 @@ agem. Isso torna esbarrão barato em turnos e caro em ações.
 **Pedir uma ação impossível também não passa turno.** Beber sem poção tem a
 mesma forma do esbarrão: nada acontece, e as criaturas não agem.
 
-**Atacar, abrir baú, pisar no santuário e beber resolvem no lugar** em vez de
+**Atacar, abrir baú, pisar no buraco e beber resolvem no lugar** em vez de
 mover.
 
 **O que impede a entrada impede tudo o que viria depois dela.** Criatura viva
 e baú fechado barram o tile alvo. Barrado o tile, nada mais que estivesse
 nele acontece naquele turno: o herói não pega item solto que esteja embaixo
-da criatura, e não encerra o andar por um santuário ocupado. Uma regra só, não
+da criatura, e não encerra o andar por um buraco ocupado. Uma regra só, não
 uma lista de exceções — o herói não entrou, então nada do que está lá dentro
 o alcança.
 
@@ -275,23 +280,23 @@ propósito — é o que deixa o bot saber quando o escuro não deve mais nada.
 
 ## 8. Como uma travessia e uma run terminam
 
-**Pisar no santuário encerra a travessia. O motor permite isso a qualquer
+**Pisar no buraco encerra a travessia. O motor permite isso a qualquer
 momento** — nada obriga a limpar nada.
 
-**Encerrar a travessia não encerra a run.** O santuário é escada em todas
+**Encerrar a travessia não encerra a run.** O buraco é escada em todas
 menos na última; a run só termina em vitória quando a última travessia é
 completada (§1). Não existe ramo de "virada" no fundo: a run simplesmente
 continua, e é o pareamento que decide qual andar vem a seguir.
 
 **Mas é preciso alcançá-lo.** Santuário ocupado por criatura viva não encerra
 andar nenhum: o herói ataca, fica onde está, e o andar segue (§6). Como o
-santuário tem guardião por desenho (§3), isso não é canto raro — é o caso
+buraco tem guardião por desenho (§3), isso não é canto raro — é o caso
 comum de todo andar até o guardião cair.
 
 **Nenhuma morte é exigida por regra de jogo, em nenhum momento.** O motor
 nunca obrigou a limpar nada — quem já obrigou foi o bot, e de propósito, para
 que se pudesse medir o custo de relaxar. Hoje o bot também não obriga: sai
-assim que o santuário estiver alcançável.
+assim que o buraco estiver alcançável.
 
 Quanto o bot escolhe lutar é decisão dele e vive em `docs/bot.md`, não
 aqui — este arquivo descreve o que o jogo permite, e o jogo permite sair

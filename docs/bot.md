@@ -23,7 +23,7 @@ frases:
 - **Sala lateral é a aposta:** loot guardado e luta opcional laterais são
   ignorados quando o guardião custa mais do que o apetite permite.
 - **Explora** a fronteira mais próxima enquanto o escuro ainda pode dever
-  algo (as contagens são concedidas — `rules.md` §7); **sai** pelo santuário
+  algo (as contagens são concedidas — `rules.md` §7); **sai** pelo buraco
   quando nada mais vale.
 - **Mantém o objetivo atual** a menos que um novo seja claramente mais
   barato (histerese), para não vacilar entre dois quase-iguais.
@@ -50,14 +50,14 @@ objectives").
    criatura custa a mordida esperada dela, decaindo com a distância
    (`DANGER_FALLOFF`); tile alcançável por duas de uma vez leva
    `CROWD_PENALTY`.
-2. **Dijkstra** sobre o Belief, preço = `stepCost` + perigo. O santuário é
+2. **Dijkstra** sobre o Belief, preço = `stepCost` + perigo. O buraco é
    **sumidouro**: entra-se, não se sai — pisar nele encerra o andar, então
    rota "através" dele não existe a preço nenhum.
 3. **Candidatos**: criaturas pagáveis (custo do duelo vem de `duelCost`),
    itens com efeito, baús — laterais filtrados pelo apetite, com o custo do
    guardião que a visita acordaria somado ao preço.
 4. **O mais barato vence**, com histerese. Vazio o conjunto: fronteira (se
-   o escuro deve algo), senão santuário.
+   o escuro deve algo), senão buraco.
 
 ## O que ele conhece
 

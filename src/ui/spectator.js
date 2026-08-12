@@ -83,7 +83,7 @@ function grab() {
     'grid', 'stage', 'hp', 'xpEarned', 'xpRate', 'steps', 'kills', 'inventory',
     'run', 'tally', 'seed', 'summary', 'summaryTitle', 'summaryBody',
     'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
-    'coins', 'coinPopup', 'debugInfo', 'app', 'lab', 'dials',
+    'coins', 'coinPopup', 'damage', 'debugInfo', 'app', 'lab', 'dials',
     'shop', 'shopBalance', 'shopItems', 'shopSkip', 'shopTimerBar',
   ]) {
     el[id] = document.getElementById(id);
@@ -313,7 +313,7 @@ async function showSummaryCard(title, rows) {
 
 async function showSummary(run) {
   const player = run.state.player;
-  const titles = { ascended: '⛩️ ascended', died: '💀 died' };
+  const titles = { ascended: '🟩 took the hole down', died: '💀 died' };
   const loot = player.inventory.length
     ? player.inventory.map((item) => tileSvg(item.emoji) || '').join('')
     : '—';
@@ -405,7 +405,7 @@ async function showDescentSummary(run, finalState) {
     ? finalState.monsters.filter((m) => m.dead).map((m) => tileSvg(m.emoji) || '').join('')
     : '—';
   const title = run.cleared
-    ? '⛩️ cleared the descent'
+    ? '🟩 cleared the descent'
     : (run.killedBy ? '💀 died' : '🕳️ ran out of turns');
 
   await showSummaryCard(title, [

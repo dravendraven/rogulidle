@@ -25,7 +25,9 @@
 // A hero with special characteristics is a different DEFAULT_HERO handed to
 // makeBot — same code, other numbers. See src/bot/config.js.
 
-import { effectiveHp, expectedDamage, weaponDamage } from '../sim/combat.js';
+import {
+  effectiveHp, expectedDamage, weaponDamage, weaponMinDamage,
+} from '../sim/combat.js';
 import { MONSTER_SKIP_CHANCE } from '../sim/balance.js';
 import {
   CROWD_PENALTY, DANGER_FALLOFF, DEFAULT_CHEST_COUNT, DEFAULT_MONSTER_COUNT,
@@ -43,7 +45,9 @@ import {
 // They land (1 - skip) of their turns, and never the last one: the blow
 // that kills them happens on the player's turn.
 export function duelCost(player, monster) {
-  const mine = expectedDamage(player.xp, weaponDamage(player));
+  const mine = expectedDamage(player.xp, weaponDamage(player), weaponMinDamage(player));
+  // Monsters carry nothing that fights (their drop is not inventory), so
+  // neither half of the weapon formula applies to their blow.
   const theirs = expectedDamage(monster.xp, 0);
   if (mine <= 0) return { hpLost: Infinity, turns: Infinity };
 

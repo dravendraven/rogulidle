@@ -139,7 +139,11 @@ export const ITEM_TABLE = [
   { name: 'health', emoji: '🥃',  value: 2, heal: 3, kind: 'potion' },  // FAITHFUL engine.cljs:209
   { name: 'shield', emoji: '🛡️', value: 3, armour: 3, kind: 'armour' },
   { name: 'dagger', emoji: '🗡️', value: 3, dmg: 1, kind: 'weapon' },
-  { name: 'axe',    emoji: '🪓',  value: 4, dmg: 2, kind: 'weapon' },
+  // `dmgMin` raises the bottom of the damage die instead of its top: an axe
+  // in hand never lands for zero. Worth twice a point of `dmg` in expected
+  // damage (combat.js), which is what makes the axe read as the real weapon
+  // upgrade rather than "a dagger and a half".
+  { name: 'axe',    emoji: '🪓',  value: 4, dmg: 2, dmgMin: 1, kind: 'weapon' },
 ];
 
 // GUESS — the minimum MONSTER_TABLE index a killed creature must reach
