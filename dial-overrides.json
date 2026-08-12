@@ -23,7 +23,7 @@
     "sideChestBias": 2.5,
     "monstersBase": 4,
     "spreadCap": 0.35,
-    "dugPercentage": 0.25,
+    "dugPercentage": 0.2,
     "shrineDistanceShare": 0.7
   },
   "bot": {
