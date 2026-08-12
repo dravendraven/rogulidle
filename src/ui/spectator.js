@@ -9,7 +9,7 @@
 import { playGame, replayGame } from '../sim/game.js';
 import { playDungeon, LEVELS } from '../sim/dungeon.js';
 import { hashSeeds, seedFromString } from '../sim/rng.js';
-import { difficultyToParams } from '../sim/difficulty.js';
+import { difficultyToParams, makeFloorPlan } from '../sim/difficulty.js';
 import { dangerField, makeBot } from '../bot/bot.js';
 import {
   buildGrid, renderFrame, renderHud, renderHistory, applyDepth, renderDebugInfo,
@@ -18,6 +18,7 @@ import { tileSvg } from './tiles.js';
 import { award, resetScore } from './score.js';
 import { getBalance, setBalance, resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
 import { SHOP_ITEMS, pickDefaultPurchase } from './shop.js';
+import { buildDialPanel } from './dials.js';
 
 const MAX_TURNS = 900;       // per floor
 const BASE_DELAY = 110;      // ms per turn at 1x
@@ -53,6 +54,11 @@ const session = {
   paused: false,
   speed: 1,
   debug: false,
+  // The dial lab (src/ui/dials.js), hidden until the Lab button opens it.
+  // `dials` is the panel's reader; `restart` is the ↻ button asking the
+  // run in flight to stop so the next one picks up the new values.
+  dials: null,
+  restart: false,
 };
 
 const el = {};
@@ -62,7 +68,7 @@ function grab() {
     'grid', 'stage', 'hp', 'xpEarned', 'xpRate', 'steps', 'kills', 'inventory',
     'run', 'tally', 'seed', 'summary', 'summaryTitle', 'summaryBody',
     'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
-    'coins', 'coinPopup', 'debugInfo',
+    'coins', 'coinPopup', 'debugInfo', 'app', 'lab', 'dials',
     'shop', 'shopBalance', 'shopItems', 'shopSkip',
   ]) {
     el[id] = document.getElementById(id);
@@ -92,6 +98,10 @@ async function playFrames(frames, trace, tallyText) {
   for (let i = 0; i < frames.length; i++) {
     const frame = frames[i];
     await waitWhilePaused();
+    // The lab's ↻: abandon the run being watched, mid-floor if need be.
+    // The run itself is already computed and simply thrown away — nothing
+    // in the engine is interrupted, only the playback.
+    if (session.restart) return;
 
     // The danger map is recomputed for the frame on screen rather than
     // stored for every turn of the run — one field costs a millisecond or
@@ -356,14 +366,26 @@ async function runDescentForever(sessionSeed) {
     // dungeon.js forwards it to every floor's playGame unconditionally;
     // carry() wins over it from floor 2 on, so it only ever actually arms
     // floor 1 — exactly "the run about to start", per the item's framing.
+    // The lab's values, read at the moment the run is BUILT — so editing a
+    // dial mid-playback lands on the next run, or on this one via ↻. With
+    // the lab closed these are the shipped defaults, so the ordinary game
+    // is byte-identical to one built with no dials at all.
+    const dials = session.dials ? session.dials.read() : null;
     const traces = [];
     const run = playDungeon(seed, (floor) => {
       const trace = [];
       traces.push(trace);
       return makeBot({
-        trace, monsterCount: floor.monsterCount, chestCount: floor.chests,
+        trace,
+        monsterCount: floor.monsterCount,
+        chestCount: floor.chests,
+        ...(dials ? { hero: dials.hero, ...dials.bot } : {}),
       });
-    }, { maxTurns: MAX_TURNS, startingItems: getHeldItems() });
+    }, {
+      maxTurns: dials ? dials.run.turnBudget : MAX_TURNS,
+      startingItems: getHeldItems(),
+      ...(dials ? { floorPlan: makeFloorPlan(dials.model) } : {}),
+    });
 
     let finalState = null;
     session.turnOffset = 0;
@@ -381,6 +403,7 @@ async function runDescentForever(sessionSeed) {
       const alignedTrace = kept.map((k) => traces[i][Math.max(0, k.index)]);
 
       await playFrames(frames, alignedTrace, descentTallyText);
+      if (session.restart) break;
       finalState = frames[frames.length - 1].state;
       session.turnOffset += levelResult.turns;
 
@@ -414,6 +437,14 @@ async function runDescentForever(sessionSeed) {
       }
     }
 
+    // An abandoned run is not a run: it does not count, does not bank, and
+    // does not reach the shop. The wallet is untouched, so ↻ costs the
+    // player nothing.
+    if (session.restart) {
+      session.restart = false;
+      continue;
+    }
+
     tallyDescent(run, finalState);
     await showDescentSummary(run, finalState);
     // The default-purchase draw needs its own seed, same derivation as the
@@ -434,6 +465,21 @@ function wireControls() {
     el.debug.textContent = session.debug ? '🔎 debug on' : '🔎 debug';
     // Paused, no frame is coming to clear it — do it here.
     if (!session.debug) renderDebugInfo(el.debugInfo, null);
+  });
+
+  // The lab is built on first open rather than at startup: a player who
+  // never presses it never pays for the form, and the panel cannot be
+  // out of step with the modules it reads its defaults from.
+  el.lab.addEventListener('click', () => {
+    if (!session.dials) {
+      session.dials = buildDialPanel(el.dials, {
+        onRestart: () => { session.restart = true; },
+      });
+    }
+    const open = el.dials.hidden;
+    el.dials.hidden = !open;
+    el.app.classList.toggle('lab-open', open);
+    el.lab.textContent = open ? '🧪 lab on' : '🧪 lab';
   });
 
   el.speed.addEventListener('click', () => {

@@ -7,12 +7,13 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="app">
+<div class="app" id="app">
 
   <header>
     <h1>Rogulidle</h1>
     <div id="floor" class="floor-badge"></div>
     <div class="controls">
+      <button id="lab" type="button">🧪 lab</button>
       <button id="playPause" type="button">⏸ pause</button>
       <button id="speed" type="button">1×</button>
       <button id="debug" type="button">🔎 debug</button>
@@ -20,57 +21,63 @@
     </div>
   </header>
 
-  <main>
-    <div id="stage" class="stage">
-      <div id="grid" class="grid"></div>
-      <div id="summary" class="summary">
-        <div id="summaryTitle" class="summary-title"></div>
-        <div id="summaryBody"></div>
+  <div class="lab">
+    <div class="dials" id="dials" hidden></div>
+
+    <div class="labgame">
+      <main>
+        <div id="stage" class="stage">
+          <div id="grid" class="grid"></div>
+          <div id="summary" class="summary">
+            <div id="summaryTitle" class="summary-title"></div>
+            <div id="summaryBody"></div>
+          </div>
+          <div id="coinPopup" class="coin-popup"></div>
+          <div id="shop" class="summary">
+            <div class="summary-title">shop</div>
+            <div id="shopBalance" class="shop-balance"></div>
+            <div id="shopItems" class="shop-items"></div>
+            <button id="shopSkip" type="button">skip</button>
+          </div>
+        </div>
+
+        <aside class="panel">
+          <div id="hp" class="hp"></div>
+
+          <div class="chips">
+            <span id="xpEarned"></span>
+            <span id="xpRate"></span>
+            <span id="steps"></span>
+            <span id="kills"></span>
+            <span id="coins" title="xpEarned/turn this floor × 10, rounded — spent in the shop between runs"></span>
+          </div>
+
+          <div class="field">
+            <label>carrying</label>
+            <div id="inventory" class="inventory"></div>
+          </div>
+
+          <div id="debugInfo" class="debug-info"></div>
+
+          <footer>
+            <span id="run"></span>
+            <span id="tally"></span>
+            <span id="seed" class="seed"></span>
+          </footer>
+        </aside>
+      </main>
+
+      <div class="box">
+        <label>recent runs — how far the descent got</label>
+        <div id="history" class="history"></div>
       </div>
-      <div id="coinPopup" class="coin-popup"></div>
-      <div id="shop" class="summary">
-        <div class="summary-title">shop</div>
-        <div id="shopBalance" class="shop-balance"></div>
-        <div id="shopItems" class="shop-items"></div>
-        <button id="shopSkip" type="button">skip</button>
-      </div>
+
+      <p class="note">
+        Dimmed tiles are what the bot <em>remembers</em>, not what it can see —
+        monsters there may have moved.
+      </p>
     </div>
-
-    <aside class="panel">
-      <div id="hp" class="hp"></div>
-
-      <div class="chips">
-        <span id="xpEarned"></span>
-        <span id="xpRate"></span>
-        <span id="steps"></span>
-        <span id="kills"></span>
-        <span id="coins" title="xpEarned/turn this floor × 10, rounded — spent in the shop between runs"></span>
-      </div>
-
-      <div class="field">
-        <label>carrying</label>
-        <div id="inventory" class="inventory"></div>
-      </div>
-
-      <div id="debugInfo" class="debug-info"></div>
-
-      <footer>
-        <span id="run"></span>
-        <span id="tally"></span>
-        <span id="seed" class="seed"></span>
-      </footer>
-    </aside>
-  </main>
-
-  <div class="box">
-    <label>recent runs — how far the descent got</label>
-    <div id="history" class="history"></div>
   </div>
-
-  <p class="note">
-    Dimmed tiles are what the bot <em>remembers</em>, not what it can see —
-    monsters there may have moved.
-  </p>
 
 </div>
 

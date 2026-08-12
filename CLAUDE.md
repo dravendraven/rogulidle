@@ -90,11 +90,13 @@ Two measuring notes that were each learned the hard way:
 `python tools/dev-server.py` (port 8141), then:
 
 - `/index.html` — watch the bot play. `?seed=anything` reproduces a session.
+  The 🧪 Lab button opens the dial panel (`src/ui/dials.js`) beside it.
 - `/run-tests.html` — the rules (tests, not metrics).
 - `/run-check.html` — the tripwires. Keep the tab visible while it runs.
-- `/run-lab.html` — edit any map/bot dial and watch runs play with it.
-  Nothing persists; the shipped values stay in the code. A change worth
-  keeping is a `balance.md` + code edit, same as ever.
+- `/run-lab.html` — the same dial panel, always open, without the shop and
+  the wallet. Nothing either page edits persists; the shipped values stay in
+  the code. A change worth keeping is a `balance.md` + code edit, same as
+  ever.
 
 Headless: `node tools/measure.mjs --selftest` first (it proves the vendored
 ROT.js is faithful), then e.g. `node tools/measure.mjs check tripwires
