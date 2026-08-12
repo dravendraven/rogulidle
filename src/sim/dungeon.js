@@ -143,6 +143,10 @@ export function playDungeon(seed, makePolicy, options = {}) {
       // spawn.js reads shrineDistanceShare off these counts directly.
       dugPercentage: plan.dugPercentage,
       shrineDistanceShare: plan.shrineDistanceShare,
+      // M43 — 0 turns the authored room off for the whole descent, which is
+      // what a control run needs. Undefined would silently fall back to the
+      // shipped floor, so this has to travel explicitly.
+      vaultLevel: plan.vaultLevel,
       // A fixed value overrides the per-floor one, for sweeping — same
       // pattern as weaponScarcity above.
       earlyChestQualityBoost: options.earlyChestQualityBoost ?? plan.earlyChestQualityBoost,
@@ -175,6 +179,9 @@ export function playDungeon(seed, makePolicy, options = {}) {
     // from the finished state without regenerating the floor.
     const roster = run.state.monsters.map((m) => ({
       xp: m.xp, hp: m.hpMax, side: m.side, edge: m.edge, dead: m.dead,
+      // M43 — which row is the vault's occupant, so a reading can ask
+      // whether the Butcher was fought without regenerating the floor.
+      vault: !!m.vault,
     }));
 
     // Which chests were opened and which were walked past. An opened chest

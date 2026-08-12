@@ -4,8 +4,9 @@
 import {
   CHEST_GUARD_RADIUS, EARLY_CHEST_QUALITY_BOOST, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP,
-  PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE, STARTING_ITEMS,
-  TURN_BUDGET, WEAPON_AXE_MIN_TIER,
+  PLAYER_HP, PLAYER_XP, ROOM_HEIGHT, ROOM_WIDTH, SHRINE_DISTANCE_SHARE,
+  STARTING_ITEMS, TURN_BUDGET, VAULT_BOSS, VAULT_CHEST_ITEMS, VAULT_LEVEL,
+  VAULT_SIZE, WEAPON_AXE_MIN_TIER,
 } from '../src/sim/balance.js';
 import {
   driveTurns, newGame, playGame, replayGame,
@@ -18,13 +19,14 @@ import {
 import { findPath, playerPassable, posKey } from '../src/sim/mapgen.js';
 import { drawLogUniform, drawWeighted, hashSeeds, makeRng } from '../src/sim/rng.js';
 import { classifyRooms, spineShare } from '../src/sim/spine.js';
+import { chestSlotsOf, inVault, pillarsOf } from '../src/sim/vault.js';
 import { itemWeights, monsterWeightsAround } from '../src/sim/spawn.js';
 import {
   floorOfTraversal, floorPlan, playDungeon, LEVELS, TRAVERSALS,
 } from '../src/sim/dungeon.js';
 import {
   expectedFloorMass, floorParams, floorStrength, makeFloorPlan, monstersAt,
-  outOfDepthChanceAt, saturatedAt,
+  outOfDepthChanceAt, saturatedAt, threatMass,
   CLUSTER_SIZE, MONSTERS_BASE, MONSTER_GROWTH,
   MONSTER_STRENGTH, POTION_SCARCITY, WEAPON_SCARCITY,
 } from '../src/sim/difficulty.js';
@@ -1359,6 +1361,247 @@ test('a floor puts most of its threat mass on the mandatory route', () => {
   const mean = total / floors;
   assert(mean >= 0.6, `mean spine share ${mean.toFixed(2)} is far below the 0.7 target`);
   assert(mean <= 0.95, `mean spine share ${mean.toFixed(2)} means side rooms are empty`);
+});
+
+// ***** M43 — the vault ***** //
+
+// Real generated floors, not a fixture: every property this section checks
+// is about what the stamp does to a map the digger actually produced.
+const vaultSeeds = [7100, 7101, 7102, 7103, 7104, 7105, 7106, 7107];
+
+function vaultFloors() {
+  return vaultSeeds
+    .map((seed) => newGame(seed, floorPlan(VAULT_LEVEL)))
+    .filter((state) => state.vault);
+}
+
+test('the vault lands on its own floor and nowhere else', () => {
+  const floors = vaultFloors();
+  assert(floors.length >= vaultSeeds.length - 1,
+    `only ${floors.length}/${vaultSeeds.length} floors got a vault — `
+    + 'measured at 199 in 200, so this is a regression, not the known gap');
+
+  for (const seed of vaultSeeds) {
+    for (const level of [VAULT_LEVEL - 1, VAULT_LEVEL + 1]) {
+      assertEq(newGame(seed, floorPlan(level)).vault, null,
+        `floor ${level} grew a vault it should not have`);
+    }
+  }
+});
+
+test('the vault is switched off by its own dial', () => {
+  for (const seed of vaultSeeds) {
+    const state = newGame(seed, { ...floorPlan(VAULT_LEVEL), vaultLevel: 0 });
+    assertEq(state.vault, null, 'vaultLevel 0 still stamped a vault');
+  }
+});
+
+test('the vault is larger than any room the digger can make', () => {
+  // The size IS the tell — a player has to be able to see on sight that
+  // this room was placed rather than rolled.
+  assert(VAULT_SIZE > ROOM_HEIGHT[1] || VAULT_SIZE > ROOM_WIDTH[1],
+    'the vault is within generated-room dimensions and reads as ordinary');
+
+  for (const state of vaultFloors()) {
+    const room = state.vault.room;
+    assertEq(room.x2 - room.x1 + 1, VAULT_SIZE, 'vault width');
+    assertEq(room.y2 - room.y1 + 1, VAULT_SIZE, 'vault height');
+  }
+});
+
+test('the vault is always side — the mandatory route never enters it', () => {
+  // The property the whole design rests on, and it is structural: one door,
+  // a dead end, and the shrine placed before the vault existed. If this
+  // ever fires, the room stopped being refusable and the choice is gone.
+  for (const state of vaultFloors()) {
+    const zones = classifyRooms(state.map, state.player.pos, state.shrine.pos);
+    assert(zones.side.includes(state.vault.room),
+      'the vault came out on the spine');
+    for (const [x, y] of zones.path) {
+      assert(!inVault(state.vault, x, y),
+        `the hero->shrine route crosses the vault at ${x},${y}`);
+    }
+    assertEq(state.vault.room.doors.length, 1, 'a vault with two ways in');
+  }
+});
+
+test('the vault is reachable, and its door opens onto the route', () => {
+  const floors = vaultFloors();
+  let onSpine = 0;
+
+  for (const state of floors) {
+    const passable = playerPassable(state.map);
+    const route = findPath(state.player.pos, state.vault.room.center, passable);
+    assert(route.length > 0, 'the vault is walled off from the hero');
+    if (state.vault.onSpine) onSpine++;
+  }
+
+  // Measured at 86% over 200 floors. A door off the route still makes a
+  // vault worth having, so this is a floor under the property rather than
+  // the property itself.
+  assert(onSpine >= Math.ceil(floors.length * 0.6),
+    `only ${onSpine}/${floors.length} vault doors opened onto the mandatory route`);
+});
+
+test('the pillars stand, and they stand inside the room', () => {
+  for (const state of vaultFloors()) {
+    const pillars = pillarsOf([state.vault.room.x1, state.vault.room.y1], VAULT_SIZE);
+    assertEq(pillars.length, 4, 'expected four pillars');
+    for (const [x, y] of pillars) {
+      assert(inVault(state.vault, x, y), 'a pillar landed outside the vault');
+      assert(!playerPassable(state.map)(x, y),
+        `the pillar at ${x},${y} is walkable, so it is not a pillar`);
+    }
+    // And the room is still a room around them.
+    assert(playerPassable(state.map)(...state.vault.room.center),
+      'the vault centre is not walkable');
+  }
+});
+
+test('stamping the vault consumes no randomness', () => {
+  // The property that lets classifyRooms simply be run twice, and the one
+  // that keeps every recorded replay valid. A single draw taken here would
+  // shift every later roll on the floor.
+  for (const seed of vaultSeeds) {
+    const withVault = newGame(seed, floorPlan(VAULT_LEVEL));
+    const without = newGame(seed, { ...floorPlan(VAULT_LEVEL), vaultLevel: 0 });
+
+    assertEq(withVault.rng.spawn, without.rng.spawn,
+      'the spawn stream moved, so the vault drew something');
+    assertEq(withVault.rng.map, without.rng.map, 'the map stream moved');
+    assertEq(withVault.rng.combat, without.rng.combat, 'the combat stream moved');
+    assertEq(withVault.shrine.pos.join(','), without.shrine.pos.join(','),
+      'the shrine moved');
+    // The ORDINARY roster: the Butcher is placed after every draw is spent,
+    // so it is an addition, not a shift, and comparing it here would only
+    // be comparing the vault to its own absence.
+    const roster = (s) => s.monsters.filter((m) => !m.vault)
+      .map((m) => `${m.name}@${m.pos}`).join('|');
+    assertEq(roster(withVault), roster(without), 'the roster changed');
+  }
+});
+
+test('the ordinary roster and chests stay out of the vault', () => {
+  // Nothing excludes the vault explicitly — it is stamped after the free
+  // pool was taken, so its tiles were never candidates. This is the test
+  // that would catch that ordering being changed.
+  for (const state of vaultFloors()) {
+    for (const monster of state.monsters) {
+      if (monster.vault) continue;                 // its own occupant belongs
+      assert(!inVault(state.vault, ...monster.pos),
+        `${monster.name} spawned inside the vault`);
+    }
+    for (const chest of state.chests) {
+      if (chest.vault) continue;                   // its own chests belong
+      assert(!inVault(state.vault, ...chest.pos), 'a floor chest landed in the vault');
+    }
+    assert(!inVault(state.vault, ...state.player.pos), 'the hero started in the vault');
+    assert(!inVault(state.vault, ...state.shrine.pos), 'the exit is inside the vault');
+  }
+});
+
+test('the Butcher stands in the vault, and only there', () => {
+  for (const state of vaultFloors()) {
+    const bosses = state.monsters.filter((m) => m.vault);
+    assertEq(bosses.length, 1, 'expected exactly one vault creature');
+
+    const boss = bosses[0];
+    assertEq(boss.name, VAULT_BOSS.name, 'wrong occupant');
+    assertEq(boss.hp, VAULT_BOSS.hp, 'wrong hp');
+    assertEq(boss.xp, VAULT_BOSS.xp, 'wrong xp');
+    assert(inVault(state.vault, ...boss.pos), 'the Butcher is not in its room');
+    assertEq(boss.pos.join(','), state.vault.room.center.join(','),
+      'the Butcher should stand at the centre, where the pillars flank it');
+    assert(boss.side, 'the Butcher came out marked as mandatory');
+  }
+
+  // And nowhere else in the run: no other floor may grow one.
+  for (const level of [1, 2, 3, 5, 8, 10]) {
+    if (level === VAULT_LEVEL) continue;
+    for (const seed of vaultSeeds) {
+      const state = newGame(seed, floorPlan(level));
+      assert(!state.monsters.some((m) => m.vault),
+        `floor ${level} has a vault creature`);
+      assert(!state.monsters.some((m) => m.name === VAULT_BOSS.name),
+        `floor ${level} rolled a Butcher out of the ordinary table`);
+    }
+  }
+});
+
+test('the Butcher always carries the axe', () => {
+  // The only guaranteed drop in the game — no dropChance roll in front of
+  // it. If this ever becomes a gamble, the reward stops paying for the risk.
+  for (const state of vaultFloors()) {
+    const boss = state.monsters.find((m) => m.vault);
+    assert(boss.drop, 'the Butcher carries nothing');
+    assertEq(boss.drop.name, 'axe', 'the Butcher carries the wrong item');
+    assertEq(boss.drop.dmgMin, ITEM_TABLE.find((i) => i.name === 'axe').dmgMin,
+      'the dropped axe lost the damage floor that makes it the real upgrade');
+  }
+});
+
+test('the Butcher is not in the tier table and cannot be drawn', () => {
+  // It must never become a MONSTER_TABLE row: the table is a ladder that
+  // depth indexes into, so a row here would appear on deep floors by
+  // accident, be reskinned by the out-of-depth roll, and be scaled.
+  assert(!MONSTER_TABLE.some((t) => t.name === VAULT_BOSS.name),
+    'the Butcher leaked into the tier table');
+});
+
+test('the vault holds six extra chests, at their authored positions', () => {
+  for (const state of vaultFloors()) {
+    const vaultChests = state.chests.filter((c) => c.vault);
+    assertEq(vaultChests.length, VAULT_CHEST_ITEMS.length, 'wrong chest count');
+
+    const slots = chestSlotsOf([state.vault.room.x1, state.vault.room.y1]);
+    for (const chest of vaultChests) {
+      assert(inVault(state.vault, ...chest.pos), 'a vault chest fell outside');
+      assert(slots.some((s) => s[0] === chest.pos[0] && s[1] === chest.pos[1]),
+        `a vault chest at ${chest.pos} is not on an authored slot`);
+      assert(chest.side, 'a vault chest came out marked as mandatory');
+      assert(chest.drop, 'an authored chest came out empty');
+    }
+
+    // Extra, not instead of: the floor keeps every chest it would have had.
+    const ordinary = state.chests.filter((c) => !c.vault);
+    assertEq(ordinary.length, floorPlan(VAULT_LEVEL).chests,
+      'the vault ate the floor\'s own chests');
+
+    // Nothing shares a tile.
+    const tiles = new Set(state.chests.map((c) => c.pos.join(',')));
+    assertEq(tiles.size, state.chests.length, 'two chests on one tile');
+    assert(!vaultChests.some((c) => c.pos.join(',') === state.vault.boss.pos.join(',')),
+      'a chest is standing on the Butcher');
+  }
+});
+
+test('what the vault pays is authored, not drawn', () => {
+  // Same payout every seed. The bet is meant to be legible before it is
+  // taken; if this ever starts varying, the choice stopped being informed.
+  const payouts = new Set();
+  for (const state of vaultFloors()) {
+    payouts.add(state.chests.filter((c) => c.vault)
+      .map((c) => c.drop.name).join(','));
+  }
+  assertEq(payouts.size, 1, `the vault paid differently across seeds: ${[...payouts]}`);
+  assertEq([...payouts][0], VAULT_CHEST_ITEMS.join(','), 'wrong payout');
+});
+
+test('the vault creature is excluded from what the floor demands', () => {
+  // Its mass (hp x (xp-1)) outweighs a whole ordinary floor-4 roster, so
+  // counting it would read as the floor hiding everything in a side room,
+  // and would break the monotonic-mass guarantee. Refusable mass belongs to
+  // no zone's share.
+  for (const state of vaultFloors()) {
+    const withBoss = threatMass(state);
+    const boss = state.monsters.find((m) => m.vault);
+    const stripped = { ...state, monsters: state.monsters.filter((m) => !m.vault) };
+
+    assertEq(withBoss, threatMass(stripped), 'the Butcher counted into threat mass');
+    assertEq(spineShare(state), spineShare(stripped), 'the Butcher counted into spine share');
+    assert(boss.hpMax * (boss.xp - 1) > withBoss,
+      'the premise of this test is stale: the Butcher no longer outweighs its floor');
+  }
 });
 
 test('small floors put everything on the spine', () => {

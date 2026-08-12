@@ -80,6 +80,22 @@ sala distante, não na mais distante possível.
 está é o comprimento do caminho até ele sobre o caminho mais longo do mapa.
 Perto da entrada, a profundidade cai a zero em qualquer andar.
 
+**Um andar tem uma sala desenhada, não sorteada.** Num andar fixo do jogo
+existe um **vault**: uma sala quadrada de tamanho fixo, maior que qualquer
+sala que o gerador produz, com quatro pilares dentro dela. Ela é carimbada
+sobre o mapa já pronto, depois que herói e buraco já foram colocados.
+
+Três coisas valem por construção, não por sorteio:
+
+- **Tem uma porta só e é um beco sem saída**, então a rota obrigatória nunca
+  passa por dentro dela — é sempre lateral, sempre recusável.
+- **A porta dá para a rota obrigatória**, então o herói passa na frente dela.
+- **Nada nela é sorteado**, nem onde ela fica: a busca é uma varredura
+  determinística. Ela não gasta nenhum número do gerador.
+
+Quando não há espaço para ela no mapa, o andar simplesmente não tem vault.
+O que fica dentro dela está em §3 e §5.
+
 ## 3. Criaturas
 
 Onze tipos numa tabela. O índice é o **tier** — força crescente.
@@ -109,6 +125,20 @@ faixa do andar, com chance crescente na profundidade.
 **O buraco tem um guardião**, elevado ao teto do andar.
 
 **Todo baú tem criatura por perto**, espinha incluída. Loot não é de graça.
+
+**O vault (§2) tem um ocupante fixo.** Uma criatura só dele, que **não está
+na tabela de tiers** — não é sorteada, não escala com o andar, não é
+atingida pela cauda fora de profundidade e não é elevada por nada. Fica no
+centro da sala, entre os pilares.
+
+Ela é **muita vida contra mordida média**, e isso é o desenho: uma criatura
+de mordida alta resolveria o duelo em três turnos e poderia matar um herói
+cheio de um golpe. Esta não consegue — o maior golpe possível dela é menor
+que o hp cheio do herói — e o duelo dura o bastante para virar dos dois
+lados.
+
+**A massa dela não conta como ameaça do andar.** O andar não a exige de
+ninguém: quem passa reto não a encontra.
 
 ### Como elas se comportam
 
@@ -185,6 +215,16 @@ de bicho fraco, e abaixo de um limiar ela é removida do sorteio, não apenas
 tornada improvável.
 
 **Baú guarda armadura e poção.**
+
+**O ocupante do vault (§3) larga o machado, sempre.** É o único drop
+garantido do jogo — não passa pela chance de largar algo nem pelo sorteio de
+qual arma. É o que faz a recompensa pagar o risco em vez de empilhar uma
+segunda aposta sobre a primeira.
+
+**O vault tem baús próprios, extras aos do andar, e o conteúdo deles é
+fixo.** Mesmo pagamento em toda seed, nas mesmas posições. É a única
+recompensa do jogo que não é sorteada: quem aposta sabe exatamente o que
+está comprando antes de entrar. O que varia é se o herói chega a pegar.
 
 **Nem todo baú tem algo.** A chance varia com a posição no mapa, e a
 profundidade compra qualidade melhor, não só mais quantidade.

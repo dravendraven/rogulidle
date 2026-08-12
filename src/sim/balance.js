@@ -200,6 +200,77 @@ export const SIDE_CHEST_BIAS = 3;
 // Loot is not free.
 export const CHEST_GUARD_RADIUS = 8;
 
+// ***** M43 — the vault ***** //
+//
+// docs/project/candidates.md. One AUTHORED room on one floor, against a
+// stretch of floors that measured at the same risk as each other — which is
+// the defect a dial cannot reach, since every dial moves all of them.
+
+// GUESS — which floor carries it, 1-based. 0 turns the vault off entirely.
+// Floor 4 rather than 3 for a reason with a number behind it: the typical
+// hero wins the duel 41% of the time there against 24% a floor earlier, and
+// WEAPON_AXE_MIN_TIER below is exactly floor 4's own ceiling, so the
+// guaranteed axe is early rather than off-schedule.
+export const VAULT_LEVEL = 4;
+
+// GUESS — the vault's side in tiles. Above ROOM_HEIGHT's ceiling on
+// purpose: no generated room can be 9 tall, so the shape alone says the
+// room was placed rather than rolled. Measured, 9 fits on 99.5% of floors
+// and 11 on 90% — the size is what buys the coverage.
+export const VAULT_SIZE = 9;
+
+// GUESS — what stands in it. Deliberately NOT a MONSTER_TABLE row: the
+// table is a tier ladder that depth indexes into, and this creature is
+// never drawn, never scaled and never reskinned. Putting it in the table
+// would make it appear on deep floors by accident.
+//
+// hp 16 against xp 6 is the shape, and it was measured rather than guessed
+// (docs/project/candidates.md M43, 4000 duels a row under the real combat
+// rules). The typical floor-4 hero wins 41% of the time, a poor one 6% and
+// a rich one 80% — a spread wide enough that the outcome says something
+// about how the run went.
+//
+// MEAT, NOT BITE, and that is the design rather than a tuning accident. A
+// t-rex (hp 12, xp 10) produces almost the same win rate and reads as a
+// coin flip: bite 10 can take 9 of a full hero's 10 hp in one blow and
+// settles the duel in three turns. At xp 6 the largest possible blow is 5,
+// so it can never one-shot a hero at full health, and the fight runs about
+// ten turns with the bar moving both ways. Watchability is the reason.
+export const VAULT_BOSS = {
+  name: 'butcher', emoji: '🧌', activation: 12, xp: 6, hp: 16,
+};
+
+// GUESS — what it always leaves behind, by name from ITEM_TABLE. The only
+// guaranteed drop in the game. WEAPON_AXE_MIN_TIER is 4, which is exactly
+// VAULT_LEVEL's own ceiling, so this pulls the axe forward by about two
+// floors without putting it anywhere it could not already appear.
+export const VAULT_BOSS_DROP = 'axe';
+
+// GUESS — what the vault's chests hold, by ITEM_TABLE name, one per slot in
+// the order vault.js lists them: four corners, then the two flanking the
+// Butcher. Extra chests, on top of the floor's own CHESTS_PER_FLOOR.
+//
+// AUTHORED, NOT ROLLED, and the tension in that is real enough to write
+// down. `map-design.md` asks the middle of the run to carry variance of
+// REWARD, and a fixed payout carries none — so this pushes against a stated
+// property. It is fixed anyway for two reasons: a choice has to be
+// INFORMED (objectives.md) and a constant payout is the most informed a bet
+// can be, and the variance that actually matters here is whether the hero
+// collects any of it at all, which runs from 6% to 80% depending on how the
+// run has gone. If the vault ever reads as a flat vending machine, this
+// array is the one thing to change.
+//
+// Three shields and three potions is about +9 armour and +9 healing against
+// a hero who reaches floor 4 holding roughly 4 armour. That is deliberately
+// large — it is what the axe-plus-buffer has to be worth to justify a fight
+// that kills the typical hero 60% of the time — and it is a first guess
+// waiting on V4's measurement, not a solved number.
+export const VAULT_CHEST_ITEMS = [
+  'shield', 'health',
+  'health', 'shield',
+  'shield', 'health',
+];
+
 // ***** time ***** //
 
 // How many turns one TRAVERSAL may spend. Running out ends the traversal

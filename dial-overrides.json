@@ -20,7 +20,8 @@
     "spreadPerLevel": 0.05,
     "strengthGrowth": 1.2,
     "spineThreatShare": 0.3,
-    "sideChestBias": 1
+    "sideChestBias": 1,
+    "monstersBase": 9
   },
   "bot": {
     "crowdPenalty": 15

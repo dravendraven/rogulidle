@@ -28,6 +28,235 @@ reward must roll independently per room or the gamble is a free lunch. The
 design exists; what is missing is evidence it works, and that is **I4**,
 parked. No new item, just a measurement nobody has taken.
 
+### M43 · the vault and the Butcher — a fixed room on floor 4
+
+`owner idea` · **BEING BUILT** — the design record; the task list is in
+`docs/backlog.md`
+
+A fixed-layout room, always on floor 4, always a dead end off the mandatory
+route, holding one hand-placed mini-boss and six extra chests. Diablo's
+Butcher, in this engine's terms.
+
+#### The diagnosis it answers, and it is not the one the owner started from
+
+The owner's report was "the opening is boring because it is always easy."
+Measured over 150 descents on the SHIPPED dials (`dial-overrides.json`, no
+shop items), that is not what the numbers say:
+
+| floor | reaches it | dies there |
+|---|---|---|
+| 1 | 100% | 3% |
+| 2 | 97% | 13% |
+| 3 | 84% | 10% |
+| 4 | 75% | 16% |
+| 5 | 63% | 14% |
+| 6 | 55% | 13% |
+| 7 | 47% | 24% |
+| 8 | 36% | 33% |
+| 9 | 24% | 64% |
+
+**Floors 2 through 6 carry the same risk.** Not low — identical. Five floors
+that tell no story, followed by a cliff. The defect is flatness, not
+easiness, and a flat stretch is exactly what a fixed landmark fixes and what
+a dial cannot.
+
+Worth recording because the backlog's own note is stale in a way that
+inverts the reading: "opening deaths" is quoted at 0.667, which is the CODE
+DEFAULTS. On the dials that actually ship, runs over by traversal 3 measure
+**24.7%** — the tripwire does not fire, and there is no opening-lethality
+problem to fix here.
+
+#### Why it fits the curve rather than fighting it
+
+`map-design.md` says the middle's interest has to come from **variance of
+reward, not of challenge** — a noisy middle destroys the one job that
+stretch has, being legible enough to read whether the hero is on track. An
+optional vault is precisely that: the mandatory route's pressure does not
+move at all. Raising `MONSTERS_BASE` or `STRENGTH_GROWTH` on floors 3–4 to
+get the same climax would break the property instead.
+
+**And it answers an open item rather than only adding one.** This file and
+`map-design.md` both record, with measurement, that the side-room gamble is
+a free lunch: nothing is refusable, and what is missing is **on the cost
+side, not the reward side** (`M36`). A detour that can end the run is the
+cost side. That is the strongest argument for building it.
+
+Three consequences to accept deliberately:
+
+- **The hero's capacity peak moves earlier than floor 6.** The relief
+  stretch shortens and the 7–10 ramp gets steeper. Wanted — but it means
+  the deep floors need recalibrating after, not before.
+- **Floor 9 already kills 64%.** The vault pushes that down by arming
+  whoever survives it. Not a neutral side effect.
+- **Whoever refuses ends up poorer than today**, not level, because the
+  game's resource baseline starts including those who accepted.
+
+#### The Butcher — measured, not guessed
+
+Monte Carlo of the duel under the real rules in `combat.js`, 4000 duels a
+row, against the hero who typically arrives on floor 4 (hp 8 + armour 4,
+weapon +3):
+
+| candidate | hero strikes first | boss first | +1 potion |
+|---|---|---|---|
+| hp 12 / xp 5 | 78% | 68% | 84% |
+| hp 14 / xp 6 | 52% | 40% | 59% |
+| **hp 16 / xp 6** | **41%** | **30%** | **48%** |
+| hp 18 / xp 6 | 32% | 23% | 38% |
+| dragon (15/8) | 26% | 17% | 28% |
+
+**hp 16, xp 6, activation 12, 🧌.** The same creature against other hero
+states: 6% for a poor hero (hp 6 + armour 1), 24% for a typical floor-3
+one, 41% typical floor-4, 80% rich (hp 10 + armour 7, weapon +4). That
+spread is the product — the outcome is **attributable**, which is what
+`objectives.md` asks of a rare event and what a uniform 65% killer cannot
+give.
+
+**Meat, not bite, and the reason is watchability.** A t-rex (hp 12, xp 10)
+produces almost the same win rate (29%) and is a worse design: bite 10
+settles the duel in three turns and can take 9 of 10 hp in one blow — a coin
+flip, no reversal, hope reaching zero all at once. At xp 6 the biggest
+possible blow is 5 against 10 hp, so **it can never one-shot a full hero**,
+and the duel runs about ten turns with the bar moving both ways.
+
+**Floor 4, not 3.** 41% against 24%; 75% of runs get there; and
+`WEAPON_AXE_MIN_TIER` is 4 (wolf), which is exactly floor 4's own ceiling —
+so a guaranteed axe there pulls the item forward by roughly two floors
+without being off-schedule. Measured, the shipped game's mean `dmgMin` is
+0.20 at floor 5 and 0.51 at floor 6: the axe is genuinely late today.
+
+**The bot commits and breaks off on its own, with no new rule.** `duelCost`
+falls with the monster's remaining hp; the bar it is compared against falls
+with the hero's effective hp. Winning, the cost falls faster and the bot
+stays; losing, the bar falls faster and it disengages mid-fight. The
+reversal is already in the machinery.
+
+#### The room, and why the pillars are not decoration
+
+9×9 with four pillars, one door, six chests. Larger than any generated room
+(`ROOM_WIDTH` [5,9] × `ROOM_HEIGHT` [4,7]).
+
+```
+c . . . . . . . c
+. # . . . . . # .
+. . . . . . . . .
+. . . . . . . . .
+. . c . B . c . .
+. . . . . . . . .
+. . . . . . . . .
+. # . . . . . # .
+c . . .[+]. . . c        [+] the only door
+```
+
+**The pillars were justified with a mechanism that turned out not to exist,
+and the correction is the useful part.** The claim was that `dangerField`
+floods from the creature through walkable ground, so a pillar forces the
+flood around itself and leaves a cheap pocket behind it. Measured tile by
+tile, with the pillars and without: **the two price grids are identical.**
+On a 4-connected grid an isolated one-tile obstacle never lengthens a
+route, because every monotone way around it is the same length. There are
+no pockets, and there was never going to be a way to get them without
+turning the hall into a maze.
+
+**The gradient that is real is plain distance from the centre**, and it is
+steep enough on its own — menace halves every step, so the Butcher's own
+tile prices at 2.08 hp a turn, the flanks at 0.52 and the corners at 0.01,
+a two-hundredfold range inside one room.
+
+**And what gates the chests is not that gradient at all.** `guardCost`
+charges the whole duel against every chest inside the creature's chase
+radius, which is the entire room, so the six are refused or accepted
+**together**. One bet, six payouts — cleaner than six small ones, and
+legible in a way six separate rolls would not be. What the gradient decides
+is the ORDER once the bet is taken: corners first, and the two beside the
+Butcher only by dealing with it.
+
+**So the pillars are kept for legibility, and that is a real job rather
+than a consolation.** The badge under a creature shows xp and never hp, so
+a 16-hp Butcher looks exactly like a vampire until it refuses to die. The
+room has to be the warning label. Vision is by distance and ignores walls
+(`VISIBLE_DIST` 9), so the hero sees the whole hall from the door — a
+pillared room full of chests is the tell, and nothing else in the game
+looks like it.
+
+#### How it is stamped, and the three properties that fall out for free
+
+`src/sim/vault.js`, called from `populate()` after `classifyRooms` (step 3b)
+and before the chests. A deterministic grid scan finds a 9×9 rectangle of
+undug ground with a one-tile margin, then a straight tunnel from any
+position on any of its four sides out to a tile **on the hero→shrine path**.
+
+- **Side by construction, not by probability.** One door, a dead end, and
+  the shrine was already placed before the vault existed — so the
+  hero→shrine path can never enter it. No dial, no chance.
+- **Seen by construction.** The door opens onto the mandatory route, so the
+  hero walks past it. That is the "informed" clause of what a choice has to
+  be.
+- **No randomness at all.** The scan consumes no draw, so seeds, replays
+  and every stream stay aligned — the same property that makes `spine.js`
+  safe, and the reason `classifyRooms` can simply be re-run after the stamp
+  instead of being patched.
+
+Measured over 200 floor-4 maps on the shipped dials:
+
+| outcome | share |
+|---|---|
+| stamped, door on the spine | 86.0% |
+| stamped, door off the spine (fallback) | 13.5% |
+| no free rectangle — no vault this seed | 0.5% |
+
+Tunnel length: median 2, max 8. The off-spine fallback exists because a
+vault that is merely harder to find is better than a floor that sometimes
+has none; the 0.5% follows the same failure rule the shrine guardian
+already uses — skip it rather than force a tile conflict.
+
+#### The decisions that are load-bearing, and would be easy to get wrong
+
+**The vault's chests and creature must NOT be added to the counts granted
+to the bot** (`rules.md` §7). Granted, the bot explores until it finds them
+and the detour becomes mandatory. Left out, the existing rules already give
+the wanted behaviour: the hero sees the room, `guardCost` prices the
+Butcher at about 12.5 hp against `sideBar = sideAppetite × fightMargin ×
+ehp ≈ 6.3`, and refuses. **Refusing is the default; taking it is the dial.**
+
+**`sideAppetite`'s slider needs a wider range to express the choice.**
+Accepting needs `sideAppetite × fightMargin ≳ 0.98` and both sliders stop
+at 1.0, so today only absolute maximum courage takes the fight. Widening
+`sideAppetite` to [0, 2] is a range change rather than a new parameter, and
+its meaning is honest: above 1 the hero risks more on the optional than on
+the mandatory, which is what greedy means.
+
+**Six chests pay more than it looks, and they were built authored rather
+than rolled.** Three shields and three potions, the same every seed: about
++9 armour and +9 healing against a hero who reaches floor 4 holding roughly
+4 armour, on top of the axe. Rolling them the ordinary way would have
+landed near the same place (~4.5 items) at the cost of eighteen draws and a
+payout nobody can know in advance.
+
+**The tension in fixing it is real and is recorded rather than resolved.**
+`map-design.md` asks the middle of the run to carry variance of REWARD, and
+a constant payout carries none. It is fixed anyway because a choice has to
+be **informed**, and the variance that actually matters here is whether the
+hero collects any of it — 6% to 80% depending on the state it arrives in.
+If the vault ever reads as a vending machine, `VAULT_CHEST_ITEMS` is the
+one thing to change.
+
+**The Butcher's mass is excluded from the floor's own curve.** hp × (xp−1)
+is 80, larger than all of floor 4's ordinary roster together, so counting
+it would wreck both `spineShare()` and the monotonic-mass guarantee.
+Refusable mass does not belong to the floor's pressure. Tagged `vault` and
+skipped by both.
+
+**No leash, deliberately.** The Butcher follows the hero out of the room,
+which is what makes the detour able to cost the run — the `M36` half.
+The failure to watch for is a Butcher that camps the stairs; the fix if it
+happens is a lower `activation`, never a leash, and never a second verb.
+
+#### What was refused up front
+
+Phases, ranged attacks, summons, regeneration. The engine has one verb —
+walk into a thing — and a second verb is a second system.
+
 ### U2 · live clear odds on screen
 
 `product` · `metrics agent` then `ui agent` — instrument first, display after

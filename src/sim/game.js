@@ -191,7 +191,13 @@ export function playGame(seed, policy, options = {}) {
   // fields is recorded here instead. Deliberately NOT the whole state: this
   // travels with every run and a deep copy would dominate a batch.
   const start = {
-    chests: state.chests.map((c) => ({ id: c.id, side: c.side, edge: c.edge })),
+    // `vault` travels because the instruments have to be able to leave the
+    // authored room out of questions about the ORDINARY bargain — without
+    // it, six chests behind one boss drag the side-chest rate from 0.69 to
+    // 0.26 and the wire reads as a defect that is not there.
+    chests: state.chests.map((c) => ({
+      id: c.id, side: c.side, edge: c.edge, vault: !!c.vault,
+    })),
     monsters: state.monsters.map((m) => ({
       id: m.id, side: m.side, edge: m.edge, xp: m.xp, hp: m.hpMax,
     })),

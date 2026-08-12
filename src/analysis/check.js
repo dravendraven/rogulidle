@@ -46,6 +46,13 @@ export function tripwires(options = {}) {
     for (const level of run.levels) {
       for (const chest of level.chests) {
         if (!chest.side) continue;
+        // M43 — the vault's own chests are excluded, for the same reason
+        // its occupant is left out of spineShare(): this wire asks whether
+        // the bot tells GOOD side rooms from BAD ones, and six chests
+        // sitting behind one authored creature answer a different question
+        // while outnumbering a floor's ordinary side chests. Left in, they
+        // dragged the rate from 0.69 to 0.26 by being correctly refused.
+        if (chest.vault) continue;
         if (chest.opened) sideOpened++; else sideShut++;
       }
     }

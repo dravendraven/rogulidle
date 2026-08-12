@@ -9,13 +9,15 @@ import {
   ITEM_TABLE, MONSTER_COUNT,
   MONSTER_DIFFICULTY_SCALE, MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE,
   MONSTER_WEIGHTS, PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE,
-  SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE, WEAPON_AXE_MIN_TIER,
+  SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE, VAULT_BOSS,
+  VAULT_BOSS_DROP, VAULT_CHEST_ITEMS, VAULT_LEVEL, WEAPON_AXE_MIN_TIER,
 } from './balance.js';
 import {
   draw, drawChance, drawInt, drawLogUniform, drawPick, drawWeighted,
 } from './rng.js';
 import { findPath, playerPassable, posKey, walkablePositions } from './mapgen.js';
 import { classifyRooms } from './spine.js';
+import { chestSlotsOf, stampVault } from './vault.js';
 
 // Items are drawn with weight 1/value, so a high value is a RARE item.
 //
@@ -345,9 +347,38 @@ export function populate(state, map, counts = {}) {
   //
   // Purely a reading of the map the digger already made — nothing is dug
   // differently for it, so this cannot fail to produce a floor.
-  const zones = classifyRooms(map, playerPos, shrinePos);
+  let zones = classifyRooms(map, playerPos, shrinePos);
   state.spine = { path: zones.path, sideRooms: zones.side.length,
     spineRooms: zones.spine.length };
+
+  // 3c. M43 — docs/project/candidates.md. The vault, stamped HERE and
+  // nowhere else, and the position in this function is the whole design:
+  //
+  //   after the shrine   the hero->shrine path exists, so the vault's door
+  //                      can be aimed at it — and the shrine is already
+  //                      placed, so it can never land inside the vault.
+  //                      Together those make the room a dead end off the
+  //                      mandatory route, by construction rather than by a
+  //                      dial.
+  //   after `free`       the walkable pool was taken before these tiles
+  //                      existed, so the ordinary roster and the ordinary
+  //                      chests cannot spill into an authored room. Nothing
+  //                      needs to exclude it; it was never in the pool.
+  //
+  // Re-classifying afterwards is not a patch and costs nothing: spine.js is
+  // a read-only pass that consumes no randomness, so running it twice is
+  // free and cannot desync a seed. Without it `zones.side` would predate
+  // the vault and its occupants would come out marked spine.
+  const vaultLevel = counts.vaultLevel ?? VAULT_LEVEL;
+  state.vault = null;
+  if (vaultLevel > 0 && level === vaultLevel) {
+    state.vault = stampVault(map, zones.path);
+    if (state.vault) {
+      zones = classifyRooms(map, playerPos, shrinePos);
+      state.spine = { path: zones.path, sideRooms: zones.side.length,
+        spineRooms: zones.spine.length };
+    }
+  }
 
   // Every side room rolls its risk and its reward SEPARATELY.
   //
@@ -364,6 +395,12 @@ export function populate(state, map, counts = {}) {
   // it and some are not, and which is which differs per room and per floor.
   const sideRolls = new Map();
   for (const room of zones.side) {
+    // The vault is authored, not rolled — its risk and its reward are both
+    // decided in balance.js. Skipping it here is not a cosmetic exclusion:
+    // this loop draws TWICE per side room, so letting the vault through
+    // would spend two spawn draws and shift every roll after it on the
+    // floor. The "consumes no randomness" test guards exactly this.
+    if (room.vault) continue;
     sideRolls.set(room, {
       risk: draw(state, 'spawn') * 2 * sideBonus,
       reward: draw(state, 'spawn') * 2 * sideBonus,
@@ -781,6 +818,78 @@ export function populate(state, map, counts = {}) {
       nearest.edge = edgeAt(target);
       // side unchanged by construction — target and monster share a zone.
     }
+  }
+
+  // 9. M43 — the vault's occupant, placed LAST and for a reason at every
+  // earlier step: M3's rare reskin picks a random victim and would turn the
+  // Butcher into a t-rex, M14 can relocate the nearest creature to the
+  // shrine, and M15 can drag one off to guard a chest. None of them can
+  // reach a creature that does not exist yet. Nothing here draws.
+  //
+  // It is not a MONSTER_TABLE row and never becomes one — see balance.js.
+  // `side` is READ from the zones rather than asserted, so if the room ever
+  // stopped being a dead end this would say so instead of hiding it.
+  if (state.vault) {
+    const pos = state.vault.room.center.slice();
+    const boss = counts.vaultBoss ?? VAULT_BOSS;
+    const dropName = counts.vaultBossDrop ?? VAULT_BOSS_DROP;
+    const template = ITEM_TABLE.find((item) => item.name === dropName);
+
+    const butcher = {
+      id: nextId(state),
+      name: boss.name,
+      emoji: boss.emoji,
+      pos,
+      hp: boss.hp,
+      hpMax: boss.hp,
+      xp: boss.xp,
+      activation: boss.activation,
+      dead: false,
+      edge: edgeAt(pos),
+      side: zones.isSide(pos),
+      // The only guaranteed drop in the game — no `dropChance` roll, which
+      // is what makes the reward worth the walk rather than a second
+      // gamble stacked on the first.
+      drop: template ? makeItem(state, template, pos) : null,
+      // Read by spineShare() and threatMass(): refusable mass is not part
+      // of the floor's own pressure and must not be counted into it.
+      vault: true,
+    };
+    state.monsters.push(butcher);
+    state.vault.boss = butcher;
+
+    // Its chests, extra to the floor's own and authored the same way. The
+    // chest kind is read off CHEST_TABLE rather than drawn from it: the
+    // table has one row, so a `drawPick` here would spend a stream value to
+    // choose between one option.
+    //
+    // NOT counted in the `chestCount` the bot is granted (rules.md §7), and
+    // that omission is the design. Granted, the bot would keep exploring
+    // until it had found them and the detour would stop being optional; left
+    // out, it meets the room only because the door is on its way, and then
+    // prices the guard like any other side room's.
+    const chestKind = CHEST_TABLE[0];
+    const wanted = counts.vaultChestItems ?? VAULT_CHEST_ITEMS;
+    const slots = chestSlotsOf([state.vault.room.x1, state.vault.room.y1]);
+
+    state.vault.chests = [];
+    slots.forEach((slot, i) => {
+      const name = wanted[i];
+      if (!name) return;
+      const item = ITEM_TABLE.find((entry) => entry.name === name);
+      const chest = {
+        id: nextId(state),
+        name: chestKind.name,
+        emoji: chestKind.emoji,
+        pos: slot,
+        side: zones.isSide(slot),
+        edge: edgeAt(slot),
+        drop: item ? makeItem(state, item, slot) : null,
+        vault: true,
+      };
+      state.chests.push(chest);
+      state.vault.chests.push(chest);
+    });
   }
 
   // Items lying loose on the floor. Starts empty: everything enters this list

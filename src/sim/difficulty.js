@@ -18,6 +18,7 @@ import {
   SHRINE_DISTANCE_SHARE,
   SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE,
   TIER_FLOOR_CAP, TIER_FLOOR_PER_LEVEL, TIER_SLACK_CAP, TIER_SLACK_PER_LEVEL,
+  VAULT_LEVEL,
 } from './balance.js';
 import { monsterWeightsAround } from './spawn.js';
 
@@ -138,6 +139,11 @@ export function floorParams(level) {
     potionScarcity: POTION_SCARCITY,
     dugPercentage: MAP_DUG_PERCENTAGE,
     shrineDistanceShare: SHRINE_DISTANCE_SHARE,
+    // M43 — which floor carries the authored room, travelling as a plan
+    // field like everything else so a sweep can turn it off without editing
+    // balance.js. Not derived from `level`: it names a floor, and spawn.js
+    // compares it against the floor it is building.
+    vaultLevel: VAULT_LEVEL,
   };
 }
 
@@ -176,6 +182,7 @@ export const DEFAULT_MODEL = {
   // travelled in the model, so the lab could not reach them.
   dugPercentage: MAP_DUG_PERCENTAGE,
   shrineDistanceShare: SHRINE_DISTANCE_SHARE,
+  vaultLevel: VAULT_LEVEL,
 };
 
 // Turns a model into the `floorPlan(level)` function the dungeon wants.
@@ -202,6 +209,7 @@ export function makeFloorPlan(model = {}) {
     sideChestBias: m.sideChestBias,
     dugPercentage: m.dugPercentage,
     shrineDistanceShare: m.shrineDistanceShare,
+    vaultLevel: m.vaultLevel,
   });
 }
 
@@ -215,9 +223,14 @@ export function difficultyToParams(dial) {
 
 // What a generated floor actually demands, in the currency that predicts
 // duel cost.
+// M43 — the vault's occupant is excluded, same rule as spineShare(). This
+// function's whole job is to say what a floor DEMANDS, and a creature the
+// hero can walk past demands nothing. Including it would also break the
+// monotonic-mass guarantee below, since one authored creature outweighs
+// every ordinary one on its floor put together.
 export function threatMass(state) {
   return state.monsters
-    .filter((m) => !m.dead)
+    .filter((m) => !m.dead && !m.vault)
     .reduce((sum, m) => sum + m.hpMax * Math.max(0, m.xp - 1), 0);
 }
 
