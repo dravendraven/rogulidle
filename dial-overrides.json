@@ -1,7 +1,4 @@
 {
-  "hero": {
-    "sideAppetite": 1
-  },
   "model": {
     "monsterGrowth": 1.05,
     "strength": 0.25,

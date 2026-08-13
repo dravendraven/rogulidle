@@ -2970,11 +2970,17 @@ test('every glyph the game can draw has a sprite', () => {
   }
 });
 
-test('B21 — the loot-value gate is off by default and reversible', () => {
-  // The flag exists so the two rules can be compared over the same seeds.
-  // Off must reproduce the old behaviour exactly, which is what makes the
-  // A/B meaningful and the revert free.
-  assertEq(LOOT_VALUE, false, 'the loot-value gate shipped on without a measurement');
+test('B25 — the loot-value gate is on, and the flag still reverses it', () => {
+  // Shipped ON (B25). The flag stays because the two rules are a real A/B
+  // and `decisions.md` carries both columns — false must still restore the
+  // old behaviour exactly, which the second test below is what pins.
+  assertEq(LOOT_VALUE, true, 'the loot-value gate was switched off without a measurement');
+
+  // The greed dial's centre only means "price a chest at what it is worth"
+  // if the shipped appetite IS the centre. Two sources disagreeing here is
+  // how it drifted once already.
+  assertEq(DEFAULT_HERO.sideAppetite, 1,
+    'the shipped appetite is not the dial centre, so the panel describes the wrong game');
 
   // Six bands, symmetric around 1 and never equal to it: no middle to park
   // on, so every setting leans. One constant generates the whole scale.

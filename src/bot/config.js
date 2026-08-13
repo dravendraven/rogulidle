@@ -29,12 +29,15 @@ export const DEFAULT_HERO = {
   // above 1 it risks MORE on the optional than on the mandatory — which is
   // the only way to say "take this even though it does not pay".
   //
-  // 0.5 rather than 1, and the number came from the vault (M43/M44). Swept
-  // over 200 runs: 0 enters the room in 3% of floors, 0.5 in 44%, 1.0 in
-  // 70%, 2.0 in 85%. At 0.5 the hero wins 22% of the fights it takes, which
-  // is the band the room was built for — high enough that entering is not
-  // suicide, low enough that it is a bet.
-  sideAppetite: 0.5,
+  // B25 — 1.0, and under LOOT_VALUE that number has a meaning it did not
+  // have before: it is a multiplier on a chest's EXPECTED VALUE, so 1.0 is
+  // "price a chest at exactly what it is worth". The centre of the Ganância
+  // dial, and the only centre in this file that is derived rather than
+  // chosen — `CHEST_VALUE_HP` computes the value and this leaves it alone.
+  //
+  // The earlier 0.5 came from the vault sweeps under the OLD rule, where
+  // this was a share of hp and the two numbers are not comparable.
+  sideAppetite: 1,
 
   // What one step is worth in hp. This is the exchange rate between goal 3
   // and the other two: raising it makes near goals win harder and empties
@@ -206,9 +209,29 @@ export function expectedChestValueHp(
 
 export const CHEST_VALUE_HP = expectedChestValueHp();
 
-// B21 — A/B SWITCH, off by default. On, a chest is refused when what it
-// costs exceeds what it is worth times the hero's greed; off, the old rule
-// applies exactly — refused when the GUARD alone exceeds
-// `sideAppetite × fightMargin × ehp`. Nothing else differs, so the two can
-// be compared over the same seeds and either can be shipped.
-export const LOOT_VALUE = false;
+// B21/B25 — ON. A chest is refused when what the visit costs — the walk AND
+// the guard — exceeds what the chest is worth times the hero's greed, and
+// the guard's duel is split across everything it guards.
+//
+// Off, the old rule applied: refused when the GUARD alone exceeded
+// `sideAppetite × fightMargin × ehp`, with the whole duel charged against
+// every chest separately. That is what made the vault unreadable — eight
+// chests behind one creature were priced as eight separate 7-hp fights.
+//
+// KEPT AS A FLAG rather than deleted, because the two rules are a real A/B
+// and `decisions.md` carries both columns. Setting it false restores the old
+// behaviour exactly.
+//
+// ***** WHAT IT DOES NOT COVER, and this is a live inconsistency *****
+//
+// `sideAppetite` now means two different things at once. For CHESTS it is a
+// multiplier on value — 1.0 prices a chest at exactly what it is worth, and
+// that is what the Lab's Ganância describes. For side-room CREATURES and
+// loose ITEMS it is still a share of the hero's hp (`sideAppetite ×
+// fightMargin × ehp`), because neither has a value the bot can price: a
+// weapon's worth is damage, not hp, and converting one to the other is a
+// modelling decision nobody has made.
+//
+// So the dial's label is true for the case it was built for and incomplete
+// for two others. Stated here rather than discovered later.
+export const LOOT_VALUE = true;
