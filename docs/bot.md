@@ -39,7 +39,7 @@ frases:
 |---|---|---|
 | `fightMargin` | sobreviver | fração do hp efetivo que uma luta pode custar |
 | `sideAppetite` | chegar rico | apetite pela aposta lateral — e por andar até o escuro caro (0 = nunca; acima de 1 arrisca mais no opcional do que no obrigatório) |
-| `stepCost` | poucos passos | quanto vale um passo em hp — mais alto = mais apressado |
+| `stepCost` | poucos passos | quanto vale um passo em hp — preço de cada tile de rota, nunca um portão: ninguém é descartado por estar longe e a saída do andar não o lê |
 
 Um herói covarde, ganancioso ou apressado é **outro objeto de config, nunca
 outro código**. O elenco de heróis ainda não existe de propósito; só o

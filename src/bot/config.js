@@ -32,9 +32,20 @@ export const DEFAULT_HERO = {
   // suicide, low enough that it is a bet.
   sideAppetite: 0.5,
 
-  // What one step is worth in hp. This is the exchange rate between goal 3
-  // and the other two: raising it makes near goals win harder and empties
-  // the "worth the walk" pool sooner, so a hasty hero leaves earlier.
+  // What one step is worth in hp. The exchange rate between goal 3 and the
+  // other two: it prices every tile of every route, so a near goal beats a
+  // far one by more as it rises.
+  //
+  // It is a WEIGHT, not a gate, and nothing here should suggest otherwise.
+  // No candidate is ever dropped for being too far — the pool has no price
+  // cap — and leaving the floor is decided by the granted counts (`owed` in
+  // bot.js), which this number does not enter. So a hasty hero does not
+  // leave earlier; it walks straighter. The one bar it could have crossed
+  // subtracts it back out on purpose (`dangerOnTheWay`).
+  //
+  // Its live range is the bottom of its slider: 0 is a cliff (58 of 60 runs
+  // time out) and 0.05, 0.1 and 0.2 are indistinguishable. See
+  // `docs/project/candidates.md`, section D.
   stepCost: 0.01,
 };
 

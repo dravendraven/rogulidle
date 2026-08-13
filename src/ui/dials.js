@@ -101,9 +101,13 @@ export const SECTIONS = [
     ]],
     ['como ele lê o perigo', [
       {
-        kind: 'bot', key: 'falloff', label: 'perigo decai por tile',
+        // O número é o que SOBRA do perigo a cada tile, não o quanto ele
+        // some: `bite × falloff ** distância` (bot.js, dangerField). Subir
+        // é sentir a criatura de mais longe. O rótulo dizia o contrário.
+        kind: 'bot', key: 'falloff', label: 'quanto do perigo sobra por tile de distância',
         title: 'Alcance da percepção de perigo', step: 0.05, range: [0, 1],
-        up: 'mais míope — só teme o que está colado', down: 'mais paranoico — o andar inteiro assusta',
+        up: 'mais paranoico — sente a criatura de longe',
+        down: 'mais míope — só teme o que está colado',
       },
       {
         kind: 'bot', key: 'crowdPenalty', label: 'multa por tile cercável por 2',
