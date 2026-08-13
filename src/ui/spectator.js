@@ -22,6 +22,7 @@ import { award, resetScore } from './score.js';
 import { resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
 import { SHOP_ITEMS, pickDefaultPurchase } from './shop.js';
 import { buildDialPanel, resolvedDefaults } from './dials.js';
+import { buildRoster, getChosenHero } from './roster.js';
 import { loadDialOverrides } from './dial-overrides.js';
 import { eventsEnabled, makeEventLayer } from './events.js';
 
@@ -52,6 +53,8 @@ const session = {
   // …and the face drawn on the board for them. Undefined lets render.js
   // fall back to the glyph the game shipped with.
   heroEmoji: undefined,
+  // The rail's own `show(playing, queued)` (src/ui/roster.js), once built.
+  roster: null,
   history: [],
   // Turns banked from floors already finished this run — see renderHud's
   // xp-rate comment in render.js. 0 in legacy single-floor mode.
@@ -94,7 +97,7 @@ function grab() {
     'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
     'coins', 'coinPopup', 'damage', 'debugInfo', 'app', 'lab', 'dials',
     'shop', 'shopBalance', 'shopItems', 'shopSkip', 'shopTimerBar',
-    'achievements',
+    'achievements', 'roster',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -505,9 +508,20 @@ async function runDescentForever(sessionSeed) {
     const dials = session.dials ? session.dials.read() : session.shippedDials;
     // Resolved once, so the run and the HUD can never disagree about who is
     // playing it.
-    const hero = heroByName(dials.run.who);
+    // WHO PLAYS, resolved once so the run, the board and the rail can never
+    // disagree. Two sources, and the order is the same default-then-override
+    // the whole project already runs on: the Lab's dial (which is what
+    // dial-overrides.json can ship to EVERY visitor) is the factory setting,
+    // and the rail is this visitor overriding it on their own machine.
+    //
+    // `null` from the rail means never picked — distinct from '' which is a
+    // visitor choosing the ordinary hero on purpose, and that difference is
+    // the whole reason the override can be a downgrade as well as an upgrade.
+    const chosen = getChosenHero();
+    const hero = heroByName(chosen === null ? dials.run.who : chosen);
     session.heroName = hero === heroByName('') ? '' : hero.name;
     session.heroEmoji = hero.emoji;
+    if (session.roster) session.roster(hero.name, hero.name);
     const traces = [];
     const run = playDungeon(seed, (floor) => {
       const trace = [];
@@ -704,6 +718,23 @@ export async function start() {
   const overrides = await loadDialOverrides();
   session.shippedDials = resolvedDefaults(overrides);
   wireLab(overrides, params.get('dev') === '1');
+
+  // The rail. Built after the overrides resolve, so the face it lights on
+  // load is the hero the first run will actually use rather than a guess it
+  // has to correct a moment later.
+  if (el.roster) {
+    session.roster = buildRoster(el.roster, {
+      // A pick QUEUES: the run on screen keeps the hero it started with,
+      // because a run is reproducible from its seed AND its hero and
+      // swapping mid-run would make the thing being watched something no
+      // seed reproduces. roster.js has already persisted it by now.
+      onPick: (value) => session.roster(session.heroName, heroByName(value).name),
+      onRestart: () => { session.restart = true; },
+    });
+    const chosen = getChosenHero();
+    const first = heroByName(chosen === null ? session.shippedDials.run.who : chosen).name;
+    session.roster(first, first);
+  }
 
   // ?seed=whatever makes a whole session reproducible, which is how you go
   // back and look at a run the bot played badly.

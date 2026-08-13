@@ -26,6 +26,12 @@
 
     <div class="labgame">
       <main>
+        <!-- The roster rail (src/ui/roster.js): who is playing, and who
+             plays next. Left of the board on purpose — it is a property of
+             the run, not a reading off it, so it does not belong in the
+             panel of numbers on the right. -->
+        <div id="roster" class="roster"></div>
+
         <div id="stage" class="stage">
           <div id="grid" class="grid"></div>
           <div id="summary" class="summary">

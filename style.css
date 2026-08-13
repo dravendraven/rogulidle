@@ -78,6 +78,67 @@ main {
   flex-wrap: wrap;
 }
 
+/* ***** the roster rail (src/ui/roster.js) ***** */
+
+/* Quiet by default: the game is what you are looking at, and a column of
+   five bright faces beside it would compete with the board. Only the hero
+   actually playing is at full strength; the rest are there to be found, not
+   to be read. */
+.roster {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  align-self: flex-start;
+}
+
+.roster-chip {
+  position: relative;
+  padding: .25rem;
+  line-height: 0;
+  background: transparent;
+  border: 2px solid transparent;
+  border-bottom-width: 2px;
+  border-radius: 8px;
+  opacity: .35;
+  filter: grayscale(.9);
+  transition: opacity .15s ease, filter .15s ease, border-color .15s ease;
+}
+.roster-chip:hover { opacity: .8; filter: grayscale(.3); }
+.roster-chip:active { margin-bottom: 0; transform: none; }
+
+.roster-chip.playing {
+  opacity: 1;
+  filter: none;
+  border-color: var(--accent);
+  background: var(--panel);
+}
+/* Queued reads as "waiting", not as "on" — dashed rather than solid, so the
+   two states are told apart by shape and not only by colour. */
+.roster-chip.queued {
+  opacity: 1;
+  filter: none;
+  border-style: dashed;
+  border-color: var(--dim);
+  background: var(--panel);
+}
+
+.roster-face { display: block; }
+.roster-face svg { display: block; width: 30px; height: 30px; }
+
+.roster-mark {
+  position: absolute;
+  right: -2px;
+  bottom: -4px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.roster-now {
+  font-size: .65rem;
+  padding: .2rem .3rem;
+  margin-top: .1rem;
+}
+
 /* ***** the dungeon ***** */
 
 .stage {
