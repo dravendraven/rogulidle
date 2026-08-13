@@ -1437,6 +1437,12 @@ test('pawa arrives on the next floor wearing what the last one paid for', () => 
     'the bought shield never reached the armour bar');
   assert(pawa.levels[1].arrivedWith.inventory.some((i) => i.id < 0),
     'the bought shield is not in the bag');
+
+  // The page has no other way to show that anything happened: the coin is
+  // earned and spent on the same floor, so the balance moves by zero.
+  assertEq(pawa.levels[0].bought.count, 1, 'the row does not say what was bought');
+  assertEq(pawa.levels[0].bought.emoji, shield.emoji, 'the row does not say WHAT it was');
+  assertEq(base.levels[0].bought, null, 'the ordinary hero bought something mid-run');
 });
 
 // ***** map design: the spine and its detours ***** //

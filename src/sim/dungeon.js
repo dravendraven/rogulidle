@@ -87,13 +87,16 @@ export function coinsFor(xpEarned, turns) {
 // bought one already run, so nothing here is a third copy of "what an item
 // means".
 //
-// Returns what was spent, so the page can take it off the balance it will
-// offer at the end.
+// Returns what was spent AND what it bought. The page needs both: the spend
+// comes off the balance it offers at the end, and the goods are the only
+// thing a viewer can actually see happen — a floor that paid one coin and
+// spent it printed "+0" and looked like a floor worth nothing.
 function atTheStairs(carry, hero, coins, purchases) {
+  const nothing = { spent: 0, bought: null };
   const deal = hero && hero.stairs;
-  if (!deal || !coins || coins < deal.price) return 0;
+  if (!deal || !coins || coins < deal.price) return nothing;
   const template = ITEM_TABLE.find((i) => i.name === deal.buy);
-  if (!template) return 0;
+  if (!template) return nothing;
 
   const affordable = Math.floor(coins / deal.price);
   const bought = Math.min(affordable, deal.maxPerFloor ?? affordable);
@@ -104,7 +107,10 @@ function atTheStairs(carry, hero, coins, purchases) {
     carry.inventory.push(owned);
     grantArmour(carry, owned);
   }
-  return bought * deal.price;
+  // The emoji travels rather than the item's name, so the page can show what
+  // was bought without a second table lookup and without hardcoding an emoji
+  // for an item that is configurable.
+  return { spent: bought * deal.price, bought: { emoji: template.emoji, count: bought } };
 }
 
 // What survives the stairs.
@@ -293,6 +299,7 @@ export function playDungeon(seed, makePolicy, options = {}) {
     earnedBefore = player.xpEarned;
     levels[levels.length - 1].coins = coins;
     levels[levels.length - 1].spent = 0;
+    levels[levels.length - 1].bought = null;
 
     if (run.outcome !== 'ascended') {
       // `depth` counts TRAVERSALS survived, not floors — how far the run got,
@@ -307,10 +314,13 @@ export function playDungeon(seed, makePolicy, options = {}) {
     // Not after the LAST traversal: there is no next floor to carry it to,
     // and buying there would quietly eat coin the end-of-run shop should
     // have been offered instead.
-    const spent = traversal < depth ? atTheStairs(carry, hero, coins, purchases) : 0;
-    if (spent) {
-      purchases += spent / (hero.stairs.price || 1);
-      levels[levels.length - 1].spent = spent;
+    const deal = traversal < depth
+      ? atTheStairs(carry, hero, coins, purchases)
+      : { spent: 0, bought: null };
+    if (deal.spent) {
+      purchases += deal.bought.count;
+      levels[levels.length - 1].spent = deal.spent;
+      levels[levels.length - 1].bought = deal.bought;
     }
   }
 

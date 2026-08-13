@@ -162,9 +162,16 @@ function coinsText() {
 // for anything. A timed fade like showSummaryCard's, just shorter and
 // polled the same way, so pausing mid-popup doesn't quietly burn its
 // on-screen time while everything else is frozen too.
-async function showCoinPopup(coins) {
+async function showCoinPopup(coins, bought) {
   if (!el.coinPopup) return;
-  el.coinPopup.textContent = `+${coins} 🪙`;
+  // What the floor PAID, then what the hero turned it into on the spot.
+  // Showing the net alone printed "+0 🪙" on a floor that both paid and
+  // bought — which reads as "this floor was worth nothing", the opposite of
+  // what happened, and it was the only trace the purchase left on screen.
+  const goods = bought
+    ? ` → ${bought.emoji}${bought.count > 1 ? `×${bought.count}` : ''}`
+    : '';
+  el.coinPopup.textContent = `+${coins} 🪙${goods}`;
   el.coinPopup.classList.add('shown');
   const until = COIN_POPUP_MS / session.speed;
   let waited = 0;
@@ -534,16 +541,20 @@ async function runDescentForever(sessionSeed) {
       const xpEarnedThisFloor = finalState.player.xpEarned - xpEarnedBeforeFloor;
       xpEarnedBeforeFloor = finalState.player.xpEarned;
       // The formula moved to `src/sim/dungeon.js` when a hero needed to
-      // spend coin mid-run: two callers, one line. `spent` is what that
-      // hero already took out of this floor's pay, and is 0 for everyone
-      // else — so what reaches the shop below is what is genuinely left.
-      const coinsThisFloor = coinsFor(xpEarnedThisFloor, levelResult.turns)
-        - (levelResult.spent ?? 0);
+      // spend coin mid-run: two callers, one line. `spent` is what that hero
+      // already took out of this floor's pay, and is 0 for everyone else.
+      //
+      // The BALANCE takes the net — the coin is genuinely gone. The POPUP
+      // shows the gross and the goods, because those are two different
+      // questions ("what did the shop get" vs "what happened here") and
+      // answering both with the net answered neither.
+      const earned = coinsFor(xpEarnedThisFloor, levelResult.turns);
+      const spent = levelResult.spent ?? 0;
 
       if (levelResult.outcome === 'ascended') {
-        session.unbankedCoins += coinsThisFloor;
+        session.unbankedCoins += earned - spent;
         if (el.coins) el.coins.textContent = coinsText();
-        await showCoinPopup(coinsThisFloor);
+        await showCoinPopup(earned, levelResult.bought);
       }
       // A floor that ends in death or timeout was not completed and pays
       // nothing — but, unlike before, does not erase what earlier floors in
