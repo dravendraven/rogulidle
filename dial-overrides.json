@@ -20,7 +20,7 @@
     "spreadPerLevel": 0.05,
     "strengthGrowth": 1.2,
     "spineThreatShare": 0.3,
-    "sideChestBias": 2.5,
+    "sideChestBias": 8,
     "monstersBase": 4,
     "spreadCap": 0.35,
     "dugPercentage": 0.18,

@@ -35,10 +35,19 @@ frases:
 `makeBot(options)` aceita `hero`, um override de `DEFAULT_HERO`
 (`src/bot/config.js`). Um traço por objetivo:
 
-Os tracos que o jogador mexe aparecem no Lab como **seis faixas nomeadas** (muito baixo ate
-muito alto), nao como slider continuo. Seis, numero par, para nao haver meio
-onde estacionar - e porque metade deles mediu **plano** ao longo da faixa
-continua antiga, entao uma casa a mais ou a menos nao mudava nada visivel.
+Os quatro tracos que o jogador mexe aparecem no Lab com a **mesma forma**: um
+vies de ±80% em torno de um centro calibrado, em **seis faixas nomeadas**
+(muito baixo ate muito alto). Seis, numero par, para nao haver meio onde
+estacionar.
+
+**O centro nao esta entre as seis.** Um dial intocado roda NO centro, entao
+abrir o Lab nunca mexe no balanceamento, e qualquer ajuste do jogador e uma
+piora deliberada de um bot que ja estava calibrado. As duas faixas de dentro
+cercam o centro (-16% e +16%).
+
+**So a Ganancia tem centro calculado:** ela multiplica o valor esperado de um
+bau, que sai da chance de loot e da tabela de itens sozinho. Os outros tres
+tem por centro o valor que shipa.
 
 | traço | objetivo | o que faz |
 |---|---|---|

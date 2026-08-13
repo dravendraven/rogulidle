@@ -2,6 +2,10 @@
 // never reads this file, and src/sim/balance.js no longer holds bot dials.
 // Bot rules live in the bot (CLAUDE.md); so do the bot's numbers.
 
+import { CHEST_LOOT_CHANCE } from '../sim/balance.js';
+import { ARMOUR_SCARCITY, POTION_SCARCITY } from '../sim/difficulty.js';
+import { itemWeights } from '../sim/spawn.js';
+
 // The shipped hero. A hero with special characteristics is a DIFFERENT
 // CONFIGURATION of this object handed to makeBot, never different bot code —
 // that is the whole choice-layer mechanism, and the roster that will use it
@@ -127,37 +131,53 @@ export function biasBands(spread = BIAS_SPREAD, count = 6) {
   return Array.from({ length: count }, (_, i) => +(lo + i * step).toFixed(3));
 }
 
-// ***** B21 — what an unopened chest is worth, in hp ***** //
+// ***** B21/M47 — what an unopened chest is worth, in hp *****
 //
-// The bot has never had a reward term. A chest's price is `walk + guard`,
-// pure cost, and the pool takes the CHEAPEST of everything — so it could
-// only ever ask "can I afford this", never "is it worth it". That is why
-// greed and courage both ended up pulling on the same threshold from the
-// same side, and why greed had nothing of its own to bias.
+// The bot has never had a reward term. A chest's price was `walk + guard`,
+// pure cost, and the pool took the CHEAPEST of everything — so it could ask
+// "can I afford this" and never "is it worth it". That is why greed and
+// courage both pulled on the same threshold from the same side, and why
+// greed had nothing of its own to bias.
 //
-// A BOT-SIDE BELIEF, not engine knowledge, and the distinction is the whole
-// reason this is one constant here rather than a reading of the generator.
-// The hero may not know what a chest holds (`drop` never crosses into
-// Belief — src/sim/observe.js), and it is not told the scarcity dials
-// either. It believes an unopened chest is worth this much and acts on the
-// belief; being wrong is allowed and is exactly what a bias dial is for.
+// M47 — COMPUTED, never tuned. This is the expected value of an unopened
+// chest and nothing else: the chance it holds anything, times the average
+// hp a chest item is worth, weighted the same way the generator weights
+// which kind comes out. Change `CHEST_LOOT_CHANCE`, change what a shield or
+// a potion gives, change the scarcity ratio — this follows on its own.
 //
-// 1 hp, and it is CALIBRATED rather than derived. The naive estimate is
-// about 2 — a chest holds a shield (+3 armour) or a potion (+3 healing),
-// both worth roughly 3 hp, and about two thirds of them hold anything once
-// the positional roll and the scarcity gate are applied.
+// It is NOT a balance dial and must not be nudged to make a measurement come
+// out nicer. The number is the bot's honest belief; the greed dial is what
+// biases away from it, and a hand-tuned centre would make the bias mean
+// nothing. (A sweep did suggest a lower threshold reads better on mean
+// depth; at n=150 the middle four bands were within noise of each other, so
+// there was nothing solid to move to anyway.)
 //
-// Measured, that is too generous. The gate only ever uses the PRODUCT
-// `value × greed`, so a sweep over the six bias bands at value 2 located
-// the best threshold at about 0.93 hp — greed 0.467 read 4.76 mean floors
-// against 4.05 at the greedy end and 4.38 at the timid one. Setting the
-// value to 1 puts that optimum at bias 1.0, which is what makes the six
-// bands straddle it instead of sitting entirely on one side.
+// A BOT-SIDE BELIEF even so: the hero is never told what a chest holds
+// (`drop` does not cross into Belief, src/sim/observe.js). It computes what
+// the average chest is worth and acts on that, which is what a player would
+// do after watching a few runs.
 //
-// So this constant is the CENTRE the dial biases around, and the player
-// cannot select it: the nearest bands are 0.733 and 1.267. Every setting
-// leans, which is the whole design.
-export const CHEST_VALUE_HP = 1;
+// `armour + heal` is the hp value of a chest item — the armour bar and the
+// hp bar are both damage the hero can take before dying (`effectiveHp`), so
+// a point of either is a point of survival. Weapons are not a chest kind.
+export function expectedChestValueHp(
+  lootChance = CHEST_LOOT_CHANCE,
+  scarcity = { armour: ARMOUR_SCARCITY, potion: POTION_SCARCITY },
+) {
+  // Reuses the generator's own weighting rather than restating it — one
+  // source of truth for "which kind comes out of a chest". `allowEmpty:
+  // false` because `lootChance` above already decides whether it holds
+  // anything at all.
+  const entries = itemWeights(scarcity, 'chest', 0, [], false);
+  const total = entries.reduce((sum, [, w]) => sum + w, 0);
+  if (total <= 0) return 0;
+  const average = entries.reduce(
+    (sum, [item, w]) => sum + w * ((item.armour || 0) + (item.heal || 0)), 0,
+  ) / total;
+  return lootChance * average;
+}
+
+export const CHEST_VALUE_HP = expectedChestValueHp();
 
 // B21 — A/B SWITCH, off by default. On, a chest is refused when what it
 // costs exceeds what it is worth times the hero's greed; off, the old rule

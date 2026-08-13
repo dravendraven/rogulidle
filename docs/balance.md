@@ -29,7 +29,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | how much the route branches | `MAP_DUG_PERCENTAGE` | 0.15 | less dug = a mandatory path actually exists; a model field, so the lab reaches it |
 | | `SPINE_THREAT_SHARE` | 0.7 | share of threat MASS placed on the mandatory route |
 | | `SIDE_ROOM_DEPTH_BONUS` | 0.35 | the whole gamble: side rooms roll risk and reward independently over [0, 2×this] |
-| | `SIDE_CHEST_BIAS` | 3 | how much likelier a chest lands in a side room |
+| | `SIDE_CHEST_BIAS` | 8 | how much likelier a chest lands in a side room. Measured only where a side room EXISTS (135 floors in 360): 2.5 puts 39% of the chests there, 8 puts 70%, and it saturates near 90% — the ceiling is how few side rooms the digger makes, not this dial |
 | | `MIN_ROSTER_FOR_SIDE` | 4 | below this many creatures, everything goes on the spine |
 | | `SHRINE_DISTANCE_SHARE` | 0.65 | how far still counts as "distant" for the exit hole; a model field, so the lab reaches it |
 | | `CHEST_GUARD_RADIUS` | 8 | every chest gets a creature within this — loot is not free |
@@ -65,6 +65,16 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | `ITEM_TABLE.axe.dmgMin` | 1 | the axe raises the damage die's FLOOR, not just its top — worth twice a point of `dmg` (rules.md §4) |
 
 ## The bot's numbers — `src/bot/config.js`, not this file's business
+
+**The four player dials are ±80% biases around a calibrated centre** (M47).
+The Lab offers six named bands, none of them the centre, and an untouched
+dial runs AT the centre — so opening the panel never moves the balance and
+every setting a player picks is a deliberate detune.
+
+`CHEST_VALUE_HP` is the one centre that is COMPUTED rather than chosen:
+`CHEST_LOOT_CHANCE × the average hp a chest item is worth`, weighted the way
+the generator weights the kinds. It is 1.5 today and it follows its inputs —
+never tune it by hand.
 
 The bot's dials belong to the bot. `DEFAULT_HERO` (fightMargin 0.7,
 sideAppetite 0.5, stepCost 0.01) is the shipped hero and the whole
