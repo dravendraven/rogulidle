@@ -7,7 +7,7 @@
 // sped up freely.
 
 import { playGame, replayGame } from '../sim/game.js';
-import { playDungeon, LEVELS } from '../sim/dungeon.js';
+import { coinsFor, playDungeon, LEVELS } from '../sim/dungeon.js';
 import { hashSeeds, seedFromString } from '../sim/rng.js';
 import { difficultyToParams, makeFloorPlan } from '../sim/difficulty.js';
 import { dangerField, makeBot } from '../bot/bot.js';
@@ -517,9 +517,12 @@ async function runDescentForever(sessionSeed) {
       // own replay, already computed above, and it does have xpEarned.
       const xpEarnedThisFloor = finalState.player.xpEarned - xpEarnedBeforeFloor;
       xpEarnedBeforeFloor = finalState.player.xpEarned;
-      const coinsThisFloor = levelResult.turns > 0
-        ? Math.round((xpEarnedThisFloor / levelResult.turns) * 10)
-        : 0;
+      // The formula moved to `src/sim/dungeon.js` when a hero needed to
+      // spend coin mid-run: two callers, one line. `spent` is what that
+      // hero already took out of this floor's pay, and is 0 for everyone
+      // else — so what reaches the shop below is what is genuinely left.
+      const coinsThisFloor = coinsFor(xpEarnedThisFloor, levelResult.turns)
+        - (levelResult.spent ?? 0);
 
       if (levelResult.outcome === 'ascended') {
         session.unbankedCoins += coinsThisFloor;

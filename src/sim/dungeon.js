@@ -15,10 +15,12 @@
 // widening draw — is R2, R3 and R4 (docs/backlog.md), each measurable
 // alone.
 
-import { PLAYER_HP, PLAYER_XP, TURN_BUDGET } from './balance.js';
+import { COIN_RATE, ITEM_TABLE, PLAYER_HP, PLAYER_XP, TURN_BUDGET } from './balance.js';
 import { hashSeeds } from './rng.js';
 import { floorParams } from './difficulty.js';
 import { playGame } from './game.js';
+import { grantArmour } from './step.js';
+import { heroItem } from './heroes.js';
 
 export const LEVELS = 10;
 
@@ -63,6 +65,48 @@ export function floorPlan(level) {
   return { ...floorParams(level - 1), level };
 }
 
+// What a finished traversal pays. Derived from xp per turn, so it prices
+// both halves of objective 2 at once — what the hero took, and how long it
+// took. rules.md §9 carries the rule; `COIN_RATE` the value.
+//
+// Here rather than in the page because two callers now need the SAME
+// number: `src/ui/spectator.js`, which shows it and spends it in the shop,
+// and the loop below, for the one hero who may spend it before the run is
+// over. A second copy of this line is exactly the drift E1 is about.
+export function coinsFor(xpEarned, turns) {
+  return turns > 0 ? Math.round((xpEarned / turns) * COIN_RATE) : 0;
+}
+
+// The engineer's trade: a hero with `stairs` converts what the floor just
+// paid into goods before the next one starts. Everyone else reaches the
+// shop only once, when the run is already over (rules.md §9).
+//
+// It mutates the carry rather than the floor because a floor transition is
+// the only moment that exists between two floors — and it goes through
+// `heroItem` and `grantArmour`, the same two rules a found item and a
+// bought one already run, so nothing here is a third copy of "what an item
+// means".
+//
+// Returns what was spent, so the page can take it off the balance it will
+// offer at the end.
+function atTheStairs(carry, hero, coins, purchases) {
+  const deal = hero && hero.stairs;
+  if (!deal || !coins || coins < deal.price) return 0;
+  const template = ITEM_TABLE.find((i) => i.name === deal.buy);
+  if (!template) return 0;
+
+  const affordable = Math.floor(coins / deal.price);
+  const bought = Math.min(affordable, deal.maxPerFloor ?? affordable);
+  for (let i = 0; i < bought; i++) {
+    // NEGATIVE ids: `nextId` starts at 1 and counts up per floor, so nothing
+    // minted here can ever collide with something the generator placed.
+    const owned = heroItem({ ...template, id: -(purchases + i + 1) }, hero.persona);
+    carry.inventory.push(owned);
+    grantArmour(carry, owned);
+  }
+  return bought * deal.price;
+}
+
 // What survives the stairs.
 function carryFrom(player) {
   return {
@@ -101,8 +145,16 @@ export function playDungeon(seed, makePolicy, options = {}) {
   const floors = options.levels ?? LEVELS;
   const depth = options.traversals ?? floors * 2 - 1;
   const planFor = options.floorPlan ?? floorPlan;
+  // ONE entry of `HEROES` (src/sim/heroes.js) — the whole hero, not half of
+  // one. Its `persona` travels down to every floor in the counts; its
+  // `stairs` is read here, between them. Absent is the shipped hero.
+  const hero = options.hero;
   const levels = [];
   let carry = null;
+  // Coin is paid per traversal on xp EARNED THERE, so the running total has
+  // to be differenced rather than read (rules.md §9).
+  let earnedBefore = 0;
+  let purchases = 0;
 
   for (let traversal = 1; traversal <= depth; traversal++) {
     const level = floorOfTraversal(traversal, floors);
@@ -164,7 +216,7 @@ export function playDungeon(seed, makePolicy, options = {}) {
       // Which hero plays the whole descent (src/sim/heroes.js). Forwarded to
       // every floor for the same reason `startingItems` is: a floor builds
       // its own state and has no way back to the run that asked for it.
-      persona: options.persona,
+      persona: hero && hero.persona,
     };
 
     const run = playGame(
@@ -234,6 +286,14 @@ export function playDungeon(seed, makePolicy, options = {}) {
       replay: run.replay,
     });
 
+    // What this traversal paid, and what the hero spent of it before the
+    // next one. Recorded on the row so the page can take the spend off the
+    // balance it offers at the end of the run — the coin is the same coin.
+    const coins = coinsFor(player.xpEarned - earnedBefore, run.turns);
+    earnedBefore = player.xpEarned;
+    levels[levels.length - 1].coins = coins;
+    levels[levels.length - 1].spent = 0;
+
     if (run.outcome !== 'ascended') {
       // `depth` counts TRAVERSALS survived, not floors — how far the run got,
       // which is what it always meant. On a pinned descent the two are the
@@ -244,6 +304,14 @@ export function playDungeon(seed, makePolicy, options = {}) {
         killedBy: run.state.killedBy || null };
     }
     carry = carryFrom(player);
+    // Not after the LAST traversal: there is no next floor to carry it to,
+    // and buying there would quietly eat coin the end-of-run shop should
+    // have been offered instead.
+    const spent = traversal < depth ? atTheStairs(carry, hero, coins, purchases) : 0;
+    if (spent) {
+      purchases += spent / (hero.stairs.price || 1);
+      levels[levels.length - 1].spent = spent;
+    }
   }
 
   // R1 — VICTORY IS COMPLETING THE LAST TRAVERSAL. Reaching the bottom is

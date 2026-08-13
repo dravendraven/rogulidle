@@ -39,11 +39,12 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | | `VAULT_BOSS_DROP` | `axe` | the only guaranteed drop in the game |
 | | `VAULT_CHEST_ITEMS` | 4 × shield, 4 × potion | the vault floor's ONLY chests — it places none of its own; authored rather than rolled |
 
-## Time
+## Time and coin
 
 | dial | value | one sentence |
 |---|---|---|
 | `TURN_BUDGET` | 1500 | turns one traversal may spend; running out ends the run — the only brake on the shamble |
+| `COIN_RATE` | 10 | what a completed traversal pays per unit of xp-per-turn; was hardcoded in the page until a hero had to spend coin mid-run |
 | `RETURN_ENABLED` | false | whether the run the pages ask for includes the climb back out; off is a plain ten-traversal descent (rules.md §1) |
 
 ## Fixed / faithful

@@ -43,7 +43,7 @@ function playOne(seed, dials, hero) {
     hero: { ...(dials && dials.hero), ...(hero && hero.bot) },
     ...(dials && dials.bot),
   }), {
-    ...(hero && hero.persona ? { persona: hero.persona } : {}),
+    ...(hero ? { hero } : {}),
     ...(plan ? { floorPlan: plan } : {}),
     ...(dials && dials.run ? { maxTurns: dials.run.turnBudget } : {}),
     // The return ships off, and the analysis modules already pin the plain

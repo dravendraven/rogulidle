@@ -13,16 +13,18 @@
 //            place an item enters the inventory — `heroItem` below.
 //   bot      how the bot VALUES things: an override of `DEFAULT_HERO`
 //            (src/bot/config.js) handed to `makeBot`. Shipped since P3.
-//            Empty in all four entries today — nothing here needs it yet,
-//            and it is listed so a hero stays ONE object to read.
+//            Empty in every entry today — nothing here needs it yet, and it
+//            is listed so a hero stays ONE object to read.
+//   stairs   what a completed floor buys him, mid-run. Read by the run loop
+//            in dungeon.js, between two floors.
 //
-// The first three ride on `state.persona`; the fourth never touches the
-// engine at all, and is kept here only so that one object describes a whole
-// hero. There is deliberately no fifth surface for "an action only this hero
-// can take": when one arrives, `drinkPotion` is the template (an action that
-// resolves in place and costs the turn), and nothing in this file has to
-// change to allow it. Building the generic version first is how the project
-// bloated the first time.
+// The first three ride on `state.persona`; the last two never reach the
+// engine's turn at all. `stairs` was NOT designed ahead of a hero who needed
+// it — it exists because Pawa does, which is the order this project builds
+// surfaces in. There is still deliberately no surface for "an action only
+// this hero can take": when one arrives, `drinkPotion` is the template (an
+// action that resolves in place and costs the turn), and nothing here has to
+// change to allow it.
 //
 // This is a VALUES file — the same treatment `MONSTER_TABLE` and `ITEM_TABLE`
 // get in balance.js, with one row in docs/balance.md pointing here.
@@ -73,11 +75,6 @@ export function heroItem(item, persona) {
 
 // The cast itself. `base` is the shipped game and must stay empty — it is
 // what every measurement compares against.
-//
-// Pawa is absent on purpose: both versions of his trait (buying armour at a
-// floor transition, or a stealth multiplier on creature `activation`) touch
-// the bot's danger field, and that is being worked on elsewhere. He is a
-// table entry away once it lands.
 export const HEROES = {
   base: {
     name: 'base',
@@ -99,6 +96,22 @@ export const HEROES = {
     name: 'ricardo',
     persona: { revealLoot: true },
     bot: {},
+  },
+  // The engineer. Every floor he finishes, the coin it paid buys armour on
+  // the spot — the only hero who reaches goods before the run is over.
+  //
+  // His price is HIS, not the shop's, and that is the point: the shop's
+  // ladder is knowingly unbalanced (rules.md §9) and pinning him to it would
+  // inherit the defect amplified. Tightening him later is one number here.
+  //
+  // He spends the moment he can afford it. Hoarding for a deeper floor is a
+  // real alternative and nobody has measured it — that is a sweep, not a
+  // default to guess at, and there is no dial for it on purpose.
+  pawa: {
+    name: 'pawa',
+    persona: {},
+    bot: {},
+    stairs: { buy: 'shield', price: 1, maxPerFloor: 1 },
   },
   // A dagger that never lands for zero, and shields that hold less. Measured
   // as the one version of this trait that is not net-negative; the axe

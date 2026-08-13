@@ -295,3 +295,11 @@ export const VAULT_CHEST_ITEMS = [
 // the shamble. Entered loose (at the measured p99 of wandering runs);
 // tightening it is a value change with its own measurement.
 export const TURN_BUDGET = 1500;
+
+// ***** coin ***** //
+
+// What a completed traversal pays, per unit of xp-per-turn (rules.md §9).
+// It lived hardcoded in `src/ui/spectator.js` until a hero needed to spend
+// coin mid-run and the formula had to exist in one place both could call —
+// the value moved here with it rather than being copied.
+export const COIN_RATE = 10;

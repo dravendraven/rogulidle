@@ -415,6 +415,12 @@ completar as dezenove travessias, não chegar ao fundo (§1). Morrer descarta o
 acumulado e zera também o saldo guardado e o item comprado. Sem flag: é a
 regra, e a alternativa nunca chegou a ser medida.
 
+**Um herói pode gastar antes de a run acabar.** Existe herói para quem cada
+andar concluído já é uma compra: a moeda que aquele andar pagou vira item na
+hora, com preço próprio e não o da loja, e o que ele gastou não chega ao fim
+da run. Para todos os outros a moeda só é gasta depois, e a regra abaixo é a
+única que existe.
+
 **A moeda compra item para a run seguinte.** A loja aparece ao fim de uma
 run, oferece um punhado de itens a preço fixo, e **a compra múltipla é
 permitida** — o mesmo item mais de uma vez. Item comprado entra como item

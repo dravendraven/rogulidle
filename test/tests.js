@@ -1414,6 +1414,27 @@ test('ricardo walks past the empty chests, and the ordinary hero does not', () =
   assertEq(ricardo.found, base.found, 'ricardo refused a chest that was carrying something');
 });
 
+test('pawa arrives on the next floor wearing what the last one paid for', () => {
+  const shield = ITEM_TABLE.find((i) => i.name === 'shield');
+  const play = (hero) => playDungeon(6100,
+    (floor) => makeBot({ monsterCount: floor.monsterCount, chestCount: floor.chests }),
+    { traversals: LEVELS, hero });
+  const pawa = play(HEROES.pawa);
+  const base = play(HEROES.base);
+
+  // Floor 1 is identical for both — nothing has been bought yet — so any
+  // difference on arrival at floor 2 is the purchase and nothing else.
+  assert(base.levels[0].coins >= 1, 'floor 1 paid nothing on this seed, so this proves nothing');
+  assertEq(base.levels[0].spent, 0, 'the ordinary hero spent coin in the middle of a run');
+  assert(pawa.levels[0].spent > 0, 'pawa finished a paying floor and bought nothing');
+
+  assertEq(pawa.levels[1].arrivedWith.armour,
+    base.levels[1].arrivedWith.armour + shield.armour,
+    'the bought shield never reached the armour bar');
+  assert(pawa.levels[1].arrivedWith.inventory.some((i) => i.id < 0),
+    'the bought shield is not in the bag');
+});
+
 // ***** map design: the spine and its detours ***** //
 //
 // docs/map-design.md. Every "70% of the threat mass is on the mandatory
