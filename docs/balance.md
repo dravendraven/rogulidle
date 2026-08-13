@@ -52,7 +52,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 |---|---|---|
 | `MAP_SIZE` | 32 | FAITHFUL |
 | `CORRIDOR_LENGTH` / `ROOM_WIDTH` / `ROOM_HEIGHT` | [1,3] / [5,9] / [4,7] | rooms with corridors, not corridors with rooms |
-| `VISIBLE_DIST` / `CLEAR_DIST` | 9 / 7 | FAITHFUL |
+| `VISIBLE_DIST` / `CLEAR_DIST` | 9 / 7 | FAITHFUL — `VISIBLE_DIST` is now the DEFAULT reach, which a persona may override (`HEROES` below) |
 | `PLAYER_HP` / `PLAYER_XP` | 10 / 3 | FAITHFUL — and neither ever grows in play |
 | `HIT_CHANCE` | 5/6 | FAITHFUL |
 | `MONSTER_SKIP_CHANCE` | 0.10 | FAITHFUL |
@@ -62,6 +62,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | `WEAPON_AXE_MIN_TIER` | 4 | below wolf, the axe is absent from the pool, not just rare |
 | `STARTING_ITEMS` | [] | the run starts empty-handed — the opening is hard on purpose |
 | `MONSTER_TABLE` / `ITEM_TABLE` / `MONSTER_WEIGHTS` | — | in `src/sim/balance.js`, values visible there |
+| `HEROES` / `DEFAULT_PERSONA` | — | in `src/sim/heroes.js`, values visible there — the cast, one object per hero. `base` is empty and must stay empty: it IS the shipped game, and every reading compares against it |
 | `ITEM_TABLE.axe.dmgMin` | 1 | the axe raises the damage die's FLOOR, not just its top — worth twice a point of `dmg` (rules.md §4) |
 
 ## The bot's numbers — `src/bot/config.js`, not this file's business

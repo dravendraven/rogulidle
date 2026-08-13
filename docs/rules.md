@@ -289,6 +289,13 @@ tudo que o herói tem", sem regra separada para esse caso. Item que entra
 assim credita a barra de armadura pela mesma regra do item pego do chão —
 uma função, não duas cópias.
 
+**Quanto um item vale pode depender de quem o carrega.** O mundo larga
+sempre o mesmo item; o que muda é a mão. Um herói pode tirar de uma arma ou
+de um escudo mais — ou menos — do que outro tira do mesmo objeto, e isso
+vale igual para o que ele acha no chão, o que vem no kit e o que ele compra:
+é o mesmo ponto único por onde um item entra no inventário, pela mesma razão
+que a armadura é creditada por uma função só.
+
 ## 6. O turno
 
 **Andar contra parede não passa turno.** Nada acontece, e as criaturas não
@@ -332,10 +339,25 @@ desenho.
 **Visibilidade é por distância simples, sem linha de visão.** O que foi visto
 fica na memória.
 
+**O alcance é do herói, não do jogo.** Existe herói que enxerga mais longe que
+outro — até o andar inteiro de uma vez. O que muda é quanto entra na
+`Observation`; a névoa continua existindo como mecanismo, e para quem não tem
+o traço ela é exatamente a de sempre.
+
 **A regra é do canal, não do leitor.** Um campo que carregue resposta ainda
 não revelada já a vazou, mesmo que ninguém o leia — foi por isso que o item
 já sorteado de uma criatura saiu do Belief. O que atravessa é lista
 explícita por tipo de entidade, não cópia do objeto inteiro.
+
+**E existe herói com direito a essa resposta.** Para um deles, o item já
+sorteado de criatura e de baú atravessa — dentro do que ele já enxerga, sem
+alcance extra. Isso não é exceção à regra acima: é a mesma lista explícita,
+com uma entrada a mais concedida de propósito a quem foi desenhado com o
+traço, e fechada para todos os outros.
+
+**Os dois são eixos separados, e nenhum herói está no topo dos dois.** Ver
+longe não é saber o que a coisa guarda, e saber o que ela guarda não é
+vê-la de longe.
 
 **Quantas criaturas e quantos baús o andar tem é concedido**, de
 propósito — é o que deixa o bot saber quando o escuro não deve mais nada.

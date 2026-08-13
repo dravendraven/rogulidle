@@ -13,6 +13,7 @@ import {
 } from '../src/sim/game.js';
 import { step, ACTIONS, grantArmour } from '../src/sim/step.js';
 import { observe, emptyBelief, foldBelief } from '../src/sim/observe.js';
+import { DEFAULT_PERSONA, HEROES, heroItem } from '../src/sim/heroes.js';
 import {
   weaponDamage, weaponMinDamage, armourValue, effectiveHp,
 } from '../src/sim/combat.js';
@@ -1268,6 +1269,114 @@ test('the belief never leaks the full map', () => {
   const walkableTotal = state.map.tiles.filter(Boolean).length;
   assert(belief.tiles.size < walkableTotal, 'the first observation revealed everything');
   assert(belief.shrine === null || belief.tiles.size > 0, 'belief is empty');
+});
+
+// ***** personas: heroes as configuration ***** //
+//
+// src/sim/heroes.js. What is checked here is the SEAM, not the balance: that
+// a persona reaches every place that has to read it, that the default one is
+// the game that shipped before it existed, and that the persona itself never
+// crosses the fog boundary it is allowed to move.
+
+test('the default persona is the game that shipped without one', () => {
+  // The load-bearing property of the whole mechanism. If this ever fails,
+  // every measurement taken before personas existed is off its baseline.
+  const plain = newGame(4242, floorPlan(4));
+  const withDefault = newGame(4242, { ...floorPlan(4), persona: {} });
+  assertEq(JSON.stringify(observe(withDefault, withDefault.persona).monsters),
+    JSON.stringify(observe(plain, plain.persona).monsters),
+    'an explicit empty persona saw something the shipped fog does not');
+  assertEq(heroItem(ITEM_TABLE[0], DEFAULT_PERSONA), ITEM_TABLE[0],
+    'the default persona did not hand the item back untouched');
+});
+
+test('papazito sees the whole floor, and the base hero does not', () => {
+  const state = newGame(7311, floorPlan(5));
+  const seesAll = observe(state, HEROES.papazito.persona);
+  const seesNear = observe(state, HEROES.base.persona);
+  assertEq(seesAll.monsters.length, state.monsters.length,
+    'the whole-map radius still left a creature in the dark');
+  assertEq(seesAll.chests.length, state.chests.length,
+    'the whole-map radius still left a chest in the dark');
+  assert(seesNear.monsters.length < state.monsters.length,
+    'the shipped fog revealed the entire roster, so this seed proves nothing');
+});
+
+test('papazito still does not know what a chest holds', () => {
+  // The two axes are independent — candidates.md U7. A bigger viewport is
+  // not permission to read the loot roll.
+  const state = newGame(7311, floorPlan(5));
+  const obs = observe(state, HEROES.papazito.persona);
+  assert(obs.chests.every((c) => !('drop' in c)), 'the wide radius carried a chest drop through');
+  assert(obs.monsters.every((m) => !('drop' in m)), 'the wide radius carried a monster drop through');
+});
+
+test('ricardo reads the drop through his persona, not just through the flag', () => {
+  // `revealLoot` already had a test as a PARAMETER. This one checks the
+  // wiring: that the persona on the state is what reaches observe().
+  let checked = false;
+  for (let seed = 0; seed < 60 && !checked; seed++) {
+    const state = newGame(965000 + seed, { ...floorPlan(5), persona: HEROES.ricardo.persona });
+    const carrier = observe(state, state.persona).monsters.find((m) => m.drop);
+    if (!carrier) continue;
+    checked = true;
+    const truth = state.monsters.find((m) => m.id === carrier.id);
+    assertEq(carrier.drop.name, truth.drop.name, 'the persona did not carry the real drop through');
+  }
+  assert(checked, 'no seed in this sample put a drop-carrying monster within sight at generation');
+});
+
+test('the persona survives the stairs of a single step', () => {
+  // cloneState is an allow-list: a field left out of it vanishes one step
+  // into the run, and the fog would quietly close again mid-floor.
+  const state = newGame(515, { ...floorPlan(3), persona: HEROES.papazito.persona });
+  const after = step(state, 'rest').state;
+  assertEq(after.persona.sightRadius, state.persona.sightRadius, 'the persona did not survive step()');
+  assertEq(step(after, 'rest').observation.monsters.length, state.monsters.length,
+    'the wide radius was gone by the second turn');
+});
+
+test('the persona never crosses into Observation or Belief', () => {
+  // CLAUDE.md's rule is about the CHANNEL. `persona` is new state, and new
+  // state is exactly what the allow-list in observe.js exists to stop.
+  const state = newGame(808, { ...floorPlan(2), persona: HEROES.ricardo.persona });
+  const obs = observe(state, state.persona);
+  const belief = foldBelief(emptyBelief(), obs);
+  assert(!('persona' in obs), 'the observation carried the persona');
+  assert(!('persona' in belief), 'the belief carried the persona');
+  assert(!('persona' in obs.player), 'the observed player carried the persona');
+});
+
+test("an item is worth what the hero's hands make it", () => {
+  const dagger = ITEM_TABLE.find((i) => i.name === 'dagger');
+  const shield = ITEM_TABLE.find((i) => i.name === 'shield');
+  const vito = HEROES.vito.persona;
+
+  assertEq(heroItem(dagger, vito).dmgMin, 1, 'the dagger did not gain its floor');
+  assertEq(heroItem(dagger, vito).dmg, dagger.dmg, 'the override touched a field it was not given');
+  assertEq(dagger.dmgMin ?? 0, 0, 'heroItem mutated the shared ITEM_TABLE row');
+
+  // The kit path, which is also the shop path (rules.md §5): the armour bar
+  // has to be credited with what the HERO'S shield is worth, not the world's.
+  const state = newGame(99, { ...floorPlan(1), persona: vito, startingItems: [shield] });
+  assertEq(state.player.armour, 2, 'the starting shield credited the world value, not the hero value');
+  const plain = newGame(99, { ...floorPlan(1), startingItems: [shield] });
+  assertEq(plain.player.armour, shield.armour, 'the ordinary hero stopped getting the ordinary shield');
+});
+
+test('a picked-up item goes through the same rule as a bought one', () => {
+  const map = tinyMap([
+    '#####',
+    '#---#',
+    '#####',
+  ]);
+  const state = makeState({ map, playerPos: [1, 1], monsters: [], shrine: { id: 's', emoji: '⛩️', pos: [3, 1] } });
+  state.items = [{ ...ITEM_TABLE.find((i) => i.name === 'shield'), id: 77, pos: [2, 1] }];
+  state.persona = HEROES.vito.persona;
+  const after = step(state, 'right').state;
+  assertEq(after.player.armour, 2, 'the pickup path credited the world value, not the hero value');
+  assertEq(after.player.inventory[0].armour, 2, 'the bag holds the world item, not the hero one');
+  assertEq(after.items.length, 0, 'the item was not taken off the floor');
 });
 
 // ***** map design: the spine and its detours ***** //

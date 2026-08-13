@@ -8,6 +8,7 @@ import { isWalkable, samePos } from './mapgen.js';
 import { playerAttacks } from './combat.js';
 import { updateMonsters } from './monsters.js';
 import { observe } from './observe.js';
+import { heroItem } from './heroes.js';
 
 // The actions the BOT chooses between, every turn — its menu, not the full
 // set the engine accepts. `tactics.js` and `placeholder.js` enumerate this
@@ -58,6 +59,12 @@ function cloneState(state) {
     // one after a single step.
     sim: state.sim,
     map: state.map,
+    // The hero's persona (src/sim/heroes.js). Shared by reference, like
+    // `map` above and for the same reason: it is read-only configuration
+    // fixed at newGame, so copying it every step would buy nothing. It has
+    // to be listed here explicitly — this function is an allow-list, and a
+    // field left out silently vanishes one step into the run.
+    persona: state.persona,
     rng: { ...state.rng },
     player: {
       ...state.player,
@@ -143,10 +150,16 @@ function resolveEncounters(state, pos) {
     // filed under rogule-spec.md §13: that list is frozen and takes no new
     // entries.
     for (const item of itemsHere) {
-      state.player.inventory.push(item);
+      // What the hero picks up may not be what was lying there: a persona
+      // can be worth more or less of an item than the world is (heroes.js).
+      // `heroItem` returns the same object when nothing applies, so the
+      // ordinary hero still puts the very item from the floor in the bag —
+      // and the splice below keys off the ORIGINAL either way.
+      const owned = heroItem(item, state.persona);
+      state.player.inventory.push(owned);
       state.items.splice(state.items.indexOf(item), 1);
-      grantArmour(state.player, item);
-      state.log.push({ type: 'pickup', item: item.name, turn: state.turn });
+      grantArmour(state.player, owned);
+      state.log.push({ type: 'pickup', item: owned.name, turn: state.turn });
     }
 
     // The shrine ends the run. The engine lets this happen at any time; the
@@ -215,7 +228,7 @@ function resolvePlayerAction(state, action) {
 
 export function step(state, action) {
   const next = cloneState(state);
-  if (next.outcome) return { state: next, observation: observe(next) };
+  if (next.outcome) return { state: next, observation: observe(next, next.persona) };
 
   const turnPasses = resolvePlayerAction(next, action);
 
@@ -224,5 +237,5 @@ export function step(state, action) {
     updateMonsters(next, next.map);
   }
 
-  return { state: next, observation: observe(next) };
+  return { state: next, observation: observe(next, next.persona) };
 }

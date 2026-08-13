@@ -161,6 +161,10 @@ export function playDungeon(seed, makePolicy, options = {}) {
       // overwrites it with the more current inventory regardless. Nothing
       // here needs to know which floor is "first".
       startingItems: options.startingItems,
+      // Which hero plays the whole descent (src/sim/heroes.js). Forwarded to
+      // every floor for the same reason `startingItems` is: a floor builds
+      // its own state and has no way back to the run that asked for it.
+      persona: options.persona,
     };
 
     const run = playGame(

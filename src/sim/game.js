@@ -6,6 +6,7 @@ import { hashSeeds, seedFromString } from './rng.js';
 import { nextId, populate } from './spawn.js';
 import { grantArmour, step } from './step.js';
 import { emptyBelief, foldBelief, observe } from './observe.js';
+import { heroItem, resolvePersona } from './heroes.js';
 
 // Three independent streams, so that (say) adding one map roll never shifts
 // the combat dice. Spec §9.4 — the original mixes three RNG sources and its
@@ -32,6 +33,15 @@ export function newGame(seed, counts = {}) {
     rng: makeStreams(rootSeed),
     log: [],
   };
+
+  // Which hero is playing (src/sim/heroes.js). It rides in `counts` rather
+  // than as a parameter of its own because `counts` already reaches here
+  // from `playDungeon` unchanged, already carries things that are not counts
+  // (`carry`, `startingItems`), and already travels inside `replay.counts` —
+  // so a recorded run replays as the hero who played it, for free. Fixed at
+  // generation and never written again: same seed AND same persona replays
+  // identically, which is the determinism `step()` promises.
+  state.persona = resolvePersona(counts.persona);
 
   // M16 — docs/backlog.md. Passthrough so a sweep can ask "what if" without
   // editing balance.js; unset fields fall through to generateMap's own
@@ -88,7 +98,11 @@ export function newGame(seed, counts = {}) {
   const startingKit = [...STARTING_ITEMS, ...(counts.startingItems ?? [])];
   if (startingKit.length) {
     state.player.inventory = startingKit.map((item) => {
-      const owned = { ...item, id: nextId(state) };
+      // Through `heroItem` for the same reason the review made this line go
+      // through `grantArmour`: a hero whose hands change what an item is
+      // worth must have them changed by ONE rule, or a bought shield and a
+      // found shield quietly stop being the same object.
+      const owned = heroItem({ ...item, id: nextId(state) }, state.persona);
       grantArmour(state.player, owned);
       return owned;
     });
@@ -148,7 +162,7 @@ export function driveTurns(state, policy, options = {}) {
   const maxDecisions = options.maxDecisions ?? maxTurns * 4;
   const onTurn = options.onTurn;
 
-  let observation = observe(state);
+  let observation = observe(state, state.persona);
   let belief = foldBelief(emptyBelief(), observation);
   let decisions = 0;
 
@@ -166,7 +180,7 @@ export function driveTurns(state, policy, options = {}) {
       });
       if (replacement && replacement !== state) {
         state = replacement;
-        observation = observe(state);
+        observation = observe(state, state.persona);
       }
     }
 
@@ -230,7 +244,7 @@ export function playGame(seed, policy, options = {}) {
 // remembering. Nothing here needs the policy again.
 export function replayGame(replay) {
   let state = newGame(replay.seed, replay.counts);
-  let observation = observe(state);
+  let observation = observe(state, state.persona);
   let belief = foldBelief(emptyBelief(), observation);
 
   const frames = [{ state, belief, action: null }];

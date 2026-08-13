@@ -16,10 +16,11 @@
 import { VISIBLE_DIST } from './balance.js';
 import { distSq, posKey, tileAt } from './mapgen.js';
 
-const VISIBLE_DIST_SQ = VISIBLE_DIST * VISIBLE_DIST;
-
-export function isVisible(playerPos, pos) {
-  return distSq(playerPos, pos) <= VISIBLE_DIST_SQ;
+// `radius` is a PERSONA's reach (src/sim/heroes.js), defaulting to the
+// shipped fog. It is a parameter rather than a module constant because one
+// hero sees the whole floor at once — rules.md §7 carries the rule.
+export function isVisible(playerPos, pos, radius = VISIBLE_DIST) {
+  return distSq(playerPos, pos) <= radius * radius;
 }
 
 // M28 — docs/backlog.md. `copyEntity` used to be a blind deep clone
@@ -78,8 +79,12 @@ function copyEntity(entity, fields) {
   return JSON.parse(JSON.stringify(picked));
 }
 
+// `options` is the hero's PERSONA (src/sim/heroes.js) wherever step.js calls
+// this, so the two fields it reads carry the same names the persona uses. An
+// absent option is the shipped game in both cases.
 export function observe(state, options = {}) {
   const revealLoot = options.revealLoot ?? false;
+  const radius = options.sightRadius ?? VISIBLE_DIST;
   const map = state.map;
   const from = state.player.pos;
 
@@ -87,10 +92,17 @@ export function observe(state, options = {}) {
   const tiles = new Map();
 
   // Walk the bounding box of the radius, keeping only what is close enough.
-  for (let y = from[1] - VISIBLE_DIST; y <= from[1] + VISIBLE_DIST; y++) {
-    for (let x = from[0] - VISIBLE_DIST; x <= from[0] + VISIBLE_DIST; x++) {
-      if (x < 0 || y < 0 || x >= map.w || y >= map.h) continue;
-      if (!isVisible(from, [x, y])) continue;
+  // The box is CLAMPED to the map, which changes nothing at the shipped
+  // radius — the loop already threw out-of-bounds tiles away — and is what
+  // keeps a whole-map radius costing the map rather than the square around
+  // it, most of which is off the grid.
+  const y0 = Math.max(0, from[1] - radius);
+  const y1 = Math.min(map.h - 1, from[1] + radius);
+  const x0 = Math.max(0, from[0] - radius);
+  const x1 = Math.min(map.w - 1, from[0] + radius);
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      if (!isVisible(from, [x, y], radius)) continue;
       const key = x + ',' + y;
       visible.add(key);
       tiles.set(key, tileAt(map, x, y));
