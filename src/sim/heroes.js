@@ -108,17 +108,18 @@ export const HEROES = {
   // real alternative and nobody has measured it — that is a sweep, not a
   // default to guess at, and there is no dial for it on purpose.
   //
-  // WHAT ACTUALLY BINDS IS THE PRICE, NOT THE CAP, and the two are easy to
-  // mix up. A cleared floor pays a little over one coin, so at price 2 he
-  // buys on about a third of floors and the cap of 2 is reached on roughly
-  // one floor in two hundred. Owner's choice, recorded here so nobody
-  // later "fixes" a ceiling that was never doing anything: if the cap is
-  // meant to be the ceiling, the price has to come down to meet it.
+  // WHICH OF THE TWO NUMBERS BINDS DEPENDS ON THEIR RATIO, and they are easy
+  // to mix up. A cleared floor pays a little over one coin: at price 1 he can
+  // afford one on nearly every floor, so THE CAP is the limit and the price
+  // is nearly free. Raise the price to 2 and it inverts — he buys on about a
+  // third of floors and a cap of 2 is reached on roughly one floor in two
+  // hundred, i.e. it stops doing anything at all. Recorded because a change
+  // to either number can silently retire the other.
   pawa: {
     name: 'pawa',
     persona: {},
     bot: {},
-    stairs: { buy: 'shield', price: 2, maxPerFloor: 2 },
+    stairs: { buy: 'shield', price: 1, maxPerFloor: 1 },
   },
   // A dagger that never lands for zero, and shields that hold less. Measured
   // as the one version of this trait that is not net-negative; the axe
