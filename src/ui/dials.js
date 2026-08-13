@@ -41,6 +41,22 @@ function bandLabel(bands, index) {
   return `${BAND_NAMES[i]} · ${pct > 0 ? '+' : ''}${pct}%`;
 }
 
+// M48 — ONE line, about where the dial IS, not about where it could go.
+//
+// The panel used to print both directions at 8px, always, so a player read
+// two hypotheticals and never a description of their own setting. A dial is
+// steered by knowing what it is doing now; the arrows are already on the
+// slider.
+//
+// Untouched is its own sentence, because it is its own state: the bot runs
+// at the centre, which no notch offers, and that is worth saying out loud
+// rather than leaving as an absence.
+function effectLine(dial, index, touched) {
+  if (!touched) return 'calibrado — o bot joga como foi medido';
+  const i = Math.max(0, Math.min(5, Number(index)));
+  return dial.says[i];
+}
+
 function bandIndexOf(bands, value) {
   let best = 0;
   for (let i = 1; i < bands.length; i++) {
@@ -118,7 +134,19 @@ export const SECTIONS = [
         // is what made these comparable at all.
         kind: 'hero', key: 'fightMargin', label: 'quanto de si o herói arrisca numa luta',
         title: 'Coragem', bias: true,
-        up: 'aceita duelos mais caros', down: 'foge de quase tudo',
+        // One sentence per notch, describing a behaviour that is VISIBLE on
+        // screen — `objectives.md` says a choice you cannot recognise by
+        // watching for thirty seconds was not a choice. Six written phrases
+        // rather than an adverb glued to two: the glue produced things like
+        // "muito só teme o que está colado".
+        says: [
+          'recusa quase toda luta — só mata o que é de graça',
+          'evita briga cara; passa longe do que dói',
+          'escolhe lutas com folga de sobra',
+          'aceita lutas apertadas',
+          'encara duelo caro mesmo machucado',
+          'briga com tudo, inclusive o que não pode pagar',
+        ],
       },
       {
         // The only centre that is COMPUTED rather than chosen: greed
@@ -128,7 +156,14 @@ export const SECTIONS = [
         // is worth", and the bands are honest over- and under-valuing.
         kind: 'hero', key: 'sideAppetite', label: 'quanto o herói super ou subestima um baú',
         title: 'Ganância', bias: true,
-        up: 'paga caro por loot', down: 'muito baixo nunca sai da rota',
+        says: [
+          'nenhum baú vale o desvio — segue reto para a saída',
+          'só abre baú que está no caminho',
+          'desvia por loot de vez em quando',
+          'desvia por loot com frequência',
+          'anda e briga por baú — paga caro por loot',
+          'vai atrás de qualquer baú, custe o que custar',
+        ],
       },
     ]],
     ['como ele lê o perigo', [
@@ -138,8 +173,14 @@ export const SECTIONS = [
         // (`DANGER_FALLOFF`) said the opposite and the arrows followed it.
         kind: 'bot', key: 'persistence', label: 'quanto do perigo sobrevive a cada tile de distância',
         title: 'Cautela', bias: true,
-        up: 'teme de longe — dá volta larga em tudo',
-        down: 'só teme o que está colado',
+        says: [
+          'só enxerga perigo colado nele — passa raspando em tudo',
+          'desvia pouco; passa perto demais',
+          'mantém alguma distância das criaturas',
+          'dá volta em quem parece perigoso',
+          'evita o entorno inteiro de cada criatura',
+          'trata o andar todo como ameaça — anda muito para não chegar perto',
+        ],
       },
     ]],
   ]],
@@ -408,6 +449,9 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
   // note reads the WHOLE form — the saturation line moves when `strength`
   // changes, not only when `strengthGrowth` does.
   const notes = [];
+  // So `reset` can put the live sentences back to "calibrado".
+  const effectOf = new Map();
+  const dialOf = new Map();
 
   // Which sections a player may touch. The map belongs to whoever ships
   // `dial-overrides.json`: a value moved there changes the game for every
@@ -543,12 +587,18 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
 
         const effect = document.createElement('div');
         effect.className = 'dial-effect';
-        const upSpan = document.createElement('span');
-        upSpan.textContent = `⬆️ ${up}`;
-        const downSpan = document.createElement('span');
-        downSpan.textContent = `🔻 ${down}`;
-        effect.append(upSpan, downSpan);
+        if (bands) {
+          // One live sentence about the current notch.
+          effect.textContent = effectLine(dial, input.value, false);
+        } else {
+          const upSpan = document.createElement('span');
+          upSpan.textContent = `⬆️ ${up}`;
+          const downSpan = document.createElement('span');
+          downSpan.textContent = `🔻 ${down}`;
+          effect.append(upSpan, downSpan);
+        }
         row.append(effect);
+        if (bands) { effectOf.set(input, effect); dialOf.set(input, dial); }
 
         if (note) {
           const noteEl = document.createElement('div');
@@ -573,8 +623,15 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
             valueOut.textContent = isSwitch
               ? (input.checked ? 'ligado' : 'desligado')
               : bands
-                ? `${bandLabel(bands, input.value)} · ${bands[Number(input.value)]}`
+                ? bandLabel(bands, input.value)
                 : Number(input.value).toFixed(precisionOf(step));
+            if (bands) {
+              // The raw number a measurement would quote, out of the way in
+              // a tooltip — a player steers by the name, not by 0.812.
+              valueOut.title = String(bands[Number(input.value)]);
+              effect.textContent = effectLine(dial, input.value, true);
+              effect.classList.add('tuned');
+            }
             valueOut.classList.toggle('changed', isChanged);
           }
           // Runs at event time, long after `refreshNotes` below is bound.
@@ -606,6 +663,11 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
     } of inputs) {
       if (isSwitch) input.checked = Boolean(def);
       else if (bands) { input.value = '2'; delete input.dataset.touched; }
+      if (bands && effectOf.has(input)) {
+        const el = effectOf.get(input);
+        el.textContent = effectLine(dialOf.get(input), input.value, false);
+        el.classList.remove('tuned');
+      }
       else input.value = String(def);
       input.classList.remove('changed');
       if (valueOut) {
