@@ -522,6 +522,10 @@ async function runDescentForever(sessionSeed) {
     session.heroName = hero === heroByName('') ? '' : hero.name;
     session.heroEmoji = hero.emoji;
     if (session.roster) session.roster(hero.name, hero.name);
+    // The panel's caption follows whoever is actually PLAYING, not whoever
+    // was last clicked — a pick queues, so the two differ until the next run
+    // starts and this is the moment they agree again.
+    if (session.dials && session.dials.setHero) session.dials.setHero(hero);
     const traces = [];
     const run = playDungeon(seed, (floor) => {
       const trace = [];
@@ -732,8 +736,10 @@ export async function start() {
       onRestart: () => { session.restart = true; },
     });
     const chosen = getChosenHero();
-    const first = heroByName(chosen === null ? session.shippedDials.run.who : chosen).name;
-    session.roster(first, first);
+    const first = heroByName(chosen === null ? session.shippedDials.run.who : chosen);
+    session.roster(first.name, first.name);
+    // So the panel is not blank for the seconds before the first run builds.
+    if (session.dials && session.dials.setHero) session.dials.setHero(first);
   }
 
   // ?seed=whatever makes a whole session reproducible, which is how you go

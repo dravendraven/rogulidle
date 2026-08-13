@@ -31,16 +31,6 @@ const BAND_NAMES = [
   'muito baixo', 'baixo', 'médio-baixo', 'médio-alto', 'alto', 'muito alto',
 ];
 
-// Nearest band to a value, so a `dial-overrides.json` written by hand — or
-// by an older version of this panel — still opens on a real notch.
-// "médio-baixo · 0.7" — the name is what a player steers by, the number is
-// what a measurement quotes.
-function bandLabel(bands, index) {
-  const i = Math.max(0, Math.min(bands.length - 1, Number(index)));
-  const pct = Math.round((biasBands()[i] - 1) * 100);
-  return `${BAND_NAMES[i]} · ${pct > 0 ? '+' : ''}${pct}%`;
-}
-
 // M48 — ONE line, about where the dial IS, not about where it could go.
 //
 // The panel used to print both directions at 8px, always, so a player read
@@ -124,41 +114,6 @@ function capNote(perLevelKey, capKey, levels = 10) {
 // The BOT comes first, because a hero is the thing you change to see a
 // different run of the same dungeon; the map is the dungeon itself.
 export const SECTIONS = [
-  // ITS OWN SECTION, above the dials rather than among them — B24 closed the
-  // panel at three dials on purpose, and this is not a fourth. A dial is
-  // something you TUNE; this is who is playing, which is the one choice the
-  // product is actually about (objectives.md). Different kind of decision,
-  // different block.
-  ['Quem joga', [
-    ['', [
-      {
-        // A switch over the hero's own NAME, in the same spirit as the
-        // Butcher's: the engine already takes a hero, so the dial is that
-        // value rather than a flag beside it. Off is the shipped hero and
-        // the shipped game.
-        //
-        // The off value is the EMPTY STRING and has to stay falsy: the
-        // switch renders itself with `Boolean(def)`, so 'base' would come
-        // up checked. `heroByName` maps '' to base, which is why nothing
-        // downstream needs to know about this.
-        //
-        // One switch, not one per hero: the panel has no radio group, so
-        // four of them could be on at once and mean nothing. Four heroes
-        // want a PICKER, which is the U7 UI item and a widget shape this
-        // file does not have — when it lands it replaces this row.
-        //
-        // Keeping A row here is also what keeps a hero SHIPPABLE:
-        // `resolvedDefaults` walks SECTIONS, so a `run.who` in
-        // dial-overrides.json only reaches a visitor if some dial claims
-        // the key. Delete this and the file can no longer set the default
-        // hero for everyone.
-        kind: 'run', key: 'who', label: 'o engenheiro no lugar do herói de sempre',
-        title: 'Pawa, o engenheiro', type: 'switch', onValue: 'pawa', offValue: '',
-        up: 'Pawa — cada andar concluído compra uma armadura na hora',
-        down: 'o herói de sempre — a moeda só é gasta quando a run acaba',
-      },
-    ]],
-  ]],
   ['Bot', [
     ['o herói', [
       {
@@ -168,7 +123,7 @@ export const SECTIONS = [
         // `biasBands()`. One notch means the same thing on every row, which
         // is what made these comparable at all.
         kind: 'hero', key: 'fightMargin', label: 'quanto de si o herói arrisca numa luta',
-        title: 'Coragem', bias: true,
+        title: 'Coragem', icon: '💪', bias: true,
         // One sentence per notch, describing a behaviour that is VISIBLE on
         // screen — `objectives.md` says a choice you cannot recognise by
         // watching for thirty seconds was not a choice. Six written phrases
@@ -190,7 +145,7 @@ export const SECTIONS = [
         // So this dial's centre 1.0 means "price a chest at exactly what it
         // is worth", and the bands are honest over- and under-valuing.
         kind: 'hero', key: 'sideAppetite', label: 'quanto o herói super ou subestima um baú',
-        title: 'Ganância', bias: true,
+        title: 'Ganância', icon: '🤑', bias: true,
         says: [
           'nenhum baú vale o desvio — segue reto para a saída',
           'só abre baú que está no caminho',
@@ -207,7 +162,7 @@ export const SECTIONS = [
         // makes menace persist further — more cautious. The old name
         // (`DANGER_FALLOFF`) said the opposite and the arrows followed it.
         kind: 'bot', key: 'persistence', label: 'quanto do perigo sobrevive a cada tile de distância',
-        title: 'Cautela', bias: true,
+        title: 'Cautela', icon: '👀', bias: true,
         says: [
           'só enxerga perigo colado nele — passa raspando em tudo',
           'desvia pouco; passa perto demais',
@@ -430,9 +385,6 @@ const BOT_DEFAULTS = {
 };
 const RUN_DEFAULTS = { turnBudget: TURN_BUDGET, theReturn: RETURN_ENABLED, who: '' };
 
-// What a visitor who never types `?dev=1` gets to touch. See the filter in
-// buildDialPanel for why each one is on the list.
-const OPEN_SECTIONS = new Set(['Quem joga', 'Bot']);
 
 // The shipped value of a dial: `overrides` (dial-overrides.json, loaded by
 // dial-overrides.js) wins when it sets one, the code constant otherwise —
@@ -453,6 +405,12 @@ function defaultOf(kind, key, overrides = {}) {
 // configuration without building the form at all.
 export function resolvedDefaults(overrides = {}) {
   const out = { model: {}, hero: {}, bot: {}, run: {} };
+  // `who` has NO DIAL — the rail picks the hero now (src/ui/roster.js) — but
+  // dial-overrides.json must still be able to ship a default hero to every
+  // visitor. This loop only fills keys some dial claims, so the one key with
+  // no control of its own is seeded here or the overrides file silently
+  // stops being able to set it.
+  out.run.who = defaultOf('run', 'who', overrides);
   for (const [, groups] of SECTIONS) {
     for (const [, list] of groups) {
       for (const { kind, key } of list) {
@@ -503,11 +461,26 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
   // Not a hiding trick: the map values still APPLY, they are simply not
   // editable. `read()` below starts from the resolved defaults, so an
   // override reaches the run whether or not its slider was drawn.
-  // Named here rather than tested inline, because "which sections a visitor
-  // may touch" is now two answers and the reason differs for each: the Bot
-  // is the choice the product is about, and Quem joga is that choice made
-  // literal. The map stays dev-only for the reason above it.
-  const sections = dev ? SECTIONS : SECTIONS.filter(([name]) => OPEN_SECTIONS.has(name));
+  const sections = dev ? SECTIONS : SECTIONS.filter(([name]) => name === 'Bot');
+
+  // WHO IS PLAYING, and nothing you can operate. The rail on the left of the
+  // board is the control (src/ui/roster.js); this is the caption for it —
+  // the hero's name and what his trait does, which is the one thing the rail
+  // deliberately keeps in a tooltip so the board stays quiet.
+  const heroCard = document.createElement('div');
+  heroCard.className = 'hero-card';
+  const heroName = document.createElement('div');
+  heroName.className = 'hero-card-name';
+  const heroBlurb = document.createElement('div');
+  heroBlurb.className = 'hero-card-blurb';
+  heroCard.append(heroName, heroBlurb);
+  container.append(heroCard);
+
+  const setHero = (hero) => {
+    if (!hero) return;
+    heroName.textContent = `${hero.emoji} ${hero.name}, ${hero.title}`;
+    heroBlurb.textContent = hero.blurb;
+  };
 
   for (const [section, groups] of sections) {
     const sectionEl = document.createElement('div');
@@ -531,7 +504,7 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
 
       for (const dial of list) {
         const {
-          kind, key, label, title, step, range, up, down, type, note,
+          kind, key, label, title, icon, step, range, up, down, type, note,
           onValue, offValue, bias,
         } = dial;
         const isSwitch = type === 'switch';
@@ -563,16 +536,21 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
 
         const head = document.createElement('div');
         head.className = 'dial-head';
+        if (icon) {
+          const ic = document.createElement('span');
+          ic.className = 'dial-icon';
+          ic.textContent = icon;
+          head.append(ic);
+        }
         const caption = document.createElement('label');
         caption.className = 'dial-title';
         caption.textContent = title || label;
-        caption.title = key;                    // the dial's real name
+        // The long wording and the dial's real name both moved to the
+        // tooltip. A row is three lines now — name, slider, what it is doing
+        // — and a fourth line of prose above the control was the panel
+        // reading as a document instead of a set of controls.
+        caption.title = `${label}\n${key}`;
         head.append(caption);
-
-        const sub = document.createElement('div');
-        sub.className = 'dial-sublabel';
-        sub.textContent = label;
-        head.append(sub);
 
         row.append(head);
 
@@ -605,10 +583,13 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
           // sits at the lower inner notch but nothing is chosen until the
           // player moves it. Opening the Lab must never change the run.
           input.value = '2';
-          valueOut = document.createElement('span');
-          valueOut.className = 'dial-value';
-          valueOut.textContent = `calibrado · ${def}`;
-          track.append(input, valueOut);
+          // NO READOUT beside the slider. "médio-baixo · -16%" was two
+          // pieces of jargon standing where the eye wants the control, and
+          // both are already answered elsewhere: which notch, by where the
+          // thumb is; what it does, by the sentence below. The raw number a
+          // measurement would quote lives in the slider's own tooltip.
+          input.title = String(def);
+          track.append(input);
           row.append(track);
         } else if (range) {
           const track = document.createElement('div');
@@ -667,19 +648,18 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
               ? true
               : Number(input.value) !== def;
           input.classList.toggle('changed', isChanged);
+          if (bands) {
+            // The live sentence IS the readout now, so this has to run
+            // whether or not a value box exists — it used to sit inside the
+            // `valueOut` guard, and a banded dial no longer has one.
+            input.title = `${BAND_NAMES[Number(input.value)]} · ${bands[Number(input.value)]}`;
+            effect.textContent = effectLine(dial, input.value, true);
+            effect.classList.add('tuned');
+          }
           if (valueOut) {
             valueOut.textContent = isSwitch
               ? (input.checked ? 'ligado' : 'desligado')
-              : bands
-                ? bandLabel(bands, input.value)
-                : Number(input.value).toFixed(precisionOf(step));
-            if (bands) {
-              // The raw number a measurement would quote, out of the way in
-              // a tooltip — a player steers by the name, not by 0.812.
-              valueOut.title = String(bands[Number(input.value)]);
-              effect.textContent = effectLine(dial, input.value, true);
-              effect.classList.add('tuned');
-            }
+              : Number(input.value).toFixed(precisionOf(step));
             valueOut.classList.toggle('changed', isChanged);
           }
           // Runs at event time, long after `refreshNotes` below is bound.
@@ -851,5 +831,5 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
     });
   }
 
-  return { read, reset };
+  return { read, reset, setHero };
 }

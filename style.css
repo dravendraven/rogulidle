@@ -498,12 +498,32 @@ footer {
 }
 .dials[hidden] { display: none; }
 
-/* Bot vs Mapa read as two distinct blocks at a glance. */
-.dial-section[data-section="Bot"] {
-  background: rgba(0, 0, 0, .05);
-  border-radius: 6px;
-  padding: .4rem .6rem .8rem;
-  margin: 0 -.6rem .5rem;
+/* No panel behind the bot block any more. The tinted box was doing the job
+   the h2 rule already does — separate one section from the next — and a
+   second background inside a page that already has one made the column read
+   as a form pasted over the game rather than part of it. */
+
+/* Who is playing. A caption, not a control: the rail beside the board picks
+   the hero (src/ui/roster.js), this says which one and what he does. Same
+   display face as the game's own headings, so the panel belongs to the same
+   object as the board. */
+.hero-card {
+  margin: 0 0 .9rem;
+  padding-bottom: .6rem;
+  border-bottom: 1px solid var(--line);
+}
+.hero-card-name {
+  font-family: 'Almendra SC', Georgia, serif;
+  font-weight: normal;
+  font-size: 1.15rem;
+  color: var(--text);
+}
+.hero-card-blurb {
+  font-size: 11px;
+  font-weight: normal;
+  color: var(--dim);
+  line-height: 1.45;
+  margin-top: .1rem;
 }
 
 .dials h2 {
@@ -524,25 +544,30 @@ footer {
   margin: .7rem 0 .25rem;
 }
 
+/* Three lines: name, control, what it is doing. The dashed rule went with
+   the sub-label — with one row this short, the spacing separates them and a
+   divider every three lines was more furniture than structure. */
 .dial {
   display: flex;
   flex-direction: column;
-  gap: .15rem;
-  margin: 0 0 .6rem;
-  padding-bottom: .5rem;
-  border-bottom: 1px dashed var(--line);
+  gap: .1rem;
+  margin: 0 0 .9rem;
 }
-.dial:last-child { border-bottom: none; }
+.dial:last-child { margin-bottom: 0; }
 
-.dial-head { display: flex; align-items: baseline; gap: .4rem; flex-wrap: wrap; }
+.dial-head { display: flex; align-items: baseline; gap: .35rem; }
+/* The emoji carries the row at a glance, the way the buttons in the header
+   already do — this panel is chrome, and chrome uses the system emoji,
+   not the baked board tiles. */
+.dial-icon { font-size: 14px; line-height: 1; }
 .dial-title {
   font-family: 'Almendra SC', Georgia, serif;
   font-weight: normal;
-  font-size: 15px;
+  font-size: 16px;
   letter-spacing: .01em;
   color: var(--text);
+  cursor: help;
 }
-.dial-sublabel { color: var(--dim); font-size: 10px; }
 
 .dial input[type="number"] {
   width: 5.5rem;
