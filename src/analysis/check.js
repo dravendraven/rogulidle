@@ -28,14 +28,22 @@ import { makeBot } from '../bot/bot.js';
 // fetches it, `tools/measure.mjs` reads it off disk — and a loader that
 // silently returns {} in one of them would put the page and the headless
 // runner on different games while both looked fine.
-function playOne(seed, dials) {
+// `hero` is ONE entry of `HEROES` (src/sim/heroes.js) — both halves at once,
+// the engine persona and the bot overrides — so a reading names a hero
+// instead of assembling one out of two arguments that could disagree.
+// Absent (every caller today) is the shipped hero and changes nothing.
+function playOne(seed, dials, hero) {
   const plan = dials && dials.model ? makeFloorPlan(dials.model) : undefined;
   return playDungeon(seed, (floor) => makeBot({
     monsterCount: floor.monsterCount,
     chestCount: floor.chests,
-    hero: dials && dials.hero,
+    // The hero's own traits win over the dials', which is the direction the
+    // lab already works in: a dial is what everyone gets, a hero is who this
+    // run is.
+    hero: { ...(dials && dials.hero), ...(hero && hero.bot) },
     ...(dials && dials.bot),
   }), {
+    ...(hero && hero.persona ? { persona: hero.persona } : {}),
     ...(plan ? { floorPlan: plan } : {}),
     ...(dials && dials.run ? { maxTurns: dials.run.turnBudget } : {}),
     // The return ships off, and the analysis modules already pin the plain
@@ -55,6 +63,9 @@ export function tripwires(options = {}) {
   const firstSeed = options.firstSeed ?? 500000;
   // What the game actually ships on. See playOne.
   const dials = options.dials;
+  // Which hero played it. Same discipline as `shipped` below: a reading of
+  // one hero and a reading of another are not the same game either.
+  const hero = options.hero;
 
   let clears = 0;
   let opening = 0;       // runs over by traversal 3
@@ -64,7 +75,7 @@ export function tripwires(options = {}) {
   let sideShut = 0;
 
   for (let i = 0; i < runs; i++) {
-    const run = playOne(firstSeed + i, dials);
+    const run = playOne(firstSeed + i, dials, hero);
     if (run.cleared) clears++;
     if (!run.cleared && run.depth <= 3) opening++;
     if (run.depth >= TRAVERSALS / 2) reachedTurn++;
@@ -97,6 +108,10 @@ export function tripwires(options = {}) {
     // it: these wires describe either the shipped game or the code
     // defaults, and the two are not the same game.
     shipped: Boolean(dials),
+    // Said out loud for the same reason `shipped` is: these wires read one
+    // hero, and quoting a number without saying whose it was is how a
+    // reading gets compared against a different game.
+    hero: hero ? hero.name : 'base',
     clears,
     tripwires: [
       // "Most attempts must not end in the opening. When they do, the

@@ -1379,6 +1379,41 @@ test('a picked-up item goes through the same rule as a bought one', () => {
   assertEq(after.items.length, 0, 'the item was not taken off the floor');
 });
 
+test('ricardo walks past the empty chests, and the ordinary hero does not', () => {
+  // The observable signature of the persona, checked as behaviour rather
+  // than as a flag: half of all chests hold nothing, and he is the only one
+  // who can tell before spending the two turns.
+  const opens = (persona) => {
+    let empty = 0;
+    let found = 0;
+    for (let seed = 0; seed < 8; seed++) {
+      const plan = floorPlan(3);
+      const run = playGame(3300 + seed,
+        makeBot({ monsterCount: plan.monsters, chestCount: plan.chests }),
+        { maxTurns: TURN_BUDGET, counts: { ...plan, persona } });
+      for (const e of run.state.log) {
+        if (e.type !== 'open') continue;
+        if (e.found) found++; else empty++;
+      }
+    }
+    return { empty, found };
+  };
+
+  const base = opens(HEROES.base.persona);
+  const ricardo = opens(HEROES.ricardo.persona);
+  assert(base.empty > 0, 'the ordinary hero opened no empty chest, so this sample proves nothing');
+
+  // Not zero, and it should not be: a chest BLOCKS its tile (rules.md §6),
+  // so one sitting on the route is opened by the engine whatever the bot
+  // believes. What the filter removes is every empty chest he would have
+  // WALKED TO — and the residue is the price of the road, not a defect.
+  assert(ricardo.empty < base.empty / 2, 'the filter barely moved the wasted opens');
+
+  // The half that makes it a good trade rather than mere caution: he gives
+  // up nothing. Every chest that actually held something is still opened.
+  assertEq(ricardo.found, base.found, 'ricardo refused a chest that was carrying something');
+});
+
 // ***** map design: the spine and its detours ***** //
 //
 // docs/map-design.md. Every "70% of the threat mass is on the mandatory

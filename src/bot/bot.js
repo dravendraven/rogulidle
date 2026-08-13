@@ -337,6 +337,18 @@ export function makeBot(options = {}) {
     }
 
     for (const chest of belief.chests.values()) {
+      // A hero who can see what a chest holds does not walk to the empty
+      // ones. This is a FILTER, not a valuation: it needs no dial, and it
+      // works whether or not `lootValue` below is on — which matters,
+      // because that flag ships off and there is no reward term to tune.
+      //
+      // The test is on the field's PRESENCE, not its truth. `drop` only
+      // reaches Belief for a persona that reveals it (rules.md §7), so for
+      // every other hero it is absent and must fall through here — reading
+      // a missing field as "empty" would make the ordinary bot refuse every
+      // chest on the floor.
+      if ('drop' in chest && !chest.drop) continue;
+
       const walk = priceOfReaching(field, chest.pos);
       if (!Number.isFinite(walk)) continue;
       const guard = guardCost(belief, chest.pos, settings.amortiseGuard);

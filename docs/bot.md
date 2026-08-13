@@ -20,6 +20,14 @@ frases:
   caminhada — o duelo dela acontece de qualquer jeito.
 - Entre tudo que vale ter — item solto, baú, luta pagável — **pega sempre o
   mais barato em hp**, caminhada e perigo incluídos.
+- **Baú que ele sabe estar vazio sai da conta.** Só um herói enxerga o
+  conteúdo antes de abrir (`rules.md` §7); para todos os outros o campo nem
+  existe no Belief e nada muda. É filtro, não avaliação — não tem dial, e
+  não depende do termo de recompensa, que hoje está desligado. O que ele
+  deixa de fazer é **andar até** o baú vazio; um que esteja na rota continua
+  sendo aberto, porque baú barra o tile e quem passa por cima abre
+  (`rules.md` §6). Desviar sairia mais caro em turnos do que os dois que a
+  abertura custa.
 - **Sala lateral é a aposta:** loot guardado e luta opcional laterais são
   ignorados quando o guardião custa mais do que o apetite permite.
 - **Explora** enquanto o escuro ainda pode dever algo (as contagens são

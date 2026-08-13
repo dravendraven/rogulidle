@@ -13,6 +13,8 @@
 //            place an item enters the inventory — `heroItem` below.
 //   bot      how the bot VALUES things: an override of `DEFAULT_HERO`
 //            (src/bot/config.js) handed to `makeBot`. Shipped since P3.
+//            Empty in all four entries today — nothing here needs it yet,
+//            and it is listed so a hero stays ONE object to read.
 //
 // The first three ride on `state.persona`; the fourth never touches the
 // engine at all, and is kept here only so that one object describes a whole
@@ -80,7 +82,7 @@ export const HEROES = {
   base: {
     name: 'base',
     persona: {},
-    hero: {},
+    bot: {},
   },
   // Sees the whole floor at once — position and type, map-wide. He still
   // does not know what a chest HOLDS: that is Ricardo's axis, and no hero
@@ -88,7 +90,7 @@ export const HEROES = {
   papazito: {
     name: 'papazito',
     persona: { sightRadius: SIGHT_WHOLE_MAP },
-    hero: {},
+    bot: {},
   },
   // The opposite trade: ordinary reach, deeper knowledge of what is already
   // in view. He knows the true contents of what he can see instead of the
@@ -96,7 +98,7 @@ export const HEROES = {
   ricardo: {
     name: 'ricardo',
     persona: { revealLoot: true },
-    hero: {},
+    bot: {},
   },
   // A dagger that never lands for zero, and shields that hold less. Measured
   // as the one version of this trait that is not net-negative; the axe
@@ -109,6 +111,6 @@ export const HEROES = {
         shield: { armour: 2 },
       },
     },
-    hero: {},
+    bot: {},
   },
 };
