@@ -1416,7 +1416,10 @@ test('ricardo walks past the empty chests, and the ordinary hero does not', () =
 
 test('pawa arrives on the next floor wearing what the last one paid for', () => {
   const shield = ITEM_TABLE.find((i) => i.name === 'shield');
-  const play = (hero) => playDungeon(6100,
+  // A seed whose FIRST floor pays enough for exactly one shield — at the
+  // shipped price most floors do not, which is the trait's real constraint
+  // (see heroes.js) and not something this test should paper over.
+  const play = (hero) => playDungeon(6129,
     (floor) => makeBot({ monsterCount: floor.monsterCount, chestCount: floor.chests }),
     { traversals: LEVELS, hero });
   const pawa = play(HEROES.pawa);
@@ -1424,7 +1427,8 @@ test('pawa arrives on the next floor wearing what the last one paid for', () => 
 
   // Floor 1 is identical for both — nothing has been bought yet — so any
   // difference on arrival at floor 2 is the purchase and nothing else.
-  assert(base.levels[0].coins >= 1, 'floor 1 paid nothing on this seed, so this proves nothing');
+  assert(base.levels[0].coins >= HEROES.pawa.stairs.price,
+    'floor 1 did not pay for a shield on this seed, so this proves nothing');
   assertEq(base.levels[0].spent, 0, 'the ordinary hero spent coin in the middle of a run');
   assert(pawa.levels[0].spent > 0, 'pawa finished a paying floor and bought nothing');
 

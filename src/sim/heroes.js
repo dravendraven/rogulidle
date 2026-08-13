@@ -107,11 +107,18 @@ export const HEROES = {
   // He spends the moment he can afford it. Hoarding for a deeper floor is a
   // real alternative and nobody has measured it — that is a sweep, not a
   // default to guess at, and there is no dial for it on purpose.
+  //
+  // WHAT ACTUALLY BINDS IS THE PRICE, NOT THE CAP, and the two are easy to
+  // mix up. A cleared floor pays a little over one coin, so at price 2 he
+  // buys on about a third of floors and the cap of 2 is reached on roughly
+  // one floor in two hundred. Owner's choice, recorded here so nobody
+  // later "fixes" a ceiling that was never doing anything: if the cap is
+  // meant to be the ceiling, the price has to come down to meet it.
   pawa: {
     name: 'pawa',
     persona: {},
     bot: {},
-    stairs: { buy: 'shield', price: 1, maxPerFloor: 1 },
+    stairs: { buy: 'shield', price: 2, maxPerFloor: 2 },
   },
   // A dagger that never lands for zero, and shields that hold less. Measured
   // as the one version of this trait that is not net-negative; the axe
