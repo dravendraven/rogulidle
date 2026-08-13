@@ -1383,3 +1383,63 @@ lever — there is no second one.
 `CHEST_DIFFICULTY_SCALE` 0.9 was FAITHFUL (generator.cljs:238), already
 inverted here against spec quirk 9.3. It is gone. Deliberate, and the
 second time this file has chosen legibility over fidelity on the loot side.
+
+## B24 — the panel closes at three dials, and only one of them is a choice
+
+Four sweeps, and the owner's first instinct was right before any of them:
+two dials govern almost everything.
+
+### `stepCost` is the third inert one, and it resisted hardest
+
+Swept at eight points, then again as six bands around three different
+centres — 18 configurations at n=150. **Everything between 0.08 and 0.9
+reads the same**: 4.3 to 4.5 mean floors against a standard error of 0.15.
+Raising the centre does not open the range, it moves a flat window somewhere
+else flat.
+
+An earlier n=100 sweep had it worth half a floor between 0.1 and 0.8. That
+was noise — **the third reading in this project to evaporate at three times
+the sample**, after `GOAL_STICKINESS` and "more reward will help". The
+pattern is now specific enough to state as a rule: at n=100 a difference
+under about 0.5 floors is not a difference.
+
+Decided at 0.1, the value that shipped, moved from `dial-overrides.json` into
+`DEFAULT_HERO` so removing the slider changes nothing. The mechanism stays:
+at 0 walking is free and the bot wanders one floor for 1500 turns.
+
+### `DANGER_PERSISTENCE` is the one dial with a real range, and it is not a peak
+
+Six bands at n=200: 0.1 reads 3.85 mean floors, 0.26 4.08, 0.42 4.25, then
+0.58 / 0.74 / 0.9 read 4.57 / 4.63 / 4.58. **A 0.78 floor span at 4.7
+sigma**, with every column moving together — reaching floor 7 goes 5% to
+17%, chests 17 to 21, kills 40 to 61.
+
+**It rises and then flattens.** No interior optimum: the bottom half costs
+depth, the top half is a plateau. 0.5 sat BELOW that plateau, so the bot ran
+calibrated at a point worse than four of its own six bands. Raised to 0.7.
+
+Measured over the shipped configuration, 200 runs:
+
+| | mean depth | reached 7+ | clears | chests | vault entry | Butcher killed |
+|---|---|---|---|---|---|---|
+| 0.5 | 4.35 ± 0.14 | 13.0% | 0.5% | 19.9 | 47.9% | 8.6% |
+| **0.7** | **4.71 ± 0.14** | **18.0%** | 1.5% | 21.5 | **36.7%** | 10.0% |
+
++0.36 floors at 1.8 sigma, and it costs 11 points of vault entry — a hero
+that fears things from further away stops walking into the room. Both were
+known before adopting it.
+
+### What the panel is now
+
+Coragem, Ganância, Cautela — all three the same shape, a ±80% bias in six
+bands around a centre the player cannot select, with an untouched dial
+running AT the centre.
+
+**Only Ganância has an interior optimum**, because its centre is the one
+that is COMPUTED (a chest's expected value) rather than chosen. Cautela's
+deliberate choice is to go DOWN. Coragem moves which fights are taken far
+more than it moves depth.
+
+That asymmetry is worth stating plainly rather than papering over: the
+bias-around-a-centre design gives every dial a comparable shape, but it
+cannot manufacture a trade where the underlying quantity does not have one.

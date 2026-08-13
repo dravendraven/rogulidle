@@ -39,7 +39,23 @@ export const DEFAULT_HERO = {
   // What one step is worth in hp. This is the exchange rate between goal 3
   // and the other two: raising it makes near goals win harder and empties
   // the "worth the walk" pool sooner, so a hasty hero leaves earlier.
-  stepCost: 0.01,
+  //
+  // B24 — DECIDED, no longer a dial, at 0.1 (what shipped via
+  // dial-overrides.json; moved here so removing the slider changes nothing).
+  // The third inert one this project has found, and the one that resisted
+  // hardest: swept at eight points, then again as six bands around three
+  // different centres — 18 configurations at n=150 — and **everything
+  // between 0.08 and 0.9 measures the same**, 4.3 to 4.5 mean floors against
+  // a standard error of 0.15.
+  //
+  // An earlier n=100 sweep said 0.4 and 0.8 were worth half a floor over
+  // 0.1. That was noise, and it is the third reading in this project's
+  // history to evaporate at three times the sample.
+  //
+  // The MECHANISM still matters and that is why the number stays: at 0
+  // walking is free and the bot wanders one floor for 1500 turns. It needs
+  // to be above about 0.08 and below the absurd. It is not a choice.
+  stepCost: 0.1,
 };
 
 // How much of a creature's menace SURVIVES each tile of distance when
@@ -52,12 +68,23 @@ export const DEFAULT_HERO = {
 // opposite, and the Lab shipped arrows promising the inverse of what moving
 // the dial did. The name is the bug's root cause, so it went with the fix.
 //
-// Measured at n=300 against 0.5: raising it to 0.95 is worth +0.38 floors of
-// mean depth (2.3 sigma, real but small) and costs 15 points of vault entry
-// (46% -> 31%), because a hero that fears things from further away stops
-// walking into the room. NOT adopted: that is a balance decision about the
-// Butcher, not a free win. See decisions.md.
-export const DANGER_PERSISTENCE = 0.5;
+// B24 — 0.7, raised from 0.5, and this is the one player dial with a real
+// range. Swept as six bands at n=200: 0.1 reads 3.85 mean floors, 0.26 4.08,
+// 0.42 4.25, then 0.58 / 0.74 / 0.9 read 4.57 / 4.63 / 4.58 — a 0.78 floor
+// span end to end at 4.7 sigma, with every other column moving with it
+// (reaching floor 7 goes 5% to 17%, chests 17 to 21, kills 40 to 61).
+//
+// The curve RISES AND THEN FLATTENS, so there is no interior optimum: the
+// bottom half costs depth and the top half is a plateau. 0.5 sat below that
+// plateau, which meant the bot ran calibrated at a point worse than four of
+// its own six bands. 0.7 puts the centre inside it, so the default is good
+// and going DOWN is the deliberate choice — which is the shape the dial
+// design asks for even though this dial cannot offer a peak.
+//
+// It costs vault entry: measured at n=300, 0.5 -> 0.95 takes entry from 46%
+// to 31%, because a hero that fears things from further away stops walking
+// into the room.
+export const DANGER_PERSISTENCE = 0.7;
 
 // Extra hp charged for standing where two or more creatures could strike at
 // once. A price rather than a ban: a ban can strand a goal and needs

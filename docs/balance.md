@@ -77,11 +77,14 @@ the generator weights the kinds. It is 1.5 today and it follows its inputs —
 never tune it by hand.
 
 The bot's dials belong to the bot. `DEFAULT_HERO` (fightMargin 0.7,
-sideAppetite 0.5, stepCost 0.01) is the shipped hero and the whole
-hero-as-configuration mechanism; `DANGER_PERSISTENCE` 0.5 (renamed from `DANGER_FALLOFF`, which named it
-backwards) is the one bot mechanic still on the panel. `CROWD_PENALTY` 15 and
-`GOAL_STICKINESS` 1.4 are DECIDED, not dials — both measured inert (B19,
-B20). See `docs/bot.md`.
+sideAppetite 0.5, stepCost 0.1) is the shipped hero and the whole
+hero-as-configuration mechanism; `DANGER_PERSISTENCE` 0.7 is the third dial
+on the panel.
+
+**THREE things are DECIDED rather than dials, all three measured inert:**
+`CROWD_PENALTY` 15 (B19), `GOAL_STICKINESS` 1.4 (B20) and `stepCost` 0.1
+(B24 — 18 configurations at n=150 and everything from 0.08 to 0.9 reads the
+same). See `docs/bot.md`.
 
 ## Tiers
 

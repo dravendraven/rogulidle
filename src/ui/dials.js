@@ -130,15 +130,6 @@ export const SECTIONS = [
         title: 'Ganância', bias: true,
         up: 'paga caro por loot', down: 'muito baixo nunca sai da rota',
       },
-      {
-        kind: 'hero', key: 'stepCost', label: 'quanto vale um passo, em hp',
-        title: 'Pressa', bias: true,
-        up: 'ignora o perigo e vai reto', down: 'desvia de tudo, varre o andar',
-        // Measured (B20): 0.01 through 0.2 is flat within noise, and ±80%
-        // around 0.1 sits entirely inside that. The dial is inert at this
-        // CENTRE — the centre is what wants fixing, not the spread.
-        note: () => 'inerte na faixa atual — o centro é que precisa subir',
-      },
     ]],
     ['como ele lê o perigo', [
       {

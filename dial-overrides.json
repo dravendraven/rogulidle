@@ -1,6 +1,5 @@
 {
   "hero": {
-    "stepCost": 0.1,
     "sideAppetite": 1
   },
   "model": {
