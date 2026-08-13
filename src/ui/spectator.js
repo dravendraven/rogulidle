@@ -164,21 +164,48 @@ function coinsText() {
 // on-screen time while everything else is frozen too.
 async function showCoinPopup(coins, bought) {
   if (!el.coinPopup) return;
-  // What the floor PAID, then what the hero turned it into on the spot.
-  // Showing the net alone printed "+0 🪙" on a floor that both paid and
-  // bought — which reads as "this floor was worth nothing", the opposite of
-  // what happened, and it was the only trace the purchase left on screen.
-  const goods = bought
-    ? ` → ${bought.emoji}${bought.count > 1 ? `×${bought.count}` : ''}`
-    : '';
-  el.coinPopup.textContent = `+${coins} 🪙${goods}`;
+
+  // What the floor PAID, and then — for the hero who spends at the stairs —
+  // the coin FLIPPING INTO what it bought. Showing the net alone printed
+  // "+0 🪙" on a floor that both paid and bought, which reads as "this floor
+  // was worth nothing"; showing both as static text said it but did not
+  // show it. The flip is the whole point: the coin BECAME the shield, it was
+  // not replaced by it.
+  el.coinPopup.textContent = '';
+  el.coinPopup.append(`+${coins} `);
+
+  const swap = document.createElement('span');
+  swap.className = 'coin-swap';
+  const front = document.createElement('span');
+  front.className = 'coin-face';
+  front.textContent = '🪙';
+  swap.append(front);
+  if (bought) {
+    const back = document.createElement('span');
+    back.className = 'coin-face coin-back';
+    back.textContent = bought.count > 1
+      ? `${bought.emoji}×${bought.count}`
+      : bought.emoji;
+    swap.append(back);
+  }
+  el.coinPopup.append(swap);
+
   el.coinPopup.classList.add('shown');
   const until = COIN_POPUP_MS / session.speed;
+  // Early enough that the shield, not the coin, is what the eye rests on for
+  // most of the popup's life — and it rides `session.speed` like everything
+  // else here, so fast playback does not leave the coin on screen alone.
+  const flipAt = until * 0.35;
   let waited = 0;
+  let flipped = false;
   while (waited < until) {
     await waitWhilePaused();
     await sleep(80);
     waited += 80;
+    if (bought && !flipped && waited >= flipAt) {
+      swap.classList.add('flipped');
+      flipped = true;
+    }
   }
   el.coinPopup.classList.remove('shown');
 }

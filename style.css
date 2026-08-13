@@ -192,6 +192,26 @@ main {
 }
 .coin-popup.shown { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 
+/* The coin turning into what it bought at the stairs (src/ui/spectator.js).
+   A flip on the Y axis rather than a crossfade, because the two read
+   differently: a crossfade says one thing replaced another, a flip says the
+   coin BECAME the shield — which is what actually happened. */
+.coin-swap {
+  display: inline-block;
+  position: relative;
+  min-width: 1.2em;
+  text-align: center;
+  transform-style: preserve-3d;
+  transition: transform .45s ease;
+}
+.coin-swap.flipped { transform: rotateY(180deg); }
+.coin-face { backface-visibility: hidden; }
+.coin-back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+}
+
 /* ***** end-of-run card ***** */
 
 .summary {
