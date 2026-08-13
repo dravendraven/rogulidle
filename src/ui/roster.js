@@ -54,19 +54,28 @@ const ORDER = ['base', 'vito', 'pawa', 'papazito', 'ricardo'];
 export function buildRoster(container, { onPick, onRestart } = {}) {
   container.innerHTML = '';
 
+  const heading = document.createElement('h2');
+  heading.className = 'roster-title';
+  heading.textContent = 'Herói';
+  container.append(heading);
+
   // ***** the card: what the current choice MEANS *****
   const card = document.createElement('div');
   card.className = 'roster-card';
   const face = document.createElement('div');
   face.className = 'roster-card-face';
-  const text = document.createElement('div');
   const name = document.createElement('div');
   name.className = 'roster-card-name';
+  card.append(face, name);
+  container.append(card);
+
+  // Full width under the card rather than beside the face, so the longest
+  // blurb has room to be read. Its height is FIXED in CSS: the block sits
+  // directly above the picker, and letting it grow and shrink per hero
+  // would shove the five faces up and down under the cursor.
   const blurb = document.createElement('div');
   blurb.className = 'roster-card-blurb';
-  text.append(name, blurb);
-  card.append(face, text);
-  container.append(card);
+  container.append(blurb);
 
   // Said out loud rather than left to the ⏭ mark alone: a picker whose
   // choice does not take effect yet has to admit it in words, or the next

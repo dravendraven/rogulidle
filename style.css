@@ -10,7 +10,7 @@
   --accent: #4D9029;
   --key-bg: #D4E1EA;
   --key-border: #AAB8C2;
-  --cell: 32px;
+  --cell: 36px;
 }
 
 * { box-sizing: border-box; }
@@ -80,24 +80,39 @@ main {
    answer "what am I watching" before it offers "what can I tweak". */
 .roster { margin-bottom: .2rem; }
 
-.roster-card { display: flex; align-items: center; gap: .6rem; }
-.roster-card-face svg { display: block; width: 46px; height: 46px; }
+.roster-title {
+  font-family: 'Almendra SC', Georgia, serif;
+  font-weight: normal;
+  font-size: 1.15rem;
+  color: var(--text);
+  margin: 0 0 .4rem;
+  padding-bottom: .25rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.roster-card { display: flex; align-items: center; gap: .55rem; }
+.roster-card-face svg { display: block; width: 42px; height: 42px; }
 .roster-card-name {
   font-family: 'Almendra SC', Georgia, serif;
   font-weight: normal;
-  font-size: 1.3rem;
-  line-height: 1.1;
+  font-size: 1.25rem;
+  line-height: 1.15;
   color: var(--text);
 }
+
+/* FIXED HEIGHT, and that is the point: the picker sits right below, so a
+   blurb that grew and shrank per hero would shove the five faces up and
+   down under the cursor. Four lines clears the longest one written. */
 .roster-card-blurb {
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: normal;
   color: var(--dim);
-  line-height: 1.4;
-  margin-top: .15rem;
+  line-height: 1.45;
+  margin-top: .4rem;
+  min-height: calc(4 * 1.45 * 12.5px);
 }
 
-.roster-chips { display: flex; gap: .3rem; margin-top: .6rem; }
+.roster-chips { display: flex; gap: .3rem; margin-top: .2rem; }
 
 /* Dim until chosen — five bright faces in a row would compete with the
    board, which is the thing you came to look at. */
@@ -372,8 +387,10 @@ main {
 /* ***** side panel ***** */
 
 .panel {
-  flex: 1 1 220px;
-  min-width: 220px;
+  /* Narrowed with the left flank so the board gets the width. The chips
+     inside wrap on their own, so this is a squeeze rather than a clip. */
+  width: 100%;
+  max-width: 210px;
   align-self: stretch;
   display: flex;
   flex-direction: column;
@@ -510,7 +527,7 @@ footer {
 }
 /* The flanks lean INWARD, so the picker and the numbers stay beside the
    board instead of drifting to the window edges on a wide screen. */
-.side { justify-self: end; width: 100%; max-width: 345px; }
+.side { justify-self: end; width: 100%; max-width: 255px; }
 .middle { min-width: 0; }
 .panel { justify-self: start; }
 

@@ -38,13 +38,61 @@ const BAND_NAMES = [
 // steered by knowing what it is doing now; the arrows are already on the
 // slider.
 //
-// Untouched is its own sentence, because it is its own state: the bot runs
-// at the centre, which no notch offers, and that is worth saying out loud
-// rather than leaving as an absence.
-function effectLine(dial, index, touched) {
-  if (!touched) return 'calibrado — o bot joga como foi medido';
+// There is no "untouched" state any more: every bias dial opens on a notch,
+// rolled once per visitor (see `rolledNotches`), so the row always has a
+// real setting to describe and the old "calibrado" sentence describes a
+// state that can no longer happen.
+function effectLine(dial, index) {
   const i = Math.max(0, Math.min(5, Number(index)));
   return dial.says[i];
+}
+
+// EVERY VISITOR GETS A DIFFERENT BOT, and they get it without choosing.
+//
+// The panel used to open on "calibrado" — the measured centre, which no
+// notch offers — so every first session watched the same bot and the dials
+// only mattered to whoever went looking. Rolling one notch per dial makes
+// the personality part of what you arrive to, not a thing you have to hunt
+// for, and the six sentences under the sliders explain the bot you actually
+// got rather than one you might build.
+//
+// ROLLED ONCE, then kept. "First session" is taken literally: the draw is
+// stored, so coming back tomorrow is the same bot, and only a cleared store
+// gets a new one. A reroll on every reload would make the thing unwatchable
+// as a habit — you could never say "mine is the greedy one".
+//
+// `Math.random()` is fine here and banned three directories away: this is
+// `src/ui/`, it runs once before any run is built, and what it produces is
+// a dial value like any the player could have dragged to. Determinism is
+// about `src/sim/` — same seed AND same dials still replays exactly.
+const NOTCHES_KEY = 'rogulidle-notches';
+
+function rolledNotches(keys) {
+  let stored = null;
+  try {
+    stored = JSON.parse(localStorage.getItem(NOTCHES_KEY) || 'null');
+  } catch {
+    // Private browsing, quota, corrupt JSON — fall through to a fresh roll
+    // that simply does not persist, the same way score.js degrades.
+    stored = null;
+  }
+
+  const out = {};
+  let complete = true;
+  for (const key of keys) {
+    const v = stored && Number(stored[key]);
+    if (Number.isInteger(v) && v >= 0 && v < BAND_NAMES.length) out[key] = v;
+    else { out[key] = Math.floor(Math.random() * BAND_NAMES.length); complete = false; }
+  }
+
+  // Written back when anything was missing, so a dial added later joins the
+  // stored personality instead of rerolling the whole thing every load.
+  if (!complete) {
+    try {
+      localStorage.setItem(NOTCHES_KEY, JSON.stringify(out));
+    } catch { /* as above */ }
+  }
+  return out;
 }
 
 function bandIndexOf(bands, value) {
@@ -111,11 +159,14 @@ function capNote(perLevelKey, capKey, levels = 10) {
   };
 }
 
-// The BOT comes first, because a hero is the thing you change to see a
+// Behaviour comes first, because a hero is the thing you change to see a
 // different run of the same dungeon; the map is the dungeon itself.
+//
+// The groups inside it are unnamed on purpose: three rows do not need to be
+// sorted into two piles, and the sub-headings were labelling one row each.
 export const SECTIONS = [
-  ['Bot', [
-    ['o herói', [
+  ['Comportamento', [
+    ['', [
       {
         // M47 — every dial on this panel is now the SAME shape: a ±80% bias
         // around a centre the player cannot select. `centre` is the value
@@ -156,7 +207,7 @@ export const SECTIONS = [
         ],
       },
     ]],
-    ['como ele lê o perigo', [
+    ['', [
       {
         // `menace = mordida × persistence^distância`, so a HIGHER value
         // makes menace persist further — more cautious. The old name
@@ -430,7 +481,7 @@ function precisionOf(step) {
   return i === -1 ? 0 : s.length - i - 1;
 }
 
-// Fills `container` with the form and returns `{ read, reset }`.
+// Fills `container` with the form and returns `{ read }`.
 //
 // `onRestart` is what the ↻ button calls — the page owns what "restart"
 // means, since only it knows what a run in flight is. `overrides` is
@@ -446,9 +497,7 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
   // note reads the WHOLE form — the saturation line moves when `strength`
   // changes, not only when `strengthGrowth` does.
   const notes = [];
-  // So `reset` can put the live sentences back to "calibrado".
-  const effectOf = new Map();
-  const dialOf = new Map();
+
 
   // Which sections a player may touch. The map belongs to whoever ships
   // `dial-overrides.json`: a value moved there changes the game for every
@@ -461,7 +510,16 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
   // Not a hiding trick: the map values still APPLY, they are simply not
   // editable. `read()` below starts from the resolved defaults, so an
   // override reaches the run whether or not its slider was drawn.
-  const sections = dev ? SECTIONS : SECTIONS.filter(([name]) => name === 'Bot');
+  const sections = dev ? SECTIONS : SECTIONS.filter(([name]) => name === 'Comportamento');
+
+  // One notch per bias dial, drawn once per visitor and kept — see
+  // `rolledNotches`. Collected across ALL sections, not just the drawn ones,
+  // so opening dev mode later does not reroll the personality.
+  const notches = rolledNotches(
+    SECTIONS.flatMap(([, gs]) => gs.flatMap(([, list]) => list))
+      .filter((d) => d.bias)
+      .map((d) => d.key),
+  );
 
   for (const [section, groups] of sections) {
     const sectionEl = document.createElement('div');
@@ -560,10 +618,9 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
           input.step = '1';
           input.min = '0';
           input.max = String(bands.length - 1);
-          // Starts on the centre, which is NOT one of the six — the thumb
-          // sits at the lower inner notch but nothing is chosen until the
-          // player moves it. Opening the Lab must never change the run.
-          input.value = '2';
+          // Opens on the ROLLED notch: this visitor's own bot, decided
+          // before they arrived rather than by them dragging anything.
+          input.value = String(notches[key] ?? 2);
           // NO READOUT beside the slider. "médio-baixo · -16%" was two
           // pieces of jargon standing where the eye wants the control, and
           // both are already answered elsewhere: which notch, by where the
@@ -599,7 +656,7 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
         effect.className = 'dial-effect';
         if (bands) {
           // One live sentence about the current notch.
-          effect.textContent = effectLine(dial, input.value, false);
+          effect.textContent = effectLine(dial, input.value);
         } else {
           const upSpan = document.createElement('span');
           upSpan.textContent = `⬆️ ${up}`;
@@ -608,7 +665,6 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
           effect.append(upSpan, downSpan);
         }
         row.append(effect);
-        if (bands) { effectOf.set(input, effect); dialOf.set(input, dial); }
 
         if (note) {
           const noteEl = document.createElement('div');
@@ -634,8 +690,7 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
             // whether or not a value box exists — it used to sit inside the
             // `valueOut` guard, and a banded dial no longer has one.
             input.title = `${BAND_NAMES[Number(input.value)]} · ${bands[Number(input.value)]}`;
-            effect.textContent = effectLine(dial, input.value, true);
-            effect.classList.add('tuned');
+            effect.textContent = effectLine(dial, input.value);
           }
           if (valueOut) {
             valueOut.textContent = isSwitch
@@ -660,39 +715,14 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
   const restart = document.createElement('button');
   restart.type = 'button';
   restart.textContent = '↻ reiniciar com estes valores';
-  const defaults = document.createElement('button');
-  defaults.type = 'button';
-  defaults.textContent = 'padrões';
-  buttons.append(restart, defaults);
+  buttons.append(restart);
   container.append(buttons);
 
-  const reset = () => {
-    for (const {
-      input, def, valueOut, step, isSwitch, bands,
-    } of inputs) {
-      if (isSwitch) input.checked = Boolean(def);
-      else if (bands) { input.value = '2'; delete input.dataset.touched; }
-      if (bands && effectOf.has(input)) {
-        const el = effectOf.get(input);
-        el.textContent = effectLine(dialOf.get(input), input.value, false);
-        el.classList.remove('tuned');
-      }
-      else input.value = String(def);
-      input.classList.remove('changed');
-      if (valueOut) {
-        valueOut.textContent = isSwitch
-          ? (input.checked ? 'ligado' : 'desligado')
-          : bands
-            ? `calibrado · ${def}`
-            : Number(def).toFixed(precisionOf(step));
-        valueOut.classList.remove('changed');
-      }
-    }
-    refreshNotes();
-  };
-
+  // NO "padrões" BUTTON. It restored the calibrated centre, and there is no
+  // centre to go back to any more — every dial opens on this visitor's own
+  // rolled notch, so "default" would have meant a state the panel can no
+  // longer be in. Undo is the slider itself.
   restart.addEventListener('click', () => { if (onRestart) onRestart(); });
-  defaults.addEventListener('click', reset);
 
   // Read twice-guarded, because `min` on the element only stops the
   // spinner: a typed or pasted "-1" still reads back happily. A blank or
@@ -719,11 +749,10 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
         continue;
       }
       if (bands) {
-        // Untouched means the CENTRE — the calibrated value, which no notch
-        // offers. Touched means the band under the thumb.
-        out[kind][key] = input.dataset.touched
-          ? bands[Math.max(0, Math.min(bands.length - 1, Number(input.value)))]
-          : def;
+        // Always the band under the thumb. There is no "untouched" reading
+        // left: the slider opens on a real notch, so what is on screen and
+        // what the run gets are the same thing at every moment.
+        out[kind][key] = bands[Math.max(0, Math.min(bands.length - 1, Number(input.value)))];
         continue;
       }
       const value = Number(input.value);
@@ -812,5 +841,5 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
     });
   }
 
-  return { read, reset };
+  return { read };
 }
