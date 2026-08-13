@@ -1049,3 +1049,79 @@ kind of thing the owner sees in thirty seconds and no tripwire will ever
 report — but nobody should expect it to move the balance, and the earlier
 guess in this file that it would raise the win rate enough to need a retune
 was wrong.
+
+## B19/B20 — what the bot's dials actually do, and what came off the panel
+
+Owner's read going in: two dials govern almost everything, the rest look
+confusing or inert. Swept all six one at a time, 100 runs a point, **the same
+seeds at every point** — the map comes from the run seed and never from the
+bot, so holding the seeds fixed removes the biggest variance source and what
+is left is the dial.
+
+| dial | low → high | mean depth | reached 7+ | vault entry | Butcher killed |
+|---|---|---|---|---|---|
+| fightMargin | 0.2 → 1.0 | 4.3 → 4.0 | 15% → 10% | 41% → 63% | 3% → 12% |
+| sideAppetite | 0 → 2.0 | 4.5 → 4.0 | 19% → 10% | 11% → 73% | 0% → 13% |
+| stepCost | 0 → 0.1 | **1.0** → 4.2 | 0% → 13% | — → 52% | — → 12% |
+| falloff | 0.1 → 0.95 | 3.7 → **4.6** | 5% → **21%** | 36% → 32% | 2% → 12% |
+| crowdPenalty | 0 → 20 | 4.3 → 4.2 | 15% → 13% | 53% → 52% | 9% → 12% |
+| stickiness | 1.0 → 3.0 | 4.1 → 4.4 | 13% → 16% | 45% → 46% | 6% → 13% |
+
+### `CROWD_PENALTY` is inert, and this is the third confirmation
+
+**15 and 20 produce byte-identical runs in every column** — the price
+saturates and no tile decision changes above it — and 0 sits inside the
+noise of 15. The reason is that it prices something that barely exists: over
+400 generated floors, only **19.8% hold even one tile two awake creatures
+can reach**, an average of 0.57 such tiles against 133 threatened ones.
+
+This file already recorded that scaling it by threat "changed literally
+nothing", and `candidates.md`'s B5 hoped clustering would make those tiles
+common. Measured at the shipped `CLUSTER_SIZE` 6, they are still rare. Off
+the panel, fixed at 15 — the value that shipped, so removing the slider
+changes no behaviour. The mechanism stays: it is not fighting anything, it
+is simply correct on the one floor in five where the situation is real.
+
+### Two dials were lying about themselves
+
+**`DANGER_FALLOFF`'s arrows were backwards.** `menace = bite ×
+falloff^distance`, so a higher value makes menace persist FURTHER — more
+cautious. The panel said up was "mais míope — só teme o que está colado",
+which is what a LOW value does. The constant is misnamed too (it is a
+persistence factor, not a rate of falloff), which is likely where the
+inversion came from. Moving it did the opposite of what the label promised,
+which is most of why it read as incomprehensible.
+
+**`stepCost` is not haste.** Swept at eight points: 0 breaks the bot outright
+(it wanders one floor for 1500 turns because walking is free), and **0.01
+through 0.2 — the whole old slider — is flat within noise**. It only starts
+to bite at 0.4, outside the range the panel offered, and saturates by 0.8.
+Turns barely move across the entire sweep (321–397).
+
+The mechanism explains it: the tile price is `stepCost + danger`, so a large
+step makes the danger term negligible by comparison and the route converges
+on plain distance. **High "haste" is really contempt for danger** — which is
+why chests and kills RISE at the top end (18.8 → 22.6 and 47.8 → 65.8).
+
+**Both ends beating the middle is worth flagging and not yet explaining.**
+`falloff` high (more danger weight) reads 4.6 and `stepCost` high (less
+relative danger weight) reads 4.7, against 4.2 shipped. That would make the
+shipped pair a local minimum — the worst of both worlds. At n = 100 those
+gaps sit right at 2 sigma, which is exactly where this project's own rule
+says to stop and not build a story. Recorded as a question, not a finding.
+
+### Six named bands instead of a continuous slider
+
+The count is even on purpose: no middle to park on, so every setting leans.
+It buys three things — one notch produces a visible change where half these
+dials measured flat across their old range, a reading is comparable because
+"alto" is one number rather than wherever the thumb landed, and a sweep has
+six points instead of a continuum.
+
+The shipped value is always one OF the six, so opening the Lab can never
+silently move the balance by snapping to a neighbour. The overrides file
+keeps values, never indices — a band list edited later must not re-point an
+existing override at a different number.
+
+Renamed to qualities of the hero rather than descriptions of machinery:
+Coragem, Ganância, Pressa, Cautela, Teimosia.

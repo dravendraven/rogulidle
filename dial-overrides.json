@@ -25,8 +25,5 @@
     "spreadCap": 0.35,
     "dugPercentage": 0.18,
     "shrineDistanceShare": 0.7
-  },
-  "bot": {
-    "crowdPenalty": 15
   }
 }

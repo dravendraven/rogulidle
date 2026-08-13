@@ -14,6 +14,40 @@ import {
 import { TURN_BUDGET, VAULT_LEVEL } from '../sim/balance.js';
 import { RETURN_ENABLED } from '../sim/dungeon.js';
 
+// B20 — SIX NAMED STEPS INSTEAD OF A CONTINUOUS SLIDER, and the count is
+// even on purpose: there is no middle to park on, so every setting leans
+// one way. A dial with `bands` offers exactly these six values and nothing
+// between them.
+//
+// Three things it buys. A player moving one notch sees a change instead of
+// a rounding error — half of these dials measured flat across their whole
+// old range. A reading is comparable, because "alto" means one number
+// rather than wherever the thumb landed. And a sweep has six points to
+// visit instead of a continuum to sample.
+//
+// The shipped value is always ONE OF the six, so opening the Lab can never
+// silently move the balance by snapping the thumb to a neighbour.
+const BAND_NAMES = [
+  'muito baixo', 'baixo', 'médio-baixo', 'médio-alto', 'alto', 'muito alto',
+];
+
+// Nearest band to a value, so a `dial-overrides.json` written by hand — or
+// by an older version of this panel — still opens on a real notch.
+// "médio-baixo · 0.7" — the name is what a player steers by, the number is
+// what a measurement quotes.
+function bandLabel(bands, index) {
+  const i = Math.max(0, Math.min(bands.length - 1, Number(index)));
+  return `${BAND_NAMES[i]} · ${bands[i]}`;
+}
+
+function bandIndexOf(bands, value) {
+  let best = 0;
+  for (let i = 1; i < bands.length; i++) {
+    if (Math.abs(bands[i] - value) < Math.abs(bands[best] - value)) best = i;
+  }
+  return best;
+}
+
 // A dial's floor. Zero unless a smaller-than-zero value is not merely odd
 // but broken: a scarcity of 0 divides by zero on the way to the item pool,
 // and a budget of 0 turns is not a traversal. Everything else simply may
@@ -76,44 +110,54 @@ export const SECTIONS = [
   ['Bot', [
     ['o herói', [
       {
+        // `fightBar = fightMargin × ehp`, and the side bar is that TIMES
+        // sideAppetite — so this one is not a sibling of greed, it is the
+        // thing greed multiplies. Swept, it moves which fights are taken a
+        // long way (vault entry 41% -> 63%) and mean depth barely at all.
         kind: 'hero', key: 'fightMargin', label: 'fração do hp que uma luta pode custar',
-        title: 'Coragem em combate', step: 0.05, range: [0, 1],
-        up: 'mais valente — aceita duelos caros', down: 'mais covarde — foge de quase tudo',
+        title: 'Coragem', bands: [0.2, 0.45, 0.7, 0.85, 1.0, 1.2],
+        up: 'aceita duelos mais caros', down: 'foge de quase tudo',
       },
       {
         // Above 1 the hero risks MORE on the optional than on the
         // mandatory, which is what greedy means and is the only way to say
-        // "take this fight even though it does not pay": the bar is
-        // `sideAppetite × fightMargin × ehp`, so with both sliders capped
-        // at 1 nothing above a comfortably affordable duel could ever be
-        // accepted — and the Butcher is not comfortably affordable on
-        // purpose.
-        kind: 'hero', key: 'sideAppetite', label: 'apetite pela aposta lateral (0 = nunca)',
-        title: 'Ganância por desvios', step: 0.1, range: [0, 2],
-        up: 'mais ganancioso — acima de 1 encara desvio que não compensa',
-        down: 'mais disciplinado — 0 nunca sai da rota',
+        // "take this fight even though it does not pay".
+        kind: 'hero', key: 'sideAppetite', label: 'apetite pela aposta lateral',
+        title: 'Ganância', bands: [0, 0.35, 0.7, 1.0, 1.4, 2.0],
+        up: 'persegue desvio que não compensa', down: 'muito baixo nunca sai da rota',
       },
       {
+        // Renamed nothing and re-ranged everything. Swept at eight points:
+        // 0 breaks the bot outright (it wanders a floor for 1500 turns
+        // because walking is free), and 0.01 through 0.2 — the WHOLE old
+        // slider — is flat within noise. It only starts to bite at 0.4.
+        //
+        // And the effect is not what the name suggests: turns barely move.
+        // The tile price is `stepCost + perigo`, so a large step makes the
+        // danger term negligible by comparison and the route converges on
+        // plain distance. High "pressa" is really contempt for danger.
         kind: 'hero', key: 'stepCost', label: 'quanto vale um passo, em hp',
-        title: 'Pressa', step: 0.005, range: [0, 0.1],
-        up: 'mais apressado — sai cedo do andar', down: 'mais explorador — varre o andar inteiro',
+        bands: [0.05, 0.1, 0.2, 0.4, 0.7, 1.0],
+        title: 'Pressa',
+        up: 'ignora o perigo e vai reto', down: 'desvia de tudo, varre o andar',
       },
     ]],
     ['como ele lê o perigo', [
       {
-        kind: 'bot', key: 'falloff', label: 'perigo decai por tile',
-        title: 'Alcance da percepção de perigo', step: 0.05, range: [0, 1],
-        up: 'mais míope — só teme o que está colado', down: 'mais paranoico — o andar inteiro assusta',
+        // The label and the arrows were BACKWARDS, which is most of why
+        // this dial read as incomprehensible. `menace = mordida ×
+        // falloff^distância`, so a HIGHER value makes menace persist
+        // further — more cautious, not more short-sighted. The old copy
+        // promised the opposite of what moving it did.
+        kind: 'bot', key: 'falloff', label: 'quanto do perigo sobrevive a cada tile de distância',
+        title: 'Cautela', bands: [0.2, 0.35, 0.5, 0.65, 0.8, 0.95],
+        up: 'teme de longe — dá volta larga em tudo',
+        down: 'só teme o que está colado',
       },
       {
-        kind: 'bot', key: 'crowdPenalty', label: 'multa por tile cercável por 2',
-        title: 'Cautela contra cerco', step: 0.5, range: [0, 20],
-        up: 'mais cauteloso — nunca entra em cerco', down: 'mais afoito — ignora o cerco',
-      },
-      {
-        kind: 'bot', key: 'stickiness', label: 'teimosia de objetivo',
-        title: 'Firmeza de decisão', step: 0.05, range: [1, 3],
-        up: 'mais teimoso — não troca de alvo à toa', down: 'mais indeciso — troca a qualquer sombra',
+        kind: 'bot', key: 'stickiness', label: 'quanto um alvo novo tem que ser melhor para ele trocar',
+        title: 'Teimosia', bands: [1.0, 1.2, 1.4, 1.8, 2.4, 3.0],
+        up: 'termina o que começou', down: 'troca de alvo a qualquer sombra',
       },
     ]],
   ]],
@@ -414,7 +458,7 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
       for (const dial of list) {
         const {
           kind, key, label, title, step, range, up, down, type, note,
-          onValue, offValue,
+          onValue, offValue, bands,
         } = dial;
         const isSwitch = type === 'switch';
         // A switch normally carries a boolean. `onValue`/`offValue` let one
@@ -457,6 +501,24 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
           valueOut = document.createElement('span');
           valueOut.className = 'dial-value';
           valueOut.textContent = input.checked ? 'ligado' : 'desligado';
+          track.append(input, valueOut);
+          row.append(track);
+        } else if (bands) {
+          // A slider over INDICES, not over the value: six stops, nothing
+          // between them, and the readout says which stop rather than what
+          // number — the number is shown after it so a reading can still be
+          // written down.
+          const track = document.createElement('div');
+          track.className = 'dial-slider';
+          input = document.createElement('input');
+          input.type = 'range';
+          input.step = '1';
+          input.min = '0';
+          input.max = String(bands.length - 1);
+          input.value = String(bandIndexOf(bands, def));
+          valueOut = document.createElement('span');
+          valueOut.className = 'dial-value';
+          valueOut.textContent = bandLabel(bands, input.value);
           track.append(input, valueOut);
           row.append(track);
         } else if (range) {
@@ -503,12 +565,16 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
           // has to be able to see at a glance in a page full of numbers.
           const isChanged = isSwitch
             ? input.checked !== Boolean(def)
-            : Number(input.value) !== def;
+            : bands
+              ? Number(input.value) !== bandIndexOf(bands, def)
+              : Number(input.value) !== def;
           input.classList.toggle('changed', isChanged);
           if (valueOut) {
             valueOut.textContent = isSwitch
               ? (input.checked ? 'ligado' : 'desligado')
-              : Number(input.value).toFixed(precisionOf(step));
+              : bands
+                ? bandLabel(bands, input.value)
+                : Number(input.value).toFixed(precisionOf(step));
             valueOut.classList.toggle('changed', isChanged);
           }
           // Runs at event time, long after `refreshNotes` below is bound.
@@ -517,7 +583,7 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
 
         sectionEl.append(row);
         inputs.push({
-          kind, key, input, def, min, valueOut, step, isSwitch, onOff,
+          kind, key, input, def, min, valueOut, step, isSwitch, onOff, bands,
         });
       }
     }
@@ -536,15 +602,18 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
 
   const reset = () => {
     for (const {
-      input, def, valueOut, step, isSwitch,
+      input, def, valueOut, step, isSwitch, bands,
     } of inputs) {
       if (isSwitch) input.checked = Boolean(def);
+      else if (bands) input.value = String(bandIndexOf(bands, def));
       else input.value = String(def);
       input.classList.remove('changed');
       if (valueOut) {
         valueOut.textContent = isSwitch
           ? (input.checked ? 'ligado' : 'desligado')
-          : Number(def).toFixed(precisionOf(step));
+          : bands
+            ? bandLabel(bands, input.value)
+            : Number(def).toFixed(precisionOf(step));
         valueOut.classList.remove('changed');
       }
     }
@@ -572,10 +641,15 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
     // silently discard every override in dial-overrides.json.
     const out = resolvedDefaults(overrides);
     for (const {
-      kind, key, input, def, min, isSwitch, onOff,
+      kind, key, input, def, min, isSwitch, onOff, bands,
     } of inputs) {
       if (isSwitch) {
         out[kind][key] = input.checked ? onOff.on : onOff.off;
+        continue;
+      }
+      if (bands) {
+        // The slider holds an index; the run gets the value behind it.
+        out[kind][key] = bands[Math.max(0, Math.min(bands.length - 1, Number(input.value)))];
         continue;
       }
       const value = Number(input.value);
@@ -628,12 +702,19 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
       // re-marks it "changed" (it can't be changed from a default it IS).
       const merged = JSON.parse(JSON.stringify(overrides));
       for (const {
-        kind, key, input, min, isSwitch, onOff,
+        kind, key, input, min, isSwitch, onOff, bands,
       } of inputs) {
         if (!input.classList.contains('changed')) continue;
         if (isSwitch) {
           merged[kind] = merged[kind] || {};
           merged[kind][key] = input.checked ? onOff.on : onOff.off;
+          continue;
+        }
+        if (bands) {
+          // The FILE keeps values, never indices — a band list that changes
+          // later must not silently re-point an override at another number.
+          merged[kind] = merged[kind] || {};
+          merged[kind][key] = bands[Math.max(0, Math.min(bands.length - 1, Number(input.value)))];
           continue;
         }
         const value = Number(input.value);

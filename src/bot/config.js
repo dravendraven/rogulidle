@@ -46,7 +46,21 @@ export const DANGER_FALLOFF = 0.5;
 // once. A price rather than a ban: a ban can strand a goal and needs
 // fallback machinery, a price this size is simply avoided when there is any
 // alternative.
-export const CROWD_PENALTY = 6;
+//
+// B19 — DECIDED, no longer a dial. Swept at 0 / 15 / 20 over 100 shared
+// seeds: **15 and 20 produce byte-identical runs in every column**, so the
+// price saturates and no tile decision changes above it, and 0 sits inside
+// the noise of 15. The reason is that it prices something that barely
+// exists — over 400 generated floors only 19.8% hold even ONE tile two
+// awake creatures can reach, an average of 0.57 such tiles against 133
+// threatened ones.
+//
+// 15 is kept rather than 6 or 0 because it is what shipped, so removing the
+// slider changes no behaviour at all; and the mechanism stays because it is
+// not fighting anything — it is correct on the one floor in five where the
+// situation is real. `decisions.md` carries the third independent
+// confirmation that tuning it does nothing.
+export const CROWD_PENALTY = 15;
 
 // A new goal must be cheaper than the current one by this factor before the
 // bot switches. Without it two near-equal goals make it dither on the spot

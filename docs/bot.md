@@ -35,11 +35,16 @@ frases:
 `makeBot(options)` aceita `hero`, um override de `DEFAULT_HERO`
 (`src/bot/config.js`). Um traço por objetivo:
 
+Os cinco tracos aparecem no Lab como **seis faixas nomeadas** (muito baixo ate
+muito alto), nao como slider continuo. Seis, numero par, para nao haver meio
+onde estacionar - e porque metade deles mediu **plano** ao longo da faixa
+continua antiga, entao uma casa a mais ou a menos nao mudava nada visivel.
+
 | traço | objetivo | o que faz |
 |---|---|---|
 | `fightMargin` | sobreviver | fração do hp efetivo que uma luta pode custar |
 | `sideAppetite` | chegar rico | apetite pela aposta lateral — e por andar até o escuro caro (0 = nunca; acima de 1 arrisca mais no opcional do que no obrigatório) |
-| `stepCost` | poucos passos | quanto vale um passo em hp — mais alto = mais apressado |
+| `stepCost` | poucos passos | quanto vale um passo em hp. **Nao e bem pressa:** o preco do tile e `stepCost + perigo`, entao valor alto torna o perigo desprezivel na comparacao e a rota vira distancia pura. Medido, 0 quebra o bot (vaga 1500 turnos porque andar e gratis) e de 0,01 a 0,2 nada muda |
 
 Um herói covarde, ganancioso ou apressado é **outro objeto de config, nunca
 outro código**. O elenco de heróis ainda não existe de propósito; só o
