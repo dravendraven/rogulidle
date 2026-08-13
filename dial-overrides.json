@@ -1,25 +1,25 @@
 {
   "model": {
-    "monsterGrowth": 1.05,
-    "strength": 0.25,
-    "tierFloorPerLevel": 0.05,
-    "tierFloorCap": 0.25,
-    "tierSlackPerLevel": 0.11,
-    "tierSlackCap": 0.75,
+    "monsterGrowth": 1.04,
+    "strength": 0.22,
+    "tierFloorPerLevel": 0.1,
+    "tierFloorCap": 0.5,
+    "tierSlackPerLevel": 0.2,
+    "tierSlackCap": 1,
     "earlyTierCut": 1,
     "outOfDepthChancePerLevel": 0.005,
     "outOfDepthChanceCap": 0.1,
     "clusterSize": 6,
-    "weaponScarcity": 3.5,
+    "weaponScarcity": 4,
     "dropChance": 0.5,
     "sideRoomDepthBonus": 1,
-    "spreadPerLevel": 0.05,
+    "spreadPerLevel": 0.04,
     "strengthGrowth": 1.2,
     "spineThreatShare": 0.3,
     "sideChestBias": 8,
-    "monstersBase": 4,
-    "spreadCap": 0.35,
-    "dugPercentage": 0.18,
-    "shrineDistanceShare": 0.7
+    "monstersBase": 5,
+    "spreadCap": 0.25,
+    "dugPercentage": 0.25,
+    "shrineDistanceShare": 0.6
   }
 }
