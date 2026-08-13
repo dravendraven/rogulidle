@@ -2968,6 +2968,58 @@ test('every glyph the game can draw has a sprite', () => {
   }
 });
 
+test('B18 — a hero does not flee something it cannot outrun', () => {
+  // The bug: the affordability gate sat in front of the clause that knew a
+  // chase is not a decision, so a duel gone too expensive mid-fight made
+  // the bot drop the creature as a goal and walk away. Against a speed-2
+  // chaser that is a slow death with no blows returned — it moves two
+  // tiles for the hero's one, so the gap never grows.
+  const map = tinyMap([
+    '#############',
+    '#-----------#',
+    '#############',
+  ]);
+
+  // Hurt enough that the duel is far past any bar it could clear.
+  const run = (speed) => {
+    const state = makeState({
+      map,
+      playerPos: [6, 1],
+      hp: 2,
+      monsters: [dummy('dragon', [7, 1], { activation: 20, speed })],
+      shrine: { id: 's', emoji: '🕳️', pos: [1, 1] },
+    });
+    const { actions } = driveBot(state, 1, { monsterCount: 1, chestCount: 0 });
+    return actions[0];
+  };
+
+  assertEq(run(2), 'right', 'the hero fled a creature that moves twice its speed');
+  assertEq(run(1), 'left', 'a speed-1 chaser can be outrun, so fleeing is still right');
+});
+
+test('B18 — an unreachable fight is still refused before it starts', () => {
+  // The narrow half: only a chase already joined skips the gate. A fast
+  // creature the hero has not woken is priced like anything else, so the
+  // decision to walk into the vault is untouched by this.
+  const map = tinyMap([
+    '#############',
+    '#-----------#',
+    '#############',
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [6, 1],
+    hp: 2,
+    // In plain sight (5 tiles) but activation 2, so it is asleep and
+    // nothing is chasing anything. The exit lies the other way.
+    monsters: [dummy('dragon', [11, 1], { activation: 2, speed: 2 })],
+    shrine: { id: 's', emoji: '🕳️', pos: [2, 1] },
+  });
+  const { actions } = driveBot(state, 1, { monsterCount: 1, chestCount: 0 });
+  assertEq(actions[0], 'left',
+    'a sleeping fast creature pulled the hero in — the entry gate is gone');
+});
+
 test('M44 — a creature with speed acts that many times a turn', () => {
   const map = tinyMap([
     '###########',

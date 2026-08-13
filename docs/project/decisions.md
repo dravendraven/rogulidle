@@ -991,3 +991,61 @@ leaves a real gap.
 **Nobody opens a chest without killing it**: the "touched but did not kill"
 group is empty at every appetite. All eight chests sit inside the reach, so
 the room is genuinely one bet.
+
+## B18 — the gate that sat in front of the clause that knew better
+
+Found by the owner watching a fight, not by any instrument.
+
+**The bug.** A `speed` 2 creature moves two tiles for the hero's one, so the
+gap never grows, its chase radius never breaks and fleeing cannot work. The
+bot fled anyway: mid-fight the hero's `ehp` falls faster than the creature's
+remaining hp does, `duelCost` crosses the bar, the affordability gate drops
+the creature from the pool, and the bot picks any other goal and walks. It
+takes a blow a turn and returns none until it dies.
+
+**The code already knew.** Six lines below the gate: *"a creature already
+chasing charges only the walk: its duel happens whatever the bot does
+next."* The gate ran first and threw the creature out before the clause
+that understood the situation was ever consulted. **The gate decides which
+fights to TAKE; when there is nothing to decide it has no business
+running.**
+
+**The fix is narrow on purpose.** A chase already joined skips the gate only
+when the creature is faster than the hero. Speed 1 is still outrun — it
+hesitates one turn in ten and falls behind — so nothing else in the game
+changes.
+
+**And it keeps the two readings of `speed` apart.** The bot now reads it to
+answer *can I get away*, never *what does this cost*. `duelCost` still does
+not price it, so the decision to ENTER the room is untouched; only the
+decision to leave a fight already joined changed.
+
+### What it moved, measured against the same dials with the fix reverted
+
+| `sideAppetite` | | without | with |
+|---|---|---|---|
+| 0.5 | entered | 31.7% | 31.7% |
+| | Butcher killed | 2.9% | **5.0%** |
+| | killed by it | 28.8% | 26.6% |
+| 1.0 | entered | 50.0% | 50.0% |
+| | Butcher killed | 8.8% | 8.8% |
+| | killed by it | 41.2% | 41.2% |
+
+**Entry does not move at either appetite, which is the property the fix was
+built to preserve** — the gate is untouched until a chase has already
+started.
+
+**At 1.0 nothing moves at all**, and that is the honest result: a hero that
+enters at that appetite was strong enough to finish the fight without the
+duel ever crossing the bar, so there was no flight to prevent. The bug only
+bites the marginal hero, which is exactly who appetite 0.5 sends in — and
+there the kill rate rises from 2.9% to 5.0% on 139 vaults, about 3 runs in
+200. Suggestive, not established: at those counts the standard error is
+around 1.5 points and the two overlap.
+
+**So this is a correctness fix that is nearly invisible in aggregate.** It
+was still worth doing — a hero bleeding to death without swinging is the
+kind of thing the owner sees in thirty seconds and no tripwire will ever
+report — but nobody should expect it to move the balance, and the earlier
+guess in this file that it would raise the win rate enough to need a retune
+was wrong.

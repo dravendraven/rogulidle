@@ -245,13 +245,35 @@ export function makeBot(options = {}) {
       const walk = priceOfReaching(field, monster.pos);
       if (!Number.isFinite(walk)) continue;
       const duel = duelCost(belief.player, monster).hpLost;
-      if (duel > (monster.side ? sideBar : fightBar)) continue;  // objective 1
 
       // A creature already chasing charges only the walk: its duel happens
       // whatever the bot does next, so fighting it now is the version where
       // the bot picked the ground.
       const steps = field.steps.get(key(monster.pos));
       const chasing = steps !== undefined && isAwakeAt(monster, steps);
+
+      // B18 — and one that is FASTER than the hero cannot be left behind at
+      // all, so there is no version where the bot walks away. The hero
+      // moves one tile a turn; a `speed` 2 creature moves two, so the gap
+      // never grows, the chase radius never breaks, and fleeing is a slow
+      // death with no blows returned — measured against the Butcher, which
+      // strikes twice when adjacent and once while closing, so running
+      // halves the damage taken and zeroes the damage dealt.
+      //
+      // The gate below decides which fights to TAKE. When there is nothing
+      // to decide it has no business running, and the comment above already
+      // said so — the bug was that the gate sat in front of the clause that
+      // knew better and threw the creature out first.
+      //
+      // This is the one place the bot reads `speed`, and it reads it to
+      // answer "can I get away", never "what does this cost". `duelCost`
+      // still does not price it (see its own note): the decision to ENTER a
+      // room is untouched, only the decision to leave a fight already
+      // joined. A creature at speed 1 can still be outrun — it hesitates
+      // one turn in ten and falls behind — so nothing else in the game
+      // changes behaviour here.
+      const inescapable = chasing && (monster.speed ?? 1) > 1;
+      if (!inescapable && duel > (monster.side ? sideBar : fightBar)) continue;
       pool.push({
         kind: 'monster', id: monster.id, pos: monster.pos,
         price: walk + (chasing ? 0 : duel),
