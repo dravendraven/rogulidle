@@ -49,6 +49,9 @@ const session = {
   // Which hero the Lab's "quem joga" switch picked, for the HUD. Empty is
   // the shipped hero and prints nothing.
   heroName: '',
+  // …and the face drawn on the board for them. Undefined lets render.js
+  // fall back to the glyph the game shipped with.
+  heroEmoji: undefined,
   history: [],
   // Turns banked from floors already finished this run — see renderHud's
   // xp-rate comment in render.js. 0 in legacy single-floor mode.
@@ -133,7 +136,9 @@ async function playFrames(frames, trace, tallyText) {
       ? { danger: dangerField(frame.belief), goal: entry ? entry.goal : null }
       : null;
 
-    renderFrame(frame.state, frame.belief, debug);
+    // The hero's own face on the board, every frame — the strongest "who is
+    // playing" signal there is, and it costs no HUD space at all.
+    renderFrame(frame.state, frame.belief, debug, session.heroEmoji);
     // After the frame, so a signal is never painted under the tile it
     // belongs to.
     events.show(frame.state);
@@ -502,6 +507,7 @@ async function runDescentForever(sessionSeed) {
     // playing it.
     const hero = heroByName(dials.run.who);
     session.heroName = hero === heroByName('') ? '' : hero.name;
+    session.heroEmoji = hero.emoji;
     const traces = [];
     const run = playDungeon(seed, (floor) => {
       const trace = [];

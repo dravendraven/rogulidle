@@ -83,9 +83,23 @@ export function heroItem(item, persona) {
 
 // The cast itself. `base` is the shipped game and must stay empty — it is
 // what every measurement compares against.
+//
+// `emoji`, `title` and `blurb` sit here rather than in the page for the same
+// reason `MONSTER_TABLE` carries its emoji: what a thing IS and what it looks
+// like are one fact, and splitting them is how the two drift. The emoji is
+// also the glyph drawn on the board, so it has to be in `src/ui/tiles.js`'s
+// baked map — an emoji missing there renders as an EMPTY TILE with nothing
+// in the console.
+//
+// Every one is a single-codepoint or ZWJ sequence Twemoji actually ships;
+// none uses a bare variation selector, which is the shape that silently
+// misses the map.
 export const HEROES = {
   base: {
     name: 'base',
+    title: 'o de sempre',
+    emoji: '🧝',
+    blurb: 'Sem truque nenhum. Só a névoa, a sorte e o que der para carregar.',
     persona: {},
     bot: {},
   },
@@ -94,6 +108,9 @@ export const HEROES = {
   // sits at "sees everything" on both.
   papazito: {
     name: 'papazito',
+    title: 'o erudito',
+    emoji: '🧙',
+    blurb: 'Enxerga o andar inteiro de onde estiver. Não faz ideia do que tem dentro dos baús.',
     persona: { sightRadius: SIGHT_WHOLE_MAP },
     bot: {},
   },
@@ -102,6 +119,9 @@ export const HEROES = {
   // expectation everyone else acts on.
   ricardo: {
     name: 'ricardo',
+    title: 'o gênio',
+    emoji: '👨‍🔬',
+    blurb: 'Sabe o que tem no baú antes de abrir. Passa reto pelos vazios e não comenta.',
     persona: { revealLoot: true },
     bot: {},
   },
@@ -125,6 +145,9 @@ export const HEROES = {
   // to either number can silently retire the other.
   pawa: {
     name: 'pawa',
+    title: 'o engenheiro',
+    emoji: '👨‍🔧',
+    blurb: 'Todo andar que ele fecha, o troco já virou chapa de metal.',
     persona: {},
     bot: {},
     stairs: { buy: 'shield', price: 1, maxPerFloor: 1 },
@@ -134,6 +157,9 @@ export const HEROES = {
   // variants all lost more to the armour bar than the weapon paid back.
   vito: {
     name: 'vito',
+    title: 'o guerreiro',
+    emoji: '🦸‍♂️',
+    blurb: 'A adaga na mão dele nunca sai pela culatra. O escudo, esse ele veste torto.',
     persona: {
       items: {
         dagger: { dmgMin: 1 },

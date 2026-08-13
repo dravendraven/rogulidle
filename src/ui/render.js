@@ -122,7 +122,11 @@ const signed = (n) => (n > 0 ? '+' : '') + n.toFixed(1);
 // over the map: how dangerous it believes each tile to be, and what it is
 // currently heading for. Phase 4 item 22 — you need this the moment the bot
 // does something that looks stupid, because usually it is not.
-export function renderFrame(state, belief, debug = null) {
+// `glyph` is the hero's own face (src/sim/heroes.js). It is a parameter
+// rather than read off the state because it is PRESENTATION: the engine has
+// no opinion about what the hero looks like, and a run replays the same
+// whichever emoji is on top of it. Unset is the hero the game shipped with.
+export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYPH) {
   const player = state.player.pos;
   const truth = trueAt(state);
   const memory = believedAt(belief);
@@ -167,8 +171,11 @@ export function renderFrame(state, belief, debug = null) {
       }
 
       // The player is always drawn on top of their own tile.
+      // NOT `glyph` — that name is the DOM node a few lines down, and
+      // assigning the element here handed `tileSvg` an object, which misses
+      // the map and paints an EMPTY TILE without a word in the console.
       if (x === player[0] && y === player[1]) {
-        text = PLAYER_GLYPH;
+        text = heroGlyph;
         sub = '';
         opacity = 1;
         known = true;
