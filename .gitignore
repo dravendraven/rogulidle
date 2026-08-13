@@ -4,3 +4,6 @@
 
 # NOT ignored, deliberately: `.claude/launch.json` is the dev-server config
 # every machine needs, so it stays tracked.
+
+# Agent worktrees — separate checkouts, never part of a commit
+.claude/worktrees/
