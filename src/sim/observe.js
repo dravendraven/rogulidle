@@ -60,8 +60,21 @@ const SHRINE_FIELDS = ['id', 'emoji', 'pos'];
 // this hook, and hardcoding the omission here would mean U4 has to come
 // back into this function to partially undo it later. A parameter with one
 // caller passing its default is not new machinery running.
-function monsterFields(revealLoot) {
-  return revealLoot ? [...MONSTER_FIELDS, 'drop'] : MONSTER_FIELDS;
+// M49 — a creature may also reveal its own drop, whatever the persona
+// setting is. That is a property of the CREATURE, not of the observer: the
+// vault's occupant carries the axe where it can be seen, and the room is
+// meant to be a decision made in advance (docs/project/objectives.md — "a
+// choice made blind is a preference"). A hero that cannot see the one
+// permanent prize in the room is not choosing, it is guessing.
+//
+// Narrow on purpose: nothing on MONSTER_TABLE sets it, so every ordinary
+// corpse keeps its secret and M28's leak stays closed. `revealsDrop` also
+// travels, so the renderer and the tests can tell which creatures advertise.
+function monsterFields(revealLoot, monster) {
+  const base = monster && monster.revealsDrop
+    ? [...MONSTER_FIELDS, 'revealsDrop', 'drop']
+    : MONSTER_FIELDS;
+  return revealLoot ? [...base, 'drop'] : base;
 }
 function chestFields(revealLoot) {
   return revealLoot ? [...CHEST_FIELDS, 'drop'] : CHEST_FIELDS;
@@ -106,7 +119,7 @@ export function observe(state, options = {}) {
     player: copyEntity(state.player, PLAYER_FIELDS),
     visible,
     tiles,
-    monsters: state.monsters.filter(seen).map((m) => copyEntity(m, monsterFields(revealLoot))),
+    monsters: state.monsters.filter(seen).map((m) => copyEntity(m, monsterFields(revealLoot, m))),
     items: state.items.filter(seen).map((i) => copyEntity(i, ITEM_FIELDS)),
     chests: state.chests.filter(seen).map((c) => copyEntity(c, chestFields(revealLoot))),
     shrine: seen(state.shrine) ? copyEntity(state.shrine, SHRINE_FIELDS) : null,

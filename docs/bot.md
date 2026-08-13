@@ -21,7 +21,14 @@ frases:
 - Entre tudo que vale ter — item solto, baú, luta pagável — **pega sempre o
   mais barato em hp**, caminhada e perigo incluídos.
 - **Sala lateral é a aposta:** loot guardado e luta opcional laterais são
-  ignorados quando o guardião custa mais do que o apetite permite.
+  ignorados quando o guardião custa mais do que o apetite permite. O custo de
+  um guardião se divide entre tudo que ele guarda — uma sala de tesouro é
+  `n × valor − 1 × duelo`, não a mesma conta feita `n` vezes.
+- **Desconta o prêmio que consegue ver.** Uma criatura que anuncia o próprio
+  drop (`rules.md` §7 — só o ocupante do vault) é precificada pelo duelo
+  MENOS o que o drop vale, e uma arma vale o duelo que ela pouparia contra o
+  que já está à vista. O desconto vale para escolher alvo, nunca para a
+  barra de sobrevivência: prêmio bom não deixa luta mais barata em hp.
 - **Explora** enquanto o escuro ainda pode dever algo (as contagens são
   concedidas — `rules.md` §7), escolhendo a fronteira pela **rota já
   precificada** e recusando a que tenha mais perigo no caminho do que o

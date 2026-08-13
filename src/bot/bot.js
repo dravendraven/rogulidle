@@ -171,6 +171,36 @@ function priceOfReaching(field, pos) {
 // paid the whole duel for one. That is a belief, not a fact — which is
 // exactly the kind of thing the greed bias exists to be wrong about in
 // either direction.
+// M49 — what a drop the hero can SEE is worth, in hp.
+//
+// Flat items convert directly: the armour bar and the hp bar are both damage
+// survived (`effectiveHp`). A WEAPON does not — its worth is that fights end
+// sooner — so it is priced by asking the question the bot already knows how
+// to ask: what would this have saved against the creatures currently in
+// sight? That is `duelCost` twice, once armed and once not, and it needs no
+// new constant and no exchange rate anybody had to invent.
+//
+// It UNDERCOUNTS on purpose, and the direction matters: only creatures
+// already seen, only this floor. A weapon keeps paying for the rest of the
+// run, and that is the horizon this project built once and deleted. Better a
+// floor that is provably true than a run that is a guess.
+export function dropValue(belief, drop) {
+  if (!drop) return 0;
+  const flat = (drop.armour || 0) + (drop.heal || 0);
+  if (!(drop.dmg || drop.dmgMin)) return flat;
+
+  const armed = {
+    ...belief.player,
+    inventory: [...(belief.player.inventory || []), drop],
+  };
+  let saved = 0;
+  for (const monster of liveMonsters(belief)) {
+    saved += Math.max(0,
+      duelCost(belief.player, monster).hpLost - duelCost(armed, monster).hpLost);
+  }
+  return flat + saved;
+}
+
 function guardCost(belief, pos, amortise = false) {
   const near = (a, b, reach) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) <= reach;
   let total = 0;
@@ -193,7 +223,17 @@ function guardCost(belief, pos, amortise = false) {
       share = Math.max(1, guarded);
     }
 
-    total += duelCost(belief.player, monster).hpLost / share;
+    // M49 — a guard that shows what it carries is cheaper than one that
+    // does not, because killing it pays. The vault's occupant is the only
+    // creature this reaches: `drop` is absent from Belief for every other
+    // one, so `dropValue` returns 0 and the arithmetic is unchanged.
+    //
+    // Under the same flag as the amortisation because it is the same idea —
+    // pricing a visit by what it is worth, not only by what it costs — and
+    // an A/B that leaves half the value model on measures nothing.
+    const prize = amortise ? dropValue(belief, monster.drop) : 0;
+    const net = Math.max(0, duelCost(belief.player, monster).hpLost - prize);
+    total += net / share;
   }
   return total;
 }
@@ -318,9 +358,21 @@ export function makeBot(options = {}) {
       // changes behaviour here.
       const inescapable = chasing && (monster.speed ?? 1) > 1;
       if (!inescapable && duel > (monster.side ? sideBar : fightBar)) continue;
+
+      // M49 — a creature that shows what it carries is priced NET of it.
+      // The Butcher is the only one, and the axe is the whole reason the
+      // room exists: before this, killing it was pure cost in the
+      // arithmetic and the guaranteed prize was worth exactly zero.
+      //
+      // The discount lands on the PRICE and never on the gate above. That
+      // gate is objective 1 — can the hero survive this fight — and a prize
+      // does not make a duel cheaper in hp. Discounting it there would be
+      // the bot walking into a fight it cannot win because the loot is
+      // good, which is the failure the margin exists to prevent.
+      const prize = settings.lootValue ? dropValue(belief, monster.drop) : 0;
       pool.push({
         kind: 'monster', id: monster.id, pos: monster.pos,
-        price: walk + (chasing ? 0 : duel),
+        price: walk + Math.max(0, (chasing ? 0 : duel) - prize),
       });
     }
 

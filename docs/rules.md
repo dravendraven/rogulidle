@@ -232,10 +232,13 @@ tornada improvável.
 
 **Baú guarda armadura e poção.**
 
-**O ocupante do vault (§3) larga o machado, sempre.** É o único drop
-garantido do jogo — não passa pela chance de largar algo nem pelo sorteio de
-qual arma. É o que faz a recompensa pagar o risco em vez de empilhar uma
-segunda aposta sobre a primeira.
+**O ocupante do vault (§3) larga o machado, sempre — e o carrega à vista.**
+É o único drop garantido do jogo — não passa pela chance de largar algo nem
+pelo sorteio de qual arma — e a única criatura cujo drop atravessa a névoa
+(§7). Sabe-se o que ele carrega antes de entrar, porque a sala é uma aposta
+feita de fora: prêmio invisível não entra em conta nenhuma, e escolha sem
+informação é preferência, não decisão. É o que faz a recompensa pagar o
+risco em vez de empilhar uma segunda aposta sobre a primeira.
 
 **O vault tem baús próprios, extras aos do andar, e o conteúdo deles é
 fixo.** Mesmo pagamento em toda seed, nas mesmas posições. É a única
@@ -344,6 +347,12 @@ fica na memória.
 não revelada já a vazou, mesmo que ninguém o leia — foi por isso que o item
 já sorteado de uma criatura saiu do Belief. O que atravessa é lista
 explícita por tipo de entidade, não cópia do objeto inteiro.
+
+**Uma criatura pode anunciar o próprio drop, e uma anuncia.** É propriedade
+dela, não do observador: o ocupante do vault (§5) mostra o machado a quem o
+enxerga, e só ele. Não é furo na névoa — é revelação declarada por uma
+criatura, do mesmo tipo que a velocidade dela ser visível. Todo o resto do
+bestiário continua guardando o que carrega.
 
 **Quantas criaturas e quantos baús o andar tem é concedido**, de
 propósito — é o que deixa o bot saber quando o escuro não deve mais nada.

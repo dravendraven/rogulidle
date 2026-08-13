@@ -5,7 +5,7 @@ import {
   CHEST_GUARD_RADIUS, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP,
   PLAYER_HP, PLAYER_XP, ROOM_HEIGHT, ROOM_WIDTH, SHRINE_DISTANCE_SHARE,
-  STARTING_ITEMS, TURN_BUDGET, VAULT_BOSS, VAULT_CHEST_ITEMS, VAULT_LEVEL,
+  STARTING_ITEMS, TURN_BUDGET, VAULT_BOSS, VAULT_BOSS_DROP, VAULT_CHEST_ITEMS, VAULT_LEVEL,
   VAULT_SIZE, WEAPON_AXE_MIN_TIER,
 } from '../src/sim/balance.js';
 import {
@@ -30,7 +30,7 @@ import {
   CLUSTER_SIZE, MONSTERS_BASE, MONSTER_GROWTH,
   MONSTER_STRENGTH, POTION_SCARCITY, WEAPON_SCARCITY,
 } from '../src/sim/difficulty.js';
-import { dangerField, duelCost, makeBot } from '../src/bot/bot.js';
+import { dangerField, dropValue, duelCost, makeBot } from '../src/bot/bot.js';
 import {
   BIAS_SPREAD, DEFAULT_HERO, LOOT_VALUE, biasBands,
 } from '../src/bot/config.js';
@@ -1691,6 +1691,55 @@ test('small floors put everything on the spine', () => {
     const state = newGame(3400 + seed, { ...floorPlan(1), monsters: 2 });
     assertEq(spineShare(state), 1, 'a two-creature floor hid threat in a side room');
   }
+});
+
+// ***** M49 — the Butcher advertises its axe ***** //
+
+test('the vault boss shows its drop; nothing else does', () => {
+  let checked = 0;
+  for (const state of vaultFloors()) {
+    // Stand at the door: the room is meant to be judged from outside it.
+    state.player = { ...state.player, pos: state.vault.door.slice() };
+    const belief = foldBelief(emptyBelief(), observe(state));
+    for (const m of belief.monsters.values()) {
+      if (m.revealsDrop) {
+        assert(m.drop && m.drop.name === VAULT_BOSS_DROP,
+          `the boss revealed "${m.drop && m.drop.name}" instead of the ${VAULT_BOSS_DROP}`);
+        checked++;
+      } else {
+        assert(!('drop' in m),
+          `ordinary creature "${m.name}" leaked its drop — M28 reopened`);
+      }
+    }
+  }
+  assert(checked > 0, 'no vault put its boss within sight of its own door');
+});
+
+test('the visible axe is worth hp, and only against what is in sight', () => {
+  // The price has to be a real number the bot could act on — a value that
+  // rounds to zero is the same as not having built this.
+  let priced = 0;
+  for (const state of vaultFloors()) {
+    state.player = {
+      ...state.player, pos: state.vault.door.slice(), hp: 8, armour: 5,
+      inventory: [{ dmg: 3, dmgMin: 0 }],
+    };
+    const belief = foldBelief(emptyBelief(), observe(state));
+    const boss = [...belief.monsters.values()].find((m) => m.revealsDrop);
+    if (!boss) continue;
+    const worth = dropValue(belief, boss.drop);
+    assert(worth > 0, 'the guaranteed axe priced at zero');
+    assert(worth < duelCost(belief.player, boss).hpLost * 3,
+      `the axe priced at ${worth.toFixed(1)} hp — implausibly above the fight it costs`);
+    priced++;
+
+    // An empty belief has nothing to kill, so a weapon saves nothing: the
+    // value is measured against creatures IN SIGHT, never invented.
+    const alone = { ...belief, monsters: new Map() };
+    assertEq(dropValue(alone, boss.drop), 0,
+      'a weapon was priced with no creature to use it on');
+  }
+  assert(priced > 0, 'no vault boss was visible from its own door');
 });
 
 // ***** chest quality by depth ***** //

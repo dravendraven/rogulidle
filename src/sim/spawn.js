@@ -880,6 +880,8 @@ export function populate(state, map, counts = {}) {
       activation: boss.activation,
       // M44 — the one creature in the game that acts more than once a turn.
       speed: boss.speed ?? 1,
+      // M49 — and the one that shows what it is carrying.
+      revealsDrop: boss.revealsDrop ?? false,
       dead: false,
       edge: edgeAt(pos),
       side: zones.isSide(pos),

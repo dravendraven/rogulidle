@@ -282,6 +282,12 @@ export const VAULT_SIZE = 9;
 // able to cost the run" — the M36 half of why this room exists.
 export const VAULT_BOSS = {
   name: 'butcher', emoji: '🐷', activation: 10, xp: 5, hp: 12, speed: 2,
+  // M49 — it carries the axe WHERE IT CAN BE SEEN. The only creature in the
+  // game that reveals its drop, and the reason is the room: a vault is a bet
+  // made before entering, and `objectives.md` says a choice made blind is a
+  // preference rather than a decision. The axe is the one permanent prize in
+  // there and it was worth zero in the hero's arithmetic until now.
+  revealsDrop: true,
 };
 
 // GUESS — what it always leaves behind, by name from ITEM_TABLE. The only
