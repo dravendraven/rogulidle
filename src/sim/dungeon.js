@@ -147,6 +147,9 @@ export function playDungeon(seed, makePolicy, options = {}) {
       // what a control run needs. Undefined would silently fall back to the
       // shipped floor, so this has to travel explicitly.
       vaultLevel: plan.vaultLevel,
+      // Sweepable so the vault's payout can be measured without editing
+      // balance.js; undefined means the shipped list.
+      vaultChestItems: plan.vaultChestItems,
       // A fixed value overrides the per-floor one, for sweeping — same
       // pattern as weaponScarcity above.
       earlyChestQualityBoost: options.earlyChestQualityBoost ?? plan.earlyChestQualityBoost,

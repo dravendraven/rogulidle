@@ -229,10 +229,18 @@ export function layoutOf(room, door, size = VAULT_SIZE) {
   return {
     boss: at(depth, mid),
     chests: [
+      // The authored eight, unchanged. Anything past them is a second ring
+      // for sweeping how much the room has to pay before entering it is a
+      // fair bet — at `activation` 10 the whole 9x9 sits inside the
+      // occupant's reach, so a further ring is no cheaper to collect.
       at(depth - 2, 2), at(depth - 2, mid), at(depth - 2, last - 2),  // in front
       at(depth, 1), at(depth, last - 1),                              // flanking
       at(depth + 2, 2), at(depth + 2, mid), at(depth + 2, last - 2),  // behind
-    ],
+      at(depth - 4, 2), at(depth - 4, mid), at(depth - 4, last - 2),
+      at(depth - 3, 1), at(depth - 3, last - 1),
+      at(depth + 1, 1), at(depth + 1, last - 1),
+      at(depth - 1, 3),
+    ].filter((p, i, all) => all.findIndex((q) => q[0] === p[0] && q[1] === p[1]) === i),
   };
 }
 

@@ -1287,3 +1287,52 @@ guard — and neither is much use without the other.
 
 Both stay behind `LOOT_VALUE`, off. Turning them on is a balance change that
 wants the vault's own numbers re-solved behind it, not a cleanup.
+
+## B23 — more reward does nothing, and the prediction that it would was wrong
+
+With the guard amortised, `decisions.md` predicted that chest count would
+finally become a real lever, because the bot could now read a room as a sum.
+Measured at the greed dial's CENTRE (1.0) with value and amortisation both
+on, 200 runs a config, same seeds:
+
+| | mean depth | p90 | reached 7+ | vault entry | Butcher killed |
+|---|---|---|---|---|---|
+| **no vault at all** | **5.36 ± 0.16** | 8 | **34.5%** | — | — |
+| vault, 8 chests | 4.61 ± 0.14 | 8 | 18.0% | 40.0% | 10.3% |
+| vault, 12 chests | 4.51 ± 0.13 | 7 | 14.5% | 41.4% | 7.6% |
+| vault, 16 chests | 4.57 ± 0.14 | 8 | 16.0% | 42.1% | 9.7% |
+
+**Doubling the payout changes nothing.** Depth is flat from 8 to 16 chests
+(4.61 → 4.57) and so is entry (40% → 42%). The prediction was wrong and the
+reason is worth more than the prediction was.
+
+**Entry does not move because the gate is already satisfied.** Amortised
+across eight chests the Butcher costs about 0.9 hp each, already under the
+value threshold, so chests nine to sixteen change no decision. The room is
+not reward-limited.
+
+**Depth does not move because of WHAT it pays.** Chests hold shields and
+potions — both consumable — against a risk that is permanent. `rules.md`
+says it outright: weapons are the only thing that makes the hero
+permanently stronger. So the vault pays in the one currency that does not
+compound, and paying twice as much of it buys twice as much of nothing.
+
+**And the room costs three quarters of a floor no matter what.** 5.36
+against 4.61 is 3.5 sigma, and the share reaching floor 7 halves, 34.5% to
+18.0%. That is the third independent measurement saying the same thing —
+the coordinate descent put the optimal bot at 5.5% entry, amortisation alone
+cost a floor and a half of tail, and now the payout sweep says the loss is
+not a pricing artefact.
+
+### What this means for the dial redesign, which is the point of all of it
+
+Greed's centre is supposed to be a FAIR bet, so that both directions are
+worse and the six bands straddle a real optimum. At these numbers the vault
+is never fair — a correctly-priced bot that enters it loses three quarters
+of a floor — so every band sits on the same side and the dial has no
+interior optimum in the vault's presence.
+
+**The untried lever is the currency, not the amount.** The axe is the only
+permanent gain in the room and there is exactly one of it. A vault that paid
+weapons rather than consumables would be paying in the thing the game's own
+economy says compounds — and that is the one thing this sweep did not test.

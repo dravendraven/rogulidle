@@ -183,6 +183,7 @@ export const DEFAULT_MODEL = {
   dugPercentage: MAP_DUG_PERCENTAGE,
   shrineDistanceShare: SHRINE_DISTANCE_SHARE,
   vaultLevel: VAULT_LEVEL,
+  vaultChestItems: undefined,
 };
 
 // Turns a model into the `floorPlan(level)` function the dungeon wants.
@@ -210,6 +211,7 @@ export function makeFloorPlan(model = {}) {
     dugPercentage: m.dugPercentage,
     shrineDistanceShare: m.shrineDistanceShare,
     vaultLevel: m.vaultLevel,
+    vaultChestItems: m.vaultChestItems,
   });
 }
 
