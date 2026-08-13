@@ -1163,3 +1163,75 @@ original six-dial sweep came from 100 runs, and two of the three
 file already carried that rule — do not explain a difference until it clears
 2 sigma — and the sweep that found the real defects still shipped three
 guesses alongside them.
+
+## B21 — the optimum is a coward, and greed finally has a quantity of its own
+
+Two measurements, both decisive, and they point opposite ways.
+
+### The optimal bot walks past the vault
+
+Coordinate descent over the four player dials, 120 runs a point, same seeds,
+two passes, maximising mean depth:
+
+| | shipped | optimum |
+|---|---|---|
+| coragem | 0.7 | **0.45** |
+| ganância | 1.0 | **0.7** |
+| pressa | 0.1 | **0.2** |
+| cautela | 0.5 | **0.95** |
+| mean depth | 4.31 ± 0.17 | **5.38 ± 0.19** |
+| vault entry | 49.4% | **5.5%** |
+| Butcher killed | 9.4% | 2.2% |
+
+**+1.07 floors, 4.2 sigma — and the room stops being entered.** Every dial
+moves toward caution and the optimum enters the vault in one floor in
+twenty.
+
+**So the vault is a negative-expectation bet at these numbers**, and the
+earlier reading that winners finish 8.9 floors against 6.6 for avoiders was
+selection, exactly as flagged: the bot enters when it can afford to, so
+winners were already strong. Entering costs about a floor on average.
+
+That is not automatically wrong — a bet you should decline is still a bet,
+and `objectives.md` wants options with real weaknesses. It does mean the
+room cannot be sold as "take it and you go deeper", and that **maximising
+mean depth is the wrong objective to tune the game against**, because its
+answer is always "be a coward". The tail — p90, or the share reaching floor
+7 — is what `objectives.md` actually judges a sitting on.
+
+### Greed with a value behind it stops being a slope and becomes a peak
+
+The bot has never had a reward term: a chest's price was `walk + guard`,
+pure cost, so it could ask "can I afford this" and never "is it worth it".
+`sideAppetite` therefore pulled on the same threshold `fightMargin` already
+pulled on, which is why the two read as one dial with a multiplier.
+
+Behind `LOOT_VALUE` (off by default), a chest is now refused when
+`walk + guard > CHEST_VALUE_HP × greed`. Swept over the six bias bands, 200
+runs, same seeds:
+
+| greed | mean depth | p90 | reached 7+ | vault entry |
+|---|---|---|---|---|
+| old rule | 4.33 ± 0.14 | 8 | 15.0% | 50.0% |
+| 0.2 | 4.38 | 7 | 17.0% | 23.8% |
+| **0.467** | **4.76 ± 0.15** | 8 | **22.0%** | 25.7% |
+| 0.733 | 4.67 | 8 | 18.0% | 35.7% |
+| 1.267 | 4.22 | 7 | 11.5% | 52.6% |
+| 1.8 | 4.05 | 6 | 9.0% | 65.2% |
+
+**The dial has an interior optimum.** Both ends are worse than the middle —
+which is precisely what the bias-around-a-centre design was for, and the
+opposite of every dial measured before it, which sloped one way and made
+one end a no-brainer. And ±80% is enough spread: mean depth spans 4.05 to
+4.76 and "reached 7+" spans 9% to 22%, so the answer to whether a
+percentage bias flips enough decisions is yes.
+
+**`CHEST_VALUE_HP` is therefore calibrated, not derived.** The naive
+estimate is about 2 hp. The gate only uses the product `value × greed`, so
+the sweep locates the best threshold at about 0.93 hp; setting the value to
+1 puts that optimum at bias 1.0, which is what makes the six bands straddle
+the centre instead of sitting on one side of it.
+
+**Shipped OFF.** At its best band it beats the old rule by 0.43 floors,
+which is 2.1 sigma — real but marginal, and turning it on is a balance
+change the owner has not watched yet. The flag is one word.

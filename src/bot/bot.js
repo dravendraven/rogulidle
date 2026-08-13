@@ -30,8 +30,8 @@ import {
 } from '../sim/combat.js';
 import { MONSTER_SKIP_CHANCE } from '../sim/balance.js';
 import {
-  CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_CHEST_COUNT, DEFAULT_MONSTER_COUNT,
-  DEFAULT_HERO, GOAL_STICKINESS,
+  CHEST_VALUE_HP, CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_CHEST_COUNT,
+  DEFAULT_MONSTER_COUNT, DEFAULT_HERO, GOAL_STICKINESS, LOOT_VALUE,
 } from './config.js';
 import {
   actionToward, believedWalkable, dijkstra, flood, frontiers, key, routeTo,
@@ -194,6 +194,11 @@ export function makeBot(options = {}) {
     // read from balance, or sweeping the map would break the stop condition.
     monsterCount: options.monsterCount ?? DEFAULT_MONSTER_COUNT,
     chestCount: options.chestCount ?? DEFAULT_CHEST_COUNT,
+    // B21 — the reward half of the chest decision, and the switch that
+    // turns it on. Both travel as options so a sweep can A/B them without
+    // editing config.js.
+    lootValue: options.lootValue ?? LOOT_VALUE,
+    chestValueHp: options.chestValueHp ?? CHEST_VALUE_HP,
     stickiness: options.stickiness ?? GOAL_STICKINESS,
     persistence: options.persistence ?? DANGER_PERSISTENCE,
     crowdPenalty: options.crowdPenalty ?? CROWD_PENALTY,
@@ -296,7 +301,25 @@ export function makeBot(options = {}) {
       const walk = priceOfReaching(field, chest.pos);
       if (!Number.isFinite(walk)) continue;
       const guard = guardCost(belief, chest.pos);
-      if (guard > sideBar) continue;              // the gamble refused
+
+      // B21 — the gamble, refused two different ways.
+      //
+      // OFF (shipped): the old one-sided test. A chest is refused when its
+      // GUARD alone costs more than the appetite bar allows — a question
+      // about affording it, never about whether it is worth anything.
+      //
+      // ON: a two-sided comparison. What the visit costs — the walk AND the
+      // guard, because both are paid — against what the chest is believed
+      // to be worth, scaled by greed. `sideAppetite` stops being a share of
+      // the hero's hp and becomes a multiplier on VALUE, which is the only
+      // way the dial gets a quantity of its own instead of pulling on the
+      // same threshold courage already pulls on.
+      if (settings.lootValue) {
+        if (walk + guard > settings.chestValueHp * hero.sideAppetite) continue;
+      } else if (guard > sideBar) {
+        continue;
+      }
+
       pool.push({ kind: 'chest', id: chest.id, pos: chest.pos, price: walk + guard });
     }
 

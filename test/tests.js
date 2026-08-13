@@ -31,7 +31,9 @@ import {
   MONSTER_STRENGTH, POTION_SCARCITY, WEAPON_SCARCITY,
 } from '../src/sim/difficulty.js';
 import { dangerField, duelCost, makeBot } from '../src/bot/bot.js';
-import { DEFAULT_HERO } from '../src/bot/config.js';
+import {
+  BIAS_SPREAD, DEFAULT_HERO, LOOT_VALUE, biasBands,
+} from '../src/bot/config.js';
 import { tileSvg } from '../src/ui/tiles.js';
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
 
@@ -2966,6 +2968,59 @@ test('every glyph the game can draw has a sprite', () => {
     assert(tileSvg(glyph),
       `no sprite for ${glyph} — it would render as an empty cell`);
   }
+});
+
+test('B21 — the loot-value gate is off by default and reversible', () => {
+  // The flag exists so the two rules can be compared over the same seeds.
+  // Off must reproduce the old behaviour exactly, which is what makes the
+  // A/B meaningful and the revert free.
+  assertEq(LOOT_VALUE, false, 'the loot-value gate shipped on without a measurement');
+
+  // Six bands, symmetric around 1 and never equal to it: no middle to park
+  // on, so every setting leans. One constant generates the whole scale.
+  const bands = biasBands();
+  assertEq(bands.length, 6, 'expected six bands');
+  assert(!bands.includes(1), 'a band sits exactly on the centre, so it can be parked on');
+  assertEq(bands[0], +(1 - BIAS_SPREAD).toFixed(3), 'the weakest band is not 1 - spread');
+  assertEq(bands[5], +(1 + BIAS_SPREAD).toFixed(3), 'the strongest band is not 1 + spread');
+  const gaps = bands.slice(1).map((b, i) => +(b - bands[i]).toFixed(3));
+  assertEq(new Set(gaps).size, 1, 'the notches are not evenly spaced');
+});
+
+test('B21 — with the gate on, a chest is refused on VALUE, not on the bar', () => {
+  // An unguarded chest six tiles away. The old rule only ever looked at the
+  // GUARD, so it walks any distance for a chest nothing is watching; the new
+  // one weighs what the visit costs against what the chest is worth.
+  //
+  // The exit is a stub BELOW, so refusing reads as 'down' and taking reads
+  // as 'right' — otherwise both answers move the same way and the test
+  // proves nothing.
+  const map = tinyMap([
+    '#########',
+    '#-------#',
+    '#.#######',
+    '#.#######',
+    '#########',
+  ]);
+  const chest = { id: 'c1', name: 'chest', emoji: '📦', pos: [7, 1], side: false };
+
+  const run = (lootValue) => {
+    const state = makeState({
+      map, playerPos: [1, 1], chests: [chest],
+      shrine: { id: 's', emoji: '🕳️', pos: [1, 3] },
+    });
+    const { actions } = driveBot(state, 1, {
+      monsterCount: 0, chestCount: 1, lootValue,
+      // Six tiles at 0.1 an hp is 0.6, against a chest this hero believes is
+      // worth 0.2 — so the visit costs three times what it buys.
+      chestValueHp: 0.2,
+      hero: { ...DEFAULT_HERO, stepCost: 0.1, sideAppetite: 1 },
+    });
+    return actions[0];
+  };
+
+  assertEq(run(false), 'right', 'the old rule should still walk to an unguarded chest');
+  assertEq(run(true), 'down', 'the value gate did not refuse a chest that costs more than it is worth');
 });
 
 test('B18 — a hero does not flee something it cannot outrun', () => {

@@ -96,3 +96,72 @@ export const GOAL_STICKINESS = 1.4;
 // for a bot built with none.
 export const DEFAULT_MONSTER_COUNT = 5;
 export const DEFAULT_CHEST_COUNT = 15;
+
+// ***** B21 — the bias vocabulary ***** //
+//
+// Every player-facing dial is becoming the same shape: a percentage bias on
+// a quantity the bot already prices correctly, centred on a value the
+// player CANNOT select. Six bands, no middle, so a setting always leans and
+// every option carries a real weakness — which is what `objectives.md`
+// demands of a choice and what this project kept failing at one dial at a
+// time. Four separate no-brainers were found and patched before the shape
+// itself was suspected.
+//
+// ONE NUMBER GENERATES THE WHOLE SCALE. Widening or narrowing the dials for
+// a tuning pass is editing `BIAS_SPREAD` and nothing else — the bands, the
+// labels and every consumer follow. 0.8 means the weakest setting prices a
+// thing at a fifth of its worth and the strongest at nearly double.
+export const BIAS_SPREAD = 0.8;
+
+// Six multipliers, symmetric around 1 and never equal to it, spaced evenly
+// across the whole range so that one notch is always the same size — which
+// is what lets "one band up" mean the same thing on every dial and makes
+// two readings comparable.
+//
+// The two inner bands straddle the centre rather than sitting on it: at
+// spread 0.8 they are 0.84 and 1.16, so the smallest possible setting is
+// still 16% away from the value the bot is calibrated at.
+export function biasBands(spread = BIAS_SPREAD, count = 6) {
+  const lo = 1 - spread;
+  const step = (2 * spread) / (count - 1);
+  return Array.from({ length: count }, (_, i) => +(lo + i * step).toFixed(3));
+}
+
+// ***** B21 — what an unopened chest is worth, in hp ***** //
+//
+// The bot has never had a reward term. A chest's price is `walk + guard`,
+// pure cost, and the pool takes the CHEAPEST of everything — so it could
+// only ever ask "can I afford this", never "is it worth it". That is why
+// greed and courage both ended up pulling on the same threshold from the
+// same side, and why greed had nothing of its own to bias.
+//
+// A BOT-SIDE BELIEF, not engine knowledge, and the distinction is the whole
+// reason this is one constant here rather than a reading of the generator.
+// The hero may not know what a chest holds (`drop` never crosses into
+// Belief — src/sim/observe.js), and it is not told the scarcity dials
+// either. It believes an unopened chest is worth this much and acts on the
+// belief; being wrong is allowed and is exactly what a bias dial is for.
+//
+// 1 hp, and it is CALIBRATED rather than derived. The naive estimate is
+// about 2 — a chest holds a shield (+3 armour) or a potion (+3 healing),
+// both worth roughly 3 hp, and about two thirds of them hold anything once
+// the positional roll and the scarcity gate are applied.
+//
+// Measured, that is too generous. The gate only ever uses the PRODUCT
+// `value × greed`, so a sweep over the six bias bands at value 2 located
+// the best threshold at about 0.93 hp — greed 0.467 read 4.76 mean floors
+// against 4.05 at the greedy end and 4.38 at the timid one. Setting the
+// value to 1 puts that optimum at bias 1.0, which is what makes the six
+// bands straddle it instead of sitting entirely on one side.
+//
+// So this constant is the CENTRE the dial biases around, and the player
+// cannot select it: the nearest bands are 0.733 and 1.267. Every setting
+// leans, which is the whole design.
+export const CHEST_VALUE_HP = 1;
+
+// B21 — A/B SWITCH, off by default. On, a chest is refused when what it
+// costs exceeds what it is worth times the hero's greed; off, the old rule
+// applies exactly — refused when the GUARD alone exceeds
+// `sideAppetite × fightMargin × ehp`. Nothing else differs, so the two can
+// be compared over the same seeds and either can be shipped.
+export const LOOT_VALUE = false;
