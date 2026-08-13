@@ -124,13 +124,18 @@ function capNote(perLevelKey, capKey, levels = 10) {
 // The BOT comes first, because a hero is the thing you change to see a
 // different run of the same dungeon; the map is the dungeon itself.
 export const SECTIONS = [
-  ['Bot', [
-    ['quem joga', [
+  // ITS OWN SECTION, above the dials rather than among them — B24 closed the
+  // panel at three dials on purpose, and this is not a fourth. A dial is
+  // something you TUNE; this is who is playing, which is the one choice the
+  // product is actually about (objectives.md). Different kind of decision,
+  // different block.
+  ['Quem joga', [
+    ['', [
       {
         // A switch over the hero's own NAME, in the same spirit as the
-        // Butcher's below: the engine already takes a hero, so the dial is
-        // that value rather than a flag beside it. Off is the shipped hero
-        // and the shipped game.
+        // Butcher's: the engine already takes a hero, so the dial is that
+        // value rather than a flag beside it. Off is the shipped hero and
+        // the shipped game.
         //
         // The off value is the EMPTY STRING and has to stay falsy: the
         // switch renders itself with `Boolean(def)`, so 'base' would come
@@ -141,12 +146,20 @@ export const SECTIONS = [
         // four of them could be on at once and mean nothing. Four heroes
         // want a PICKER, which is the U7 UI item and a widget shape this
         // file does not have — when it lands it replaces this row.
+        //
+        // Keeping A row here is also what keeps a hero SHIPPABLE:
+        // `resolvedDefaults` walks SECTIONS, so a `run.who` in
+        // dial-overrides.json only reaches a visitor if some dial claims
+        // the key. Delete this and the file can no longer set the default
+        // hero for everyone.
         kind: 'run', key: 'who', label: 'o engenheiro no lugar do herói de sempre',
-        title: 'Quem joga', type: 'switch', onValue: 'pawa', offValue: '',
+        title: 'Pawa, o engenheiro', type: 'switch', onValue: 'pawa', offValue: '',
         up: 'Pawa — cada andar concluído compra uma armadura na hora',
         down: 'o herói de sempre — a moeda só é gasta quando a run acaba',
       },
     ]],
+  ]],
+  ['Bot', [
     ['o herói', [
       {
         // M47 — every dial on this panel is now the SAME shape: a ±80% bias
@@ -417,6 +430,10 @@ const BOT_DEFAULTS = {
 };
 const RUN_DEFAULTS = { turnBudget: TURN_BUDGET, theReturn: RETURN_ENABLED, who: '' };
 
+// What a visitor who never types `?dev=1` gets to touch. See the filter in
+// buildDialPanel for why each one is on the list.
+const OPEN_SECTIONS = new Set(['Quem joga', 'Bot']);
+
 // The shipped value of a dial: `overrides` (dial-overrides.json, loaded by
 // dial-overrides.js) wins when it sets one, the code constant otherwise —
 // so "shipped" always means what a fresh visitor actually gets today, not
@@ -486,7 +503,11 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
   // Not a hiding trick: the map values still APPLY, they are simply not
   // editable. `read()` below starts from the resolved defaults, so an
   // override reaches the run whether or not its slider was drawn.
-  const sections = dev ? SECTIONS : SECTIONS.filter(([name]) => name === 'Bot');
+  // Named here rather than tested inline, because "which sections a visitor
+  // may touch" is now two answers and the reason differs for each: the Bot
+  // is the choice the product is about, and Quem joga is that choice made
+  // literal. The map stays dev-only for the reason above it.
+  const sections = dev ? SECTIONS : SECTIONS.filter(([name]) => OPEN_SECTIONS.has(name));
 
   for (const [section, groups] of sections) {
     const sectionEl = document.createElement('div');
@@ -499,9 +520,14 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
     sectionEl.append(h2);
 
     for (const [group, list] of groups) {
-      const h3 = document.createElement('h3');
-      h3.textContent = group;
-      sectionEl.append(h3);
+      // A section whose whole content is one row has nothing to subdivide,
+      // so it names its group '' and gets no heading — an empty <h3> would
+      // still take its margin and open a gap under the title.
+      if (group) {
+        const h3 = document.createElement('h3');
+        h3.textContent = group;
+        sectionEl.append(h3);
+      }
 
       for (const dial of list) {
         const {
