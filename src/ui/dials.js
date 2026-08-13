@@ -9,7 +9,7 @@
 
 import { DEFAULT_MODEL, saturatedAt } from '../sim/difficulty.js';
 import {
-  CROWD_PENALTY, DANGER_FALLOFF, DEFAULT_HERO, GOAL_STICKINESS,
+  CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_HERO, GOAL_STICKINESS,
 } from '../bot/config.js';
 import { TURN_BUDGET, VAULT_LEVEL } from '../sim/balance.js';
 import { RETURN_ENABLED } from '../sim/dungeon.js';
@@ -146,18 +146,13 @@ export const SECTIONS = [
       {
         // The label and the arrows were BACKWARDS, which is most of why
         // this dial read as incomprehensible. `menace = mordida ×
-        // falloff^distância`, so a HIGHER value makes menace persist
+        // persistence^distância`, so a HIGHER value makes menace persist
         // further — more cautious, not more short-sighted. The old copy
         // promised the opposite of what moving it did.
-        kind: 'bot', key: 'falloff', label: 'quanto do perigo sobrevive a cada tile de distância',
+        kind: 'bot', key: 'persistence', label: 'quanto do perigo sobrevive a cada tile de distância',
         title: 'Cautela', bands: [0.2, 0.35, 0.5, 0.65, 0.8, 0.95],
         up: 'teme de longe — dá volta larga em tudo',
         down: 'só teme o que está colado',
-      },
-      {
-        kind: 'bot', key: 'stickiness', label: 'quanto um alvo novo tem que ser melhor para ele trocar',
-        title: 'Teimosia', bands: [1.0, 1.2, 1.4, 1.8, 2.4, 3.0],
-        up: 'termina o que começou', down: 'troca de alvo a qualquer sombra',
       },
     ]],
   ]],
@@ -368,7 +363,7 @@ export const SECTIONS = [
 ];
 
 const BOT_DEFAULTS = {
-  falloff: DANGER_FALLOFF, crowdPenalty: CROWD_PENALTY, stickiness: GOAL_STICKINESS,
+  persistence: DANGER_PERSISTENCE, crowdPenalty: CROWD_PENALTY, stickiness: GOAL_STICKINESS,
 };
 const RUN_DEFAULTS = { turnBudget: TURN_BUDGET, theReturn: RETURN_ENABLED };
 
@@ -628,7 +623,7 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
   // nonsense field falls back to the shipped value rather than handing NaN
   // to the generator, which would fail somewhere far from here.
   //
-  // A negative is not merely a strange dungeon — a negative danger falloff
+  // A negative is not merely a strange dungeon — a negative danger persistence
   // flips the sign of a tile's price, and a router that can pay LESS by
   // walking further never finishes. The bot clamps its own prices too
   // (src/bot/bot.js); this is the half that keeps the number out of the

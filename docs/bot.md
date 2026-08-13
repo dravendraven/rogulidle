@@ -35,7 +35,7 @@ frases:
 `makeBot(options)` aceita `hero`, um override de `DEFAULT_HERO`
 (`src/bot/config.js`). Um traço por objetivo:
 
-Os cinco tracos aparecem no Lab como **seis faixas nomeadas** (muito baixo ate
+Os tracos que o jogador mexe aparecem no Lab como **seis faixas nomeadas** (muito baixo ate
 muito alto), nao como slider continuo. Seis, numero par, para nao haver meio
 onde estacionar - e porque metade deles mediu **plano** ao longo da faixa
 continua antiga, entao uma casa a mais ou a menos nao mudava nada visivel.

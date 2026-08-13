@@ -30,7 +30,7 @@ import {
 } from '../sim/combat.js';
 import { MONSTER_SKIP_CHANCE } from '../sim/balance.js';
 import {
-  CROWD_PENALTY, DANGER_FALLOFF, DEFAULT_CHEST_COUNT, DEFAULT_MONSTER_COUNT,
+  CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_CHEST_COUNT, DEFAULT_MONSTER_COUNT,
   DEFAULT_HERO, GOAL_STICKINESS,
 } from './config.js';
 import {
@@ -90,7 +90,7 @@ export function isAwakeAt(monster, distance) {
 // bot almost never CHOSE a bad fight — it was caught while doing something
 // else, because routes were priced in steps alone.
 export function dangerField(belief, tuning = {}) {
-  const falloff = tuning.falloff ?? DANGER_FALLOFF;
+  const persistence = tuning.persistence ?? DANGER_PERSISTENCE;
   const crowdPenalty = tuning.crowdPenalty ?? CROWD_PENALTY;
   const passable = believedWalkable(belief);
 
@@ -110,7 +110,7 @@ export function dangerField(belief, tuning = {}) {
 
     for (const [tile, distance] of spread.dist) {
       if (!isAwakeAt(monster, distance)) continue;
-      menace.set(tile, (menace.get(tile) || 0) + bite * falloff ** distance);
+      menace.set(tile, (menace.get(tile) || 0) + bite * persistence ** distance);
       if (distance <= 1) crowd.set(tile, (crowd.get(tile) || 0) + 1);
     }
   }
@@ -195,7 +195,7 @@ export function makeBot(options = {}) {
     monsterCount: options.monsterCount ?? DEFAULT_MONSTER_COUNT,
     chestCount: options.chestCount ?? DEFAULT_CHEST_COUNT,
     stickiness: options.stickiness ?? GOAL_STICKINESS,
-    falloff: options.falloff ?? DANGER_FALLOFF,
+    persistence: options.persistence ?? DANGER_PERSISTENCE,
     crowdPenalty: options.crowdPenalty ?? CROWD_PENALTY,
     // Debug hook: one entry per decision, so the spectator can show what
     // the bot was aiming at when a move looks odd.
@@ -228,7 +228,7 @@ export function makeBot(options = {}) {
     // `Math.max(0, ...)` is Dijkstra's precondition, not decoration: a
     // negative tile price makes revisiting a tile cheaper every time round
     // and the search never terminates — the page hangs rather than throws.
-    // Reachable from a hostile tuning value (a negative falloff flips
+    // Reachable from a hostile tuning value (a negative persistence flips
     // menace's sign), so the router refuses one here rather than trusting
     // every caller.
     const field = dijkstra(belief.player.pos, passable,

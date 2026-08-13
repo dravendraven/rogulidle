@@ -38,9 +38,22 @@ export const DEFAULT_HERO = {
   stepCost: 0.01,
 };
 
-// How fast a creature's menace fades with distance when pricing a tile.
-// At 0.5 a wolf two tiles away charges a quarter of its bite.
-export const DANGER_FALLOFF = 0.5;
+// How much of a creature's menace SURVIVES each tile of distance when
+// pricing a tile: at 0.5 a wolf two tiles away charges a quarter of its
+// bite, at 0.95 it still charges nine tenths.
+//
+// B20 — renamed from `DANGER_FALLOFF`, and the old name was not a cosmetic
+// problem. "Falloff" reads as a rate of DECAY, so higher sounds like faster
+// fading and therefore a more short-sighted hero; the exponent does the
+// opposite, and the Lab shipped arrows promising the inverse of what moving
+// the dial did. The name is the bug's root cause, so it went with the fix.
+//
+// Measured at n=300 against 0.5: raising it to 0.95 is worth +0.38 floors of
+// mean depth (2.3 sigma, real but small) and costs 15 points of vault entry
+// (46% -> 31%), because a hero that fears things from further away stops
+// walking into the room. NOT adopted: that is a balance decision about the
+// Butcher, not a free win. See decisions.md.
+export const DANGER_PERSISTENCE = 0.5;
 
 // Extra hp charged for standing where two or more creatures could strike at
 // once. A price rather than a ban: a ban can strand a goal and needs
@@ -65,6 +78,16 @@ export const CROWD_PENALTY = 15;
 // A new goal must be cheaper than the current one by this factor before the
 // bot switches. Without it two near-equal goals make it dither on the spot
 // instead of committing to either.
+//
+// B20 — DECIDED, no longer a dial, and the second inert one this sweep
+// found. At n=100 it looked mildly monotonic (mean depth 4.1 -> 4.4 across
+// 1.0 -> 3.0) and that was noise: re-measured at n=300 against the same
+// seeds, 3.0 moves mean depth by +0.01 (0.1 sigma) and "reached floor 7+" by
+// -0.3pp (0.1 sigma). Nothing.
+//
+// Kept at 1.4, the value that shipped, so removing the slider changes no
+// behaviour. The mechanism stays because dithering is real — it is the
+// FLOOR of the range that would hurt, not the ceiling that would help.
 export const GOAL_STICKINESS = 1.4;
 
 // The floor's creature count is granted to the bot (rules.md §7) so it can

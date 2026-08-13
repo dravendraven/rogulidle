@@ -68,9 +68,10 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 
 The bot's dials belong to the bot. `DEFAULT_HERO` (fightMargin 0.7,
 sideAppetite 0.5, stepCost 0.01) is the shipped hero and the whole
-hero-as-configuration mechanism; `DANGER_FALLOFF` 0.5 and `GOAL_STICKINESS` 1.4 are its mechanics.
-`CROWD_PENALTY` is 15 and is no longer a dial (B19 — swept at 0/15/20,
-identical above 15 and inside the noise below). See `docs/bot.md`.
+hero-as-configuration mechanism; `DANGER_PERSISTENCE` 0.5 (renamed from `DANGER_FALLOFF`, which named it
+backwards) is the one bot mechanic still on the panel. `CROWD_PENALTY` 15 and
+`GOAL_STICKINESS` 1.4 are DECIDED, not dials — both measured inert (B19,
+B20). See `docs/bot.md`.
 
 ## Tiers
 

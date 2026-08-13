@@ -1125,3 +1125,41 @@ existing override at a different number.
 
 Renamed to qualities of the hero rather than descriptions of machinery:
 Coragem, Ganância, Pressa, Cautela, Teimosia.
+
+## B20 addendum — the buff was half real, and the half that was is not free
+
+D1 re-measured at n=300 what a 100-run sweep had suggested, same seeds, with
+a standard error on every number. Both proposals died or changed shape.
+
+| against the base | mean depth | reached 7+ |
+|---|---|---|
+| cautela 0.95 | +0.38 (**2.3σ**) | +4.0pp (1.3σ) |
+| teimosia 3.0 | +0.01 (0.1σ) | −0.3pp (0.1σ) |
+| both together | +0.24 (1.5σ) | +1.3pp (0.5σ) |
+
+**`GOAL_STICKINESS` is inert, and the n=100 reading that said otherwise was
+noise.** 4.1 → 4.4 across the range looked mildly monotonic; at three times
+the sample it is 0.1 sigma. It came off the panel at 1.4 rather than being
+promoted to 3.0 — the opposite of the plan it entered with.
+
+**`DANGER_PERSISTENCE` 0.95 clears on mean depth and only just.** It also
+does something the sweep at n=100 hid: **vault entry falls from 46.2% to
+30.7%**. A hero that fears creatures from further away stops walking into
+the room, so adopting it would quietly undo a third of the entry rate M44
+was tuned to hit.
+
+**So it was not adopted.** It is not a free constant upgrade, it is a trade
+between half a floor of median reach and the Butcher's whole economy — an
+owner decision, and one that would need the vault's `hp` re-solved behind
+it. Left as a dial at 0.5.
+
+**And both together is worse than cautela alone** (+0.24 against +0.38),
+which is enough to say the two interact and neither should be reasoned about
+in isolation again.
+
+**The lesson is the sample size, not the dials.** Every number in the
+original six-dial sweep came from 100 runs, and two of the three
+"monotonic, higher is better" readings did not survive tripling it. This
+file already carried that rule — do not explain a difference until it clears
+2 sigma — and the sweep that found the real defects still shipped three
+guesses alongside them.

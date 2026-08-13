@@ -2920,9 +2920,9 @@ test('the bot drinks exactly when the missing hp covers the heal', () => {
 });
 
 test('a hostile tuning value cannot hang the router', () => {
-  // A friend typed a negative into the lab's danger falloff and the page
-  // froze. The mechanism: menace is `bite * falloff ** distance`, so a
-  // negative falloff makes half the tiles cost LESS than nothing, and
+  // A friend typed a negative into the lab's danger persistence and the page
+  // froze. The mechanism: menace is `bite * persistence ** distance`, so a
+  // negative persistence makes half the tiles cost LESS than nothing, and
   // Dijkstra with a negative edge never settles — it re-reaches the same
   // tile cheaper forever. The form refuses negatives now
   // (src/ui/dials.js), and the router clamps its own prices, which is the
@@ -2941,11 +2941,11 @@ test('a hostile tuning value cannot hang the router', () => {
   });
 
   const bot = makeBot({
-    monsterCount: 1, chestCount: 0, falloff: -1, crowdPenalty: -50,
+    monsterCount: 1, chestCount: 0, persistence: -1, crowdPenalty: -50,
   });
   const action = bot(foldBelief(emptyBelief(), observe(state)));
   assert(ACTIONS.includes(action),
-    `the bot answered "${action}" under a negative falloff`);
+    `the bot answered "${action}" under a negative persistence`);
 });
 
 test('every glyph the game can draw has a sprite', () => {
