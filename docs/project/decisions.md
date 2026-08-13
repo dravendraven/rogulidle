@@ -1235,3 +1235,55 @@ the centre instead of sitting on one side of it.
 **Shipped OFF.** At its best band it beats the old rule by 0.43 floors,
 which is 2.1 sigma — real but marginal, and turning it on is a balance
 change the owner has not watched yet. The flag is one word.
+
+## B22 — the bot could not add up a room, and fixing it made things worse
+
+The vault put eight chests inside one creature's reach, and `guardCost`
+charged the WHOLE duel against each of them. The bot compared one chest
+against a 7.2 hp fight, eight separate times, and refused eight times. The
+room's arithmetic is `8 × value − 1 × duel`; the arithmetic it did was
+`1 × value − 1 × duel`.
+
+**That is why raising the reward would not have helped.** At eight chests
+the room already paid about 8 hp for a 7.2 hp fight — the bot was simply
+never summing it. Amortising the guard across everything it guards is one
+division and needs no new information: chests and loose items already sit in
+Belief.
+
+### It works, and the result is not what was wanted
+
+200 runs a config, same seeds, empty-handed:
+
+| config | mean depth | p90 | 7+ | vault entry | Butcher killed |
+|---|---|---|---|---|---|
+| shipped rule | 4.33 ± 0.14 | 8 | 15.0% | 50.0% | 8.8% |
+| **amortisation alone** | 3.92 ± 0.12 | **5** | **7.0%** | **79.3%** | 9.3% |
+| value + amortisation, greed 0.84 | **4.64 ± 0.14** | 8 | **19.0%** | 38.2% | **10.4%** |
+| value alone, greed 0.52 | 4.59 ± 0.15 | 8 | 19.0% | 31.1% | 8.1% |
+
+**Amortisation alone is the single biggest move on entry ever measured here
+— 50% to 79% — and it costs a floor and a half of tail.** p90 falls from 8
+to 5 and the share reaching floor 7 halves.
+
+**So the room is genuinely a bad bet, and the bot's old refusal was
+accidentally right.** It refused because it could not add; now that it can,
+it accepts and does worse. The two earlier findings agree: coordinate
+descent already put the optimal bot at 5.5% vault entry, and entering costs
+about one floor on average.
+
+**And the lever finally reverses.** "Raising the reward will not help" was
+true only under the broken pricing. With the guard amortised, chest count
+and chest value are read as a sum for the first time, so **the reward level
+is now a real lever** — it was inert before because the comparison never
+included more than one chest.
+
+### What the pair is for
+
+Value alone pulls entry DOWN (50% → 31%) and amortisation pulls it UP
+(50% → 79%); together at greed 0.84 they land at 38% with the best depth and
+the highest kill rate in the table. They are not two attempts at the same
+thing — one prices the room's worth, the other stops double-charging its
+guard — and neither is much use without the other.
+
+Both stay behind `LOOT_VALUE`, off. Turning them on is a balance change that
+wants the vault's own numbers re-solved behind it, not a cleanup.

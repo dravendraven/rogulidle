@@ -153,13 +153,47 @@ function priceOfReaching(field, pos) {
 // radius covers it wakes, and its duel follows. Spine creatures charge
 // nothing here — they have to be fought whatever the bot does, so their
 // duel is not a cost of the visit.
-function guardCost(belief, pos) {
+//
+// B22 — `amortise` splits each guard's duel across everything it is
+// guarding, and without it the bot cannot read a treasure room at all.
+//
+// The vault is the case that exposed it. Eight chests sit inside the
+// Butcher's reach, so every one of them was priced with the WHOLE duel —
+// about 7.2 hp against a floor-4 hero — and the bot compared that against
+// one chest, eight separate times, and refused eight times. The room's real
+// arithmetic is `8 × value − 1 × duel`; the arithmetic it did was
+// `1 × value − 1 × duel`. That is why raising the reward would not have
+// helped: at 8 chests the room already pays about 8 hp for a 7.2 hp fight,
+// and the bot was simply never summing it.
+//
+// The share is OPTIMISTIC on purpose. It assumes the hero collects
+// everything that guard covers, and a hero that grabs one and leaves has
+// paid the whole duel for one. That is a belief, not a fact — which is
+// exactly the kind of thing the greed bias exists to be wrong about in
+// either direction.
+function guardCost(belief, pos, amortise = false) {
+  const near = (a, b, reach) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) <= reach;
   let total = 0;
   for (const monster of liveMonsters(belief)) {
     if (!monster.side) continue;
-    const away = Math.abs(monster.pos[0] - pos[0]) + Math.abs(monster.pos[1] - pos[1]);
-    if (away > monster.activation) continue;
-    total += duelCost(belief.player, monster).hpLost;
+    if (!near(monster.pos, pos, monster.activation)) continue;
+
+    let share = 1;
+    if (amortise) {
+      // Everything still worth collecting that this same creature covers.
+      // Chests and loose items both count: the duel is paid once and buys
+      // access to all of them.
+      let guarded = 0;
+      for (const chest of belief.chests.values()) {
+        if (near(monster.pos, chest.pos, monster.activation)) guarded++;
+      }
+      for (const item of belief.items.values()) {
+        if (near(monster.pos, item.pos, monster.activation)) guarded++;
+      }
+      share = Math.max(1, guarded);
+    }
+
+    total += duelCost(belief.player, monster).hpLost / share;
   }
   return total;
 }
@@ -199,6 +233,11 @@ export function makeBot(options = {}) {
     // editing config.js.
     lootValue: options.lootValue ?? LOOT_VALUE,
     chestValueHp: options.chestValueHp ?? CHEST_VALUE_HP,
+    // Half of the same model, separable ONLY so a sweep can tell which half
+    // moved a number — it defaults to `lootValue` and nothing ships it on
+    // its own. Without the split, the value gate and the amortisation would
+    // land together and neither could be credited.
+    amortiseGuard: options.amortiseGuard ?? options.lootValue ?? LOOT_VALUE,
     stickiness: options.stickiness ?? GOAL_STICKINESS,
     persistence: options.persistence ?? DANGER_PERSISTENCE,
     crowdPenalty: options.crowdPenalty ?? CROWD_PENALTY,
@@ -292,7 +331,7 @@ export function makeBot(options = {}) {
         + (item.armour || 0) + (item.heal || 0) <= 0) continue;
       const walk = priceOfReaching(field, item.pos);
       if (!Number.isFinite(walk)) continue;
-      const guard = guardCost(belief, item.pos);
+      const guard = guardCost(belief, item.pos, settings.amortiseGuard);
       if (guard > sideBar) continue;              // the gamble refused
       pool.push({ kind: 'item', id: item.id, pos: item.pos, price: walk + guard });
     }
@@ -300,7 +339,7 @@ export function makeBot(options = {}) {
     for (const chest of belief.chests.values()) {
       const walk = priceOfReaching(field, chest.pos);
       if (!Number.isFinite(walk)) continue;
-      const guard = guardCost(belief, chest.pos);
+      const guard = guardCost(belief, chest.pos, settings.amortiseGuard);
 
       // B21 — the gamble, refused two different ways.
       //
