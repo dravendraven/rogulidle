@@ -5,7 +5,7 @@
 // pool, so changing the order changes every map.
 
 import {
-  CHEST_COUNT, CHEST_DIFFICULTY_SCALE, CHEST_GUARD_RADIUS, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST,
+  CHEST_COUNT, CHEST_GUARD_RADIUS, CHEST_LOOT_CHANCE, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST,
   ITEM_TABLE, MONSTER_COUNT,
   MONSTER_DIFFICULTY_SCALE, MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE,
   MONSTER_WEIGHTS, PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE,
@@ -82,7 +82,16 @@ import { layoutOf, stampVault } from './vault.js';
 // can only make the axe UNLIKELY below some tier, never absent.
 //
 // Returns [[item | null, weight], ...]; null means this draw holds nothing.
-export function itemWeights(scarcity = {}, source = 'chest', quality = 0, exclude = []) {
+// `allowEmpty` — M46. Monster drops keep the empty slot: scarcity is what
+// decides whether a corpse leaves a weapon at all. CHESTS no longer use it,
+// because whether a chest holds something is now one flat gate
+// (`CHEST_LOOT_CHANCE`) and having a second, hidden one behind it is exactly
+// the arrangement that made the real fill rate unreadable.
+//
+// So for chests the scarcity dials stop being a RATE and become a RATIO —
+// at 1.32 / 1.32 they split armour and potion evenly, and moving one only
+// tilts which of the two comes out.
+export function itemWeights(scarcity = {}, source = 'chest', quality = 0, exclude = [], allowEmpty = true) {
   const kinds = source === 'monster' ? ['weapon'] : ['armour', 'potion'];
   const shareEach = 1 / kinds.length;
   const exponent = 2 * quality - 1;
@@ -101,6 +110,7 @@ export function itemWeights(scarcity = {}, source = 'chest', quality = 0, exclud
     return [item, mass * shareOfKind];
   });
 
+  if (!allowEmpty) return entries;
   const claimed = entries.reduce((sum, [, w]) => sum + w, 0);
   entries.push([null, Math.max(0, 1 - claimed)]);
   return entries;
@@ -465,10 +475,11 @@ export function populate(state, map, counts = {}) {
     takeFree(pos);
 
     const depth = depthAt(pos, 'reward');
-    // Sweeps 10%..100% across the map: chests FURTHER in are likelier to
-    // hold loot (our fix for spec quirk 9.3 — the original had it backwards).
-    const emptiness = 1 - depth;
-    const hasLoot = drawChance(state, 'spawn', 1 - CHEST_DIFFICULTY_SCALE * emptiness);
+    // M46 — FLAT. One gate, one meaning: a chest holds something this often,
+    // wherever it sits. It used to sweep 10%..100% by path length and then
+    // lose another quarter to the scarcity draw below, so the real rate was
+    // a product nobody could read. See balance.js for what that cost.
+    const hasLoot = drawChance(state, 'spawn', counts.chestLootChance ?? CHEST_LOOT_CHANCE);
     // Depth buys BETTER loot, not just more of it. Without this a deep chest
     // was merely likelier to hold something, and what it held was drawn from
     // the same pool as the one by the front door — so risk bought quantity
@@ -484,7 +495,9 @@ export function populate(state, map, counts = {}) {
     // and it would start doing something the day `ITEM_TABLE` grows a
     // second armour or potion.
     const quality = Math.min(1, depth + earlyChestBoost);
-    const template = drawWeighted(state, 'spawn', itemWeights(scarcity, 'chest', quality));
+    // `allowEmpty: false` — `hasLoot` above already decided whether this
+    // chest holds anything, so this draw only picks WHICH kind.
+    const template = drawWeighted(state, 'spawn', itemWeights(scarcity, 'chest', quality, [], false));
 
     const chest = drawPick(state, 'spawn', CHEST_TABLE);
     state.chests.push({

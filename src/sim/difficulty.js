@@ -184,6 +184,7 @@ export const DEFAULT_MODEL = {
   shrineDistanceShare: SHRINE_DISTANCE_SHARE,
   vaultLevel: VAULT_LEVEL,
   vaultChestItems: undefined,
+  vaultBoss: undefined,
 };
 
 // Turns a model into the `floorPlan(level)` function the dungeon wants.
@@ -212,6 +213,7 @@ export function makeFloorPlan(model = {}) {
     shrineDistanceShare: m.shrineDistanceShare,
     vaultLevel: m.vaultLevel,
     vaultChestItems: m.vaultChestItems,
+    vaultBoss: m.vaultBoss,
   });
 }
 

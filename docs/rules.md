@@ -248,8 +248,16 @@ dele — não há nada para raspar sem lutar. Passar reto é seguir para o andar
 seguinte sem nada, que é o que faz a sala custar alguma coisa a quem a
 recusa.
 
-**Nem todo baú tem algo.** A chance varia com a posição no mapa, e a
-profundidade compra qualidade melhor, não só mais quantidade.
+**Nem todo baú tem algo, e a chance é FIXA.** Metade dos baús guarda alguma
+coisa, esteja ele na porta ou no fundo do andar — uma porta só, um
+significado só. Antes a chance variava com a posição (10% na entrada, 100%
+no ponto mais fundo) e ainda perdia um quarto numa segunda porta escondida
+atrás dela, então a taxa real era um produto que ninguém conseguia ler.
+
+**A recompensa da sala lateral passou a ser QUANTIDADE, não qualidade.** O
+peso que puxa baús para as laterais é o que faz o desvio pagar; a
+profundidade da sala continua escolhendo o tier da criatura, ou seja o
+risco. Risco e recompensa seguem rolando separados — em eixos diferentes.
 
 **Poção é carregada, não consumida ao pisar.** Entra no inventário como
 qualquer outro item, viaja entre andares, e beber é uma ação à parte (§6).

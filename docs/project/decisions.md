@@ -1336,3 +1336,50 @@ interior optimum in the vault's presence.
 permanent gain in the room and there is exactly one of it. A vault that paid
 weapons rather than consumables would be paying in the thing the game's own
 economy says compounds — and that is the one thing this sweep did not test.
+
+## M46 — the chest fill rate is flat, and what that moved
+
+Owner decision: a chest holds something half the time, wherever it sits, and
+the side room's reward half moves to chest COUNT.
+
+**It replaced two gates with one.** The positional roll made a chest by the
+entrance 10% full and one in the far corner 100% full; the scarcity draw
+inside `itemWeights` then emptied another quarter behind it. The product was
+about 42% and neither half was readable off the other. Now `hasLoot` is the
+only gate, chests call `itemWeights` with `allowEmpty: false`, and the
+scarcity dials become a RATIO for chests — which of the two kinds, not
+whether there is one.
+
+**The reason that decided it was the bot, not the curve.** `CHEST_VALUE_HP`
+is one number for every chest, and under the positional roll it was wrong
+about all of them — the chest by the door was worth about 0.3 hp and the one
+in the corner 3. A flat rate makes the single belief exact, and that belief
+is what the greed dial biases around. A dial cannot be calibrated on an
+average of unequal things.
+
+**Measured after: 43.7% of ordinary chests hold something** (2160 chests
+over 360 floors), 43.2% on the spine against 46.5% in side rooms — equal
+within noise, which is the point.
+
+### The side room's reward is now count, and count alone
+
+`SIDE_ROOM_DEPTH_BONUS`'s reward roll fed `hasLoot` through `depth`, and
+that was the only live reward channel a chest had (`quality` is inert while
+each kind holds one item). It now reaches nothing. **The reward half is
+`SIDE_CHEST_BIAS`.**
+
+That still varies per room, which is what `map-design.md` requires: chest
+placement is a weighted draw per chest, so one side room gets three and
+another gets none. Reward varies by count, risk varies by the depth roll,
+and the two remain independent.
+
+**But the magnitude is small and worth watching: side rooms hold 14.6% of a
+floor's chests.** Refusing every detour costs about a seventh of the floor's
+loot. If the detour should pay more, `SIDE_CHEST_BIAS` is now the whole
+lever — there is no second one.
+
+### One divergence recorded
+
+`CHEST_DIFFICULTY_SCALE` 0.9 was FAITHFUL (generator.cljs:238), already
+inverted here against spec quirk 9.3. It is gone. Deliberate, and the
+second time this file has chosen legibility over fidelity on the loot side.

@@ -157,7 +157,36 @@ export const CHEST_TABLE = [
   { name: 'chest', emoji: '📦' },
 ];
 
-export const CHEST_DIFFICULTY_SCALE = 0.9;  // FAITHFUL generator.cljs:238
+// M46 — how often a chest holds anything, FLAT. One number, one gate, and
+// it means exactly what it says: half of all chests hold something.
+//
+// It replaces two things at once. The positional roll
+// (`1 - CHEST_DIFFICULTY_SCALE × (1 - depth)`, FAITHFUL generator.cljs:238,
+// inverted here against spec quirk 9.3) made a chest by the entrance 10%
+// full and one in the far corner 100% full; and the scarcity gate inside
+// `itemWeights` emptied another quarter on top. The product was about 42%
+// and nobody could read either half off the other.
+//
+// TWO REASONS, and the second is the one that decided it.
+//
+// The curve gets easier to steer: reward per floor is already flat
+// (`CHESTS_PER_FLOOR`), difficulty already scales by floor, and now the two
+// do not interfere. Fine tuning is the chest COUNT, not a probability
+// hidden behind a path length.
+//
+// And the bot's belief becomes TRUE. `CHEST_VALUE_HP` (src/bot/config.js)
+// is one number for every chest, and under the positional roll it was wrong
+// about all of them — the one by the door was worth 0.3 hp, the one in the
+// corner 3. A flat rate makes the single number exact, which is what the
+// greed dial biases around.
+//
+// WHAT IT COSTS, stated rather than discovered later: `depth` was the only
+// live reward channel a chest had, so `SIDE_ROOM_DEPTH_BONUS`'s reward roll
+// now reaches nothing but `quality`, which is already inert for chests
+// (one item per kind). The side room's reward half moves to
+// `SIDE_CHEST_BIAS` — MORE chests rather than better ones — by owner
+// decision.
+export const CHEST_LOOT_CHANCE = 0.5;
 
 // GUESS — floor 1 is the poorest floor under quality-by-depth (nowhere on it
 // is far from the entrance) at the exact moment it is the most dangerous.
