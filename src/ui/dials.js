@@ -9,7 +9,7 @@
 
 import { DEFAULT_MODEL, saturatedAt } from '../sim/difficulty.js';
 import {
-  CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_HERO, GOAL_STICKINESS,
+  CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_HERO, GOAL_STICKINESS, biasBands,
 } from '../bot/config.js';
 import { TURN_BUDGET, VAULT_LEVEL } from '../sim/balance.js';
 import { RETURN_ENABLED } from '../sim/dungeon.js';
@@ -37,7 +37,24 @@ const BAND_NAMES = [
 // what a measurement quotes.
 function bandLabel(bands, index) {
   const i = Math.max(0, Math.min(bands.length - 1, Number(index)));
-  return `${BAND_NAMES[i]} · ${bands[i]}`;
+  const pct = Math.round((biasBands()[i] - 1) * 100);
+  return `${BAND_NAMES[i]} · ${pct > 0 ? '+' : ''}${pct}%`;
+}
+
+// M48 — ONE line, about where the dial IS, not about where it could go.
+//
+// The panel used to print both directions at 8px, always, so a player read
+// two hypotheticals and never a description of their own setting. A dial is
+// steered by knowing what it is doing now; the arrows are already on the
+// slider.
+//
+// Untouched is its own sentence, because it is its own state: the bot runs
+// at the centre, which no notch offers, and that is worth saying out loud
+// rather than leaving as an absence.
+function effectLine(dial, index, touched) {
+  if (!touched) return 'calibrado — o bot joga como foi medido';
+  const i = Math.max(0, Math.min(5, Number(index)));
+  return dial.says[i];
 }
 
 function bandIndexOf(bands, value) {
@@ -132,49 +149,60 @@ export const SECTIONS = [
     ]],
     ['o herói', [
       {
-        // `fightBar = fightMargin × ehp`, and the side bar is that TIMES
-        // sideAppetite — so this one is not a sibling of greed, it is the
-        // thing greed multiplies. Swept, it moves which fights are taken a
-        // long way (vault entry 41% -> 63%) and mean depth barely at all.
-        kind: 'hero', key: 'fightMargin', label: 'fração do hp que uma luta pode custar',
-        title: 'Coragem', bands: [0.2, 0.45, 0.7, 0.85, 1.0, 1.2],
-        up: 'aceita duelos mais caros', down: 'foge de quase tudo',
+        // M47 — every dial on this panel is now the SAME shape: a ±80% bias
+        // around a centre the player cannot select. `centre` is the value
+        // the bot is calibrated at; the six bands are that value times
+        // `biasBands()`. One notch means the same thing on every row, which
+        // is what made these comparable at all.
+        kind: 'hero', key: 'fightMargin', label: 'quanto de si o herói arrisca numa luta',
+        title: 'Coragem', bias: true,
+        // One sentence per notch, describing a behaviour that is VISIBLE on
+        // screen — `objectives.md` says a choice you cannot recognise by
+        // watching for thirty seconds was not a choice. Six written phrases
+        // rather than an adverb glued to two: the glue produced things like
+        // "muito só teme o que está colado".
+        says: [
+          'recusa quase toda luta — só mata o que é de graça',
+          'evita briga cara; passa longe do que dói',
+          'escolhe lutas com folga de sobra',
+          'aceita lutas apertadas',
+          'encara duelo caro mesmo machucado',
+          'briga com tudo, inclusive o que não pode pagar',
+        ],
       },
       {
-        // Above 1 the hero risks MORE on the optional than on the
-        // mandatory, which is what greedy means and is the only way to say
-        // "take this fight even though it does not pay".
-        kind: 'hero', key: 'sideAppetite', label: 'apetite pela aposta lateral',
-        title: 'Ganância', bands: [0, 0.35, 0.7, 1.0, 1.4, 2.0],
-        up: 'persegue desvio que não compensa', down: 'muito baixo nunca sai da rota',
-      },
-      {
-        // Renamed nothing and re-ranged everything. Swept at eight points:
-        // 0 breaks the bot outright (it wanders a floor for 1500 turns
-        // because walking is free), and 0.01 through 0.2 — the WHOLE old
-        // slider — is flat within noise. It only starts to bite at 0.4.
-        //
-        // And the effect is not what the name suggests: turns barely move.
-        // The tile price is `stepCost + perigo`, so a large step makes the
-        // danger term negligible by comparison and the route converges on
-        // plain distance. High "pressa" is really contempt for danger.
-        kind: 'hero', key: 'stepCost', label: 'quanto vale um passo, em hp',
-        bands: [0.05, 0.1, 0.2, 0.4, 0.7, 1.0],
-        title: 'Pressa',
-        up: 'ignora o perigo e vai reto', down: 'desvia de tudo, varre o andar',
+        // The only centre that is COMPUTED rather than chosen: greed
+        // multiplies `CHEST_VALUE_HP`, which is the chest's expected value
+        // in hp and follows the loot chance and the item table on its own.
+        // So this dial's centre 1.0 means "price a chest at exactly what it
+        // is worth", and the bands are honest over- and under-valuing.
+        kind: 'hero', key: 'sideAppetite', label: 'quanto o herói super ou subestima um baú',
+        title: 'Ganância', bias: true,
+        says: [
+          'nenhum baú vale o desvio — segue reto para a saída',
+          'só abre baú que está no caminho',
+          'desvia por loot de vez em quando',
+          'desvia por loot com frequência',
+          'anda e briga por baú — paga caro por loot',
+          'vai atrás de qualquer baú, custe o que custar',
+        ],
       },
     ]],
     ['como ele lê o perigo', [
       {
-        // The label and the arrows were BACKWARDS, which is most of why
-        // this dial read as incomprehensible. `menace = mordida ×
-        // persistence^distância`, so a HIGHER value makes menace persist
-        // further — more cautious, not more short-sighted. The old copy
-        // promised the opposite of what moving it did.
+        // `menace = mordida × persistence^distância`, so a HIGHER value
+        // makes menace persist further — more cautious. The old name
+        // (`DANGER_FALLOFF`) said the opposite and the arrows followed it.
         kind: 'bot', key: 'persistence', label: 'quanto do perigo sobrevive a cada tile de distância',
-        title: 'Cautela', bands: [0.2, 0.35, 0.5, 0.65, 0.8, 0.95],
-        up: 'teme de longe — dá volta larga em tudo',
-        down: 'só teme o que está colado',
+        title: 'Cautela', bias: true,
+        says: [
+          'só enxerga perigo colado nele — passa raspando em tudo',
+          'desvia pouco; passa perto demais',
+          'mantém alguma distância das criaturas',
+          'dá volta em quem parece perigoso',
+          'evita o entorno inteiro de cada criatura',
+          'trata o andar todo como ameaça — anda muito para não chegar perto',
+        ],
       },
     ]],
   ]],
@@ -443,6 +471,9 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
   // note reads the WHOLE form — the saturation line moves when `strength`
   // changes, not only when `strengthGrowth` does.
   const notes = [];
+  // So `reset` can put the live sentences back to "calibrado".
+  const effectOf = new Map();
+  const dialOf = new Map();
 
   // Which sections a player may touch. The map belongs to whoever ships
   // `dial-overrides.json`: a value moved there changes the game for every
@@ -475,7 +506,7 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
       for (const dial of list) {
         const {
           kind, key, label, title, step, range, up, down, type, note,
-          onValue, offValue, bands,
+          onValue, offValue, bias,
         } = dial;
         const isSwitch = type === 'switch';
         // A switch normally carries a boolean. `onValue`/`offValue` let one
@@ -486,6 +517,18 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
           ? { on: onValue, off: offValue }
           : { on: true, off: false };
         const def = defaultOf(kind, key, overrides);
+        // M47 — a `bias` dial offers the SHIPPED value times each of the six
+        // bands, and nothing between. The centre is `def` itself, and it is
+        // deliberately not on the list — the two inner notches straddle it,
+        // so any setting the player picks is a lean.
+        //
+        // The centre comes from `defaultOf`, not from a code constant, so a
+        // value pinned in dial-overrides.json is what the bands are built
+        // around. Reading the constant instead put Pressa's bands an order
+        // of magnitude below what actually ships.
+        const bands = bias
+          ? biasBands().map((b) => +(def * b).toPrecision(3))
+          : undefined;
         const min = range ? range[0] : (MIN_OF[key] ?? 0);
         const max = range ? range[1] : undefined;
 
@@ -532,10 +575,13 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
           input.step = '1';
           input.min = '0';
           input.max = String(bands.length - 1);
-          input.value = String(bandIndexOf(bands, def));
+          // Starts on the centre, which is NOT one of the six — the thumb
+          // sits at the lower inner notch but nothing is chosen until the
+          // player moves it. Opening the Lab must never change the run.
+          input.value = '2';
           valueOut = document.createElement('span');
           valueOut.className = 'dial-value';
-          valueOut.textContent = bandLabel(bands, input.value);
+          valueOut.textContent = `calibrado · ${def}`;
           track.append(input, valueOut);
           row.append(track);
         } else if (range) {
@@ -563,12 +609,18 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
 
         const effect = document.createElement('div');
         effect.className = 'dial-effect';
-        const upSpan = document.createElement('span');
-        upSpan.textContent = `⬆️ ${up}`;
-        const downSpan = document.createElement('span');
-        downSpan.textContent = `🔻 ${down}`;
-        effect.append(upSpan, downSpan);
+        if (bands) {
+          // One live sentence about the current notch.
+          effect.textContent = effectLine(dial, input.value, false);
+        } else {
+          const upSpan = document.createElement('span');
+          upSpan.textContent = `⬆️ ${up}`;
+          const downSpan = document.createElement('span');
+          downSpan.textContent = `🔻 ${down}`;
+          effect.append(upSpan, downSpan);
+        }
         row.append(effect);
+        if (bands) { effectOf.set(input, effect); dialOf.set(input, dial); }
 
         if (note) {
           const noteEl = document.createElement('div');
@@ -580,10 +632,13 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
         input.addEventListener('input', () => {
           // Yellow means "not what ships", which is the one thing a reader
           // has to be able to see at a glance in a page full of numbers.
+          // A bias dial counts as changed the moment it is TOUCHED, because
+          // there is no notch that means "leave it alone".
+          if (bands) input.dataset.touched = '1';
           const isChanged = isSwitch
             ? input.checked !== Boolean(def)
             : bands
-              ? Number(input.value) !== bandIndexOf(bands, def)
+              ? true
               : Number(input.value) !== def;
           input.classList.toggle('changed', isChanged);
           if (valueOut) {
@@ -592,6 +647,13 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
               : bands
                 ? bandLabel(bands, input.value)
                 : Number(input.value).toFixed(precisionOf(step));
+            if (bands) {
+              // The raw number a measurement would quote, out of the way in
+              // a tooltip — a player steers by the name, not by 0.812.
+              valueOut.title = String(bands[Number(input.value)]);
+              effect.textContent = effectLine(dial, input.value, true);
+              effect.classList.add('tuned');
+            }
             valueOut.classList.toggle('changed', isChanged);
           }
           // Runs at event time, long after `refreshNotes` below is bound.
@@ -622,14 +684,19 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
       input, def, valueOut, step, isSwitch, bands,
     } of inputs) {
       if (isSwitch) input.checked = Boolean(def);
-      else if (bands) input.value = String(bandIndexOf(bands, def));
+      else if (bands) { input.value = '2'; delete input.dataset.touched; }
+      if (bands && effectOf.has(input)) {
+        const el = effectOf.get(input);
+        el.textContent = effectLine(dialOf.get(input), input.value, false);
+        el.classList.remove('tuned');
+      }
       else input.value = String(def);
       input.classList.remove('changed');
       if (valueOut) {
         valueOut.textContent = isSwitch
           ? (input.checked ? 'ligado' : 'desligado')
           : bands
-            ? bandLabel(bands, input.value)
+            ? `calibrado · ${def}`
             : Number(def).toFixed(precisionOf(step));
         valueOut.classList.remove('changed');
       }
@@ -665,8 +732,11 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
         continue;
       }
       if (bands) {
-        // The slider holds an index; the run gets the value behind it.
-        out[kind][key] = bands[Math.max(0, Math.min(bands.length - 1, Number(input.value)))];
+        // Untouched means the CENTRE — the calibrated value, which no notch
+        // offers. Touched means the band under the thumb.
+        out[kind][key] = input.dataset.touched
+          ? bands[Math.max(0, Math.min(bands.length - 1, Number(input.value)))]
+          : def;
         continue;
       }
       const value = Number(input.value);
@@ -734,6 +804,7 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
           merged[kind][key] = bands[Math.max(0, Math.min(bands.length - 1, Number(input.value)))];
           continue;
         }
+
         const value = Number(input.value);
         if (!Number.isFinite(value)) continue;
         merged[kind] = merged[kind] || {};

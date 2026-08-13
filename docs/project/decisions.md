@@ -1336,3 +1336,167 @@ interior optimum in the vault's presence.
 permanent gain in the room and there is exactly one of it. A vault that paid
 weapons rather than consumables would be paying in the thing the game's own
 economy says compounds — and that is the one thing this sweep did not test.
+
+## M46 — the chest fill rate is flat, and what that moved
+
+Owner decision: a chest holds something half the time, wherever it sits, and
+the side room's reward half moves to chest COUNT.
+
+**It replaced two gates with one.** The positional roll made a chest by the
+entrance 10% full and one in the far corner 100% full; the scarcity draw
+inside `itemWeights` then emptied another quarter behind it. The product was
+about 42% and neither half was readable off the other. Now `hasLoot` is the
+only gate, chests call `itemWeights` with `allowEmpty: false`, and the
+scarcity dials become a RATIO for chests — which of the two kinds, not
+whether there is one.
+
+**The reason that decided it was the bot, not the curve.** `CHEST_VALUE_HP`
+is one number for every chest, and under the positional roll it was wrong
+about all of them — the chest by the door was worth about 0.3 hp and the one
+in the corner 3. A flat rate makes the single belief exact, and that belief
+is what the greed dial biases around. A dial cannot be calibrated on an
+average of unequal things.
+
+**Measured after: 43.7% of ordinary chests hold something** (2160 chests
+over 360 floors), 43.2% on the spine against 46.5% in side rooms — equal
+within noise, which is the point.
+
+### The side room's reward is now count, and count alone
+
+`SIDE_ROOM_DEPTH_BONUS`'s reward roll fed `hasLoot` through `depth`, and
+that was the only live reward channel a chest had (`quality` is inert while
+each kind holds one item). It now reaches nothing. **The reward half is
+`SIDE_CHEST_BIAS`.**
+
+That still varies per room, which is what `map-design.md` requires: chest
+placement is a weighted draw per chest, so one side room gets three and
+another gets none. Reward varies by count, risk varies by the depth roll,
+and the two remain independent.
+
+**But the magnitude is small and worth watching: side rooms hold 14.6% of a
+floor's chests.** Refusing every detour costs about a seventh of the floor's
+loot. If the detour should pay more, `SIDE_CHEST_BIAS` is now the whole
+lever — there is no second one.
+
+### One divergence recorded
+
+`CHEST_DIFFICULTY_SCALE` 0.9 was FAITHFUL (generator.cljs:238), already
+inverted here against spec quirk 9.3. It is gone. Deliberate, and the
+second time this file has chosen legibility over fidelity on the loot side.
+
+## B24 — the panel closes at three dials, and only one of them is a choice
+
+Four sweeps, and the owner's first instinct was right before any of them:
+two dials govern almost everything.
+
+### `stepCost` is the third inert one, and it resisted hardest
+
+Swept at eight points, then again as six bands around three different
+centres — 18 configurations at n=150. **Everything between 0.08 and 0.9
+reads the same**: 4.3 to 4.5 mean floors against a standard error of 0.15.
+Raising the centre does not open the range, it moves a flat window somewhere
+else flat.
+
+An earlier n=100 sweep had it worth half a floor between 0.1 and 0.8. That
+was noise — **the third reading in this project to evaporate at three times
+the sample**, after `GOAL_STICKINESS` and "more reward will help". The
+pattern is now specific enough to state as a rule: at n=100 a difference
+under about 0.5 floors is not a difference.
+
+Decided at 0.1, the value that shipped, moved from `dial-overrides.json` into
+`DEFAULT_HERO` so removing the slider changes nothing. The mechanism stays:
+at 0 walking is free and the bot wanders one floor for 1500 turns.
+
+### `DANGER_PERSISTENCE` is the one dial with a real range, and it is not a peak
+
+Six bands at n=200: 0.1 reads 3.85 mean floors, 0.26 4.08, 0.42 4.25, then
+0.58 / 0.74 / 0.9 read 4.57 / 4.63 / 4.58. **A 0.78 floor span at 4.7
+sigma**, with every column moving together — reaching floor 7 goes 5% to
+17%, chests 17 to 21, kills 40 to 61.
+
+**It rises and then flattens.** No interior optimum: the bottom half costs
+depth, the top half is a plateau. 0.5 sat BELOW that plateau, so the bot ran
+calibrated at a point worse than four of its own six bands. Raised to 0.7.
+
+Measured over the shipped configuration, 200 runs:
+
+| | mean depth | reached 7+ | clears | chests | vault entry | Butcher killed |
+|---|---|---|---|---|---|---|
+| 0.5 | 4.35 ± 0.14 | 13.0% | 0.5% | 19.9 | 47.9% | 8.6% |
+| **0.7** | **4.71 ± 0.14** | **18.0%** | 1.5% | 21.5 | **36.7%** | 10.0% |
+
++0.36 floors at 1.8 sigma, and it costs 11 points of vault entry — a hero
+that fears things from further away stops walking into the room. Both were
+known before adopting it.
+
+### What the panel is now
+
+Coragem, Ganância, Cautela — all three the same shape, a ±80% bias in six
+bands around a centre the player cannot select, with an untouched dial
+running AT the centre.
+
+**Only Ganância has an interior optimum**, because its centre is the one
+that is COMPUTED (a chest's expected value) rather than chosen. Cautela's
+deliberate choice is to go DOWN. Coragem moves which fights are taken far
+more than it moves depth.
+
+That asymmetry is worth stating plainly rather than papering over: the
+bias-around-a-centre design gives every dial a comparable shape, but it
+cannot manufacture a trade where the underlying quantity does not have one.
+
+## B25 — the loot-value model ships, and not for the reason it was built
+
+Turned on. A chest is refused when `walk + guard > CHEST_VALUE_HP × greed`,
+with the guard's duel split across everything it guards, instead of
+`guard > sideAppetite × fightMargin × ehp` with the whole duel charged
+against every chest separately.
+
+### At the centre it is a wash, and that is the honest headline
+
+200 runs, same seeds, shipped configuration:
+
+| rule | mean depth | p90 | 7+ | clears | chests | turns | vault entry |
+|---|---|---|---|---|---|---|---|
+| old | 4.71 ± 0.14 | 8 | 18.0% | 1.5% | 21.5 | 375 | 36.7% |
+| new | 4.62 ± 0.14 | 8 | 15.5% | 1.5% | 20.8 | 360 | 38.8% |
+
+0.45 sigma apart. **Nothing improved.** If the case for shipping this were
+the numbers, there would be no case.
+
+### The case is that it makes the dial a choice and the panel true
+
+Re-measured under the SHIPPED configuration — the earlier band sweep ran at
+`DANGER_PERSISTENCE` 0.5 and was no longer describing this game:
+
+| greed | mean depth | 7+ | chests | vault entry | Butcher killed |
+|---|---|---|---|---|---|
+| 0.2 | 3.85 ± 0.12 | 10.0% | **8.4** | 7.8% | 1.0% |
+| **0.52** | **5.01 ± 0.15** | **24.0%** | 21.0 | 17.9% | 3.8% |
+| 0.84 | 4.92 ± 0.15 | 22.5% | 22.1 | 31.4% | 10.3% |
+| 1.16 | 4.53 ± 0.14 | 14.5% | 20.5 | 44.9% | 11.5% |
+| 1.48 | 4.33 ± 0.13 | 13.0% | 20.0 | 55.0% | 10.7% |
+| 1.8 | 4.24 ± 0.12 | 9.5% | 19.6 | 54.4% | 8.8% |
+
+**An interior peak, and a sharp one:** 1.17 floors between the best band and
+the worst, 6 sigma, with vault entry spanning 7.8% to 55% and chests 8.4 to
+22. Under the old rule this dial moved which fights were affordable and
+little else.
+
+**And the panel stops lying.** Ganância's label — "how much the hero over or
+under-values a chest" — is only true under this rule. Shipping the label
+without the rule was the inconsistency this closed.
+
+### Two things it does not fix, stated rather than left to be found
+
+**`sideAppetite` now means two things at once.** A multiplier on value for
+chests, still a share of hp for side-room creatures and loose items —
+neither has a value the bot can price, since a weapon's worth is damage and
+converting that to hp is a modelling decision nobody has made. The dial's
+label is true for the case it was built for and incomplete for two others.
+
+**The centre is still not the peak.** 0.52 and 0.84 both beat 1.0 by about
+2 sigma. `CHEST_VALUE_HP` is computed, not tuned — owner decision, and the
+right one — so the centre sits where the arithmetic puts it and the two
+bands below it are better. Either the expected-value calculation is missing
+a term the hero actually experiences, or walking is under-priced in the same
+comparison. Open, and not to be closed by nudging the constant.

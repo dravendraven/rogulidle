@@ -2,6 +2,10 @@
 // never reads this file, and src/sim/balance.js no longer holds bot dials.
 // Bot rules live in the bot (CLAUDE.md); so do the bot's numbers.
 
+import { CHEST_LOOT_CHANCE } from '../sim/balance.js';
+import { ARMOUR_SCARCITY, POTION_SCARCITY } from '../sim/difficulty.js';
+import { itemWeights } from '../sim/spawn.js';
+
 // The shipped hero. A hero with special characteristics is a DIFFERENT
 // CONFIGURATION of this object handed to makeBot, never different bot code —
 // that is the whole choice-layer mechanism, and the roster that will use it
@@ -25,17 +29,36 @@ export const DEFAULT_HERO = {
   // above 1 it risks MORE on the optional than on the mandatory — which is
   // the only way to say "take this even though it does not pay".
   //
-  // 0.5 rather than 1, and the number came from the vault (M43/M44). Swept
-  // over 200 runs: 0 enters the room in 3% of floors, 0.5 in 44%, 1.0 in
-  // 70%, 2.0 in 85%. At 0.5 the hero wins 22% of the fights it takes, which
-  // is the band the room was built for — high enough that entering is not
-  // suicide, low enough that it is a bet.
-  sideAppetite: 0.5,
+  // B25 — 1.0, and under LOOT_VALUE that number has a meaning it did not
+  // have before: it is a multiplier on a chest's EXPECTED VALUE, so 1.0 is
+  // "price a chest at exactly what it is worth". The centre of the Ganância
+  // dial, and the only centre in this file that is derived rather than
+  // chosen — `CHEST_VALUE_HP` computes the value and this leaves it alone.
+  //
+  // The earlier 0.5 came from the vault sweeps under the OLD rule, where
+  // this was a share of hp and the two numbers are not comparable.
+  sideAppetite: 1,
 
   // What one step is worth in hp. This is the exchange rate between goal 3
   // and the other two: raising it makes near goals win harder and empties
   // the "worth the walk" pool sooner, so a hasty hero leaves earlier.
-  stepCost: 0.01,
+  //
+  // B24 — DECIDED, no longer a dial, at 0.1 (what shipped via
+  // dial-overrides.json; moved here so removing the slider changes nothing).
+  // The third inert one this project has found, and the one that resisted
+  // hardest: swept at eight points, then again as six bands around three
+  // different centres — 18 configurations at n=150 — and **everything
+  // between 0.08 and 0.9 measures the same**, 4.3 to 4.5 mean floors against
+  // a standard error of 0.15.
+  //
+  // An earlier n=100 sweep said 0.4 and 0.8 were worth half a floor over
+  // 0.1. That was noise, and it is the third reading in this project's
+  // history to evaporate at three times the sample.
+  //
+  // The MECHANISM still matters and that is why the number stays: at 0
+  // walking is free and the bot wanders one floor for 1500 turns. It needs
+  // to be above about 0.08 and below the absurd. It is not a choice.
+  stepCost: 0.1,
 };
 
 // How much of a creature's menace SURVIVES each tile of distance when
@@ -48,12 +71,23 @@ export const DEFAULT_HERO = {
 // opposite, and the Lab shipped arrows promising the inverse of what moving
 // the dial did. The name is the bug's root cause, so it went with the fix.
 //
-// Measured at n=300 against 0.5: raising it to 0.95 is worth +0.38 floors of
-// mean depth (2.3 sigma, real but small) and costs 15 points of vault entry
-// (46% -> 31%), because a hero that fears things from further away stops
-// walking into the room. NOT adopted: that is a balance decision about the
-// Butcher, not a free win. See decisions.md.
-export const DANGER_PERSISTENCE = 0.5;
+// B24 — 0.7, raised from 0.5, and this is the one player dial with a real
+// range. Swept as six bands at n=200: 0.1 reads 3.85 mean floors, 0.26 4.08,
+// 0.42 4.25, then 0.58 / 0.74 / 0.9 read 4.57 / 4.63 / 4.58 — a 0.78 floor
+// span end to end at 4.7 sigma, with every other column moving with it
+// (reaching floor 7 goes 5% to 17%, chests 17 to 21, kills 40 to 61).
+//
+// The curve RISES AND THEN FLATTENS, so there is no interior optimum: the
+// bottom half costs depth and the top half is a plateau. 0.5 sat below that
+// plateau, which meant the bot ran calibrated at a point worse than four of
+// its own six bands. 0.7 puts the centre inside it, so the default is good
+// and going DOWN is the deliberate choice — which is the shape the dial
+// design asks for even though this dial cannot offer a peak.
+//
+// It costs vault entry: measured at n=300, 0.5 -> 0.95 takes entry from 46%
+// to 31%, because a hero that fears things from further away stops walking
+// into the room.
+export const DANGER_PERSISTENCE = 0.7;
 
 // Extra hp charged for standing where two or more creatures could strike at
 // once. A price rather than a ban: a ban can strand a goal and needs
@@ -127,41 +161,77 @@ export function biasBands(spread = BIAS_SPREAD, count = 6) {
   return Array.from({ length: count }, (_, i) => +(lo + i * step).toFixed(3));
 }
 
-// ***** B21 — what an unopened chest is worth, in hp ***** //
+// ***** B21/M47 — what an unopened chest is worth, in hp *****
 //
-// The bot has never had a reward term. A chest's price is `walk + guard`,
-// pure cost, and the pool takes the CHEAPEST of everything — so it could
-// only ever ask "can I afford this", never "is it worth it". That is why
-// greed and courage both ended up pulling on the same threshold from the
-// same side, and why greed had nothing of its own to bias.
+// The bot has never had a reward term. A chest's price was `walk + guard`,
+// pure cost, and the pool took the CHEAPEST of everything — so it could ask
+// "can I afford this" and never "is it worth it". That is why greed and
+// courage both pulled on the same threshold from the same side, and why
+// greed had nothing of its own to bias.
 //
-// A BOT-SIDE BELIEF, not engine knowledge, and the distinction is the whole
-// reason this is one constant here rather than a reading of the generator.
-// The hero may not know what a chest holds (`drop` never crosses into
-// Belief — src/sim/observe.js), and it is not told the scarcity dials
-// either. It believes an unopened chest is worth this much and acts on the
-// belief; being wrong is allowed and is exactly what a bias dial is for.
+// M47 — COMPUTED, never tuned. This is the expected value of an unopened
+// chest and nothing else: the chance it holds anything, times the average
+// hp a chest item is worth, weighted the same way the generator weights
+// which kind comes out. Change `CHEST_LOOT_CHANCE`, change what a shield or
+// a potion gives, change the scarcity ratio — this follows on its own.
 //
-// 1 hp, and it is CALIBRATED rather than derived. The naive estimate is
-// about 2 — a chest holds a shield (+3 armour) or a potion (+3 healing),
-// both worth roughly 3 hp, and about two thirds of them hold anything once
-// the positional roll and the scarcity gate are applied.
+// It is NOT a balance dial and must not be nudged to make a measurement come
+// out nicer. The number is the bot's honest belief; the greed dial is what
+// biases away from it, and a hand-tuned centre would make the bias mean
+// nothing. (A sweep did suggest a lower threshold reads better on mean
+// depth; at n=150 the middle four bands were within noise of each other, so
+// there was nothing solid to move to anyway.)
 //
-// Measured, that is too generous. The gate only ever uses the PRODUCT
-// `value × greed`, so a sweep over the six bias bands at value 2 located
-// the best threshold at about 0.93 hp — greed 0.467 read 4.76 mean floors
-// against 4.05 at the greedy end and 4.38 at the timid one. Setting the
-// value to 1 puts that optimum at bias 1.0, which is what makes the six
-// bands straddle it instead of sitting entirely on one side.
+// A BOT-SIDE BELIEF even so: the hero is never told what a chest holds
+// (`drop` does not cross into Belief, src/sim/observe.js). It computes what
+// the average chest is worth and acts on that, which is what a player would
+// do after watching a few runs.
 //
-// So this constant is the CENTRE the dial biases around, and the player
-// cannot select it: the nearest bands are 0.733 and 1.267. Every setting
-// leans, which is the whole design.
-export const CHEST_VALUE_HP = 1;
+// `armour + heal` is the hp value of a chest item — the armour bar and the
+// hp bar are both damage the hero can take before dying (`effectiveHp`), so
+// a point of either is a point of survival. Weapons are not a chest kind.
+export function expectedChestValueHp(
+  lootChance = CHEST_LOOT_CHANCE,
+  scarcity = { armour: ARMOUR_SCARCITY, potion: POTION_SCARCITY },
+) {
+  // Reuses the generator's own weighting rather than restating it — one
+  // source of truth for "which kind comes out of a chest". `allowEmpty:
+  // false` because `lootChance` above already decides whether it holds
+  // anything at all.
+  const entries = itemWeights(scarcity, 'chest', 0, [], false);
+  const total = entries.reduce((sum, [, w]) => sum + w, 0);
+  if (total <= 0) return 0;
+  const average = entries.reduce(
+    (sum, [item, w]) => sum + w * ((item.armour || 0) + (item.heal || 0)), 0,
+  ) / total;
+  return lootChance * average;
+}
 
-// B21 — A/B SWITCH, off by default. On, a chest is refused when what it
-// costs exceeds what it is worth times the hero's greed; off, the old rule
-// applies exactly — refused when the GUARD alone exceeds
-// `sideAppetite × fightMargin × ehp`. Nothing else differs, so the two can
-// be compared over the same seeds and either can be shipped.
-export const LOOT_VALUE = false;
+export const CHEST_VALUE_HP = expectedChestValueHp();
+
+// B21/B25 — ON. A chest is refused when what the visit costs — the walk AND
+// the guard — exceeds what the chest is worth times the hero's greed, and
+// the guard's duel is split across everything it guards.
+//
+// Off, the old rule applied: refused when the GUARD alone exceeded
+// `sideAppetite × fightMargin × ehp`, with the whole duel charged against
+// every chest separately. That is what made the vault unreadable — eight
+// chests behind one creature were priced as eight separate 7-hp fights.
+//
+// KEPT AS A FLAG rather than deleted, because the two rules are a real A/B
+// and `decisions.md` carries both columns. Setting it false restores the old
+// behaviour exactly.
+//
+// ***** WHAT IT DOES NOT COVER, and this is a live inconsistency *****
+//
+// `sideAppetite` now means two different things at once. For CHESTS it is a
+// multiplier on value — 1.0 prices a chest at exactly what it is worth, and
+// that is what the Lab's Ganância describes. For side-room CREATURES and
+// loose ITEMS it is still a share of the hero's hp (`sideAppetite ×
+// fightMargin × ehp`), because neither has a value the bot can price: a
+// weapon's worth is damage, not hp, and converting one to the other is a
+// modelling decision nobody has made.
+//
+// So the dial's label is true for the case it was built for and incomplete
+// for two others. Stated here rather than discovered later.
+export const LOOT_VALUE = true;

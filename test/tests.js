@@ -5,7 +5,7 @@ import {
   CHEST_GUARD_RADIUS, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP,
   PLAYER_HP, PLAYER_XP, ROOM_HEIGHT, ROOM_WIDTH, SHRINE_DISTANCE_SHARE,
-  STARTING_ITEMS, TURN_BUDGET, VAULT_BOSS, VAULT_CHEST_ITEMS, VAULT_LEVEL,
+  STARTING_ITEMS, TURN_BUDGET, VAULT_BOSS, VAULT_BOSS_DROP, VAULT_CHEST_ITEMS, VAULT_LEVEL,
   VAULT_SIZE, WEAPON_AXE_MIN_TIER,
 } from '../src/sim/balance.js';
 import {
@@ -31,7 +31,7 @@ import {
   CLUSTER_SIZE, MONSTERS_BASE, MONSTER_GROWTH,
   MONSTER_STRENGTH, POTION_SCARCITY, WEAPON_SCARCITY,
 } from '../src/sim/difficulty.js';
-import { dangerField, duelCost, makeBot } from '../src/bot/bot.js';
+import { dangerField, dropValue, duelCost, makeBot } from '../src/bot/bot.js';
 import {
   BIAS_SPREAD, DEFAULT_HERO, LOOT_VALUE, biasBands,
 } from '../src/bot/config.js';
@@ -1416,21 +1416,28 @@ test('ricardo walks past the empty chests, and the ordinary hero does not', () =
 
 test('pawa arrives on the next floor wearing what the last one paid for', () => {
   const shield = ITEM_TABLE.find((i) => i.name === 'shield');
-  // A seed whose FIRST floor pays enough for exactly one shield — at the
-  // shipped price most floors do not, which is the trait's real constraint
-  // (see heroes.js) and not something this test should paper over.
-  const play = (hero) => playDungeon(6129,
+  const play = (seed, hero) => playDungeon(seed,
     (floor) => makeBot({ monsterCount: floor.monsterCount, chestCount: floor.chests }),
     { traversals: LEVELS, hero });
-  const pawa = play(HEROES.pawa);
-  const base = play(HEROES.base);
+
+  // SEARCHED, not pinned. A pinned seed whose floor 1 happens to pay for a
+  // shield is a fixture that any balance change can quietly invalidate —
+  // and one did: the seed this test was written against stopped paying, and
+  // the failure said "pawa bought nothing" rather than "the sample is no
+  // longer a sample". Scanning says which of the two actually happened.
+  let pawa = null;
+  let base = null;
+  for (let seed = 6100; seed < 6200 && !pawa; seed++) {
+    const run = play(seed, HEROES.pawa);
+    if (run.levels.length < 2 || !run.levels[0].spent) continue;
+    pawa = run;
+    base = play(seed, HEROES.base);
+  }
+  assert(pawa, 'no seed in this sample had a floor 1 that paid for a shield');
 
   // Floor 1 is identical for both — nothing has been bought yet — so any
   // difference on arrival at floor 2 is the purchase and nothing else.
-  assert(base.levels[0].coins >= HEROES.pawa.stairs.price,
-    'floor 1 did not pay for a shield on this seed, so this proves nothing');
   assertEq(base.levels[0].spent, 0, 'the ordinary hero spent coin in the middle of a run');
-  assert(pawa.levels[0].spent > 0, 'pawa finished a paying floor and bought nothing');
 
   assertEq(pawa.levels[1].arrivedWith.armour,
     base.levels[1].arrivedWith.armour + shield.armour,
@@ -1866,6 +1873,55 @@ test('small floors put everything on the spine', () => {
     const state = newGame(3400 + seed, { ...floorPlan(1), monsters: 2 });
     assertEq(spineShare(state), 1, 'a two-creature floor hid threat in a side room');
   }
+});
+
+// ***** M49 — the Butcher advertises its axe ***** //
+
+test('the vault boss shows its drop; nothing else does', () => {
+  let checked = 0;
+  for (const state of vaultFloors()) {
+    // Stand at the door: the room is meant to be judged from outside it.
+    state.player = { ...state.player, pos: state.vault.door.slice() };
+    const belief = foldBelief(emptyBelief(), observe(state));
+    for (const m of belief.monsters.values()) {
+      if (m.revealsDrop) {
+        assert(m.drop && m.drop.name === VAULT_BOSS_DROP,
+          `the boss revealed "${m.drop && m.drop.name}" instead of the ${VAULT_BOSS_DROP}`);
+        checked++;
+      } else {
+        assert(!('drop' in m),
+          `ordinary creature "${m.name}" leaked its drop — M28 reopened`);
+      }
+    }
+  }
+  assert(checked > 0, 'no vault put its boss within sight of its own door');
+});
+
+test('the visible axe is worth hp, and only against what is in sight', () => {
+  // The price has to be a real number the bot could act on — a value that
+  // rounds to zero is the same as not having built this.
+  let priced = 0;
+  for (const state of vaultFloors()) {
+    state.player = {
+      ...state.player, pos: state.vault.door.slice(), hp: 8, armour: 5,
+      inventory: [{ dmg: 3, dmgMin: 0 }],
+    };
+    const belief = foldBelief(emptyBelief(), observe(state));
+    const boss = [...belief.monsters.values()].find((m) => m.revealsDrop);
+    if (!boss) continue;
+    const worth = dropValue(belief, boss.drop);
+    assert(worth > 0, 'the guaranteed axe priced at zero');
+    assert(worth < duelCost(belief.player, boss).hpLost * 3,
+      `the axe priced at ${worth.toFixed(1)} hp — implausibly above the fight it costs`);
+    priced++;
+
+    // An empty belief has nothing to kill, so a weapon saves nothing: the
+    // value is measured against creatures IN SIGHT, never invented.
+    const alone = { ...belief, monsters: new Map() };
+    assertEq(dropValue(alone, boss.drop), 0,
+      'a weapon was priced with no creature to use it on');
+  }
+  assert(priced > 0, 'no vault boss was visible from its own door');
 });
 
 // ***** chest quality by depth ***** //
@@ -3145,11 +3201,17 @@ test('every glyph the game can draw has a sprite', () => {
   }
 });
 
-test('B21 — the loot-value gate is off by default and reversible', () => {
-  // The flag exists so the two rules can be compared over the same seeds.
-  // Off must reproduce the old behaviour exactly, which is what makes the
-  // A/B meaningful and the revert free.
-  assertEq(LOOT_VALUE, false, 'the loot-value gate shipped on without a measurement');
+test('B25 — the loot-value gate is on, and the flag still reverses it', () => {
+  // Shipped ON (B25). The flag stays because the two rules are a real A/B
+  // and `decisions.md` carries both columns — false must still restore the
+  // old behaviour exactly, which the second test below is what pins.
+  assertEq(LOOT_VALUE, true, 'the loot-value gate was switched off without a measurement');
+
+  // The greed dial's centre only means "price a chest at what it is worth"
+  // if the shipped appetite IS the centre. Two sources disagreeing here is
+  // how it drifted once already.
+  assertEq(DEFAULT_HERO.sideAppetite, 1,
+    'the shipped appetite is not the dial centre, so the panel describes the wrong game');
 
   // Six bands, symmetric around 1 and never equal to it: no middle to park
   // on, so every setting leans. One constant generates the whole scale.

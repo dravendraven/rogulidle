@@ -532,16 +532,22 @@ footer {
   align-self: flex-start;
 }
 
-/* One line each, ⬆️ over 🔻 — the pair reads as a before/after, which a
-   single row of two columns lost. */
+/* M48 — for a banded dial this is ONE sentence about the current notch, so
+   it is sized to be read rather than squinted at. The map's dials still show
+   the ⬆️/🔻 pair, which is why the flex column stays. */
 .dial-effect {
   display: flex;
   flex-direction: column;
   gap: .05rem;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--dim);
   line-height: 1.4;
+  margin-top: .15rem;
 }
+/* Detuned from the calibrated centre — the one state worth colouring, since
+   it is the only one the player caused. */
+.dial-effect.tuned { color: #e8a33d; }
+.dial-value { cursor: help; }
 
 .dial-buttons { display: flex; gap: .5rem; margin: .9rem 0 .3rem; }
 .dial-buttons button { font-size: .75rem; }

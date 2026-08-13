@@ -208,6 +208,7 @@ export function playDungeon(seed, makePolicy, options = {}) {
       // Sweepable so the vault's payout can be measured without editing
       // balance.js; undefined means the shipped list.
       vaultChestItems: plan.vaultChestItems,
+      vaultBoss: plan.vaultBoss,
       // A fixed value overrides the per-floor one, for sweeping — same
       // pattern as weaponScarcity above.
       earlyChestQualityBoost: options.earlyChestQualityBoost ?? plan.earlyChestQualityBoost,

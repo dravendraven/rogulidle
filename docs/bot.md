@@ -29,7 +29,14 @@ frases:
   (`rules.md` §6). Desviar sairia mais caro em turnos do que os dois que a
   abertura custa.
 - **Sala lateral é a aposta:** loot guardado e luta opcional laterais são
-  ignorados quando o guardião custa mais do que o apetite permite.
+  ignorados quando o guardião custa mais do que o apetite permite. O custo de
+  um guardião se divide entre tudo que ele guarda — uma sala de tesouro é
+  `n × valor − 1 × duelo`, não a mesma conta feita `n` vezes.
+- **Desconta o prêmio que consegue ver.** Uma criatura que anuncia o próprio
+  drop (`rules.md` §7 — só o ocupante do vault) é precificada pelo duelo
+  MENOS o que o drop vale, e uma arma vale o duelo que ela pouparia contra o
+  que já está à vista. O desconto vale para escolher alvo, nunca para a
+  barra de sobrevivência: prêmio bom não deixa luta mais barata em hp.
 - **Explora** enquanto o escuro ainda pode dever algo (as contagens são
   concedidas — `rules.md` §7), escolhendo a fronteira pela **rota já
   precificada** e recusando a que tenha mais perigo no caminho do que o
@@ -43,10 +50,30 @@ frases:
 `makeBot(options)` aceita `hero`, um override de `DEFAULT_HERO`
 (`src/bot/config.js`). Um traço por objetivo:
 
-Os tracos que o jogador mexe aparecem no Lab como **seis faixas nomeadas** (muito baixo ate
-muito alto), nao como slider continuo. Seis, numero par, para nao haver meio
-onde estacionar - e porque metade deles mediu **plano** ao longo da faixa
-continua antiga, entao uma casa a mais ou a menos nao mudava nada visivel.
+Os **tres** tracos que o jogador mexe — Coragem, Ganancia, Cautela —
+aparecem no Lab com a **mesma forma**: um
+vies de ±80% em torno de um centro calibrado, em **seis faixas nomeadas**
+(muito baixo ate muito alto). Seis, numero par, para nao haver meio onde
+estacionar.
+
+**O centro nao esta entre as seis.** Um dial intocado roda NO centro, entao
+abrir o Lab nunca mexe no balanceamento, e qualquer ajuste do jogador e uma
+piora deliberada de um bot que ja estava calibrado. As duas faixas de dentro
+cercam o centro (-16% e +16%).
+
+**So a Ganancia tem centro calculado:** ela multiplica o valor esperado de um
+bau, que sai da chance de loot e da tabela de itens sozinho. Os outros dois
+tem por centro o valor que shipa.
+
+**E so a Ganancia tem pico interior.** Cautela sobe e depois achata — a
+metade de baixo custa profundidade, a de cima empata com o centro —, entao
+nela a escolha deliberada e DESCER. Coragem move quais lutas sao aceitas
+muito mais do que move a profundidade.
+
+**`stepCost` saiu do painel** (B24, 0.1 fixo): varrido em 18 configuracoes a
+n=150, tudo entre 0.08 e 0.9 mede igual. O mecanismo fica porque em 0 andar
+e gratis e o bot vaga um andar por 1500 turnos — precisa estar acima de
+~0.08, mas nao e uma escolha.
 
 | traço | objetivo | o que faz |
 |---|---|---|
