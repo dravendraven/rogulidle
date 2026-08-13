@@ -11,7 +11,6 @@
 
   <header>
     <h1>Rogulidle</h1>
-    <div id="floor" class="floor-badge"></div>
     <div class="controls">
       <button id="lab" type="button">🧪 lab</button>
       <button id="playPause" type="button">⏸ pause</button>
@@ -21,18 +20,25 @@
     </div>
   </header>
 
+  <!-- Three columns, and the board is the middle one. The two flanks are
+       equal fractions, so the simulation stays centred on the page whether
+       the lab is open or shut — which is the whole reason this is a grid and
+       not the flex row it used to be. -->
   <div class="lab">
-    <div class="dials" id="dials" hidden></div>
+    <div class="side">
+      <!-- WHO IS PLAYING, one block: the choice and what it means. Outside
+           #dials on purpose — the dials hide, and the most important control
+           on the page must not hide with them. -->
+      <div id="roster" class="roster"></div>
+      <div class="dials" id="dials" hidden></div>
+    </div>
 
-    <div class="labgame">
+    <div class="middle">
       <main>
-        <!-- The roster rail (src/ui/roster.js): who is playing, and who
-             plays next. Left of the board on purpose — it is a property of
-             the run, not a reading off it, so it does not belong in the
-             panel of numbers on the right. -->
-        <div id="roster" class="roster"></div>
-
         <div id="stage" class="stage">
+          <!-- Above the board and inside its frame, the mirror of the hp bar
+               below it: how deep, then the floor, then what it costs. -->
+          <div id="floor" class="floor-bar"></div>
           <div id="grid" class="grid"></div>
           <div id="summary" class="summary">
             <div id="summaryTitle" class="summary-title"></div>
@@ -48,30 +54,6 @@
           </div>
           <div id="hp" class="hp"></div>
         </div>
-
-        <aside class="panel">
-          <div class="chips">
-            <span id="xpEarned"></span>
-            <span id="xpRate"></span>
-            <span id="steps"></span>
-            <span id="kills"></span>
-            <span id="damage" title="the damage die one blow rolls over: xp + weapons, floor raised by dmgMin. A blow still misses 1 turn in 6."></span>
-            <span id="coins" title="xpEarned/turn this floor × 10, rounded — spent in the shop between runs"></span>
-          </div>
-
-          <div class="field">
-            <label>carrying</label>
-            <div id="inventory" class="inventory"></div>
-          </div>
-
-          <div id="debugInfo" class="debug-info"></div>
-
-          <footer>
-            <span id="run"></span>
-            <span id="tally"></span>
-            <span id="seed" class="seed"></span>
-          </footer>
-        </aside>
       </main>
 
       <div class="box">
@@ -89,6 +71,30 @@
         monsters there may have moved.
       </p>
     </div>
+
+    <aside class="panel">
+      <div class="chips">
+        <span id="xpEarned"></span>
+        <span id="xpRate"></span>
+        <span id="steps"></span>
+        <span id="kills"></span>
+        <span id="damage" title="the damage die one blow rolls over: xp + weapons, floor raised by dmgMin. A blow still misses 1 turn in 6."></span>
+        <span id="coins" title="xpEarned/turn this floor × 10, rounded — spent in the shop between runs"></span>
+      </div>
+
+      <div class="field">
+        <label>carrying</label>
+        <div id="inventory" class="inventory"></div>
+      </div>
+
+      <div id="debugInfo" class="debug-info"></div>
+
+      <footer>
+        <span id="run"></span>
+        <span id="tally"></span>
+        <span id="seed" class="seed"></span>
+      </footer>
+    </aside>
   </div>
 
 </div>

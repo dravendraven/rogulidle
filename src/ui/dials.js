@@ -463,25 +463,6 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
   // override reaches the run whether or not its slider was drawn.
   const sections = dev ? SECTIONS : SECTIONS.filter(([name]) => name === 'Bot');
 
-  // WHO IS PLAYING, and nothing you can operate. The rail on the left of the
-  // board is the control (src/ui/roster.js); this is the caption for it —
-  // the hero's name and what his trait does, which is the one thing the rail
-  // deliberately keeps in a tooltip so the board stays quiet.
-  const heroCard = document.createElement('div');
-  heroCard.className = 'hero-card';
-  const heroName = document.createElement('div');
-  heroName.className = 'hero-card-name';
-  const heroBlurb = document.createElement('div');
-  heroBlurb.className = 'hero-card-blurb';
-  heroCard.append(heroName, heroBlurb);
-  container.append(heroCard);
-
-  const setHero = (hero) => {
-    if (!hero) return;
-    heroName.textContent = `${hero.emoji} ${hero.name}, ${hero.title}`;
-    heroBlurb.textContent = hero.blurb;
-  };
-
   for (const [section, groups] of sections) {
     const sectionEl = document.createElement('div');
     sectionEl.className = 'dial-section';
@@ -831,5 +812,5 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
     });
   }
 
-  return { read, reset, setHero };
+  return { read, reset };
 }

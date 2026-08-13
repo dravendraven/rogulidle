@@ -45,12 +45,6 @@ h1 {
   color: var(--text);
 }
 
-.floor-badge {
-  font-weight: bold;
-  font-size: 1rem;
-  color: var(--dim);
-}
-
 .controls { display: flex; align-items: center; gap: .5rem; }
 
 button {
@@ -78,66 +72,71 @@ main {
   flex-wrap: wrap;
 }
 
-/* ***** the roster rail (src/ui/roster.js) ***** */
+/* ***** who is playing (src/ui/roster.js) *****
 
-/* Quiet by default: the game is what you are looking at, and a column of
-   five bright faces beside it would compete with the board. Only the hero
-   actually playing is at full strength; the rest are there to be found, not
-   to be read. */
-.roster {
-  display: flex;
-  flex-direction: column;
-  gap: .4rem;
-  align-self: flex-start;
+   THE PRIMARY CONTROL ON THE PAGE, and the styling says so: the biggest
+   face, the biggest name, and it sits above everything else in the column.
+   The dials below are deliberately smaller and dimmer — one glance should
+   answer "what am I watching" before it offers "what can I tweak". */
+.roster { margin-bottom: .2rem; }
+
+.roster-card { display: flex; align-items: center; gap: .6rem; }
+.roster-card-face svg { display: block; width: 46px; height: 46px; }
+.roster-card-name {
+  font-family: 'Almendra SC', Georgia, serif;
+  font-weight: normal;
+  font-size: 1.3rem;
+  line-height: 1.1;
+  color: var(--text);
+}
+.roster-card-blurb {
+  font-size: 11px;
+  font-weight: normal;
+  color: var(--dim);
+  line-height: 1.4;
+  margin-top: .15rem;
 }
 
+.roster-chips { display: flex; gap: .3rem; margin-top: .6rem; }
+
+/* Dim until chosen — five bright faces in a row would compete with the
+   board, which is the thing you came to look at. */
 .roster-chip {
-  position: relative;
-  padding: .25rem;
+  padding: .2rem;
   line-height: 0;
   background: transparent;
   border: 2px solid transparent;
   border-bottom-width: 2px;
   border-radius: 8px;
-  opacity: .35;
+  opacity: .4;
   filter: grayscale(.9);
   transition: opacity .15s ease, filter .15s ease, border-color .15s ease;
 }
-.roster-chip:hover { opacity: .8; filter: grayscale(.3); }
+.roster-chip:hover { opacity: .85; filter: grayscale(.2); }
 .roster-chip:active { margin-bottom: 0; transform: none; }
+.roster-chip svg { display: block; width: 26px; height: 26px; }
 
 .roster-chip.playing {
   opacity: 1;
   filter: none;
   border-color: var(--accent);
-  background: var(--panel);
 }
-/* Queued reads as "waiting", not as "on" — dashed rather than solid, so the
-   two states are told apart by shape and not only by colour. */
+/* Waiting, not on — dashed rather than solid, so the two states differ by
+   shape and not only by colour. */
 .roster-chip.queued {
   opacity: 1;
   filter: none;
   border-style: dashed;
   border-color: var(--dim);
-  background: var(--panel);
 }
 
-.roster-face { display: block; }
-.roster-face svg { display: block; width: 30px; height: 30px; }
-
-.roster-mark {
-  position: absolute;
-  right: -2px;
-  bottom: -4px;
-  font-size: 12px;
-  line-height: 1;
+.roster-pending {
+  font-size: 10px;
+  font-weight: bold;
+  color: #8a6d2f;
+  margin-top: .35rem;
 }
-
-.roster-now {
-  font-size: .65rem;
-  padding: .2rem .3rem;
-  margin-top: .1rem;
-}
+.roster-now { font-size: .7rem; margin-top: .35rem; }
 
 /* ***** the dungeon ***** */
 
@@ -162,6 +161,21 @@ main {
   grid-template-columns: repeat(18, var(--cell));
   grid-auto-rows: var(--cell);
   gap: 0;
+}
+
+/* The floor, above the board and inside its frame — the mirror of the hp
+   bar below it. It used to sit in the header, where it read as a page title
+   rather than as a reading off the run; here the three things that change
+   every turn are stacked in one object: how deep, the floor, what it costs. */
+.floor-bar {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: .4rem;
+  padding: 10px 4px 14px;
+  font-weight: bold;
+  font-size: 1rem;
+  color: var(--dim);
 }
 
 /* Health + armour sit INSIDE the stage, under the board: the state that
@@ -483,18 +497,37 @@ footer {
    Shared by index.html (behind the Lab button, hidden by default) and
    Layout only; the form itself is built in JS. */
 
-.lab { display: flex; gap: 1.4rem; align-items: flex-start; }
-.labgame { flex: 1; min-width: 0; }
+/* THE BOARD IS THE MIDDLE COLUMN AND STAYS THERE. Two equal fractions
+   flanking one auto track: whatever the sides hold — dials open, dials shut,
+   a longer stat panel — the centre track is the same distance from both
+   edges, so the simulation does not slide left when the lab opens. That is
+   the whole reason this is a grid and not the flex row it used to be. */
+.lab {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 1.4rem;
+  align-items: start;
+}
+/* The flanks lean INWARD, so the picker and the numbers stay beside the
+   board instead of drifting to the window edges on a wide screen. */
+.side { justify-self: end; width: 100%; max-width: 345px; }
+.middle { min-width: 0; }
+.panel { justify-self: start; }
 
 /* Wider only while the lab is open, so the plain game keeps its column. */
 .app.lab-open { max-width: 1300px; }
 
+/* SECONDARY, and it should look it. The hero block above owns the eye; this
+   is the drawer you open when you want to fiddle. Smaller type, dimmer
+   heading, and a rule across the top that says "a different kind of thing
+   starts here". */
 .dials {
-  flex: 0 0 345px;
   font-size: 12px;
-  max-height: 92vh;
+  max-height: 70vh;
   overflow-y: auto;
-  padding-right: .4rem;
+  padding: .9rem .4rem 0 0;
+  margin-top: .9rem;
+  border-top: 1px solid var(--line);
 }
 .dials[hidden] { display: none; }
 
@@ -503,37 +536,15 @@ footer {
    second background inside a page that already has one made the column read
    as a form pasted over the game rather than part of it. */
 
-/* Who is playing. A caption, not a control: the rail beside the board picks
-   the hero (src/ui/roster.js), this says which one and what he does. Same
-   display face as the game's own headings, so the panel belongs to the same
-   object as the board. */
-.hero-card {
-  margin: 0 0 .9rem;
-  padding-bottom: .6rem;
-  border-bottom: 1px solid var(--line);
-}
-.hero-card-name {
-  font-family: 'Almendra SC', Georgia, serif;
-  font-weight: normal;
-  font-size: 1.15rem;
-  color: var(--text);
-}
-.hero-card-blurb {
-  font-size: 11px;
-  font-weight: normal;
-  color: var(--dim);
-  line-height: 1.45;
-  margin-top: .1rem;
-}
 
 .dials h2 {
   font-family: 'Almendra SC', Georgia, serif;
   font-weight: normal;
-  font-size: 1.15rem;
-  color: var(--text);
-  margin: 1.1rem 0 .2rem;
-  border-bottom: 1px solid var(--line);
+  font-size: .95rem;
+  color: var(--dim);
+  margin: .9rem 0 .5rem;
 }
+.dials h2:first-of-type { margin-top: 0; }
 .dials h2:first-child { margin-top: 0; }
 .dials h3 {
   font-size: 10px;
@@ -695,16 +706,17 @@ footer {
    every one of them sets a property that block also sets — same
    specificity, so source order is what decides. */
 @media (max-width: 1000px) {
-  /* The lab stacks instead of sitting alongside, keeping a scroll of its
-     own, capped short enough that the game below stays reachable. */
-  .lab { flex-direction: column; }
-  .dials { flex: 1 1 auto; width: 100%; max-height: 55vh; padding-right: 0; }
+  /* One column, in reading order: who is playing, the board, the numbers.
+     The three-track grid becomes a single track — the flanks have nowhere
+     to flank from — and each cell stops being pinned to its side. */
+  .lab { grid-template-columns: 1fr; }
+  .side, .panel { justify-self: stretch; max-width: none; }
+  .dials { width: 100%; max-height: 55vh; padding-right: 0; }
   .app.lab-open { max-width: none; }
 
-  /* The Bot block bleeds .6rem into the panel's own side padding on
-     desktop. There is no padding left to bleed into here, so it would push
-     a horizontal scrollbar out from under the panel instead. */
-  .dial-section[data-section="Bot"] { margin-left: 0; margin-right: 0; }
+  /* The picker goes horizontal-first here: with the column full width, the
+     card and the five faces read as one row of a form rather than a rail. */
+  .roster { margin-bottom: .6rem; }
 }
 
 /* U11 — the achievements strip. Locked rows are legible but drained; an

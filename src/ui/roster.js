@@ -1,15 +1,17 @@
-// The rail: who is playing, and who plays next. Five faces down the left of
-// the board (src/sim/heroes.js), the one in play lit and the rest dim.
+// Who is playing, and who plays next — the card and the picker as ONE block
+// (src/sim/heroes.js). It is the most important control on the page, so it
+// sits at the top of the left column and, unlike the dials under it, never
+// hides.
 //
-// WHY A RAIL AND NOT A MENU. This product is watched, not played — the
+// WHY A PICKER AND NOT A MENU. This product is watched, not played — the
 // spectator model never pauses for input, and a screen that demands a choice
-// before anything moves teaches the opposite of what the game is. A rail is
-// always there, always ignorable, and costs nothing to walk past.
+// before anything moves teaches the opposite of what the game is. A block
+// that is always there and always ignorable costs nothing to walk past.
 //
 // A CLICK QUEUES, IT DOES NOT SWITCH. A run is deterministic from its seed
 // AND its hero; swapping mid-run would make the run being watched something
-// no seed reproduces. So a pick lands on the NEXT run, marked ⏭, with a
-// restart offered beside it for anyone who does not want to wait for the
+// no seed reproduces. So a pick lands on the NEXT run, said out loud on the
+// card, with a restart offered for anyone who does not want to wait for the
 // death that was coming anyway.
 //
 // localStorage only, the same rule score.js and wallet.js state: `step()`
@@ -23,15 +25,14 @@ import { tileSvg } from './tiles.js';
 const KEY = 'rogulidle-hero';
 
 // null means NEVER CHOSE, which is not the same as chose the ordinary hero:
-// unset falls through to whatever `dial-overrides.json` ships as the default
-// (src/ui/dials.js, "quem joga"), and '' is a visitor overriding that back to
-// the plain hero. `getItem` returning null for an absent key gives us the
-// distinction for free.
+// unset falls through to whatever `dial-overrides.json` ships as the default,
+// and '' is a visitor overriding that back to the plain hero. `getItem`
+// returning null for an absent key gives us the distinction for free.
 export function getChosenHero() {
   try {
     return localStorage.getItem(KEY);
   } catch {
-    // Private browsing or a full quota — the rail simply stops remembering
+    // Private browsing or a full quota — the picker simply stops remembering
     // rather than breaking the page, same as score.js.
     return null;
   }
@@ -50,11 +51,33 @@ export function setChosenHero(name) {
 // back to without hunting.
 const ORDER = ['base', 'vito', 'pawa', 'papazito', 'ricardo'];
 
-// Builds the rail into `container` and returns the two setters the page
-// needs. `onRestart` is what the ⏭ chip's restart offers — the page owns
-// what "restart" means, since only it knows what a run in flight is.
 export function buildRoster(container, { onPick, onRestart } = {}) {
   container.innerHTML = '';
+
+  // ***** the card: what the current choice MEANS *****
+  const card = document.createElement('div');
+  card.className = 'roster-card';
+  const face = document.createElement('div');
+  face.className = 'roster-card-face';
+  const text = document.createElement('div');
+  const name = document.createElement('div');
+  name.className = 'roster-card-name';
+  const blurb = document.createElement('div');
+  blurb.className = 'roster-card-blurb';
+  text.append(name, blurb);
+  card.append(face, text);
+  container.append(card);
+
+  // Said out loud rather than left to the ⏭ mark alone: a picker whose
+  // choice does not take effect yet has to admit it in words, or the next
+  // thirty seconds look like a bug.
+  const pending = document.createElement('div');
+  pending.className = 'roster-pending';
+  pending.hidden = true;
+
+  // ***** the picker *****
+  const row = document.createElement('div');
+  row.className = 'roster-chips';
   const chips = new Map();
 
   for (const key of ORDER) {
@@ -65,55 +88,52 @@ export function buildRoster(container, { onPick, onRestart } = {}) {
     chip.type = 'button';
     chip.className = 'roster-chip';
     chip.dataset.hero = hero.name;
-    // The blurb is the whole personality, and it belongs on hover rather
-    // than on screen: the rail has to stay quiet while the game is what you
-    // are looking at.
-    chip.title = `${hero.name} — ${hero.title}\n${hero.blurb}`;
-
-    const face = document.createElement('span');
-    face.className = 'roster-face';
-    // The same baked SVG the board draws, not the system emoji font — a chip
-    // that renders the hero differently from the tile is a different hero as
-    // far as the eye is concerned.
-    face.innerHTML = tileSvg(hero.emoji) || '';
-    chip.append(face);
-
-    const mark = document.createElement('span');
-    mark.className = 'roster-mark';
-    chip.append(mark);
+    chip.title = `${hero.name}, ${hero.title}`;
+    chip.innerHTML = tileSvg(hero.emoji) || '';
 
     chip.addEventListener('click', () => {
       // `base` is stored as '' so the value is exactly what the run option
-      // takes, and so the falsy default and an explicit "the plain hero"
-      // are the same string everywhere downstream.
+      // takes, and so the falsy default and an explicit "the plain hero" are
+      // the same string everywhere downstream.
       const value = hero.name === 'base' ? '' : hero.name;
       setChosenHero(value);
       if (onPick) onPick(value);
     });
 
-    container.append(chip);
+    row.append(chip);
     chips.set(hero.name, chip);
   }
+  container.append(row, pending);
 
   const restart = document.createElement('button');
   restart.type = 'button';
   restart.className = 'roster-now';
-  restart.textContent = '↻ agora';
+  restart.textContent = '↻ começar agora';
   restart.hidden = true;
   restart.addEventListener('click', () => { if (onRestart) onRestart(); });
   container.append(restart);
 
   // `playing` is the hero the run on screen is being played by; `queued` is
-  // what the next one will use. They differ exactly while a pick is waiting,
-  // which is the only moment the restart is worth offering.
+  // what the next one will use. The CARD follows the queued one — it is the
+  // answer to "what did I just pick", and a card that ignored the click for
+  // a whole run would read as broken.
   return function show(playing, queued) {
     const now = playing || 'base';
     const next = queued || 'base';
-    for (const [name, chip] of chips) {
-      chip.classList.toggle('playing', name === now);
-      chip.classList.toggle('queued', name === next && next !== now);
-      chip.querySelector('.roster-mark').textContent = name === next && next !== now ? '⏭' : '';
+    const waiting = next !== now;
+
+    for (const [key, chip] of chips) {
+      chip.classList.toggle('playing', key === now && !waiting);
+      chip.classList.toggle('queued', key === next && waiting);
     }
-    restart.hidden = next === now;
+
+    const hero = HEROES[next] || HEROES.base;
+    face.innerHTML = tileSvg(hero.emoji) || '';
+    name.textContent = `${hero.name}, ${hero.title}`;
+    blurb.textContent = hero.blurb;
+
+    pending.hidden = !waiting;
+    pending.textContent = waiting ? '⏭ entra na próxima run' : '';
+    restart.hidden = !waiting;
   };
 }
