@@ -60,6 +60,14 @@ export function resolvePersona(persona) {
   return persona ? { ...DEFAULT_PERSONA, ...persona } : DEFAULT_PERSONA;
 }
 
+// Name -> hero, in ONE place, because more than one caller resolves it now:
+// the page reads a name off a dial, and the headless runner takes one as
+// JSON. An unknown name is the shipped hero rather than a crash — a dial
+// override or a typed argument is not worth a blank screen over.
+export function heroByName(name) {
+  return (name && HEROES[name]) || HEROES.base;
+}
+
 // What an item becomes in this hero's hands. Returns the SAME object when
 // nothing applies, so the default path keeps the identity the pickup rule
 // relies on and stays free.

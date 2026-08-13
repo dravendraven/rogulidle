@@ -108,6 +108,28 @@ function capNote(perLevelKey, capKey, levels = 10) {
 // different run of the same dungeon; the map is the dungeon itself.
 export const SECTIONS = [
   ['Bot', [
+    ['quem joga', [
+      {
+        // A switch over the hero's own NAME, in the same spirit as the
+        // Butcher's below: the engine already takes a hero, so the dial is
+        // that value rather than a flag beside it. Off is the shipped hero
+        // and the shipped game.
+        //
+        // The off value is the EMPTY STRING and has to stay falsy: the
+        // switch renders itself with `Boolean(def)`, so 'base' would come
+        // up checked. `heroByName` maps '' to base, which is why nothing
+        // downstream needs to know about this.
+        //
+        // One switch, not one per hero: the panel has no radio group, so
+        // four of them could be on at once and mean nothing. Four heroes
+        // want a PICKER, which is the U7 UI item and a widget shape this
+        // file does not have — when it lands it replaces this row.
+        kind: 'run', key: 'who', label: 'o engenheiro no lugar do herói de sempre',
+        title: 'Quem joga', type: 'switch', onValue: 'pawa', offValue: '',
+        up: 'Pawa — cada andar concluído compra uma armadura na hora',
+        down: 'o herói de sempre — a moeda só é gasta quando a run acaba',
+      },
+    ]],
     ['o herói', [
       {
         // `fightBar = fightMargin × ehp`, and the side bar is that TIMES
@@ -365,7 +387,7 @@ export const SECTIONS = [
 const BOT_DEFAULTS = {
   persistence: DANGER_PERSISTENCE, crowdPenalty: CROWD_PENALTY, stickiness: GOAL_STICKINESS,
 };
-const RUN_DEFAULTS = { turnBudget: TURN_BUDGET, theReturn: RETURN_ENABLED };
+const RUN_DEFAULTS = { turnBudget: TURN_BUDGET, theReturn: RETURN_ENABLED, who: '' };
 
 // The shipped value of a dial: `overrides` (dial-overrides.json, loaded by
 // dial-overrides.js) wins when it sets one, the code constant otherwise —

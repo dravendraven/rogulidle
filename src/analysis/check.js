@@ -13,6 +13,7 @@
 import { playDungeon, LEVELS, TRAVERSALS } from '../sim/dungeon.js';
 import { makeFloorPlan } from '../sim/difficulty.js';
 import { makeBot } from '../bot/bot.js';
+import { heroByName } from '../sim/heroes.js';
 
 // One full run, the same way index.html plays it.
 //
@@ -65,7 +66,14 @@ export function tripwires(options = {}) {
   const dials = options.dials;
   // Which hero played it. Same discipline as `shipped` below: a reading of
   // one hero and a reading of another are not the same game either.
-  const hero = options.hero;
+  //
+  // A NAME or the entry itself, because the two callers arrive differently:
+  // `tools/measure.mjs` takes JSON on a command line, where `"pawa"` is the
+  // only sane thing to type. `heroByName` is the one place either becomes a
+  // hero.
+  const hero = typeof options.hero === 'string'
+    ? heroByName(options.hero)
+    : options.hero;
 
   let clears = 0;
   let opening = 0;       // runs over by traversal 3

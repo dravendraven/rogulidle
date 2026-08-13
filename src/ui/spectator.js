@@ -9,6 +9,7 @@
 import { playGame, replayGame } from '../sim/game.js';
 import { coinsFor, playDungeon, LEVELS } from '../sim/dungeon.js';
 import { hashSeeds, seedFromString } from '../sim/rng.js';
+import { heroByName } from '../sim/heroes.js';
 import { difficultyToParams, makeFloorPlan } from '../sim/difficulty.js';
 import { dangerField, makeBot } from '../bot/bot.js';
 import {
@@ -45,6 +46,9 @@ const session = {
   // Descent mode.
   cleared: 0,
   runsPlayed: 0,
+  // Which hero the Lab's "quem joga" switch picked, for the HUD. Empty is
+  // the shipped hero and prints nothing.
+  heroName: '',
   history: [],
   // Turns banked from floors already finished this run — see renderHud's
   // xp-rate comment in render.js. 0 in legacy single-floor mode.
@@ -143,8 +147,12 @@ async function playFrames(frames, trace, tallyText) {
 
 const legacyTallyText = () =>
   `${session.ascended}W · ${session.died}L · ${session.unfinished} timeout`;
+// Who is playing goes here rather than in new markup: the switch is in the
+// Lab, the Lab is two clicks away, and a viewer who comes back later has no
+// other way to tell which hero they left running. Silent for the shipped
+// hero, so the ordinary HUD is unchanged.
 const descentTallyText = () =>
-  `${session.cleared}/${session.runsPlayed} cleared`;
+  `${session.heroName ? `${session.heroName} · ` : ''}${session.cleared}/${session.runsPlayed} cleared`;
 
 function coinsText() {
   return `🪙 ${session.unbankedCoins}`;
@@ -456,6 +464,10 @@ async function runDescentForever(sessionSeed) {
     // (dial-overrides.json layered on the code defaults), so a value dev
     // mode pinned reaches every visitor, not only the ones who look.
     const dials = session.dials ? session.dials.read() : session.shippedDials;
+    // Resolved once, so the run and the HUD can never disagree about who is
+    // playing it.
+    const hero = heroByName(dials.run.who);
+    session.heroName = hero === heroByName('') ? '' : hero.name;
     const traces = [];
     const run = playDungeon(seed, (floor) => {
       const trace = [];
@@ -471,6 +483,10 @@ async function runDescentForever(sessionSeed) {
       maxTurns: dials.run.turnBudget,
       startingItems: getHeldItems(),
       floorPlan: makeFloorPlan(dials.model),
+      // Who is playing (src/ui/dials.js, "quem joga"). Unset resolves to the
+      // shipped hero, so a visitor who never opens the Lab gets exactly the
+      // run they got before heroes existed.
+      hero: hero,
       // The return switch (src/ui/dials.js). Off is a plain descent, which
       // is `traversals: LEVELS` — the same pin the analysis modules already
       // use. On leaves the option unset so dungeon.js's own default (the
