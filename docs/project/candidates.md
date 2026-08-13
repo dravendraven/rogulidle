@@ -28,6 +28,227 @@ reward must roll independently per room or the gamble is a free lunch. The
 design exists; what is missing is evidence it works, and that is **I4**,
 parked. No new item, just a measurement nobody has taken.
 
+### D · Os dials do bot quase não decidem nada — diagnóstico e ideias
+
+`owner brainstorm` · **NÃO AGENDADO** — o diagnóstico foi medido, as ideias
+não têm número de aceitação nenhum
+
+A queixa do dono: dois dials do bot se sentem (coragem e ganância), o resto
+não; o do passo parece não fazer nada e o do perigo é confuso. E os dials
+parecem não valer nada nos andares 1–3, que o herói limpa quase sempre —
+sobra a decisão binária do andar 4.
+
+**Medido, e a queixa está certa.** 60 runs por arm, seeds 700000+, dials
+shipped, descida pinada (dez travessias). As colunas dos andares 1–3 são
+por criatura e por baú (~700 criaturas), a profundidade é por run (2σ ≈
+±0,5, então diferença menor que isso é ruído).
+
+| arm | prof. | turnos 1–3 | mortas 1–3 | baús 1–3 |
+|---|---|---|---|---|
+| shipped | 3,98 | 81,5 | 0,917 | 0,906 |
+| stepCost 0 | **1,05** | **1388** | 0,345 | 0,376 |
+| stepCost 0,05 | 4,03 | 84,3 | 0,907 | 0,912 |
+| stepCost 0,1 (shipped) | 3,98 | 81,5 | 0,917 | 0,906 |
+| falloff 0,05 | 3,80 | 81,7 | 0,858 | 0,860 |
+| falloff 0,95 | 4,28 | 81,6 | 0,921 | 0,905 |
+| crowdPenalty 0 | 3,97 | 80,0 | 0,912 | 0,884 |
+| crowdPenalty 20 | 3,98 | 81,5 | 0,917 | 0,906 |
+| stickiness 1,0 | 3,98 | 83,2 | 0,916 | 0,891 |
+| stickiness 3,0 | 3,90 | 83,5 | 0,913 | 0,906 |
+| fightMargin 0,2 | 3,85 | 78,8 | 0,832 | 0,837 |
+| fightMargin 1,0 | 3,88 | 82,7 | 0,927 | 0,917 |
+| sideAppetite 0 | 3,88 | **66,5** | **0,700** | **0,644** |
+| sideAppetite 2 | 3,73 | 82,8 | 0,933 | 0,922 |
+
+Quatro leituras:
+
+1. **O bot varre o andar inteiro em toda configuração.** Andares 1–3
+   entregam 83–93% das criaturas mortas e 84–92% dos baús abertos em todo
+   arm menos `sideAppetite` 0 — inclusive no herói mais covarde que o
+   painel permite.
+2. **Nenhum dial move a profundidade além do ruído.** Todos entre 3,73 e
+   4,28.
+3. **`falloff`, `crowdPenalty` e `stickiness` não movem nada nem nos
+   extremos.**
+4. **`stepCost` é um precipício e depois um platô.** Em 0 o herói vagueia e
+   58 de 60 runs estouram o relógio; 0,05, 0,1 e 0,2 são indistinguíveis.
+   O slider vai a 0,1 e o valor shipped já é 0,1: o dono está com o dial no
+   fim do curso, e todo o curso útil está nos primeiros 20%.
+
+#### A lei que explica os seis de uma vez
+
+Um dial é palpável quando três coisas valem ao mesmo tempo:
+
+1. ele é a fronteira de um **aceito/recuso**, não um peso dentro de uma
+   comparação;
+2. esse portão **dispara muitas vezes** por run;
+3. a distribuição de custos que o andar oferece **atravessa** a fronteira.
+
+| dial | portão? | dispara? | atravessa? | resultado |
+|---|---|---|---|---|
+| `fightMargin` | sim | sim | **não** | só decide o Butcher |
+| `sideAppetite` | sim | sim | em parte | funciona |
+| `stepCost` | **não** | — | — | invisível |
+| `falloff` | não | — | — | invisível |
+| `crowdPenalty` | não | — | — | invisível |
+| `stickiness` | não | — | — | invisível |
+
+A terceira condição é a que explica a queixa sobre os andares 1–3: um duelo
+raso custa uma fração de hp e a barra da coragem, mesmo no mínimo do
+painel, vale 2 hp. **A faixa do dial não cruza a faixa de custos do andar**
+— por isso 5x de coragem move os andares 1–3 em 9 pontos e a profundidade
+em nada. O andar 4 é o único lugar onde um custo cai dentro da faixa, e ele
+cai lá porque foi ESCRITO para cair (M44: hp governa quem entra).
+
+#### A saída do andar é um booleano, não uma decisão
+
+`bot.js`: `owed = baús não vistos > 0 || criaturas não vistas > 0 || sem
+buraco`. O bot explora até ter VISTO tudo o que as contagens concedidas
+dizem existir, e nenhum traço de herói entra nessa conta. É por isso que
+ele limpa os andares 1–3 sempre: ele é obrigado a achar tudo, e nos andares
+rasos tudo o que ele acha é pagável.
+
+**A consequência é a queixa inteira do dono, em uma frase: o estado com que
+o herói chega ao andar 4 é praticamente independente dos dials.** Daí o
+Butcher parecer a única decisão da run — ele é a única decisão que sobrou.
+
+#### Um experimento que já falhou (para ninguém repetir)
+
+Cobrar a caminhada contra a barra da fronteira — deletar a subtração
+`price - steps × stepCost` em `dangerOnTheWay`, para que uma rota longa
+pudesse ser recusada do mesmo jeito que uma luta cara. Medido, mesmos seeds,
+`stepCost` 0,02 / 0,05 / 0,1 / 0,2: mortas nos andares 1–3 em 0,921 /
+0,907 / 0,915 / 0,918. **Inerte.**
+
+O motivo é aritmético e vale mais que o experimento: a barra é
+`sideAppetite × fightMargin × ehp` ≈ 7 hp, e a `stepCost` 0,1 isso compra
+70 passos — mais que qualquer rota do mapa. Uma barra que nunca aperta não
+recusa nada. Mesma família do achado do M42 ("um custo que ninguém lê não
+muda decisão"), aqui na forma "um custo que ninguém alcança".
+
+#### Sobre os 6 entalhes (a proposta do dono)
+
+**Vale, e não é isto que conserta o problema.** Discretizar não cria
+impacto: seis entalhes num dial inerte são o mesmo nada com nomes melhores.
+O que os entalhes compram é real e é outra coisa:
+
+- forçam um lado, que é o que `objectives.md` pede de uma escolha ("uma
+  opção precisa ser errada às vezes");
+- deixam o painel dizer o COMPORTAMENTO em vez do número;
+- e o mais útil aqui: obrigam a calibrar os entalhes **onde o
+  comportamento muda**, em vez de espaçar igualmente uma faixa que é inerte
+  em 80% do curso. `stepCost` seria 0,002 / 0,005 / 0,01 / 0,02 / 0,05 /
+  0,1 — geométrico, porque a faixa viva é o fundo.
+
+Regra do "nenhum no meio exato" está certa e custa uma coisa que precisa
+ser dita: o herói shipped (0,7 / 1 / 0,1) tem que cair em cima de um
+entalhe ou ser abandonado. Para `sideAppetite`, 0 / 0,4 / 0,8 / 1,2 / 1,6 /
+2,0 satisfaz a regra (nada em 1,0) e mede-se onde os arms já medidos dizem
+que o comportamento vira.
+
+**Ordem certa: primeiro fazer o dial morder, depois entalhar.** Entalhar
+antes só congela o estado atual em seis posições.
+
+#### Ideias baratas
+
+**D-a · Sede — a política de poção vira dial.** Hoje é constante no código:
+bebe quando o hp que falta cobre a cura inteira. É o eixo de eficiência de
+recurso que o dono descreveu, já existe como decisão no motor (beber custa
+o turno, §6) e dispara várias vezes por andar. Um extremo bebe ao primeiro
+arranhão (desperdiça cura, nunca morre com poção no bolso), o outro só
+bebe à beira da morte (extrai tudo, às vezes morre carregando duas).
+*Benefício:* é portão, dispara sempre, e a distribuição de "hp que falta"
+atravessa a faixa por construção — as três condições da lei acima, sem
+mexer no mapa. É visível na tela: dá para ver o herói morrer com poção.
+*Risco:* interage com o B15 (beber lendo o campo de perigo) — se o herói
+espera demais, o turno de beber é o turno em que apanha. Fazer o B15 junto
+ou aceitar que o extremo "avarento" morre por isso, que é o ponto.
+
+**D-b · Guardião elevado no baú LATERAL.** O andar raso não oferece nada
+que valha recusar. Elevar o guardião de baú lateral algumas linhas da
+tabela (a máquina já existe — o guardião do buraco é elevado ao teto do
+andar) põe um custo que atravessa a barra em todo andar, e só no lado
+recusável. *Benefício:* a coragem e a ganância passam a decidir nos andares
+1–3, que é onde o dono não vê diferença; o herói covarde chega ao andar 4
+mais pobre e o corajoso mais rico ou mais machucado — o estado de chegada
+finalmente depende do dial. *Risco:* mexe na letalidade da abertura, que
+`map-design.md` diz ser dura de propósito; por ser lateral, quem não quer
+pagar não paga. Vigiar o tripwire de mortes na abertura.
+
+**D-c · Porteiro de corredor.** Uma criatura colocada num tile de corredor
+não pode ser contornada, então ela transforma um preço num portão: a
+coragem decide se aquela metade do andar existe. É colocação, não regra
+nova. *Benefício:* é a forma mais barata de fabricar a condição 3 da lei.
+*Risco:* porteiro na espinha é um muro que encerra runs sem decisão
+nenhuma — só vale em rota lateral, ou com desvio garantido.
+
+**D-d · Entalhes calibrados + rótulos honestos** (a proposta do dono,
+depois das anteriores).
+
+#### Ideias disruptivas
+
+**D-1 · Varredura no lugar de Pressa.** Substituir o booleano `owed` por
+uma barra que o herói carrega: quanto do andar ele insiste em varrer antes
+de aceitar o buraco. Em 0 ele vai direto ao buraco assim que souber onde
+ele está; em 1 ele varre como hoje. *Benefício:* é o eixo que o dono pediu
+(curto contra longo prazo) na única forma que morde — muda o estado de
+chegada em TODO andar, não em um; é portão, dispara uma vez por andar e
+atravessa por construção (é uma fração). Substitui um traço em vez de
+somar: `stepCost` deixa de ser traço de herói e vira constante de mecânica
+do bot, onde a medição diz que ele pertence (precipício em 0, platô no
+resto). *Risco:* o herói que sai cedo chega pobre e morre um andar depois —
+que é exatamente o que a sala do Butcher provou ser uma boa aposta (a morte
+no andar 5 triplicou quando pular a sala passou a custar), mas pode empurrar
+o tripwire "nada chega fundo". E é a primeira vez que o bot deixaria coisa
+pagável para trás de propósito: assistir isso pode parecer burrice em vez de
+escolha, o que é um julgamento do dono, não uma medição.
+
+**D-2 · Recuo — desistir de uma luta começada.** Hoje nenhuma luta é
+abandonada. Pelas regras (§4), fugir de um perseguidor de mesma velocidade
+custa ZERO — então recuar é quase de graça contra a tabela inteira e fatal
+contra a única criatura rápida do jogo. *Benefício:* é uma assimetria já
+construída, produz reversão na tela (`objectives.md`: "a esperança nunca
+chega a zero") e dá ao dial de coragem um segundo momento por luta em vez
+de um só. *Risco:* o projeto tem cicatriz aqui — o veto tático e o
+ping-pong (61–64% dos episódios eram a camada de veto). Qualquer recuo
+precisa de histerese própria ou volta o vaivém.
+
+**D-3 · Um mini-vault por andar.** Generalizar a única coisa que
+provadamente criou uma decisão: uma bolsa de loot atrás de um custo que
+atravessa a barra, recusável, uma por andar em vez de uma por run.
+*Benefício:* transforma a run inteira em dez apostas do formato que já
+funcionou (43% entram, 57% passam). *Risco:* o andar é gerado sem ler o
+herói (`rules.md` §1), então o custo só pode atravessar a barra EM MÉDIA —
+para heróis fora da média vira sempre-sim ou sempre-não. E dez Butchers
+não são um Butcher: a raridade é parte do que faz o andar 4 valer.
+
+**D-4 · A bifurcação (M22).** Duas rotas até o buraco, uma curta e povoada,
+outra longa e quieta. *Benefício:* é a pergunta que o dial de pressa
+deveria responder toda vez. *Risco:* o próprio M22 já diz que ela só é
+pergunta se o tempo valer alguma coisa — e o experimento acima mostra que
+hoje não vale. Depende do D-1, ou é decoração.
+
+**D-5 · Mapa maior / mais escavado.** *Benefício:* mais oportunidades
+laterais por andar. *Risco:* com a regra de saída de hoje isto NÃO amplia
+os dials, amplia o vagar — o bot é obrigado a ver tudo, então mapa maior é
+mais turno pelo mesmo resultado (o arm `stepCost` 0 é a versão extrema
+disso). Além do mais: mais salas são mais sorteios independentes, e
+`decisions.md` já registra que isso derruba a variância do andar, e
+`dugPercentage` mais alto derruba a espinha. **Só depois do D-1.**
+
+**D-6 · Relógio que morde.** O orçamento de turnos existe e o bot não o lê
+(de propósito, `bot.md`). *Risco:* já medido inerte no orçamento shipped e
+real só perto de 150 (B25); ligar isso é decisão de dono, não de sessão.
+
+#### O que já morreu, e não deve voltar como ideia nova
+
+Ranking de fronteira por revelação (três vezes: `exploreValue`,
+`exploreCompetes`, `frontierRouting`), loot antes de combate (B19–B22, pior
+em quatro eixos), preço de exposição (−11 pontos), preço de turno no
+orçamento shipped (B25), subir o hp do Butcher (o bot recusa em vez de
+perder). Nada acima é uma dessas: o que nunca foi tocado é **quando o bot
+decide que o andar acabou**.
+
 ### M43 · the vault and the Butcher — a fixed room on floor 4
 
 `owner idea` · **BEING BUILT** — the design record; the task list is in

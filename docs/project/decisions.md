@@ -234,6 +234,34 @@ spends more turns exposed than the shortcut cost.
 to see what is over there" — while the map deliberately puts the best loot
 far away.
 
+**A dial is palpable only if it is a GATE, it fires often, and the floor's
+costs straddle it.** Swept all six bot dials to both extremes, 60 runs each,
+shipped dials: floors 1–3 come back 83–93% cleared in every arm but
+`sideAppetite` 0, and mean depth sits between 3.73 and 4.28 throughout —
+noise. `falloff`, `crowdPenalty` and `stickiness` are weights inside a
+comparison and move nothing at either end; `stepCost` is a weight too, and
+its slider is a cliff at 0 (58 of 60 runs time out) and a plateau from 0.05
+up. `fightMargin` IS a gate and still decides almost nothing, because even
+its minimum bar (2 hp) sits above what a shallow duel costs — **the dial's
+range does not intersect the floor's cost distribution.** The Butcher is the
+one place a cost was authored INTO the range, which is why it reads as the
+only decision in the run.
+
+**And the floor's exit is a boolean, not a decision.** `owed` explores until
+every granted chest and creature has been SEEN, and no hero trait enters it —
+so the state the hero arrives at floor 4 with is nearly dial-independent. The
+three exploration items that measured inert (`exploreValue`,
+`exploreCompetes`, `frontierRouting`) all ranked frontiers; none of them
+touched when exploring stops.
+
+**Charging the walk against the frontier bar is inert, for an arithmetic
+reason worth keeping.** Deleting `dangerOnTheWay`'s `- steps × stepCost` so a
+long route can be refused like an expensive fight: floors 1–3 read 0.921 /
+0.907 / 0.915 / 0.918 at `stepCost` 0.02 / 0.05 / 0.1 / 0.2. The bar is
+`sideAppetite × fightMargin × ehp` ≈ 7 hp, which at 0.1 buys 70 steps — more
+than any route on the map. **A bar nothing can reach refuses nothing**, the
+same family as M42's "a cost nothing reads cannot change a decision".
+
 ## Rules of the game
 
 **Regeneration by time can be camped; by kills it cannot.** The original
