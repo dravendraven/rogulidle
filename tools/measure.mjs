@@ -119,7 +119,7 @@ const GENERATION = {
 // threshold must never fail the substitution check.
 // Re-recorded from the browser whenever GENERATION legitimately moves it.
 //
-// Re-recorded for B24 — DANGER_PERSISTENCE and stepCost are code defaults,
+// Re-recorded for B25 — LOOT_VALUE and sideAppetite are code defaults,
 // and this anchor deliberately runs on code defaults, so moving them moves it.
 // Anchored on the CODE DEFAULTS, deliberately — this call passes no
 // `dials`. I3 made readings run on the shipped `dial-overrides.json`, and
@@ -130,7 +130,7 @@ const GENERATION = {
 // tuned. Readings still default to the shipped game; see main().
 const MEASUREMENT = {
   call: { module: 'check', fn: 'tripwires', args: { runs: 3, firstSeed: 500000 } },
-  values: [0.667, 0, 0, 0, 0, 0.667],
+  values: [0.333, 0, 0, 0, 0, 1],
 };
 
 // The exact snippet that produced GENERATION, for re-recording in a browser
