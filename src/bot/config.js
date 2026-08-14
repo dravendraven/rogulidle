@@ -6,6 +6,10 @@ import { CHEST_LOOT_CHANCE, MEAN_BITE } from '../sim/balance.js';
 import { ARMOUR_SCARCITY, POTION_SCARCITY } from '../sim/difficulty.js';
 import { itemWeights } from '../sim/spawn.js';
 
+// Pulled out of DEFAULT_HERO because `caution` below is defined as a ratio
+// against it, and an object cannot reference its own field while building.
+const STEP_COST = 0.1;
+
 // The shipped hero. A hero with special characteristics is a DIFFERENT
 // CONFIGURATION of this object handed to makeBot, never different bot code —
 // that is the whole choice-layer mechanism, and the roster that will use it
@@ -83,24 +87,35 @@ export const DEFAULT_HERO = {
   // this was a share of hp and the two numbers are not comparable.
   sideAppetite: 1,
 
-  // WHAT ONE CREATURE-TURN OF EXPOSURE COSTS, IN HP. C1 §1 — the dial that
-  // decides how the hero WALKS, which until now nothing did: three dials all
-  // answered "what is worth taking" and none answered "by which way".
+  // HOW MANY STEPS ONE CREATURE-TURN OF EXPOSURE IS WORTH. C1 §1 — the dial
+  // that decides how the hero WALKS, which until now nothing did: three dials
+  // all answered "what is worth taking" and none answered "by which way".
   //
-  //     preço(tile) = stepCost + caution × exposição(tile)
+  //     preço(tile) = stepCost × (1 + caution × exposição(tile))
   //
-  // The danger field counts creature-turns and this converts them, so it is
-  // the exchange rate between danger and hurry. NOT `caution × (1 +
-  // exposure)`, which was the first form written and flattens the contrast
-  // between a clear tile and a hemmed-in one from about 13:1 to 2:1 — the
-  // multiplier hits both sides and cannot recover it.
+  // DIMENSIONLESS on purpose, and that is the owner's formulation rather than
+  // the first one written. Caution as a price in hp made it a second absolute
+  // number sitting beside `stepCost`, when the only thing that ever mattered
+  // was their RATIO — so the ratio is the dial, and the whole route is priced
+  // in multiples of a step.
   //
-  // The centre is DERIVED, not chosen: `MEAN_BITE` is the bestiary's average
-  // bite, so the middle band spends the same total danger budget the old
-  // per-creature field spent. Tile by tile it is a different game on purpose
-  // — beside a rat it now costs more, beside a dragon less — because caution
-  // is blind to strength and courage is the dial that is not.
-  caution: MEAN_BITE,
+  // NOT `caution × (1 + exposure)` either: that drops `stepCost` out of the
+  // clear-tile term and flattens the contrast between a clear tile and a
+  // hemmed-in one from about 13:1 to 2:1.
+  //
+  // The centre is DERIVED, not chosen: `MEAN_BITE / STEP_COST` is the ratio
+  // the per-creature field used to run at, so the middle band spends the same
+  // total danger budget. Tile by tile it is a different game on purpose —
+  // beside a rat it now costs more, beside a dragon less — because caution is
+  // blind to strength and courage is the dial that is not.
+  //
+  // WHAT B24 PREDICTS ABOUT IT, written down before the sweep so nobody gets
+  // to be surprised: `stepCost` swept 0.08 to 0.9 — an ELEVENFOLD move of
+  // this very ratio — and measured flat, 4.3 to 4.5 floors. So depth is
+  // likely to be flat across these bands too. That is not a reason to skip
+  // the dial (this is a game that is WATCHED, and looking cautious is a
+  // result) but it IS the reason not to promise depth from it.
+  caution: MEAN_BITE / STEP_COST,
 
   // What one step is worth in hp. This is the exchange rate between goal 3
   // and the other two: raising it makes near goals win harder and empties
@@ -121,7 +136,7 @@ export const DEFAULT_HERO = {
   // The MECHANISM still matters and that is why the number stays: at 0
   // walking is free and the bot wanders one floor for 1500 turns. It needs
   // to be above about 0.08 and below the absurd. It is not a choice.
-  stepCost: 0.1,
+  stepCost: STEP_COST,
 };
 
 // How much of a creature's menace SURVIVES each tile of distance when

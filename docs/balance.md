@@ -101,10 +101,12 @@ guesses with.
 WORTH, risk multiplies the BAR a guard or a dark route may cost. Both at 1,
 the split is an exact no-op.
 
-`caution` is the exchange rate between danger and hurry — what one
-creature-turn of exposure costs in hp — and its centre is the SECOND computed
-one in the project: `MEAN_BITE`, the bestiary's average bite, derived from
-`MONSTER_TABLE` so a table edit moves it on its own. `fightMargin` is no
+`caution` is how many STEPS one creature-turn of exposure is worth —
+dimensionless, so the whole route is priced in multiples of a step and the
+dial IS the ratio between hurry and danger, which is the only thing that ever
+mattered. Its centre is the second computed one in the project:
+`MEAN_BITE / stepCost`, the ratio the old per-creature field ran at. It is a
+hero trait and NOT one of the four bands — see `src/ui/dials.js` for why. `fightMargin` is no
 longer one of the bands; `DANGER_PERSISTENCE` 0.7 is now labelled
 **Vigilância**, because `caution` took the name Cautela. The two are
 orthogonal: persistence is the SHAPE of the danger's decay with distance,

@@ -150,13 +150,13 @@ export function isAwakeAt(monster, distance) {
 //
 // Every creature contributes ONE unit of exposure, decayed by distance — a
 // rat and a dragon weigh the same here. What the field measures is
-// CREATURE-TURNS, and `caution` is the exchange rate that turns those into
-// hp. Judging strength is the courage dial's job, inside `duelCost`, where
+// CREATURE-TURNS, and `caution` says how many STEPS one of those is worth.
+// Judging strength is the courage dial's job, inside `duelCost`, where
 // the hero is actually deciding to fight rather than deciding where to walk.
 //
-// It used to weigh each creature by its own bite. The centre of `caution` is
-// the bestiary's MEAN bite (`MEAN_BITE`, derived in src/sim/balance.js), so
-// the middle band spends the same total danger budget the old field spent —
+// It used to weigh each creature by its own bite. `caution`'s centre is the
+// ratio that field ran at (`MEAN_BITE / stepCost`, derived), so the middle
+// band spends the same total danger budget the old field spent —
 // but tile by tile it is NOT the same game, and that is the trade being
 // bought: a tile beside a rat now costs more than it did, one beside a dragon
 // less. A cautious hero detouring around a rat is the declared cost, not a
@@ -165,6 +165,7 @@ export function dangerField(belief, tuning = {}) {
   const persistence = tuning.persistence ?? DANGER_PERSISTENCE;
   const crowdPenalty = tuning.crowdPenalty ?? CROWD_PENALTY;
   const caution = tuning.caution ?? DEFAULT_HERO.caution;
+  const stepCost = tuning.stepCost ?? DEFAULT_HERO.stepCost;
   const passable = believedWalkable(belief);
 
   const menace = new Map();   // tile -> creature-turns of exposure there
@@ -196,10 +197,17 @@ export function dangerField(belief, tuning = {}) {
       const tile = x + ',' + y;
       const exposure = menace.get(tile) || 0;
       if (exposure === 0) return 0;
-      // `caution` converts creature-turns into hp; `crowdPenalty` is already
-      // hp and stays outside the conversion, so the two dials do not
-      // multiply each other.
-      return caution * exposure + ((crowd.get(tile) || 0) >= 2 ? crowdPenalty : 0);
+      // `caution` is HOW MANY STEPS a creature-turn is worth, so the danger
+      // half of a tile is `stepCost × caution × exposure` and the whole tile
+      // comes out as `stepCost × (1 + caution × exposure)` once the caller
+      // adds its step. The route is priced in multiples of a step, and the
+      // only number that ever mattered — the ratio between hurry and
+      // danger — is the dial itself.
+      //
+      // `crowdPenalty` is already hp and stays OUTSIDE that product, or the
+      // two dials would multiply each other.
+      return stepCost * caution * exposure
+        + ((crowd.get(tile) || 0) >= 2 ? crowdPenalty : 0);
     },
   };
 }
@@ -642,7 +650,9 @@ export function makeBot(options = {}) {
     const passable = believedWalkable(belief);
     // `caution` is a HERO trait and the rest of the field's tuning is a bot
     // setting, so it is merged in here rather than living in two places.
-    const danger = dangerField(belief, { ...settings, caution: hero.caution });
+    const danger = dangerField(belief, {
+      ...settings, caution: hero.caution, stepCost: hero.stepCost,
+    });
 
     // B26 — A LIVE CREATURE IS NOT FLOOR. Walking into one attacks it and the
     // hero STAYS PUT (rules.md §6), so a route that crossed a creature for one

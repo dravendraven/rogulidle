@@ -127,11 +127,23 @@ largando briga que ganharia.
 ## 1. A fórmula do preço do tile ✅
 
 ```
-preço(tile) = stepCost + cautela × exposição(tile)
+preço(tile) = stepCost × (1 + cautela × exposição(tile))
 ```
 
-`exposição` = quantas criaturas-turno aquele tile custa. `cautela` = hp por
-criatura-turno. O produto é hp, a moeda de todo o resto.
+`exposição` = quantas criaturas-turno aquele tile custa. `cautela` = **quantos
+passos vale um desses turnos**, adimensional. A rota inteira fica precificada
+em múltiplos de um passo.
+
+Essa forma é do dono e substitui a primeira que eu escrevi (`stepCost +
+cautela_hp × exposição`). São a mesma coisa reparametrizada — provado, 150 de
+150 seeds idênticas — mas esta põe no dial **a razão entre pressa e perigo**,
+que é a única quantidade que sempre importou. Cautela como preço em hp era um
+segundo número absoluto ao lado do `stepCost`, e nenhum dos dois queria dizer
+nada sozinho.
+
+O centro sai de graça: `MEAN_BITE / stepCost` ≈ **16 passos por
+criatura-turno**, a razão em que o campo antigo já rodava. As seis faixas vão
+de 3 a 29.
 
 **A cautela é CEGA À FORÇA, de propósito.** Não lê `xp`, não lê vida, não
 distingue rato de dragão. Quem julga força é a coragem, dentro do duelo. Na
