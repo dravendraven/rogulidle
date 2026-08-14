@@ -14,7 +14,6 @@ Nothing in the game depends on this file — GitHub Pages serves the repo as-is.
 import functools
 import http.server
 import os
-import socketserver
 import sys
 
 if len(sys.argv) > 1:
@@ -34,7 +33,10 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     handler = functools.partial(NoCacheHandler, directory=ROOT)
-    socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("", PORT), handler) as httpd:
+    # Threaded: the single-threaded version stalls when a browser holds one
+    # connection open and asks for style.css on another — the page then
+    # renders unstyled, which looks like a CSS bug and is not one.
+    http.server.ThreadingHTTPServer.allow_reuse_address = True
+    with http.server.ThreadingHTTPServer(("", PORT), handler) as httpd:
         print(f"Rogulidle dev server: http://localhost:{PORT}/run-tests.html")
         httpd.serve_forever()

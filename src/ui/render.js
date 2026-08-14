@@ -219,6 +219,15 @@ export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYP
 // Health first, then the armour bar. Armour is a separate pool that soaks
 // damage before hp does, so it reads as pips tacked on the end rather than
 // as more hearts.
+// What "carrying" shows: the items the hero still HAS. Armour is not one of
+// them — a shield is spent the moment it is picked up, into the pips beside
+// the hearts, so listing it here showed a thing the hero is not holding.
+// Shared with the summary cards so both read the same list.
+export function carriedSvg(inventory) {
+  const kept = inventory.filter((item) => !item.armour);
+  return kept.length ? kept.map((item) => tileSvg(item.emoji) || '').join('') : '—';
+}
+
 function hearts(current, max, armour = 0) {
   let out = '';
   for (let i = 0; i < max; i++) out += tileSvg(i < current ? '🟩' : '⬜') || '';
@@ -255,9 +264,7 @@ export function renderHud(elements, state, session) {
     elements.damage.textContent = `🗡️ ${min} - ${max}`;
   }
 
-  elements.inventory.innerHTML = player.inventory.length
-    ? player.inventory.map((item) => tileSvg(item.emoji) || '').join('')
-    : '—';
+  elements.inventory.innerHTML = carriedSvg(player.inventory);
 
   elements.run.textContent = `run ${session.runNumber}`;
   elements.seed.textContent = 'seed ' + state.seed;

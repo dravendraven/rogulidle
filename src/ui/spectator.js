@@ -14,7 +14,7 @@ import { difficultyToParams, makeFloorPlan } from '../sim/difficulty.js';
 import { dangerField, makeBot } from '../bot/bot.js';
 import {
   buildGrid, renderFrame, renderHud, renderHistory, renderAchievements,
-  applyDepth, renderDebugInfo,
+  applyDepth, renderDebugInfo, carriedSvg,
 } from './render.js';
 import { ACHIEVEMENTS, earn, earnedBy, getAchievements } from './achievements.js';
 import { tileSvg } from './tiles.js';
@@ -367,9 +367,7 @@ async function showSummaryCard(title, rows) {
 async function showSummary(run) {
   const player = run.state.player;
   const titles = { ascended: '🟩 took the hole down', died: '💀 died' };
-  const loot = player.inventory.length
-    ? player.inventory.map((item) => tileSvg(item.emoji) || '').join('')
-    : '—';
+  const loot = carriedSvg(player.inventory);
   const slain = player.kills.length
     ? run.state.monsters.filter((m) => m.dead).map((m) => tileSvg(m.emoji) || '').join('')
     : '—';
@@ -462,9 +460,7 @@ function tallyDescent(run, finalState) {
 
 async function showDescentSummary(run, finalState) {
   const player = finalState.player;
-  const loot = player.inventory.length
-    ? player.inventory.map((item) => tileSvg(item.emoji) || '').join('')
-    : '—';
+  const loot = carriedSvg(player.inventory);
   const slain = player.kills.length
     ? finalState.monsters.filter((m) => m.dead).map((m) => tileSvg(m.emoji) || '').join('')
     : '—';
