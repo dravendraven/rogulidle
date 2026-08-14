@@ -131,6 +131,22 @@ main {
 .roster-chip:active { margin-bottom: 0; transform: none; }
 .roster-chip svg { display: block; width: 26px; height: 26px; }
 
+/* Shut, not absent. Dimmer than the ordinary unpicked chip and flatly
+   unresponsive — no hover lift, no pointer — so the difference between "not
+   chosen" and "not available" is legible without reading the line below. */
+.roster-chip.locked {
+  opacity: .18;
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
+.roster-chip.locked:hover { opacity: .18; filter: grayscale(1); }
+
+.roster-locked {
+  font-size: 10px;
+  color: var(--dim);
+  margin-top: .35rem;
+}
+
 .roster-chip.playing {
   opacity: 1;
   filter: none;

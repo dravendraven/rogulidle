@@ -21,14 +21,52 @@
 
 import { HEROES } from '../sim/heroes.js';
 import { tileSvg } from './tiles.js';
+import { HERO_GATE, isEarned, lockedReason } from './achievements.js';
 
 const KEY = 'rogulidle-hero';
+
+// THE GATE. Choosing a hero is earned, not given: until `butcher` is down
+// the cast is visible but shut, which is the first rung of the ladder in
+// `docs/project/candidates.md` (U11). Visible-but-shut rather than hidden on
+// purpose — a locked face with a reason under it is the thing that tells a
+// spectator there is something to play FOR, and a picker that grew from one
+// chip to five overnight would just look like a bug.
+//
+// Only the PLAYER'S pick is gated, never `dial-overrides.json`'s `who`. The
+// overrides file is the factory setting every visitor gets and it has to
+// stay able to ship any hero; today it ships none, so a clean browser lands
+// on the base hero through the ordinary default path rather than through a
+// second rule that says so.
+export function heroesUnlocked() {
+  return isEarned(HERO_GATE);
+}
+
+export function heroLockReason() {
+  return lockedReason(HERO_GATE);
+}
+
+// `base` is stored as '' — see setChosenHero's callers — so both spellings
+// of the ordinary hero pass the gate.
+function allowed(name) {
+  return heroesUnlocked() || name === '' || name === 'base';
+}
 
 // null means NEVER CHOSE, which is not the same as chose the ordinary hero:
 // unset falls through to whatever `dial-overrides.json` ships as the default,
 // and '' is a visitor overriding that back to the plain hero. `getItem`
 // returning null for an absent key gives us the distinction for free.
+//
+// A pick the gate no longer allows reads as '' — the plain hero, explicitly.
+// That is the one case that matters for anyone who was here before the gate
+// existed: they picked Vito when the picker was open, and they go back to
+// base until the pig falls. The stored value is NOT erased, so the day it
+// does fall their old pick is simply theirs again.
 export function getChosenHero() {
+  const stored = read();
+  return stored !== null && !allowed(stored) ? '' : stored;
+}
+
+function read() {
   try {
     return localStorage.getItem(KEY);
   } catch {
@@ -103,6 +141,9 @@ export function buildRoster(container, { onPick, onRestart } = {}) {
     chip.innerHTML = tileSvg(hero.emoji) || '';
 
     chip.addEventListener('click', () => {
+      // A shut gate is enforced here as well as on the button's `disabled`
+      // flag: the flag is a rendering, this is the rule.
+      if (!allowed(hero.name)) return;
       // `base` is stored as '' so the value is exactly what the run option
       // takes, and so the falsy default and an explicit "the plain hero" are
       // the same string everywhere downstream.
@@ -114,7 +155,14 @@ export function buildRoster(container, { onPick, onRestart } = {}) {
     row.append(chip);
     chips.set(hero.name, chip);
   }
-  container.append(row, pending);
+
+  // Why the four faces are dark. Under the row rather than in a tooltip: the
+  // whole point of showing a locked cast is telling a spectator what there is
+  // to play for, and a reason nobody hovers over says nothing.
+  const locked = document.createElement('div');
+  locked.className = 'roster-locked';
+  locked.hidden = true;
+  container.append(row, locked, pending);
 
   const restart = document.createElement('button');
   restart.type = 'button';
@@ -133,10 +181,22 @@ export function buildRoster(container, { onPick, onRestart } = {}) {
     const next = queued || 'base';
     const waiting = next !== now;
 
+    // Re-read on every call rather than once at build: the Butcher can fall
+    // during the run being watched, and `show` is called again as the next
+    // one is built — so the cast opens by itself, with no reload.
+    const open = heroesUnlocked();
     for (const [key, chip] of chips) {
+      const shut = !allowed(key);
+      chip.disabled = shut;
+      chip.classList.toggle('locked', shut);
+      chip.title = shut
+        ? `${HEROES[key].name} — 🔒 ${heroLockReason()}`
+        : `${HEROES[key].name}, ${HEROES[key].title}`;
       chip.classList.toggle('playing', key === now && !waiting);
       chip.classList.toggle('queued', key === next && waiting);
     }
+    locked.hidden = open;
+    locked.textContent = open ? '' : `🔒 ${heroLockReason()}`;
 
     const hero = HEROES[next] || HEROES.base;
     face.innerHTML = tileSvg(hero.emoji) || '';

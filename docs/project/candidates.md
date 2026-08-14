@@ -442,10 +442,38 @@ both achievements are a plaque and neither is a key.
 
 That gives the progression its first stated shape, two rungs:
 
-| achievement | unlocks |
-|---|---|
-| `butcher` 🐷 | choosing a hero — until then the base hero is forced |
-| `bottom` 🕳️ | the entity at floor 10, and hell behind it |
+| achievement | unlocks | |
+|---|---|---|
+| `butcher` 🐷 | choosing a hero — until then the base hero is forced | **BUILT** |
+| `bottom` 🕳️ | the entity at floor 10, and hell behind it | unbuilt |
+
+**The first rung is wired.** `HERO_GATE` in `src/ui/achievements.js` names it,
+`src/ui/roster.js` enforces it: the four heroes are shown but shut, with the
+achievement's own `locked` sentence under them, and a pick made before the gate
+existed reads as the base hero until the pig falls (the stored value survives,
+so the pick comes back the moment it does). Only the PLAYER'S pick is gated —
+`dial-overrides.json`'s `who` is the factory setting and stays able to ship any
+hero. The rail re-reads the gate on every run, so the cast opens without a
+reload on the run after the kill.
+
+**And the flag became a receipt, because the moment an achievement unlocks
+something a boolean in `localStorage` is the whole feature defeated.** `earn`
+now stores the seed AND the configuration of the run that earned it, and every
+load re-runs those receipts and checks the pig actually died. It is not
+anti-cheat and does not pretend to be — there is no server and the store is
+editable — but forging costs finding a seed and a config that really kill the
+Butcher, which is running the simulation until the pig dies. It is also U12's
+`{name, date, config, runSeed, branch}` four fifths built: `src/ui/run.js` is
+now the ONE place a `(seed, config)` pair becomes a run, shared by the
+spectator loop and the verifier so they cannot drift apart.
+
+Two costs, both real. **A receipt is only replayable by the code that recorded
+it** — change the engine, the bot or a shipped dial and every stored receipt
+stops reproducing, so every unlock re-locks and nothing can tell that from
+forgery. Verification therefore never rewrites the store, so reverting the
+change brings every unlock straight back. And **verification is synchronous at
+load**, one full run per stored receipt: a short run replays in a few hundred
+milliseconds, a cleared one measured 1.4s.
 
 **The order enforces itself, which is the strongest version of a ladder.** The
 base hero averages 4.6 floors and kills the Butcher in about 6.5% of runs, so
