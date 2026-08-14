@@ -389,10 +389,15 @@ export const SECTIONS = [
     // shape; nothing there changes the rooms themselves.
     ['forma do mapa', [
       {
+        // Retitled when roomBias landed. "quantidade de salas" was true while
+        // this was the only shape dial; with a second one beside it the two
+        // titles collided, and this is the one that stopped being about
+        // rooms — it decides how much dungeon there is, not what shape it
+        // comes back in.
         kind: 'model', key: 'dugPercentage', label: 'quanto do grid é escavado',
-        title: 'Mapa: quantidade de salas', step: 0.01, range: [0.05, 0.35],
-        up: 'mais labiríntico — vários caminhos equivalentes',
-        down: 'mais linear — uma rota obrigatória clara',
+        title: 'Mapa: tamanho da masmorra', step: 0.01, range: [0.05, 0.35],
+        up: 'mais andar para percorrer — e o vault deixa de caber',
+        down: 'andar menor e mais linear',
       },
       {
         kind: 'model', key: 'roomBias', label: 'preferência por sala sobre corredor',
