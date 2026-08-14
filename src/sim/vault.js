@@ -29,7 +29,12 @@ import { tileAt } from './mapgen.js';
 // never fuse the vault onto a room that is already there. Not a dial: at 0
 // the vault can share a wall with an existing room and stop being a dead
 // end, which is the whole design.
-const MARGIN = 1;
+//
+// Exported so the Lab can tell the player how big the free block actually
+// has to be (`VAULT_SIZE + 2 × MARGIN`) without restating the ring size in
+// a second place and letting the two drift.
+export const VAULT_MARGIN = 1;
+const MARGIN = VAULT_MARGIN;
 
 // How far the connecting tunnel may reach. Not a dial either — measured
 // over 200 floors, the tunnel actually needed is 2 tiles at the median and

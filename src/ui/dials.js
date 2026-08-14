@@ -8,10 +8,13 @@
 // starts, which is the same door a sweep already used.
 
 import { DEFAULT_MODEL, saturatedAt } from '../sim/difficulty.js';
+import { VAULT_MARGIN } from '../sim/vault.js';
 import {
   CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_HERO, GOAL_STICKINESS, biasBands,
 } from '../bot/config.js';
-import { TURN_BUDGET, VAULT_LEVEL } from '../sim/balance.js';
+import {
+  corridorRange, MAP_SIZE, TURN_BUDGET, VAULT_LEVEL, VAULT_SIZE,
+} from '../sim/balance.js';
 import { RETURN_ENABLED } from '../sim/dungeon.js';
 
 // B20 — SIX NAMED STEPS INSTEAD OF A CONTINUOUS SLIDER, and the count is
@@ -153,6 +156,31 @@ const MIN_OF = {
 // slope with a cap — and that is exactly what made them impossible to tell
 // apart before.
 //
+// The two map notes. Both are ARITHMETIC on the dial's own value, never a
+// recorded measurement — CLAUDE.md's rule about written-down numbers going
+// stale applies to a caption as much as to a doc, and a note that quoted
+// "the vault survives 88% of the time" would be wrong the first time
+// anything else moved.
+//
+// What the digging costs, in tiles. The border ring is never dug, so the
+// grid the percentage applies to is (MAP_SIZE − 2)². Naming the block the
+// vault needs is the point: it is the one consequence of this dial that a
+// percentage cannot show you, and it is why the wire fires.
+function dugNote(values) {
+  const usable = (MAP_SIZE - 2) * (MAP_SIZE - 2);
+  const dug = Math.round((values.model.dugPercentage ?? 0) * usable);
+  const block = VAULT_SIZE + 2 * VAULT_MARGIN;
+  return `≈${dug} dos ${usable} tiles escavados — o vault precisa de um bloco `
+    + `${block}×${block} de rocha intacta no que sobrar`;
+}
+
+// The pair the generator actually gets, since the slider only carries the
+// minimum and the span is fixed in balance.js.
+function corridorNote(values) {
+  const [min, max] = corridorRange(values.model.corridorMin);
+  return `corredores de ${min} a ${max} tiles`;
+}
+
 // Reads a `min(cap, perLevel × andar)` pair back to the player as the floor
 // it starts biting on — or says it never does. Every dial named "…máxima"
 // in this file is that shape, and a cap the slope cannot reach in ten
@@ -423,26 +451,37 @@ export const SECTIONS = [
         // titles collided, and this is the one that stopped being about
         // rooms — it decides how much dungeon there is, not what shape it
         // comes back in.
+        // The "Mapa:" prefix these four carried is gone. It earned its place
+        // when they lived inside a section that also held the bestiary; now
+        // the section IS called Andar and the group heading says "forma do
+        // mapa", so the prefix was the third time in a row the reader was
+        // told the same thing. The creature dials keep THEIR prefixes for
+        // the opposite reason — "Quantidade:" and "Força:" are two families
+        // sitting in one group, and nothing else tells them apart.
         kind: 'model', key: 'dugPercentage', label: 'quanto do grid é escavado',
-        title: 'Mapa: tamanho da masmorra', step: 0.01, range: [0.05, 0.35],
+        title: 'Tamanho da masmorra', step: 0.01, range: [0.05, 0.35],
         up: 'mais andar para percorrer — e o vault deixa de caber',
         down: 'andar menor e mais linear',
+        note: dugNote,
       },
       {
         kind: 'model', key: 'roomBias', label: 'preferência por sala sobre corredor',
-        title: 'Mapa: salas vs. corredores', step: 0.5, range: [1, 6],
+        title: 'Salas vs. corredores', step: 0.5, range: [1, 6],
         up: 'a mesma escavação vira sala — laterais sem labirinto',
-        down: '1 = o sorteio cru do ROT, muito corredor',
+        // Said "1 = o sorteio cru do ROT" and named a library at somebody
+        // watching a game.
+        down: '1 = tanto corredor quanto sala, que é onde vira labirinto',
       },
       {
         kind: 'model', key: 'corridorMin', label: 'comprimento do corredor',
-        title: 'Mapa: distância entre salas', step: 1, range: [1, 5],
+        title: 'Distância entre salas', step: 1, range: [1, 5],
         up: 'salas mais afastadas, mais rocha entre elas',
         down: 'salas coladas, quase encostando',
+        note: corridorNote,
       },
       {
         kind: 'model', key: 'shrineDistanceShare', label: 'quão longe fica o buraco de descida',
-        title: 'Mapa: distância do buraco', step: 0.05, range: [0, 1],
+        title: 'Distância do buraco', step: 0.05, range: [0, 1],
         up: 'travessia mais longa — o buraco no ponto mais distante',
         down: 'travessia mais curta — o buraco pode cair perto',
       },
