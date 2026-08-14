@@ -346,15 +346,28 @@ function stillValid(goal, belief, field) {
 // Manhattan rather than a real path, and it errs the safe way: a path is
 // never shorter than the straight-line count, so anything called "close
 // enough to arrive" is at worst early, never late.
-// What every creature already coming at the hero is expected to cost him, in
-// hp. The fight he is IN, not the floor he is on.
-function awakeCost(belief, bravery = 1) {
+// WHAT IS WITHIN ARM'S REACH RIGHT NOW, in hp — the sum of the duels the
+// hero could be trading blows in on his very next turn.
+//
+// ADJACENT, not merely awake, and the difference was the syringe's whole
+// defect. `raging` counts down on every turn that PASSES (src/sim/step.js),
+// walking included, so a turn spent closing distance is a turn of the item
+// burnt. The old test summed every creature inside its chase radius, which
+// let the hero inject at creatures across the room: measured over 150 runs,
+// 40% of injections had nobody adjacent, a quarter had the nearest creature
+// six or more tiles away, and 42% of syringes produced NOT ONE raging blow.
+// Only 31% of raging turns landed a blow at all.
+//
+// So this is not a threshold that was too low, it was the wrong quantity —
+// "a fight is coming" instead of "a fight is here". There is no board state
+// where raging at empty air is right, which is what makes the fix a
+// definition and not a tuning.
+function meleeCost(belief, bravery = 1) {
   const [px, py] = belief.player.pos;
   let total = 0;
   for (const m of belief.monsters.values()) {
     if (m.dead) continue;
-    const d = Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py);
-    if (!isAwakeAt(m, d)) continue;
+    if (Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py) !== 1) continue;
     total += duelCost(belief.player, m, bravery).hpLost;
   }
   return total;
@@ -468,10 +481,10 @@ export function makeBot(options = {}) {
     }
 
     // THE SYRINGE, and the same sentence as the book with the context term
-    // swapped: what is coming at me right now, instead of what the descent
+    // swapped: what is in my face right now, instead of what the descent
     // still owes.
     //
-    //     cost of everything awake on me  >=  effective hp * RAGE_AT * greed
+    //     cost of what is within reach  >=  effective hp * RAGE_AT * greed
     //
     // Priced in HP, using `duelCost` — the bot's own currency for a fight,
     // already net of the hero's weapon. Raw threat mass would have been the
@@ -479,9 +492,11 @@ export function makeBot(options = {}) {
     // fixed floor terrifying on floor 1 is routine on floor 9, where the mass
     // is twenty times larger. A share of what the hero HAS is scale-free.
     //
-    // Only the AWAKE count. A creature outside its chase radius is provably
-    // motionless (rules.md §3), so it is not part of the fight being priced —
-    // the same test the danger field runs.
+    // ADJACENT ONLY (`meleeCost`, and its note carries the measurement). The
+    // rage clock runs on turns, not on blows, so injecting at anything the
+    // hero still has to walk to spends the item on the walk. There is no
+    // board where raging at empty air is right — this is the one gate in the
+    // bot that is a definition rather than a threshold.
     //
     // Uncapped for the reason the book is: at high greed the demand passes
     // everything the hero has, and unmeetable is what "saves it for a real
@@ -494,7 +509,7 @@ export function makeBot(options = {}) {
     // brawl happens shallow often enough on its own.
     if (belief.player.inventory.some((i) => i.kind === 'syringe')
       && !belief.player.raging
-      && awakeCost(belief, hero.bravery) >= effectiveHp(belief.player)
+      && meleeCost(belief, hero.bravery) >= effectiveHp(belief.player)
         * RAGE_AT * hero.sideAppetite * (settings.floorsAhead ?? 1)) {
       return 'rage';
     }

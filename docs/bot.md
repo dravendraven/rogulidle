@@ -44,13 +44,20 @@ frases:
 - **Profundidade não é monótona nisso**, e o pico interior da Ganância já
   existia antes do livro (M47) — as duas coisas se somam na mesma leitura e
   não dá para separá-las por esta tabela.
-- **Injeta a adrenalina** quando o que já está acordado em cima dele custaria
-  mais que uma fração do hp efetivo — `custo dos acordados ≥ hp efetivo ×
+- **Injeta a adrenalina** quando o que está ao alcance do braço custaria mais
+  que uma fração do hp efetivo — `custo do corpo a corpo ≥ hp efetivo ×
   RAGE_AT × ganância`. Mesma frase do livro com o contexto trocado: lá é o
-  que a descida ainda deve, aqui é a briga que já está vindo. Preço em hp
+  que a descida ainda deve, aqui é a briga que está acontecendo. Preço em hp
   pelo `duelCost`, e não massa de ameaça crua: as unidades da massa são
   `hp × dano`, então um piso fixo aterroriza no andar 1 e é rotina no 9. Sem
   teto, pela mesma razão do livro.
+- **Só conta criatura ADJACENTE, e isso é definição, não ajuste.** O
+  contador da fúria cai a cada turno que passa, andar incluído
+  (`rules.md` §5), então injetar contra algo que ainda precisa ser alcançado
+  gasta o item na caminhada. Não existe tabuleiro onde enfurecer contra o
+  vazio esteja certo. Antes disso ele somava toda criatura dentro do próprio
+  raio: medido em 150 runs, 40% das injeções não tinham ninguém do lado e um
+  quarto tinha a mais próxima a seis ou mais tiles.
 - **Ele usa a fração de ANDARES restantes, o livro usa a de AMEAÇA** — e a
   diferença foi medida, não argumentada: a ameaça é concentrada no fim, então
   a fração dela fica ~0,95 do andar 1 ao 5, justo onde o andar da injeção
@@ -58,6 +65,13 @@ frases:
   custe mais que `fightMargin` do que ele tem, então custo acima de uma barra
   só acontece em emboscada — e emboscada não é mais funda que o resto. Daí
   para cima a exigência só fica rara, não mais profunda.
+- **E o que desperdiça a seringa hoje não é o gatilho, é o que vem depois.**
+  Com o sensor corrigido, 41 de 95 injeções ainda não dão um golpe — e 89 dos
+  turnos perdidos são o herói **andando embora** da criatura em que acabou de
+  injetar. Ele precifica o tile de uma criatura colada pela mordida cheia
+  dela, então qualquer coisa quieta a uma dúzia de passos fica mais barata
+  que a briga na cara dele. É o B26 visto pelo outro lado, e nenhum ajuste do
+  `RAGE_AT` alcança isso.
 - **Nunca começa luta** cujo custo esperado passe de `fightMargin` do hp
   efetivo (hp + armadura). Uma criatura que já persegue paga só a
   caminhada — o duelo dela acontece de qualquer jeito.

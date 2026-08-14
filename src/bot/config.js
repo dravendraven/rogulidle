@@ -286,8 +286,18 @@ export const READ_AT = 0.8;
 // using the syringe in 48% of runs instead of 86%.
 //
 // IT CANNOT BE PUSHED MUCH FURTHER, and the wall is not this number. The bot
-// refuses fights costing more than `fightMargin` of what it has, so
-// `awakeCost` above roughly one bar only ever happens when it is AMBUSHED —
-// and ambushes are no deeper than anything else. Past that point the demand
+// refuses fights costing more than `fightMargin` of what it has, so a melee
+// cost above roughly one bar only ever happens when it is AMBUSHED — and
+// ambushes are no deeper than anything else. Past that point the demand
 // stops discriminating by depth and only gets rarer.
+//
+// AND THE NUMBER IS NOT WHAT IS WASTING THE ITEM. The sensor moved from
+// every awake creature to the adjacent ones (`meleeCost`), which killed the
+// 40% of injections thrown at empty air. What survived is worse and is not
+// about the syringe at all: of 95 injections, 41 still land no raging blow,
+// and 89 of the wasted turns are the hero WALKING AWAY from the creature he
+// just injected at. He prices an adjacent creature's tile at its full bite,
+// so anything quiet within a dozen steps is cheaper than the fight in his
+// face — B26 in docs/backlog.md is the same defect seen from the router.
+// Retuning this constant cannot reach that.
 export const RAGE_AT = 1.0;
