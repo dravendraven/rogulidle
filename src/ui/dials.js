@@ -412,36 +412,31 @@ export const SECTIONS = [
     ]],
     ['', [
       {
-        // `menace = 1 × persistence^distância`, so a HIGHER value makes the
-        // exposure persist further — the hero fears things from further away.
-        // The old name (`DANGER_FALLOFF`) said the opposite and the arrows
-        // followed it.
+        // C1 §1 — THE DIAL THAT DECIDES HOW THE HERO WALKS, and the one that
+        // finally moves survival: across its bands deaths per run go 0.98 to
+        // 0.40, against depth 4.14 to 2.80. Nothing else in this panel trades
+        // living for going deep.
         //
-        // ***** WHY `caution` IS NOT ALSO ON THIS PANEL *****
+        // It prices two things per turn in one unit — what can HIT him, and
+        // how much more of the map a step OPENS — so one sentence covers the
+        // whole dial: how much a turn near danger or near the unknown is
+        // worth, counted in steps.
         //
-        // C1 §1 added `caution` — the exchange rate between one creature-turn
-        // of exposure and hp — and it was briefly a fifth band here, with
-        // this row renamed out of the way to make room. That was a call taken
-        // mid-implementation and it was the wrong one: the two overlap.
-        // Persistence is the SHAPE of the danger's decay, caution its
-        // MAGNITUDE, and both move the same visible thing — how close the
-        // hero is willing to walk. Two dials on one decision is the M47
-        // confusion this project already paid to undo.
-        //
-        // So `caution` stays a hero trait in `src/bot/config.js`, where a
-        // hero may differ from another, and off the player's panel until a
-        // sweep says the two are separable. If they are not, one of them is
-        // the dial and the other is a decided constant — and that is the
-        // owner's call, not a side effect of naming.
-        kind: 'bot', key: 'persistence', label: 'quanto do perigo sobrevive a cada tile de distância',
-        title: 'Cautela', icon: '👀', bias: true,
+        // IT TOOK THIS ROW FROM `persistence`, which used to be called
+        // Cautela and is now a decided constant off the panel. That was the
+        // owner's call and the argument is one line: exposure IS
+        // `Σ persistence^distância`, so persistence is a parameter INSIDE the
+        // number caution multiplies. Two dials on one quantity — the M47
+        // confusion, which this project has now paid for twice.
+        kind: 'hero', key: 'caution', label: 'quanto vale um turno perto do perigo ou do desconhecido',
+        title: 'Cautela', icon: '🛡️', bias: true,
         says: [
-          'só enxerga perigo colado nele — passa raspando em tudo',
-          'desvia pouco; passa perto demais',
-          'mantém alguma distância das criaturas',
-          'dá volta em quem parece perigoso',
-          'evita o entorno inteiro de cada criatura',
-          'trata o andar todo como ameaça — anda muito para não chegar perto',
+          'passa colado em tudo e entra no escuro sem olhar',
+          'aceita raspar numa criatura para encurtar caminho',
+          'prefere o caminho limpo quando é parecido',
+          'anda mais para não passar perto nem abrir o desconhecido',
+          'dá voltas largas e só explora o que precisa',
+          'desvia até de rato — vive mais e chega bem menos fundo',
         ],
       },
     ]],
