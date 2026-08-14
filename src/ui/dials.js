@@ -38,17 +38,6 @@ const BAND_NAMES = [
   'muito baixo', 'baixo', 'médio-baixo', 'médio-alto', 'alto', 'muito alto',
 ];
 
-// M48 — ONE line, about where the dial IS, not about where it could go.
-//
-// The panel used to print both directions at 8px, always, so a player read
-// two hypotheticals and never a description of their own setting. A dial is
-// steered by knowing what it is doing now; the arrows are already on the
-// slider.
-//
-// There is no "untouched" state any more: every bias dial opens on a notch,
-// rolled once per visitor (see `rolledNotches`), so the row always has a
-// real setting to describe and the old "calibrado" sentence describes a
-// state that can no longer happen.
 // ONE live line for ANY dial, not just the banded ones.
 //
 // M48 made the bot's dials describe where they ARE instead of printing both
