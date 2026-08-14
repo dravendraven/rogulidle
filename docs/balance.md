@@ -79,9 +79,14 @@ the generator weights the kinds. It is 1.5 today and it follows its inputs —
 never tune it by hand.
 
 The bot's dials belong to the bot. `DEFAULT_HERO` (fightMargin 0.7,
-sideAppetite 0.5, stepCost 0.1) is the shipped hero and the whole
-hero-as-configuration mechanism; `DANGER_PERSISTENCE` 0.7 is the third dial
-on the panel.
+sideAppetite 0.5, stepCost 0.1) is the whole hero-as-configuration
+mechanism and the CENTRE the panel's six bands are built around;
+`DANGER_PERSISTENCE` 0.7 is the third dial on the panel.
+
+**It is no longer what a visitor plays.** Each one gets a band ROLLED per
+dial on their first session (`src/ui/dials.js`), kept from then on — so
+these three numbers are what everything was measured at, not what the
+median session runs.
 
 **THREE things are DECIDED rather than dials, all three measured inert:**
 `CROWD_PENALTY` 15 (B19), `GOAL_STICKINESS` 1.4 (B20) and `stepCost` 0.1

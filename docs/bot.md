@@ -56,10 +56,16 @@ vies de ±80% em torno de um centro calibrado, em **seis faixas nomeadas**
 (muito baixo ate muito alto). Seis, numero par, para nao haver meio onde
 estacionar.
 
-**O centro nao esta entre as seis.** Um dial intocado roda NO centro, entao
-abrir o Lab nunca mexe no balanceamento, e qualquer ajuste do jogador e uma
-piora deliberada de um bot que ja estava calibrado. As duas faixas de dentro
-cercam o centro (-16% e +16%).
+**O centro nao esta entre as seis, e ninguem joga nele.** As duas faixas de
+dentro o cercam (-16% e +16%), mas **cada visitante recebe uma faixa
+SORTEADA em cada dial** na primeira sessao, guardada dali em diante. Nao
+existe mais estado "intocado": o que o slider mostra e o que a run recebe,
+sempre.
+
+Consequencia que precisa ser dita: **as medicoes descrevem o centro
+calibrado, nao a sessao de quem assiste.** Tripwire, sweep e tudo em
+`decisions.md` foram tirados no centro; o bot que a maioria ve e um vies
+aleatorio em torno dele.
 
 **So a Ganancia tem centro calculado:** ela multiplica o valor esperado de um
 bau, que sai da chance de loot e da tabela de itens sozinho. Os outros dois
@@ -82,9 +88,17 @@ e gratis e o bot vaga um andar por 1500 turnos — precisa estar acima de
 | `stepCost` | poucos passos | quanto vale um passo em hp. **Nao e bem pressa:** o preco do tile e `stepCost + perigo`, entao valor alto torna o perigo desprezivel na comparacao e a rota vira distancia pura. Medido, 0 quebra o bot (vaga 1500 turnos porque andar e gratis) e de 0,01 a 0,2 nada muda |
 
 Um herói covarde, ganancioso ou apressado é **outro objeto de config, nunca
-outro código**. O elenco de heróis ainda não existe de propósito; só o
-mecanismo, provado por teste (`test/tests.js`, "the bot's three
-objectives").
+outro código**.
+
+**O elenco existe** e mora em `src/sim/heroes.js` — um objeto por herói,
+com o que ele enxerga, o que um item vale na mão dele, o que um andar
+concluído lhe compra, e os overrides de `DEFAULT_HERO` acima. Quem joga é
+escolhido na página (`src/ui/roster.js`) e persiste entre sessões; o
+mecanismo continua provado por teste (`test/tests.js`).
+
+**São dois eixos independentes, e vale não confundir:** o herói decide o que
+o bot SABE e o que ele CARREGA; os três dials decidem como ele valora o que
+sabe. Qualquer herói pode ser covarde ou ganancioso.
 
 ## Como um turno é decidido
 
