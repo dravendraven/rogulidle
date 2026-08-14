@@ -431,6 +431,32 @@ exactly like the thing that was refused. It is not: hell is a BRANCH off the
 ordinary loop. The main descent stays ungated and endless, and the dated seed
 governs one optional door inside it.
 
+#### The shape of the choice: a prompt with a timer, and an RNG default
+
+**Same shape as the shop, because the shop already is this.** `SHOP_MS` is
+30 seconds against `SUMMARY_MS`'s 2.4 — a window sized so a present viewer has a
+real chance to act and an absent one loses nothing. The floor-10 prompt is that
+pattern a second time, and a mid-run shop is not new either: `atTheStairs`
+(`src/sim/dungeon.js`) already runs one for the engineer, so "shop, then the
+portal" reuses a path rather than adding one. Whether the two are one popup or
+two in sequence is open and cheap to change.
+
+**When the timer runs out, the branch is DRAWN, not defaulted to one side.** A
+coin from the run's own stream (`src/sim/rng.js` — never `Math.random`, which is
+banned in `src/sim/`), so an unattended run stays deterministic and a replay
+from `{config, runSeed}` reproduces it exactly. The draw is a placeholder for a
+condition later; recording it as a draw rather than as "always descend" is what
+keeps the unattended path honest while the condition does not exist.
+
+This settles a worry that was recorded here in the wrong place. A live human
+choice would break reproducibility — but only if what was chosen is not
+submitted. It is one field. U12 carries it.
+
+**And it keeps the product's shape intact for the case that matters.** The game
+plays itself and the player configures; a prompt that expires into a draw is
+still a game that runs unattended all day, which is the premise the daily seed
+and the descent cap both rest on.
+
 #### The blockers, hardest last
 
 **The floor-10 branch is invisible today, and that orders the whole feature.**
@@ -493,9 +519,13 @@ means being the same person. That is trust, chosen deliberately: the game is
 played among friends, and every mechanism that would enforce identity costs
 more than the problem.
 
-**What gets submitted is `{name, date, config, runSeed}`** — never a score.
+**What gets submitted is `{name, date, config, runSeed, branch}`** — never a
+score. `branch` is which portal was taken at floor 10, one word, and it is there
+because that choice is a timed prompt a human may answer (U11): the RNG default
+is reproducible from `runSeed` alone, a human's answer is not. Submitting what
+was chosen rather than who chose it makes replay exact either way.
 Not for anti-cheat (the trust is granted) but because the seed is shared and the
-simulation is deterministic, so those four fields let ANY browser replay the
+simulation is deterministic, so those five fields let ANY browser replay the
 run and arrive at the same number. Watching how a friend reached hell floor 31
 falls out of what already exists. `runSeed` is the private 1-10 seed and it has
 to be in there: without it the arrival state is unknown and nothing is
