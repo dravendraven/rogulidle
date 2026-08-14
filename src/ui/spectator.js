@@ -118,7 +118,7 @@ function grab() {
     'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
     'coins', 'coinPopup', 'damage', 'debugInfo', 'app', 'lab', 'dials',
     'shop', 'shopBalance', 'shopItems', 'shopSkip', 'shopTimerBar',
-    'achievements', 'roster', 'highscores',
+    'achievements', 'roster', 'highscores', 'mapDials',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -714,16 +714,31 @@ function wireLab(overrides, devMode) {
         onRestart: () => { session.restart = true; },
         overrides,
         dev: devMode,
+        // The map goes to the right column, under the numbers. The left
+        // drawer is the BOT — who is playing this run — and the map is the
+        // dungeon every run happens in; sharing one column made the two
+        // read as a single long form. Only reachable in dev mode, so
+        // outside it this mount stays empty and hidden.
+        mounts: { Andar: el.mapDials },
       });
     }
   };
 
+  // The lab is now TWO blocks in two columns — the bot's drawer on the left
+  // and the map's panel on the right — so the button has to move both or it
+  // half-closes. The map's also stays shut when it holds nothing, which is
+  // every visitor outside ?dev=1: an empty framed box in the right column
+  // would read as something that failed to load.
+  const show = (on) => {
+    el.dials.hidden = !on;
+    el.mapDials.hidden = !on || !el.mapDials.children.length;
+    el.app.classList.toggle('lab-open', on);
+    el.lab.textContent = on ? '🧪 lab on' : '🧪 lab';
+  };
+
   el.lab.addEventListener('click', () => {
     open();
-    const opening = el.dials.hidden;
-    el.dials.hidden = !opening;
-    el.app.classList.toggle('lab-open', opening);
-    el.lab.textContent = opening ? '🧪 lab on' : '🧪 lab';
+    show(el.dials.hidden);
   });
 
   // ?dev=1 — no button anywhere invites this; knowing the URL param is the
@@ -731,9 +746,7 @@ function wireLab(overrides, devMode) {
   // panel dials.js already builds, so this is one extra flag through code
   // that already existed, not a second UI.
   open();
-  el.dials.hidden = false;
-  el.app.classList.add('lab-open');
-  el.lab.textContent = '🧪 lab on';
+  show(true);
 }
 
 export async function start() {

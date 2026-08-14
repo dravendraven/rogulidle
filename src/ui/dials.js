@@ -7,13 +7,17 @@
 // reads it and hands the result to makeFloorPlan / makeBot when a run
 // starts, which is the same door a sweep already used.
 
-import { DEFAULT_MODEL, saturatedAt } from '../sim/difficulty.js';
+import {
+  DEFAULT_MODEL, floorSpread, floorStrength, monstersAt, saturatedAt, tierFloorShare,
+} from '../sim/difficulty.js';
+import { MONSTER_TABLE } from '../sim/balance.js';
 import { VAULT_MARGIN } from '../sim/vault.js';
 import {
   CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_HERO, GOAL_STICKINESS, biasBands,
 } from '../bot/config.js';
 import {
-  corridorRange, MAP_SIZE, TURN_BUDGET, VAULT_LEVEL, VAULT_SIZE,
+  corridorRange, MAP_SIZE, ROOM_HEIGHT, ROOM_WIDTH, roomRange,
+  TURN_BUDGET, VAULT_LEVEL, VAULT_SIZE,
 } from '../sim/balance.js';
 import { RETURN_ENABLED } from '../sim/dungeon.js';
 
@@ -34,23 +38,53 @@ const BAND_NAMES = [
   'muito baixo', 'baixo', 'médio-baixo', 'médio-alto', 'alto', 'muito alto',
 ];
 
-// M48 — ONE line, about where the dial IS, not about where it could go.
+// ONE live line for ANY dial, not just the banded ones.
 //
-// The panel used to print both directions at 8px, always, so a player read
-// two hypotheticals and never a description of their own setting. A dial is
-// steered by knowing what it is doing now; the arrows are already on the
-// slider.
+// M48 made the bot's dials describe where they ARE instead of printing both
+// directions, and the reason it gave applies to the whole panel: a player
+// steers by knowing what the dial is doing now, and the arrows are already
+// on the slider. The rest of the panel kept the ⬆️/🔻 pair for another few
+// months, so half the rows answered "what does this do" and half answered
+// "what could it do", in the same column, at the same size.
 //
-// There is no "untouched" state any more: every bias dial opens on a notch,
-// rolled once per visitor (see `rolledNotches`), so the row always has a
-// real setting to describe and the old "calibrado" sentence describes a
-// state that can no longer happen.
-function effectLine(dial, index) {
-  return dial.says[notchOf(index)];
+// Three shapes, and the dial picks by what it declares:
+//   says: [...]        phrases across the dial's own range — index 0 is its
+//                      minimum, the last is its maximum. Six for a banded
+//                      dial (one per notch); any length for a slider.
+//   says: (v) => str   computed, when a NUMBER is the honest answer. Gets
+//                      the whole form, same as `note`.
+//   note only          a dial whose arithmetic already says it (the map's).
+function effectLine(dial, index, values) {
+  const { says } = dial;
+  if (typeof says === 'function') return says(values);
+  if (!Array.isArray(says) || !says.length) return '';
+  return says[phraseOf(dial, index, says.length)];
 }
 
+// Which phrase the thumb is standing on. A banded dial's value IS the index
+// already; a slider's has to be located inside its range first.
+function phraseOf(dial, index, count) {
+  const raw = Number(index);
+  if (dial.bias) return Math.max(0, Math.min(count - 1, raw));
+  if (dial.type === 'switch') return raw ? count - 1 : 0;
+  const [min, max] = dial.range ?? [0, 1];
+  const at = max > min ? (raw - min) / (max - min) : 0;
+  return Math.max(0, Math.min(count - 1, Math.round(at * (count - 1))));
+}
+
+// The colour the sentence is written in, on the same 0..5 scale for every
+// dial — so "this one is at its low end" reads the same whether the dial has
+// six notches or a continuous range.
 function notchOf(index) {
   return Math.max(0, Math.min(5, Number(index)));
+}
+
+function bandOf(dial, index) {
+  if (dial.bias) return notchOf(index);
+  if (dial.type === 'switch') return Number(index) ? 5 : 0;
+  const [min, max] = dial.range ?? [0, 1];
+  const at = max > min ? (Number(index) - min) / (max - min) : 0;
+  return notchOf(Math.round(Math.max(0, Math.min(1, at)) * 5));
 }
 
 // The colour the sentence is written in, by which way the notch leans. The
@@ -59,8 +93,8 @@ function notchOf(index) {
 // read as one flat block. `band-0` is the extreme low end, `band-5` the
 // extreme high one; the two middle notches stay dim, because they are the
 // ones that are not saying anything strong.
-function bandClass(index) {
-  return `band-${notchOf(index)}`;
+function bandClass(dial, index) {
+  return `band-${bandOf(dial, index)}`;
 }
 
 // EVERY VISITOR GETS A DIFFERENT BOT, and they get it without choosing.
@@ -156,6 +190,92 @@ const MIN_OF = {
 // slope with a cap — and that is exactly what made them impossible to tell
 // apart before.
 //
+// ***** the live lines the creature and loot dials say *****
+//
+// Every one of these answers with what the dial does at the DEEP end, or
+// across the whole descent — because that is the part the slider's own
+// number cannot show, and it is where these dials are actually felt. A line
+// that only restated the number under the thumb would be furniture.
+//
+// LAST FLOOR, zero-based, so a line reads "no andar 10". Ten floors is the
+// dungeon (dungeon.js's LEVELS); the return switch changes how many
+// traversals cross them, not how deep it goes.
+const LAST = 9;
+
+// Which creature sits at a 0..1 position up the bestiary. What "strength
+// 0.26" means is unreadable; "o teto do andar 1 é o boar" is not.
+function creatureAt(share) {
+  const at = Math.max(0, Math.min(1, share));
+  return MONSTER_TABLE[Math.round(at * (MONSTER_TABLE.length - 1))].name;
+}
+
+const pct = (n) => `${Math.round(n * 100)}%`;
+
+function countSays(values) {
+  const m = values.model;
+  const deep = monstersAt(m.monstersBase, m.monsterGrowth, LAST);
+  return `${m.monstersBase} criaturas no andar 1, ${deep} no andar 10`;
+}
+
+function spreadSays(values) {
+  const at = floorSpread(LAST, values.model);
+  return at > 0
+    ? `no andar 10 a lotação varia ±${pct(at)} — cheio ou vazio`
+    : 'todo andar tem exatamente a lotação da conta';
+}
+
+function ceilingSays(values) {
+  const m = values.model;
+  return `o teto do andar 1 é o ${creatureAt(floorStrength(0, m))}, `
+    + `o do 10 é o ${creatureAt(floorStrength(LAST, m))}`;
+}
+
+function tierFloorSays(values) {
+  const m = values.model;
+  const share = tierFloorShare(LAST, m);
+  const bottom = floorStrength(LAST, m) * share;
+  return share > 0
+    ? `no andar 10 nada abaixo do ${creatureAt(bottom)} aparece`
+    : 'rato pode aparecer no andar 10';
+}
+
+function earlyCutSays(values) {
+  const m = values.model;
+  const rows = m.earlyTierCut;
+  if (!rows) return 'o andar 1 não ganha desconto nenhum';
+  const full = creatureAt(floorStrength(0, m));
+  return `sem o corte o teto do andar 1 seria o ${full} — desce ${rows} linha`
+    + `${rows > 1 ? 's' : ''}`;
+}
+
+// Two dials answer this one, which is the point: how many chests pay is
+// their product, and neither slider can show it alone.
+function chestSays(values) {
+  const m = values.model;
+  const paying = m.chests * m.chestLootChance;
+  return `${m.chests} baús por andar, ~${paying.toFixed(1)} com algo dentro`;
+}
+
+function chestMixSays(values) {
+  const potion = Math.max(0, Math.min(1, values.model.chestMix));
+  return `${pct(1 - potion)} escudo, ${pct(potion)} poção`;
+}
+
+// Same shape as the chests: the rate a corpse arms the hero is the drop
+// chance TIMES the weapon's share of that draw, and the two live on
+// different sliders.
+function weaponSays(values) {
+  const m = values.model;
+  const armed = m.dropChance * (1 / Math.max(0.5, m.weaponScarcity));
+  return `~${pct(armed)} dos corpos deixam uma arma`;
+}
+
+function dropSays(values) {
+  const m = values.model;
+  return `${pct(m.dropChance)} dos corpos deixam algo — desses, `
+    + `1 em ${m.weaponScarcity.toFixed(1)} é arma`;
+}
+
 // The two map notes. Both are ARITHMETIC on the dial's own value, never a
 // recorded measurement — CLAUDE.md's rule about written-down numbers going
 // stale applies to a caption as much as to a doc, and a note that quoted
@@ -179,6 +299,27 @@ function dugNote(values) {
 function corridorNote(values) {
   const [min, max] = corridorRange(values.model.corridorMin);
   return `corredores de ${min} a ${max} tiles`;
+}
+
+// The scale is a multiplier, which is the honest shape for "one number
+// moving four", but a multiplier is not something you can picture. The
+// note is: it prints the tiles the generator will actually be asked for.
+function roomNote(values) {
+  const [wMin, wMax] = roomRange(ROOM_WIDTH, values.model.roomScale);
+  const [hMin, hMax] = roomRange(ROOM_HEIGHT, values.model.roomScale);
+  return `salas de ${wMin}–${wMax} × ${hMin}–${hMax} tiles`;
+}
+
+// The grid is square, so the interesting number is not the side but the
+// AREA the digging then divides — that is what the room count tracks.
+// Stated against the shipped grid so a change reads as "twice the floor"
+// rather than as a number with no scale attached.
+function mapNote(values) {
+  const side = values.model.mapSize ?? MAP_SIZE;
+  const area = (side - 2) * (side - 2);
+  const base = (MAP_SIZE - 2) * (MAP_SIZE - 2);
+  return `${side}×${side} — ${(area / base).toFixed(2)}× o andar de hoje, `
+    + 'e a travessia cresce junto';
 }
 
 // Reads a `min(cap, perLevel × andar)` pair back to the player as the floor
@@ -315,7 +456,7 @@ export const SECTIONS = [
       {
         kind: 'model', key: 'monstersBase', label: 'criaturas no andar 1',
         title: 'Quantidade: criaturas no andar 1', step: 1, range: [1, 20],
-        up: 'abertura mais brutal', down: 'abertura mais mansa',
+        says: countSays,
       },
       {
         // The old down-text advertised "<1 esvazia o fundo" against a
@@ -324,7 +465,7 @@ export const SECTIONS = [
         // captions are decorative.
         kind: 'model', key: 'monsterGrowth', label: 'crescimento por andar',
         title: 'Quantidade: crescimento por andar', step: 0.01, range: [1, 1.3],
-        up: 'descida mais íngreme', down: 'descida mais plana',
+        says: countSays,
       },
       // PAIRS: every "…por andar" is the RITMO — how fast the effect
       // arrives — and every "…máxima" is where it STOPS. The two read
@@ -333,14 +474,12 @@ export const SECTIONS = [
       {
         kind: 'model', key: 'spreadPerLevel', label: 'sorteio do andar: largura por andar',
         title: 'Quantidade: variação por andar', step: 0.01, range: [0, 0.3],
-        up: 'a lotação começa a variar mais cedo',
-        down: 'a lotação demora mais a variar',
+        says: spreadSays,
       },
       {
         kind: 'model', key: 'spreadCap', label: 'sorteio do andar: teto',
         title: 'Quantidade: variação máxima', step: 0.05, range: [0, 1],
-        up: 'a variação vai mais longe antes de parar',
-        down: 'a variação para mais cedo',
+        says: spreadSays,
         note: capNote('spreadPerLevel', 'spreadCap'),
       },
     ]],
@@ -348,12 +487,12 @@ export const SECTIONS = [
       {
         kind: 'model', key: 'strength', label: 'teto da tabela no andar 1 (0..1)',
         title: 'Força: teto no andar 1', step: 0.01, range: [0, 1],
-        up: 'início mais cruel', down: 'início mais inofensivo',
+        says: ceilingSays,
       },
       {
         kind: 'model', key: 'strengthGrowth', label: 'crescimento do teto por andar',
         title: 'Força: ritmo de subida do teto', step: 0.01, range: [1, 1.4],
-        up: 'escalada mais violenta — satura antes', down: 'escalada mais morna',
+        says: ceilingSays,
         // The one number nobody can read off the dial: past the floor where
         // the ramp hits the table's top row, every deeper floor has the SAME
         // ceiling and only the creature count still grows.
@@ -371,21 +510,17 @@ export const SECTIONS = [
       {
         kind: 'model', key: 'tierFloorPerLevel', label: 'piso do tier: sobe por andar',
         title: 'Força: piso sobe por andar', step: 0.01, range: [0, 0.2],
-        up: 'os ratos somem mais cedo na descida',
-        down: 'os ratos aguentam até mais fundo',
+        says: tierFloorSays,
       },
       {
         kind: 'model', key: 'tierFloorCap', label: 'piso do tier: teto (share)',
         title: 'Força: piso máximo', step: 0.05, range: [0, 1],
-        up: 'o piso sobe mais antes de parar — fundo sem bicho fraco',
-        down: 'o piso para mais cedo — sempre sobra bicho fraco',
+        says: tierFloorSays,
         note: capNote('tierFloorPerLevel', 'tierFloorCap'),
       },
       {
         kind: 'model', key: 'tierSlackPerLevel', label: 'folga acima do teto: por andar',
         title: 'Força: folga acima do teto', step: 0.01, range: [0, 0.5],
-        up: 'mais traiçoeiro — surpresas acima do esperado',
-        down: 'mais honesto — nunca passa do teto',
         // Whole table ROWS, so it is the doubled share FLOORED: anything
         // under 0.5 at floor 10 rounds to zero rows and the dial does
         // nothing at all. That was true of the shipped value for a while.
@@ -401,20 +536,16 @@ export const SECTIONS = [
       {
         kind: 'model', key: 'tierSlackCap', label: 'folga acima do teto: máx (share)',
         title: 'Força: folga máxima', step: 0.05, range: [0, 1],
-        up: 'a folga cresce mais antes de parar',
-        down: 'a folga para mais cedo',
         note: capNote('tierSlackPerLevel', 'tierSlackCap'),
       },
       {
         kind: 'model', key: 'earlyTierCut', label: 'corte do andar 1 (linhas da tabela)',
         title: 'Força: desconto só do andar 1', step: 1, range: [0, 3],
-        up: 'tutorial mais generoso', down: 'tutorial mais seco (0 = sem desconto)',
+        says: earlyCutSays,
       },
       {
         kind: 'model', key: 'outOfDepthChancePerLevel', label: 'cauda rara: chance por andar',
         title: 'Raro: chance por andar', step: 0.005, range: [0, 0.05],
-        up: 'mais assustador — repinta um monstro no topo da tabela',
-        down: 'mais justo (0 = nunca acontece)',
         note: (values) => {
           const at10 = Math.min(
             values.model.outOfDepthChanceCap, values.model.outOfDepthChancePerLevel * 9,
@@ -425,8 +556,6 @@ export const SECTIONS = [
       {
         kind: 'model', key: 'outOfDepthChanceCap', label: 'cauda rara: teto',
         title: 'Raro: chance máxima', step: 0.01, range: [0, 0.3],
-        up: 'a chance sobe mais antes de parar',
-        down: 'a chance para mais cedo',
         note: capNote('outOfDepthChancePerLevel', 'outOfDepthChanceCap'),
       },
     ]],
@@ -434,7 +563,9 @@ export const SECTIONS = [
       {
         kind: 'model', key: 'clusterSize', label: 'criaturas por grupo (1 = sem grupo)',
         title: 'Agrupamento de criaturas', step: 1, range: [1, 20],
-        up: 'mais concentrado — matilhas, andares que variam muito', down: 'mais espalhado e mediano',
+        says: (v) => (v.model.clusterSize <= 1
+          ? 'cada criatura sorteada e posta sozinha'
+          : `matilhas de até ${v.model.clusterSize}, e cada uma é UM sorteio de tier`),
       },
     ]],
   ]],
@@ -443,12 +574,12 @@ export const SECTIONS = [
       {
         kind: 'model', key: 'chests', label: 'baús por andar',
         title: 'Baús por andar', step: 1, range: [0, 20],
-        up: 'herói mais rico', down: 'herói mais pobre',
+        says: chestSays,
       },
       {
         kind: 'model', key: 'chestLootChance', label: 'chance de o baú ter algo',
         title: 'Baú: quantos vêm cheios', step: 0.05, range: [0, 1],
-        up: 'quase todo baú paga', down: 'quase todo baú é decepção',
+        says: chestSays,
       },
       {
         // Replaced `armourScarcity` + `potionScarcity`. Those two were sold
@@ -458,8 +589,7 @@ export const SECTIONS = [
         // the honest shape of the one live degree of freedom.
         kind: 'model', key: 'chestMix', label: 'escudo ⟷ poção',
         title: 'Baú: o que vem dentro', step: 0.05, range: [0, 1],
-        up: 'quase só poção — o herói cura e não se protege',
-        down: 'quase só escudo — o herói aguenta e não se cura',
+        says: chestMixSays,
       },
       {
         // Still a genuine rate, unlike the chest pair above: a corpse's
@@ -467,12 +597,12 @@ export const SECTIONS = [
         // weapons rarer rather than swapping them for something else.
         kind: 'model', key: 'weaponScarcity', label: 'escassez de arma (1 em S)',
         title: 'Raridade de arma', step: 0.5, range: [1, 10],
-        up: 'herói mais fraco', down: 'herói mais armado',
+        says: weaponSays,
       },
       {
         kind: 'model', key: 'dropChance', label: 'chance de corpo largar algo',
         title: 'Chance de drop', step: 0.05, range: [0, 1],
-        up: 'matar compensa mais', down: 'matar vira puro custo',
+        says: dropSays,
       },
     ]],
   ]],
@@ -496,47 +626,83 @@ export const SECTIONS = [
         // sitting in one group, and nothing else tells them apart.
         kind: 'model', key: 'dugPercentage', label: 'quanto do grid é escavado',
         title: 'Tamanho da masmorra', step: 0.01, range: [0.05, 0.35],
-        up: 'mais andar para percorrer — e o vault deixa de caber',
-        down: 'andar menor e mais linear',
         note: dugNote,
+      },
+      {
+        // THE dial for how many places a floor has. dugPercentage and
+        // roomBias argue about how much area becomes floor; this one
+        // divides the result, and measured it moves the count further than
+        // both of them together.
+        //
+        // Capped at 44 rather than left open: `SIGHT_WHOLE_MAP`
+        // (src/sim/heroes.js) is MAP_SIZE × 2 and covers the diagonal of a
+        // 45-tile grid, so a bigger map would quietly blind the one persona
+        // that is supposed to see everything.
+        kind: 'model', key: 'mapSize', label: 'lado do grid em tiles',
+        title: 'Tamanho do andar', step: 2, range: [24, 44],
+        note: mapNote,
+      },
+      {
+        kind: 'model', key: 'roomScale', label: 'multiplicador do tamanho da sala',
+        title: 'Salas grandes ou pequenas', step: 0.1, range: [0.5, 1.5],
+        note: roomNote,
       },
       {
         kind: 'model', key: 'roomBias', label: 'preferência por sala sobre corredor',
         title: 'Salas vs. corredores', step: 0.5, range: [1, 6],
-        up: 'a mesma escavação vira sala — laterais sem labirinto',
-        // Said "1 = o sorteio cru do ROT" and named a library at somebody
-        // watching a game.
-        down: '1 = tanto corredor quanto sala, que é onde vira labirinto',
+        says: [
+          'tanto corredor quanto sala — é aqui que o andar vira labirinto',
+          'ainda sobra bastante túnel',
+          'a escavação vira sala mais do que túnel',
+          'quase tudo que se cava vira sala',
+          'túnel só o mínimo para ligar as salas',
+        ],
       },
       {
         kind: 'model', key: 'corridorMin', label: 'comprimento do corredor',
         title: 'Distância entre salas', step: 1, range: [1, 5],
-        up: 'salas mais afastadas, mais rocha entre elas',
-        down: 'salas coladas, quase encostando',
         note: corridorNote,
       },
       {
         kind: 'model', key: 'shrineDistanceShare', label: 'quão longe fica o buraco de descida',
         title: 'Distância do buraco', step: 0.05, range: [0, 1],
-        up: 'travessia mais longa — o buraco no ponto mais distante',
-        down: 'travessia mais curta — o buraco pode cair perto',
+        says: [
+          'o buraco pode nascer na sala ao lado — dá para descer sem ver nada',
+          'o buraco cai em qualquer sala menos as mais próximas',
+          'o buraco fica na metade mais distante do andar',
+          'só as salas bem distantes servem — a travessia cruza quase tudo',
+          'sempre a sala mais distante que existe — o andar inteiro é rota',
+        ],
       },
     ]],
     ['quanto a rota ramifica', [
       {
         kind: 'model', key: 'spineThreatShare', label: 'massa de ameaça na espinha',
         title: 'Perigo concentrado na rota principal', step: 0.05, range: [0, 1],
-        up: 'mapa mais direto — nada a evitar', down: 'mapa mais tático — laterais mortais',
+        says: (v) => `${pct(v.model.spineThreatShare)} da ameaça é POSTA na rota `
+          + 'obrigatória — o resto espera nas laterais',
       },
       {
         kind: 'model', key: 'sideRoomDepthBonus', label: 'aposta da sala lateral',
         title: 'Risco das salas laterais', step: 0.05, range: [0, 1],
-        up: 'aposta mais alta — monstro pior, baú melhor', down: 'aposta mais morna',
+        says: [
+          'entrar numa lateral é igual a andar pela rota',
+          'a lateral vale um pouco mais e cobra um pouco mais',
+          'a lateral vale como um andar mais fundo',
+          'a lateral vale como dois andares mais fundo',
+          'a lateral é outro jogo — de ninho de ogro a machado de graça',
+        ],
       },
       {
         kind: 'model', key: 'sideChestBias', label: 'peso de baú na lateral',
         title: 'Atração de baús para as laterais', step: 0.5, range: [1, 10],
-        up: 'desvio mais tentador', down: 'loot mais no caminho (1 = sem viés)',
+        says: [
+          'baú cai onde calhar — a lateral não atrai nada',
+          'um pouco mais de baú fora da rota',
+          'a maior parte do loot está fora da rota',
+          'quase todo baú exige um desvio',
+          'passar reto é sair do andar de mãos vazias',
+        ],
       },
     ]],
     ['a sala do Butcher', [
@@ -548,8 +714,10 @@ export const SECTIONS = [
         // touches what the game does, so skipping it skips all of it.
         kind: 'model', key: 'vaultLevel', label: 'sala fixa com o Butcher no andar 4',
         title: 'O Butcher', type: 'switch', onValue: VAULT_LEVEL, offValue: 0,
-        up: `ligado — andar ${VAULT_LEVEL} ganha a sala 9x9, o troll e 6 baús`,
-        down: 'desligado — o jogo volta ao que era antes da sala existir',
+        says: [
+          'nenhum andar tem sala autoral — todos são sorteados',
+          `o andar ${VAULT_LEVEL} ganha a sala 9x9, o Butcher e os baús dele`,
+        ],
       },
     ]],
   ]],
@@ -559,15 +727,17 @@ export const SECTIONS = [
       {
         kind: 'run', key: 'turnBudget', label: 'turnos por travessia',
         title: 'Tempo disponível por andar', step: 50, range: [200, 3000],
-        up: 'mais tolerante ao vagar', down: 'mais implacável — a run morre no relógio',
+        says: (v) => `${v.run.turnBudget} turnos por travessia — acabou, a run acaba`,
       },
     ]],
     ['o retorno', [
       {
         kind: 'run', key: 'theReturn', label: 'subir de volta depois do fundo',
         title: 'A volta para casa', type: 'switch',
-        up: 'ligado — 19 travessias, cada andar duas vezes',
-        down: 'desligado — 10 travessias, só a descida',
+        says: [
+          '10 travessias — a run acaba no fundo',
+          '19 travessias — desce até o fundo e volta, cada andar duas vezes',
+        ],
       },
     ]],
   ]],
@@ -632,13 +802,18 @@ function precisionOf(step) {
 // "salvar como padrão", that turns the CURRENT form into a new
 // dial-overrides.json download; see that button's own handler for why a
 // download is the honest stopping point on a static site.
-export function buildDialPanel(container, { onRestart, overrides = {}, dev = false } = {}) {
+export function buildDialPanel(container, {
+  onRestart, overrides = {}, dev = false, mounts = null,
+} = {}) {
   container.innerHTML = '';
   const inputs = [];
   // Dials with a `note`. Every one is recomputed on every edit, because a
   // note reads the WHOLE form — the saturation line moves when `strength`
   // changes, not only when `strengthGrowth` does.
   const notes = [];
+  // …and the same for the sentences, for the same reason: a `says` function
+  // may read another dial's value, so they cannot repaint one at a time.
+  const effects = [];
 
 
   // Which sections a player may touch. The map belongs to whoever ships
@@ -663,11 +838,26 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
       .map((d) => d.key),
   );
 
+  // WHERE EACH SECTION GOES. `mounts` lets the page put a section somewhere
+  // other than the drawer — today that is the map, which the page hangs in
+  // the right-hand column under the stats. Anything unnamed lands in
+  // `container`, so a page that passes no mounts gets exactly the old panel.
+  //
+  // The reason it is the PAGE's decision and not this file's: dials.js owns
+  // what a dial is, index.html owns where things sit. Hardcoding a column
+  // here would put layout in the module that every other page also builds
+  // its panel from.
+  const mountFor = (name) => (mounts && mounts[name]) || container;
+  const used = new Set();
+
   for (const [section, groups] of sections) {
+    const mount = mountFor(section);
+    if (!used.has(mount)) { mount.innerHTML = ''; used.add(mount); }
+
     const sectionEl = document.createElement('div');
     sectionEl.className = 'dial-section';
     sectionEl.dataset.section = section;
-    container.append(sectionEl);
+    mount.append(sectionEl);
 
     const h2 = document.createElement('h2');
     h2.textContent = section;
@@ -685,7 +875,7 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
 
       for (const dial of list) {
         const {
-          kind, key, label, title, icon, step, range, up, down, type, note,
+          kind, key, label, title, icon, step, range, type, note,
           onValue, offValue, bias,
         } = dial;
         const isSwitch = type === 'switch';
@@ -794,28 +984,35 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
           row.append(input);
         }
 
-        const effect = document.createElement('div');
-        effect.className = 'dial-effect';
-        if (bands) {
-          // One live sentence about the current notch, coloured by which way
-          // that notch leans.
-          effect.textContent = effectLine(dial, input.value);
-          effect.classList.add(bandClass(input.value));
-        } else {
-          const upSpan = document.createElement('span');
-          upSpan.textContent = `⬆️ ${up}`;
-          const downSpan = document.createElement('span');
-          downSpan.textContent = `🔻 ${down}`;
-          effect.append(upSpan, downSpan);
+        // ONE live line, for every dial. A row that has `says` describes
+        // itself in words; a row that only has `note` lets the arithmetic do
+        // it, which is why the map's dials do not also carry a phrase.
+        let effect = null;
+        if (dial.says) {
+          effect = document.createElement('div');
+          effect.className = `dial-effect ${bandClass(dial, isSwitch ? input.checked : input.value)}`;
+          row.append(effect);
         }
-        row.append(effect);
 
+        let noteEl = null;
         if (note) {
-          const noteEl = document.createElement('div');
+          noteEl = document.createElement('div');
           noteEl.className = 'dial-note';
           row.append(noteEl);
           notes.push({ el: noteEl, note });
         }
+
+        // Bound before the first paint so a `says` FUNCTION can read the
+        // whole form — which does not exist until every input is built. The
+        // array form does not need it, but running both through one path is
+        // what keeps the two shapes interchangeable.
+        const paintEffect = (values) => {
+          if (!effect) return;
+          const at = isSwitch ? input.checked : input.value;
+          effect.textContent = effectLine(dial, at, values);
+          effect.className = `dial-effect ${bandClass(dial, at)}`;
+        };
+        effects.push(paintEffect);
 
         input.addEventListener('input', () => {
           // Yellow means "not what ships", which is the one thing a reader
@@ -830,12 +1027,7 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
               : Number(input.value) !== def;
           input.classList.toggle('changed', isChanged);
           if (bands) {
-            // The live sentence IS the readout now, so this has to run
-            // whether or not a value box exists — it used to sit inside the
-            // `valueOut` guard, and a banded dial no longer has one.
             input.title = `${BAND_NAMES[Number(input.value)]} · ${bands[Number(input.value)]}`;
-            effect.textContent = effectLine(dial, input.value);
-            effect.className = `dial-effect ${bandClass(input.value)}`;
           }
           if (valueOut) {
             valueOut.textContent = isSwitch
@@ -843,8 +1035,8 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
               : Number(input.value).toFixed(precisionOf(step));
             valueOut.classList.toggle('changed', isChanged);
           }
-          // Runs at event time, long after `refreshNotes` below is bound.
-          refreshNotes();
+          // Runs at event time, long after `refreshLive` below is bound.
+          refreshLive();
         });
 
         sectionEl.append(row);
@@ -906,12 +1098,20 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
     return out;
   };
 
-  // Every note reads the whole form, so they all refresh together. A note
-  // that throws must not take the panel down with it — it is commentary,
-  // not the value.
-  const refreshNotes = () => {
-    if (!notes.length) return;
+  // Every live line — the sentences AND the computed notes — reads the whole
+  // form, so they all refresh together on any edit. One read() for the lot,
+  // rather than one per row.
+  //
+  // A line that throws must not take the panel down with it: it is
+  // commentary, not the value.
+  const refreshLive = () => {
+    if (!notes.length && !effects.length) return;
     const values = read();
+    for (const paint of effects) {
+      try {
+        paint(values);
+      } catch { /* commentary, not the value */ }
+    }
     for (const { el: noteEl, note } of notes) {
       try {
         noteEl.textContent = note(values);
@@ -920,7 +1120,7 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
       }
     }
   };
-  refreshNotes();
+  refreshLive();
 
   // Dev mode only. Reachable through the page by `?dev=1` alone — nothing
   // in the ordinary UI links here, which is what makes this different from

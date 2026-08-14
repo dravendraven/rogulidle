@@ -43,6 +43,31 @@ export const ROOM_BIAS = 1;
 export const ROOM_WIDTH = [5, 9];
 export const ROOM_HEIGHT = [4, 7];
 
+// GUESS — multiplies BOTH pairs above, so one number cuts the same dug
+// area into more pieces or fewer. 1 is the shipped room.
+//
+// Why a multiplier and not four dials: the two pairs are one decision —
+// how big a room is — and their four numbers were only ever moved
+// together. A scale keeps the shape of the draw (a room is still wider
+// than it is tall, still varies by the same proportion) and gives the lab
+// ONE thing to drag.
+//
+// This is the dial that actually decides HOW MANY rooms a floor has.
+// MAP_DUG_PERCENTAGE says how much is dug and ROOM_BIAS what shape it
+// comes back in, but neither divides the result — measured, halving the
+// room roughly doubles the count, which is more than both of the others
+// together can do.
+export const ROOM_SCALE = 1;
+
+// A room narrower than this is a corridor with a label on it, and ROT will
+// happily make one. Not a dial: it is the floor under the scale, not a
+// preference about room size.
+const ROOM_MIN_SIDE = 3;
+
+export function roomRange(pair, scale = ROOM_SCALE) {
+  return pair.map((n) => Math.max(ROOM_MIN_SIDE, Math.round(n * scale)));
+}
+
 // GUESS — how much of the grid the digger hollows out. Lower means fewer,
 // more separate rooms — the map design needs a MANDATORY path to exist, and
 // at ROT's default 0.2 there are usually several equivalent ways through.

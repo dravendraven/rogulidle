@@ -165,6 +165,14 @@ export function observe(state, options = {}) {
   return {
     turn: state.turn,
     outcome: state.outcome,
+    // How big the grid is. NOT fog — the edge of the world is not a secret
+    // the hero has to walk into to learn, and the viewport shows it. It is
+    // here because the router treats an unknown tile as walkable on
+    // purpose (that is how it aims into the dark), so without a bound it
+    // would happily plan a route off the map. It used to read MAP_SIZE
+    // straight out of balance.js, which quietly made the grid unchangeable.
+    w: map.w,
+    h: map.h,
     // You always know your own hp, xp, inventory and step count.
     player: copyEntity(state.player, PLAYER_FIELDS),
     // …and the blow you just swung, if you swung one (src/sim/combat.js).
@@ -186,6 +194,11 @@ export function emptyBelief() {
   return {
     turn: 0,
     outcome: null,
+    // Filled by the first observation. Null until then, and every reader
+    // falls back to MAP_SIZE, so a belief that has seen nothing behaves
+    // exactly as it did before this field existed.
+    w: null,
+    h: null,
     player: null,
     seen: new Set(),
     tiles: new Map(),
@@ -200,6 +213,8 @@ function cloneBelief(belief) {
   return {
     turn: belief.turn,
     outcome: belief.outcome,
+    w: belief.w,
+    h: belief.h,
     player: belief.player,
     seen: new Set(belief.seen),
     tiles: new Map(belief.tiles),
@@ -238,6 +253,8 @@ export function foldBelief(belief, obs) {
   b.turn = obs.turn;
   b.outcome = obs.outcome;
   b.player = obs.player;
+  b.w = obs.w ?? b.w;
+  b.h = obs.h ?? b.h;
 
   // Terrain never changes, so once seen it is known for good.
   for (const [key, kind] of obs.tiles) {

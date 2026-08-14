@@ -46,7 +46,7 @@ export function newGame(seed, counts = {}) {
   // M16 — docs/backlog.md. Passthrough so a sweep can ask "what if" without
   // editing balance.js; unset fields fall through to generateMap's own
   // defaults, which read the shipped constants.
-  state.map = generateMap(state.rng.map, MAP_SIZE, {
+  state.map = generateMap(state.rng.map, counts.mapSize ?? MAP_SIZE, {
     corridorLength: counts.corridorLength,
     roomWidth: counts.roomWidth,
     roomHeight: counts.roomHeight,
