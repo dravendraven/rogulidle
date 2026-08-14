@@ -686,7 +686,10 @@ function wireControls() {
   });
 
   el.speed.addEventListener('click', () => {
-    const speeds = [0.5, 1, 2, 4, 8];
+    // The default has to BE in this list: the cycle is indexOf-based, so a
+    // speed missing from it makes the first click jump to speeds[0] and the
+    // viewer can never get back to where the page opened.
+    const speeds = [0.75, 1, 2, 4, 8];
     session.speed = speeds[(speeds.indexOf(session.speed) + 1) % speeds.length];
     el.speed.textContent = session.speed + '×';
   });
@@ -752,9 +755,10 @@ export async function start() {
   events = makeEventLayer(el.stage, el.grid, { enabled: eventsEnabled(), signalMs });
   wireControls();
 
-  // Half speed by default — easier to follow than the old 1x default.
-  session.speed = 0.5;
-  el.speed.textContent = '0.5×';
+  // Three-quarter speed by default — easier to follow than the old 1x
+  // default, and a touch livelier than the 0.5x it replaced.
+  session.speed = 0.75;
+  el.speed.textContent = '0.75×';
 
   const params = new URL(location.href).searchParams;
 
