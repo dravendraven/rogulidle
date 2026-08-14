@@ -18,7 +18,9 @@ import { DEFAULT_PERSONA, HEROES, heroItem } from '../src/sim/heroes.js';
 import {
   weaponDamage, weaponMinDamage, armourValue, effectiveHp, expectedDamage,
 } from '../src/sim/combat.js';
-import { findPath, playerPassable, posKey } from '../src/sim/mapgen.js';
+import {
+  findPath, generateMap, playerPassable, posKey, tileAt,
+} from '../src/sim/mapgen.js';
 import { drawLogUniform, drawWeighted, hashSeeds, makeRng } from '../src/sim/rng.js';
 import { classifyRooms, spineShare } from '../src/sim/spine.js';
 import { inVault, layoutOf, pillarsOf } from '../src/sim/vault.js';
@@ -3182,6 +3184,76 @@ test('a chest guard never empties a small floor\'s spine into the side', () => {
     const state = newGame(99000 + seed, { ...floorPlan(1), monsters: 2 });
     assertEq(spineShare(state), 1,
       `seed ${seed}: a chest guard moved a floor-1 creature into a side room`);
+  }
+});
+
+// ***** the hub layout (src/sim/layout-hub.js) ***** //
+
+// THE ONE GUARANTEE ROT GAVE FOR FREE. The Digger only ever attaches a
+// feature to a wall of something already dug, so its floors are connected
+// by construction — measured, zero islanded rooms in 3000. A layout that
+// COMPUTES positions has no such property, and a room nobody can reach is
+// a floor where loot, and possibly the exit, sits behind nothing.
+//
+// docs/project/dcss-layouts.md: DCSS validates connectivity after building
+// and vetoes the level when it fails. This is the cheap version — assert it
+// never fails in the first place.
+test('every room the hub layout places is reachable from every other', () => {
+  const walkable = (map, x, y) => ['room', 'door', 'corridor'].includes(tileAt(map, x, y));
+  for (const [branches, rings, size] of [
+    [2, 1, 32], [4, 1, 32], [6, 1, 32], [4, 2, 44], [6, 2, 44],
+  ]) {
+    for (let seed = 1; seed <= 40; seed++) {
+      const map = generateMap(seed * 7919, size, {
+        layout: 'hub', hubBranches: branches, hubRings: rings,
+      });
+      // Flood from the first walkable tile there is.
+      let start = null;
+      for (let y = 0; y < map.h && !start; y++) {
+        for (let x = 0; x < map.w; x++) {
+          if (walkable(map, x, y)) { start = [x, y]; break; }
+        }
+      }
+      assert(start, `seed ${seed} at ${size}/${branches}/${rings} dug nothing at all`);
+      const seen = new Set([start.join(',')]);
+      const queue = [start];
+      while (queue.length) {
+        const [x, y] = queue.pop();
+        for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+          const key = (x + dx) + ',' + (y + dy);
+          if (seen.has(key) || !walkable(map, x + dx, y + dy)) continue;
+          seen.add(key);
+          queue.push([x + dx, y + dy]);
+        }
+      }
+      for (const room of map.rooms) {
+        let reached = false;
+        for (let x = room.x1; x <= room.x2 && !reached; x++) {
+          for (let y = room.y1; y <= room.y2; y++) {
+            if (seen.has(x + ',' + y)) { reached = true; break; }
+          }
+        }
+        assert(reached, `${size}/${branches}/${rings} seed ${seed}: a room is walled off`);
+      }
+    }
+  }
+});
+
+// The point of the layout is that the shape is CHOSEN. If the arms silently
+// go missing the floor is a chain again, which is the thing the Digger was
+// already doing and the reason this file exists.
+test('the hub places the arms it was asked for', () => {
+  for (const [branches, rings, size] of [[3, 1, 32], [5, 1, 32], [5, 2, 44]]) {
+    let total = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      total += generateMap(seed * 7919, size, {
+        layout: 'hub', hubBranches: branches, hubRings: rings,
+      }).rooms.length;
+    }
+    const want = 1 + branches * rings;
+    const got = total / 40;
+    assert(got >= want - 0.5,
+      `${size}/${branches}/${rings}: wanted ~${want} rooms, averaged ${got.toFixed(1)}`);
   }
 });
 

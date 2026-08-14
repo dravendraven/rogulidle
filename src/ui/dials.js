@@ -591,6 +591,36 @@ export const SECTIONS = [
     // shape; nothing there changes the rooms themselves.
     ['forma do mapa', [
       {
+        // A SWITCH, not a slider, because the two are different generators
+        // rather than two settings of one. onValue/offValue carry strings
+        // the same way the vault's switch carries a floor number.
+        kind: 'model', key: 'layout', label: 'qual gerador desenha o andar',
+        title: 'Forma do andar', type: 'switch',
+        onValue: 'hub', offValue: 'digger',
+        says: [
+          'salas grudadas uma na outra até encher — sem centro, sem ramos',
+          'uma sala central e um anel de salas em volta, uma por ramo',
+        ],
+      },
+      {
+        kind: 'model', key: 'hubBranches', label: 'salas no anel (só na forma central)',
+        title: 'Quantos ramos', step: 1, range: [2, 8],
+        says: (v) => (v.model.layout === 'hub'
+          ? `${v.model.hubBranches} caminhos saindo da sala inicial`
+          : 'inativo — a forma do andar não é a central'),
+      },
+      {
+        kind: 'model', key: 'hubRings', label: 'anéis de salas (só na forma central)',
+        title: 'Quantos anéis', step: 1, range: [1, 2],
+        says: (v) => {
+          if (v.model.layout !== 'hub') return 'inativo — a forma do andar não é a central';
+          const total = 1 + v.model.hubBranches * v.model.hubRings;
+          return v.model.hubRings > 1
+            ? `${total} salas, e o anel de fora força salas menores`
+            : `${total} salas — centro mais um anel`;
+        },
+      },
+      {
         // Retitled when roomBias landed. "quantidade de salas" was true while
         // this was the only shape dial; with a second one beside it the two
         // titles collided, and this is the one that stopped being about
@@ -911,7 +941,13 @@ export function buildDialPanel(container, {
           track.className = 'dial-switch';
           input = document.createElement('input');
           input.type = 'checkbox';
-          input.checked = Boolean(def);
+          // NOT `Boolean(def)`. A switch whose off position is a STRING —
+          // the layout, whose two values are 'digger' and 'hub' — is truthy
+          // in both positions, so coercing opened it checked while the
+          // value under it said otherwise. Compare against the on value the
+          // dial actually declared; only a switch with no onValue at all
+          // falls back to the boolean it really carries.
+          input.checked = onValue !== undefined ? def === onOff.on : Boolean(def);
           valueOut = document.createElement('span');
           valueOut.className = 'dial-value';
           valueOut.textContent = input.checked ? 'ligado' : 'desligado';
@@ -1000,7 +1036,7 @@ export function buildDialPanel(container, {
           // there is no notch that means "leave it alone".
           if (bands) input.dataset.touched = '1';
           const isChanged = isSwitch
-            ? input.checked !== Boolean(def)
+            ? (input.checked ? onOff.on : onOff.off) !== def
             : bands
               ? true
               : Number(input.value) !== def;

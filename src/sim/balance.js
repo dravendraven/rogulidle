@@ -68,6 +68,23 @@ export function roomRange(pair, scale = ROOM_SCALE) {
   return pair.map((n) => Math.max(ROOM_MIN_SIDE, Math.round(n * scale)));
 }
 
+// WHICH SHAPE THE FLOOR IS DUG IN. 'digger' is ROT's accretion — the only
+// generator this game had — and 'hub' is a central room with a ring of
+// rooms around it (src/sim/layout-hub.js).
+//
+// A catalogue rather than a replacement, which is the thing worth copying
+// from DCSS: it has no generator with parameters, it has a shelf of them
+// and draws one per floor. docs/project/dcss-layouts.md is the study.
+// A third layout is a file and a case, not a redesign.
+export const MAP_LAYOUT = 'digger';
+
+// GUESS — rooms in the hub's ring, and how many rings. Only read by the
+// hub layout. The room SIZE is not a dial there: a ring is a packing
+// problem, so layout-hub.js solves the size down from ROOM_WIDTH/HEIGHT
+// until the geometry closes.
+export const HUB_BRANCHES = 4;
+export const HUB_RINGS = 1;
+
 // GUESS — how much of the grid the digger hollows out. Lower means fewer,
 // more separate rooms — the map design needs a MANDATORY path to exist, and
 // at ROT's default 0.2 there are usually several equivalent ways through.
