@@ -23,11 +23,26 @@ import { resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
 import { SHOP_ITEMS, pickDefaultPurchase } from './shop.js';
 import { buildDialPanel, resolvedDefaults } from './dials.js';
 import { buildRoster, getChosenHero } from './roster.js';
+import { buildHighscorePanel, recordRun, getHighscores } from './highscores.js';
 import { loadDialOverrides } from './dial-overrides.js';
 import { eventsEnabled, makeEventLayer } from './events.js';
 
 const MAX_TURNS = 900;       // per floor
 const BASE_DELAY = 110;      // ms per turn at 1x
+// How long the frame on screen lasts. Everything else about the pace is a
+// RATIO of this one number, so the whole playback keeps its shape at every
+// setting of the speed control.
+const turnMs = () => BASE_DELAY / session.speed;
+// A signal lives twice a turn: tied to the turn so it scales with speed, but
+// deliberately outliving the frame that spawned it. One turn exactly was
+// tried and read as a flicker — the eye needs the "−3" still on screen when
+// the next frame arrives to register that a blow landed at all.
+const SIGNAL_TURNS = 2;
+const signalMs = () => turnMs() * SIGNAL_TURNS;
+// …and a turn that fought holds half again as long as a turn that only
+// walked. The hit is the moment worth reading and it is the one the eye has
+// least help with: a step MOVES the hero, a blow leaves the board still.
+const COMBAT_STRETCH = 1.5;
 const SUMMARY_MS = 2400;
 const COIN_POPUP_MS = 900;
 // Long enough to read three options and click one — the shop now opens
@@ -55,6 +70,9 @@ const session = {
   heroEmoji: undefined,
   // The rail's own `show(playing, queued)` (src/ui/roster.js), once built.
   roster: null,
+  // The highscore panel's own `show(data)` (src/ui/highscores.js), once
+  // built — same one-function-returned-from-the-builder shape as `roster`.
+  showHighscores: null,
   history: [],
   // Turns banked from floors already finished this run — see renderHud's
   // xp-rate comment in render.js. 0 in legacy single-floor mode.
@@ -97,7 +115,7 @@ function grab() {
     'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
     'coins', 'coinPopup', 'damage', 'debugInfo', 'app', 'lab', 'dials',
     'shop', 'shopBalance', 'shopItems', 'shopSkip', 'shopTimerBar',
-    'achievements', 'roster',
+    'achievements', 'roster', 'highscores',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -111,6 +129,19 @@ async function waitWhilePaused() {
 
 // A wall bump costs no turn, so its frame looks identical to the one before
 // it. Dropping those keeps the playback from stuttering.
+// Did this frame land a blow? The engine's log already records every attack
+// with the turn it happened on, so this reads the same source the signals do
+// rather than inventing a second notion of "was there combat".
+function fought(frame, previous) {
+  const log = frame.state.log;
+  // A new floor starts a new, empty log — a shorter log than the frame
+  // before it means the counter has to start over, not go negative.
+  const before = previous && previous.state.log.length <= log.length
+    ? previous.state.log.length
+    : 0;
+  return log.slice(before).some((entry) => entry.type === 'attack');
+}
+
 function watchableFrames(frames) {
   const out = [frames[0]];
   for (let i = 1; i < frames.length; i++) {
@@ -149,7 +180,7 @@ async function playFrames(frames, trace, tallyText) {
     renderHud(el, frame.state, session);
     if (el.tally) el.tally.textContent = tallyText();
 
-    await sleep(BASE_DELAY / session.speed);
+    await sleep(turnMs() * (fought(frame, frames[i - 1]) ? COMBAT_STRETCH : 1));
   }
 }
 
@@ -412,16 +443,19 @@ async function runForever(sessionSeed) {
   }
 }
 
-function tallyDescent(run, finalState) {
+function tallyDescent(run, finalState, heroName) {
   session.runsPlayed++;
+
+  // Total turns come from playDungeon's own per-floor records; final
+  // xpEarned comes from the replayed end-of-run state, not from run.levels —
+  // see the note on xpEarnedThisFloor below for why. Needed regardless of
+  // outcome now: the highscore board's step count only cares about a clear,
+  // but its depth and coin columns update on every run.
+  const totalTurns = run.levels.reduce((sum, level) => sum + level.turns, 0);
 
   const lastFloor = run.levels[run.levels.length - 1];
   if (run.cleared) {
     session.cleared++;
-    // Total turns come from playDungeon's own per-floor records; final
-    // xpEarned comes from the replayed end-of-run state, not from
-    // run.levels — see the note on xpEarnedThisFloor below for why.
-    const totalTurns = run.levels.reduce((sum, level) => sum + level.turns, 0);
     // U4's lifetime score keeps a background record even though nothing
     // displays it any more; award() is cheap to leave running in case the
     // display ever comes back.
@@ -456,6 +490,15 @@ function tallyDescent(run, finalState) {
   if (el.achievements) {
     renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), justEarned);
   }
+
+  // U-highscores — src/ui/highscores.js. `session.unbankedCoins` is read
+  // here rather than passed in because it already IS this run's total: the
+  // next run's reset happens at the top of runDescentForever's loop, one
+  // iteration after this call.
+  recordRun(heroName, {
+    depth: run.depth, cleared: run.cleared, coins: session.unbankedCoins, turns: totalTurns,
+  });
+  if (session.showHighscores) session.showHighscores(getHighscores());
 }
 
 async function showDescentSummary(run, finalState) {
@@ -618,7 +661,10 @@ async function runDescentForever(sessionSeed) {
       continue;
     }
 
-    tallyDescent(run, finalState);
+    // `hero.name` — the real name (`HEROES.base.name` is `'base'`, not the
+    // `''` `session.heroName` prints for it) so the highscore board's key
+    // matches `roster.js`'s own ORDER and chip keys.
+    tallyDescent(run, finalState, hero.name);
     await showDescentSummary(run, finalState);
     // The default-purchase draw needs its own seed, same derivation as the
     // run's own (hashSeeds(sessionSeed, runNumber)) — see shop.js's own
@@ -641,7 +687,10 @@ function wireControls() {
   });
 
   el.speed.addEventListener('click', () => {
-    const speeds = [0.5, 1, 2, 4, 8];
+    // The default has to BE in this list: the cycle is indexOf-based, so a
+    // speed missing from it makes the first click jump to speeds[0] and the
+    // viewer can never get back to where the page opened.
+    const speeds = [0.75, 1, 2, 4, 8];
     session.speed = speeds[(speeds.indexOf(session.speed) + 1) % speeds.length];
     el.speed.textContent = session.speed + '×';
   });
@@ -704,12 +753,13 @@ export async function start() {
   if (el.achievements) {
     renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements());
   }
-  events = makeEventLayer(el.stage, el.grid, { enabled: eventsEnabled() });
+  events = makeEventLayer(el.stage, el.grid, { enabled: eventsEnabled(), signalMs });
   wireControls();
 
-  // Half speed by default — easier to follow than the old 1x default.
-  session.speed = 0.5;
-  el.speed.textContent = '0.5×';
+  // Three-quarter speed by default — easier to follow than the old 1x
+  // default, and a touch livelier than the 0.5x it replaced.
+  session.speed = 0.75;
+  el.speed.textContent = '0.75×';
 
   const params = new URL(location.href).searchParams;
 
@@ -736,6 +786,14 @@ export async function start() {
     const chosen = getChosenHero();
     const first = heroByName(chosen === null ? session.shippedDials.run.who : chosen);
     session.roster(first.name, first.name);
+  }
+
+  // The highscore panel, below it — built the same way: once, up front, so
+  // the first run's row is already on screen instead of appearing blank
+  // until something finishes.
+  if (el.highscores) {
+    session.showHighscores = buildHighscorePanel(el.highscores);
+    session.showHighscores(getHighscores());
   }
 
   // ?seed=whatever makes a whole session reproducible, which is how you go

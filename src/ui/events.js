@@ -121,7 +121,12 @@ function signalsFor(entry, state) {
 // Owns a transparent layer over the grid and spends the engine's log into
 // it, one frame at a time. `show(state)` is the whole interface: hand it
 // the state being drawn and it renders whatever happened since the last one.
-export function makeEventLayer(stage, grid, { enabled = true } = {}) {
+// `signalMs` is how long a float should live, handed in as a function rather
+// than a number because the speed control moves it mid-run. The caller owns
+// that arithmetic (src/ui/spectator.js): the layer only obeys it. Without it
+// the floats fall back to the fixed life the stylesheet gives them, which at
+// speed spans several turns and piles up.
+export function makeEventLayer(stage, grid, { enabled = true, signalMs = null } = {}) {
   if (!enabled || !stage || !grid) return { show: () => {} };
 
   const layer = document.createElement('div');
@@ -148,6 +153,7 @@ export function makeEventLayer(stage, grid, { enabled = true } = {}) {
       if (!fresh.length && !reading && !raging) return;
 
       const size = grid.clientWidth / VIEW;
+      const life = signalMs ? signalMs() : null;
       let stacked = 0;
 
       // Both live states pulse the same way and for the same reason: they
@@ -163,6 +169,7 @@ export function makeEventLayer(stage, grid, { enabled = true } = {}) {
         float.innerHTML = `${glyph(live.emoji)}<span>${live.left}</span>`;
         float.style.left = `${grid.offsetLeft + (CENTRE + 0.5) * size}px`;
         float.style.top = `${grid.offsetTop + (CENTRE - 0.35) * size}px`;
+        if (life) float.style.animationDuration = `${life}ms`;
         float.addEventListener('animationend', () => float.remove());
         layer.append(float);
         stacked++;
@@ -182,6 +189,7 @@ export function makeEventLayer(stage, grid, { enabled = true } = {}) {
           // landing on top of each other.
           float.style.top = `${grid.offsetTop + (signal.row - 0.35) * size - stacked * 14}px`;
           stacked++;
+          if (life) float.style.animationDuration = `${life}ms`;
           float.addEventListener('animationend', () => float.remove());
           layer.append(float);
         }
