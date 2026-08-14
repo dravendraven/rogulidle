@@ -606,6 +606,44 @@ rodando, que é o único jeito de julgar qualquer uma destas.
 
 ---
 
+## Aberto: a lista ordena por custo, e valor só entra no portão
+
+**Achado pelo dono, e é real.** Olhe as duas linhas no mesmo arquivo:
+
+```js
+criatura:  price = ... + max(0, duelo − PRÊMIO)      ← valor entra
+baú:       price = walk/viagem + guarda + abertura    ← valor NÃO entra
+```
+
+O prêmio visível de uma criatura é subtraído do preço dela. O valor esperado
+de um baú aparece só no **portão** — decide se ele pode competir, e some da
+comparação. Então um baú que vale 1,5 hp e uma criatura que não vale nada
+disputam **por custo puro**, e o bot pega o mais barato em vez do que mais
+compensa.
+
+O caso do dono: um baú ao seu lado antes de um duelo é quase óbvio. Ele não
+barateia o duelo — armadura e hp não entram no `duelCost` — mas o torna
+sobrevivível, e custo esperado não é sobrevivência. Este repo diz isso no
+comentário do `fightMargin`: *um duelo precificado em exatamente tudo que o
+herói tem perde cerca de metade das vezes*.
+
+**A correção de uma linha foi tentada e os fios recusaram em uma rodada.**
+Subtrair o valor do preço deixa todo baú admitido abaixo de zero, e criatura
+não tem termo de valor nenhum (`prize` é zero fora do Butcher) — então
+qualquer baú passa na frente de qualquer luta, sempre. O bot aspirou loot e
+parou de descer: `nothing gets deep` disparou e mortes de abertura foram de
+0,227 a 0,287.
+
+**O que falta para consertar de verdade:** o lado da criatura. Matar rende
+`xpEarned`, que vira moeda entre runs, e o bot ignora isso ao escolher alvo.
+Enquanto um lado tem valor e o outro não, pôr valor no ranking só troca de
+qual viés se sofre.
+
+Ficou do episódio uma correção que vale sozinha: a histerese era
+multiplicativa (`atual ≤ melhor × 1,4`) e inverte de sentido com preço
+negativo. Virou a mesma coisa escrita como folga sobre `|melhor|` —
+aritmética idêntica para positivos, e agora à prova de sinal.
+
 ## Descartado, e por quê
 
 Ler antes de reintroduzir.

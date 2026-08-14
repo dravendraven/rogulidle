@@ -965,12 +965,41 @@ export function makeBot(options = {}) {
       const trip = settings.amortiseGuard ? tripSize(belief, chest.pos, danger.reach) : 1;
       const visit = walk / trip + guard + opening(chest.pos);
 
+      // WHAT THE CHEST IS WORTH, and it belongs in the RANKING and not only
+      // in the gate. `LOOT_VALUE` put it in one and left the other: a chest
+      // worth 1.5 hp and a creature worth nothing competed on COST ALONE, so
+      // the bot took the cheapest thing rather than the most worthwhile one.
+      //
+      // The creature next to it has done this the whole time — its visible
+      // drop is subtracted from its price (`prize` above). This is the same
+      // line for the other half of the loot.
+      //
+      // Owner's case, and it is the right one: a chest beside you before a
+      // duel is close to a no-brainer. It does not make the duel CHEAPER —
+      // armour and hp are absent from `duelCost` — but it makes it survivable,
+      // and expected cost is not survival. This file says so itself in
+      // `fightMargin`: a duel priced at exactly what the hero has loses about
+      // half the time.
+      const worth = settings.lootValue ? settings.chestValueHp * hero.sideAppetite : 0;
+
       if (settings.lootValue) {
-        if (visit > settings.chestValueHp * hero.sideAppetite) continue;
+        if (visit > worth) continue;
       } else if (guard > sideBar) {
         continue;
       }
 
+      // AND IT IS NOT SUBTRACTED FROM THE PRICE, which was tried and refused
+      // by the wires inside one run. Netting the value out makes every
+      // admitted chest cost less than zero, and a CREATURE carries no value
+      // term at all — `prize` is zero for everything but the Butcher — so any
+      // chest beat any fight, always. The bot vacuumed loot and stopped
+      // descending: `nothing gets deep` fired (no run reached the halfway
+      // turn) and opening deaths went 0.227 to 0.287.
+      //
+      // The asymmetry the owner spotted is REAL and this is not the fix for
+      // it. Comparing a valued chest against an unvalued creature needs the
+      // creature's side too — its xp, which becomes coin — and that is a
+      // bigger change than one line.
       pool.push({ kind: 'chest', id: chest.id, pos: chest.pos, price: visit });
     }
 
@@ -1054,8 +1083,15 @@ export function makeBot(options = {}) {
     if (pool.length) {
       const best = pool.reduce((a, b) => (b.price < a.price ? b : a));
       const current = held && pool.find((g) => g.kind === held.kind && g.id === held.id);
-      goal = (current && current.price <= best.price * settings.stickiness)
-        ? current : best;
+      // The held goal keeps its place unless the best beats it by more than
+      // the stickiness margin. Written as a GAP against `|best|` rather than
+      // the old `best × stickiness`, because prices can now be negative and a
+      // multiplication flips the test's direction on them — 1.4 × a negative
+      // number is SMALLER, so the sticky goal would have been thrown away
+      // exactly where it should have been kept. Identical arithmetic for
+      // positive prices, so nothing else moves.
+      const slack = (settings.stickiness - 1) * Math.abs(best.price);
+      goal = (current && current.price - best.price <= slack) ? current : best;
     } else if (shrineReachable) {
       // Nothing left worth having: the floor ends.
       goal = { kind: 'shrine', pos: belief.shrine.pos };
