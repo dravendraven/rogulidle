@@ -1,7 +1,8 @@
 # Rota e valor: como o bot precifica o tabuleiro
 
-**Onze peças desenhadas numa sessão com o dono.** Dez já entraram; falta só
-a previsão de dois turnos (§4), a única que pode não pagar.
+**Onze peças desenhadas numa sessão com o dono.** Dez entraram e uma foi
+**descartada por medição** (§4). A fila acabou; o que sobrou é um defeito
+achado no caminho, na última seção.
 
 Antiga contagem: uma
 não. Cada uma é construível e observável sozinha; a ordem de construção está
@@ -220,7 +221,37 @@ jeito").
 Medido, ganância 1, 150 seeds: andares 4,23 → 4,33 (dentro do ruído), baús
 laterais 13,81 → 14,23, divergem em 30 das 150.
 
-## 4. Previsão de dois turnos
+## 4. Previsão de dois turnos ❌ DESCARTADA, medida
+
+**Descartada depois de medir, e a medição é a do dono, não a minha.**
+
+A motivação real dela nunca foi o decaimento — era **não ficar encurralado**:
+evitar combate com 2+ criaturas adjacentes. Na primeira volta eu medi
+zigue-zague e desvio, que é o proxy errado, e ela sobreviveu por engano. Medido
+o cerco de verdade, 80 runs por faixa:
+
+```
+faixa   cautela   cercado   escolhido   fechou em cima   sangue cercado
+0         3,2      0,64%       0,06%           0,58%          5,5%
+5        28,6      0,64%       0,08%           0,56%          5,5%
+```
+
+O herói fica cercado em **0,7% dos turnos**, e a parte em que ele ANDOU para
+dentro do cerco sabendo é **0,07%** — um turno em mil e quatrocentos. Nove de
+cada dez cercos são as criaturas fechando em cima dele, não ele escolhendo mal.
+O cerco custa 5,5 a 7,8% de todo o dano tomado, e isso é o TETO do prêmio;
+a §4 só alcança a fatia escolhida, que é a menor das duas.
+
+A cautela também não separa nada disto — 0,64% nas duas pontas, sem tendência.
+
+**O que ela teria sido, e vale registrar caso alguém volte:** não uma peça nova
+ao lado do que existe, mas o `crowdPenalty` deixando de ser cego ao tempo. Ele
+já cobra um extra quando 2+ criaturas alcançam um tile; só que conta as que já
+estão a um passo, não as que CHEGARIAM enquanto o herói caminha. Se um dia o
+cerco virar um número grande, é ali que se mexe, e não no decaimento.
+
+O resto desta seção é o desenho como ele estava, mantido porque a parte técnica
+continua correta:
 
 A previsão **é fiel e não é chute**: criaturas só perseguem, usam `findPath`,
 pulam 10% dos turnos e bloqueiam umas às outras (`src/sim/monsters.js`). Dá
@@ -511,7 +542,23 @@ sozinho.
 | 6 | **§10** perigo esperado do escuro | ele para de entrar em sala escura como se fosse corredor vazio | médio |
 | ~~7~~ | ~~**§5** fronteira na pool~~ ✅ feito (o portão FICOU) | explorar e brigar se misturam em vez de alternar em blocos | **alto** |
 | ~~8~~ | ~~**§6** refúgio~~ ✅ feito | dá para ver o herói recuar de propósito | médio |
-| 9 | **§4** previsão de dois turnos | ele passa por trás da criatura em vez de por diante | alto, e pode não pagar |
+| ~~9~~ | ~~**§4** previsão de dois turnos~~ ❌ descartada por medição | — | era alta, e não pagava |
+
+**A fila acabou.** O que sobrou não é peça desta proposta e sim um defeito
+achado dentro dela — ver abaixo.
+
+## Aberto: a criatura paga duas vezes no preço de um baú
+
+Quando a rota até um baú ATRAVESSA a criatura que o guarda, ela entra na conta
+duas vezes: uma no `walk`, porque desde o B26 o tile dela custa o duelo, e
+outra no `guardCost`, porque o raio dela cobre o baú. É a mesma luta cobrada
+duas vezes.
+
+O efeito é o bot recusar baús que devia pegar e dar voltas que não devia. Não
+precisa de medição para se justificar — a conta está errada. Precisa de decidir
+qual das duas cobranças é a certa naquele caso, e a resposta provável é: se a
+rota atravessa, o guardião já foi pago, então o `guardCost` daquela criatura
+sai.
 
 **§7 primeiro porque entra provadamente sem mexer em nada** — é o único jeito
 de ganhar dois dials legíveis antes de tudo o mais começar a mover números.
@@ -554,6 +601,10 @@ iguais. Mas quebra o V5 — uma fronteira atrás de um guardião em corredor vir
 *inalcançável* em vez de cara, e o bot para de explorar em vez de pagar.
 
 **Rota gulosa de dois turnos** substituindo o Dijkstra. Ver §4.
+
+**A previsão de dois turnos inteira**, e o motivo está na §4: o cerco que ela
+existia para evitar acontece em 0,7% dos turnos e a parte evitável por rota é
+0,07%.
 
 **`awakeCost` como gatilho do refúgio.** Foi a primeira resposta para "o que
 decide fugir" e está errada por dois motivos: não desconta a distância — uma
