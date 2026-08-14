@@ -32,7 +32,7 @@ import {
   CLUSTER_SIZE, MONSTERS_BASE, MONSTER_GROWTH,
   MONSTER_STRENGTH, POTION_SCARCITY, WEAPON_SCARCITY,
 } from '../src/sim/difficulty.js';
-import { dangerField, dropValue, duelCost, makeBot } from '../src/bot/bot.js';
+import { assumedHp, dangerField, dropValue, duelCost, makeBot } from '../src/bot/bot.js';
 import {
   BIAS_SPREAD, DEFAULT_HERO, LOOT_VALUE, biasBands,
 } from '../src/bot/config.js';
@@ -1560,6 +1560,59 @@ test('the read survives the step it is halfway through', () => {
   state = step(state, 'read').state;
   assertEq(step(state, 'rest').state.player.reading, state.player.reading - 1,
     'the reading counter did not survive a step');
+});
+
+// ***** courage is a guess about health, not a wider margin ***** //
+
+test("the bot is told a creature's health only in melee", () => {
+  const map = tinyMap([
+    '#########',
+    '#-------#',
+    '#########',
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [1, 1],
+    monsters: [dummy('ogre', [2, 1], { activation: 20 }), dummy('wolf', [7, 1], { activation: 20 })],
+    shrine: { id: 's', emoji: '⛩️', pos: [8, 1] },
+  });
+  const seen = observe(state).monsters;
+  const near = seen.find((m) => m.name === 'ogre');
+  const far = seen.find((m) => m.name === 'wolf');
+  assert('hp' in near, 'the creature he is standing next to hides its health');
+  assert(!('hp' in far), 'a creature across the room handed over its health');
+  assert('xp' in far, 'the number over the head has to stay visible');
+});
+
+test('wolf and ogre are the same creature until he is next to one', () => {
+  // The whole point of the estimate: they share xp 4 at hp 5 and hp 7, so
+  // the bestiary average is wrong about both, by 20% each way.
+  const wolf = { name: 'wolf', xp: 4, activation: 20, pos: [9, 9] };
+  const ogre = { name: 'ogre', xp: 4, activation: 20, pos: [9, 9] };
+  assertEq(assumedHp(wolf), assumedHp(ogre), 'two xp-4 creatures were guessed differently');
+  assert(assumedHp(wolf) > 5 && assumedHp(wolf) < 7, 'the guess is not between the two truths');
+  assertEq(assumedHp({ ...wolf, hp: 5 }), 5, 'a creature in melee was still guessed at');
+});
+
+test('bravery discounts the guess, mirrored around the centre', () => {
+  // Owner's formulation: one notch UP means reading the creature as holding
+  // that much LESS than its kind usually does.
+  const wolf = { name: 'wolf', xp: 4, activation: 20, pos: [9, 9] };
+  const plain = assumedHp(wolf, 1);
+  const bands = biasBands();
+  const brave = assumedHp(wolf, bands[3]);      // 1.16
+  const timid = assumedHp(wolf, bands[2]);      // 0.84
+
+  assert(brave < plain, 'a braver hero did not read the creature as weaker');
+  assert(timid > plain, 'a timid hero did not read it as tougher');
+  // 1.16 -> 0.84 of the estimate, and 0.84 -> 1.16 of it: the same distance
+  // either way, which is what makes one notch mean one thing on this dial.
+  assert(Math.abs((plain - brave) - (timid - plain)) < 1e-9, 'the two directions are not symmetric');
+
+  // And it reaches the decision: a braver hero prices the same duel cheaper.
+  const hero = { xp: PLAYER_XP, hp: 10, armour: 0, inventory: [] };
+  assert(duelCost(hero, wolf, bands[3]).hpLost < duelCost(hero, wolf, bands[2]).hpLost,
+    'bravery does not reach duelCost');
 });
 
 // ***** the syringe, and the five turns it doubles ***** //
@@ -3576,7 +3629,16 @@ test('V5 — a cautious hero does not explore into danger', () => {
       playerPos: [6, 1],
       // Asleep at this range (activation 6 against 7 tiles away), so it
       // never moves and the frontier stays where it is for the whole test.
-      monsters: [dummy('ogre', [13, 1], { activation: 6 })],
+      //
+      // A DRAGON rather than an ogre, and the swap is the point of another
+      // rule: hp is hidden at a distance now, so the bot prices a guard from
+      // the bestiary average for its xp. Ogre and wolf share xp 4, so an
+      // ogre reads as hp 6 instead of 7 and the duel slid under the bar —
+      // this test would then have been measuring that misjudgement instead
+      // of the frontier gate it is about. The zombie is the only xp 5 on the
+      // table, so guess and truth agree and the decision under test is the
+      // only thing moving.
+      monsters: [dummy('zombie', [13, 1], { activation: 6 })],
       shrine: { id: 's', emoji: '🕳️', pos: [6, 3] },
     });
     // Something is still owed, so the pool is empty and the only decision

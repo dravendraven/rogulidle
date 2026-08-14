@@ -186,20 +186,25 @@ export const SECTIONS = [
         // the bot is calibrated at; the six bands are that value times
         // `biasBands()`. One notch means the same thing on every row, which
         // is what made these comparable at all.
-        kind: 'hero', key: 'fightMargin', label: 'quanto de si o herói arrisca numa luta',
+        kind: 'hero', key: 'bravery', label: 'quanto ele subestima a vida de uma criatura',
         title: 'Coragem', icon: '💪', bias: true,
         // One sentence per notch, describing a behaviour that is VISIBLE on
         // screen — `objectives.md` says a choice you cannot recognise by
         // watching for thirty seconds was not a choice. Six written phrases
         // rather than an adverb glued to two: the glue produced things like
         // "muito só teme o que está colado".
+        // Six sentences about the SAME misjudgement in both directions: he
+        // cannot see health, only the number over the head, so every one of
+        // these is a guess he is making about how long the thing takes to
+        // kill — and the extremes are wrong far more often than they are
+        // right.
         says: [
-          'recusa quase toda luta — só mata o que é de graça',
-          'evita briga cara; passa longe do que dói',
-          'escolhe lutas com folga de sobra',
-          'aceita lutas apertadas',
-          'encara duelo caro mesmo machucado',
-          'briga com tudo, inclusive o que não pode pagar',
+          'acha tudo mais duro do que é — foge de rato',
+          'superestima o inimigo; recusa luta que ganharia',
+          'desconfia um pouco do que vê',
+          'aposta que o bicho cai um pouco mais rápido',
+          'encara como se todo mundo fosse frágil',
+          'acha que tudo morre em dois golpes — e às vezes morre ele',
         ],
       },
       {

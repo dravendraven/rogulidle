@@ -28,7 +28,7 @@
 import {
   effectiveHp, expectedDamage, rageMultiplier, weaponDamage, weaponMinDamage,
 } from '../sim/combat.js';
-import { MONSTER_SKIP_CHANCE, READ_TURNS } from '../sim/balance.js';
+import { expectedHpFor, MONSTER_SKIP_CHANCE, READ_TURNS } from '../sim/balance.js';
 import {
   CHEST_VALUE_HP, CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_CHEST_COUNT,
   DEFAULT_MONSTER_COUNT, DEFAULT_HERO, GOAL_STICKINESS, LOOT_VALUE, RAGE_AT,
@@ -66,7 +66,26 @@ import {
 // travels in Belief (src/sim/observe.js) and could be read; nothing reads
 // it. Pricing it here would restore the coupling and delete the room's
 // whole point — docs/project/decisions.md carries the numbers.
-export function duelCost(player, monster) {
+// HOW MUCH HEALTH THE BOT BELIEVES IS IN FRONT OF IT.
+//
+// It is told a creature's hp only in melee (src/sim/observe.js), so at the
+// moment the decision is actually made — walk into that room or not — this
+// estimate is all there is. `expectedHpFor` is the bestiary average for that
+// xp; `bravery` bends it.
+//
+// BRAVERY IS A DISCOUNT ON THE ESTIMATE, mirrored around the centre: a dial
+// one notch up (1.16) makes the hero read the creature as holding 16% LESS
+// than its kind usually does, because that is what being brave IS — not a
+// wider margin for error, but a belief that the thing dies faster than it
+// looks. Sometimes true (a wolf where he expected the average of wolf and
+// ogre) and sometimes fatal (the ogre). The dial cannot make him right; it
+// chooses which way he is wrong.
+export function assumedHp(monster, bravery = 1) {
+  if (monster.hp !== undefined) return monster.hp;
+  return Math.max(1, expectedHpFor(monster.xp) * (2 - bravery));
+}
+
+export function duelCost(player, monster, bravery = 1) {
   // `rageMultiplier` and not a flag read here: the estimate and the roll are
   // one rule (src/sim/combat.js), and a second copy of the test is how the
   // bot would spend five turns underrating its own damage.
@@ -77,7 +96,7 @@ export function duelCost(player, monster) {
   const theirs = expectedDamage(monster.xp, 0);
   if (mine <= 0) return { hpLost: Infinity, turns: Infinity };
 
-  const turns = monster.hp / mine;
+  const turns = assumedHp(monster, bravery) / mine;
   const hpLost = (1 - MONSTER_SKIP_CHANCE) * Math.max(0, turns - 1) * theirs;
   return { hpLost, turns };
 }
@@ -189,7 +208,7 @@ function priceOfReaching(field, pos) {
 // already seen, only this floor. A weapon keeps paying for the rest of the
 // run, and that is the horizon this project built once and deleted. Better a
 // floor that is provably true than a run that is a guess.
-export function dropValue(belief, drop) {
+export function dropValue(belief, drop, bravery = 1) {
   if (!drop) return 0;
   const flat = (drop.armour || 0) + (drop.heal || 0);
   if (!(drop.dmg || drop.dmgMin)) return flat;
@@ -201,12 +220,13 @@ export function dropValue(belief, drop) {
   let saved = 0;
   for (const monster of liveMonsters(belief)) {
     saved += Math.max(0,
-      duelCost(belief.player, monster).hpLost - duelCost(armed, monster).hpLost);
+      duelCost(belief.player, monster, bravery).hpLost
+        - duelCost(armed, monster, bravery).hpLost);
   }
   return flat + saved;
 }
 
-function guardCost(belief, pos, amortise = false) {
+function guardCost(belief, pos, amortise = false, bravery = 1) {
   const near = (a, b, reach) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) <= reach;
   let total = 0;
   for (const monster of liveMonsters(belief)) {
@@ -236,8 +256,8 @@ function guardCost(belief, pos, amortise = false) {
     // Under the same flag as the amortisation because it is the same idea —
     // pricing a visit by what it is worth, not only by what it costs — and
     // an A/B that leaves half the value model on measures nothing.
-    const prize = amortise ? dropValue(belief, monster.drop) : 0;
-    const net = Math.max(0, duelCost(belief.player, monster).hpLost - prize);
+    const prize = amortise ? dropValue(belief, monster.drop, bravery) : 0;
+    const net = Math.max(0, duelCost(belief.player, monster, bravery).hpLost - prize);
     total += net / share;
   }
   return total;
@@ -281,14 +301,14 @@ function stillValid(goal, belief, field) {
 // enough to arrive" is at worst early, never late.
 // What every creature already coming at the hero is expected to cost him, in
 // hp. The fight he is IN, not the floor he is on.
-function awakeCost(belief) {
+function awakeCost(belief, bravery = 1) {
   const [px, py] = belief.player.pos;
   let total = 0;
   for (const m of belief.monsters.values()) {
     if (m.dead) continue;
     const d = Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py);
     if (!isAwakeAt(m, d)) continue;
-    total += duelCost(belief.player, m).hpLost;
+    total += duelCost(belief.player, m, bravery).hpLost;
   }
   return total;
 }
@@ -427,7 +447,7 @@ export function makeBot(options = {}) {
     // brawl happens shallow often enough on its own.
     if (belief.player.inventory.some((i) => i.kind === 'syringe')
       && !belief.player.raging
-      && awakeCost(belief) >= effectiveHp(belief.player)
+      && awakeCost(belief, hero.bravery) >= effectiveHp(belief.player)
         * RAGE_AT * hero.sideAppetite * (settings.floorsAhead ?? 1)) {
       return 'rage';
     }
@@ -458,7 +478,7 @@ export function makeBot(options = {}) {
     for (const monster of liveMonsters(belief)) {
       const walk = priceOfReaching(field, monster.pos);
       if (!Number.isFinite(walk)) continue;
-      const duel = duelCost(belief.player, monster).hpLost;
+      const duel = duelCost(belief.player, monster, hero.bravery).hpLost;
 
       // A creature already chasing charges only the walk: its duel happens
       // whatever the bot does next, so fighting it now is the version where
@@ -499,7 +519,7 @@ export function makeBot(options = {}) {
       // does not make a duel cheaper in hp. Discounting it there would be
       // the bot walking into a fight it cannot win because the loot is
       // good, which is the failure the margin exists to prevent.
-      const prize = settings.lootValue ? dropValue(belief, monster.drop) : 0;
+      const prize = settings.lootValue ? dropValue(belief, monster.drop, hero.bravery) : 0;
       pool.push({
         kind: 'monster', id: monster.id, pos: monster.pos,
         price: walk + Math.max(0, (chasing ? 0 : duel) - prize),
@@ -513,7 +533,7 @@ export function makeBot(options = {}) {
         + (item.armour || 0) + (item.heal || 0) <= 0) continue;
       const walk = priceOfReaching(field, item.pos);
       if (!Number.isFinite(walk)) continue;
-      const guard = guardCost(belief, item.pos, settings.amortiseGuard);
+      const guard = guardCost(belief, item.pos, settings.amortiseGuard, hero.bravery);
       if (guard > sideBar) continue;              // the gamble refused
       pool.push({ kind: 'item', id: item.id, pos: item.pos, price: walk + guard });
     }
@@ -537,7 +557,7 @@ export function makeBot(options = {}) {
 
       const walk = priceOfReaching(field, chest.pos);
       if (!Number.isFinite(walk)) continue;
-      const guard = guardCost(belief, chest.pos, settings.amortiseGuard);
+      const guard = guardCost(belief, chest.pos, settings.amortiseGuard, hero.bravery);
 
       // B21 — the gamble, refused two different ways.
       //

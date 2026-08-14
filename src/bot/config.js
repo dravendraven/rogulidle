@@ -19,8 +19,24 @@ export const DEFAULT_HERO = {
   // A fight may cost at most this share of effective hp (hp + armour),
   // expected. Expected cost is an average — a duel priced at exactly
   // everything the hero has loses about half the time — so the margin is
-  // headroom, not a break-even test. Lower is more cowardly.
+  // headroom, not a break-even test.
+  //
+  // NO LONGER THE COURAGE DIAL. It is a decided constant now: courage moved
+  // to `bravery` below, which bends the ESTIMATE instead of the bar, and two
+  // dials pulling on the same decision from opposite ends was the confusion
+  // M47 spent a whole item untangling.
   fightMargin: 0.7,
+
+  // COURAGE, and what it actually does: the bot is no longer told a
+  // creature's health at a distance (src/sim/observe.js), so it commits to
+  // fights on the bestiary average for that xp. This bends that guess.
+  //
+  // 1 is the average taken at face value; the six bands mirror around it, so
+  // one notch up (1.16) reads every creature as holding 16% LESS than its
+  // kind usually does. Brave is not "accepts worse odds" — it is "believes
+  // things die faster than they look", which is right about the wolf and
+  // wrong about the ogre, both of which are xp 4.
+  bravery: 1,
 
   // Side rooms are the map's gamble, and this is the appetite for it: a
   // side-room fight or guarded chest is only a candidate while its cost

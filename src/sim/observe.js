@@ -51,7 +51,17 @@ const PLAYER_FIELDS = ['pos', 'hp', 'hpMax', 'armour', 'xp', 'inventory', 'kills
 // bot does not PRICE it (see duelCost's own note); that is a design
 // decision, not an information one, and `edge` is already exposed and read
 // by nothing but the instruments.
-const MONSTER_FIELDS = ['id', 'name', 'emoji', 'pos', 'hp', 'hpMax', 'xp', 'activation', 'speed', 'dead', 'side', 'edge'];
+// NO `hp`, and that is the fog decision the whole courage dial now rests on:
+// what a player sees over a creature's head is its xp, never its health. The
+// bot has to COMMIT to a fight on an estimate (src/sim/balance.js's
+// `expectedHpFor`) and finds out whether it guessed right by fighting.
+const MONSTER_FIELDS = ['id', 'name', 'emoji', 'pos', 'xp', 'activation', 'speed', 'dead', 'side', 'edge'];
+// …except the one it is standing next to. Health hidden at a distance and
+// plain in melee is how a person plays it, and it is what keeps the mid-duel
+// reversal alive: the cost of a fight already joined falls as the thing in
+// front of you visibly dies, so the bot still breaks off a losing brawl
+// instead of committing blind to the end.
+const MELEE_FIELDS = [...MONSTER_FIELDS, 'hp', 'hpMax'];
 const CHEST_FIELDS = ['id', 'name', 'emoji', 'pos', 'side', 'edge'];
 // `dmgMin` belongs here beside `dmg`: it is a plain property of an item the
 // hero can already see, not an unrevealed answer, and leaving it out made
@@ -76,10 +86,11 @@ const SHRINE_FIELDS = ['id', 'emoji', 'pos'];
 // Narrow on purpose: nothing on MONSTER_TABLE sets it, so every ordinary
 // corpse keeps its secret and M28's leak stays closed. `revealsDrop` also
 // travels, so the renderer and the tests can tell which creatures advertise.
-function monsterFields(revealLoot, monster) {
+function monsterFields(revealLoot, monster, inMelee = false) {
+  const seen = inMelee ? MELEE_FIELDS : MONSTER_FIELDS;
   const base = monster && monster.revealsDrop
-    ? [...MONSTER_FIELDS, 'revealsDrop', 'drop']
-    : MONSTER_FIELDS;
+    ? [...seen, 'revealsDrop', 'drop']
+    : seen;
   return revealLoot ? [...base, 'drop'] : base;
 }
 function chestFields(revealLoot) {
@@ -128,6 +139,11 @@ export function observe(state, options = {}) {
   }
 
   const seen = (entity) => visible.has(posKey(entity.pos));
+  // Melee reach: the eight tiles around the hero plus his own. The engine
+  // only ever strikes orthogonally, so this is generous on purpose — being
+  // able to read the health of something you could be hit by next turn is
+  // the point, not the exact attack geometry.
+  const adjacent = (a, b) => Math.abs(a[0] - b[0]) <= 1 && Math.abs(a[1] - b[1]) <= 1;
 
   return {
     turn: state.turn,
@@ -136,7 +152,8 @@ export function observe(state, options = {}) {
     player: copyEntity(state.player, PLAYER_FIELDS),
     visible,
     tiles,
-    monsters: state.monsters.filter(seen).map((m) => copyEntity(m, monsterFields(revealLoot, m))),
+    monsters: state.monsters.filter(seen).map((m) => copyEntity(m,
+      monsterFields(revealLoot, m, adjacent(from, m.pos)))),
     items: state.items.filter(seen).map((i) => copyEntity(i, ITEM_FIELDS)),
     chests: state.chests.filter(seen).map((c) => copyEntity(c, chestFields(revealLoot))),
     shrine: seen(state.shrine) ? copyEntity(state.shrine, SHRINE_FIELDS) : null,

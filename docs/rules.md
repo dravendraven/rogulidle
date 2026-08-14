@@ -382,6 +382,13 @@ não revelada já a vazou, mesmo que ninguém o leia — foi por isso que o item
 já sorteado de uma criatura saiu do Belief. O que atravessa é lista
 explícita por tipo de entidade, não cópia do objeto inteiro.
 
+**A vida de uma criatura não atravessa — só o número acima da cabeça.** O
+que o bot recebe de longe é o xp, que é a mordida; quanto ela aguenta, não.
+Ele só descobre isso **encostado nela**, e aí a vida atravessa normalmente.
+Duas consequências deliberadas: comprometer-se com uma luta é sempre um
+palpite, e desistir dela no meio continua possível, porque a criatura que
+está na sua frente morrendo é visível.
+
 **A lista abre por dois lados, e eles são de naturezas diferentes.**
 
 **Pelo observador: existe herói com direito a essa resposta.** Para um

@@ -84,9 +84,12 @@ the same claim the row below corrects.)
 the generator weights the kinds. It is 1.5 today and it follows its inputs —
 never tune it by hand.
 
-The bot's dials belong to the bot. `DEFAULT_HERO` (fightMargin 0.7,
-sideAppetite 0.5, stepCost 0.1) is the whole hero-as-configuration
-mechanism and the CENTRE the panel's six bands are built around;
+The bot's dials belong to the bot. `DEFAULT_HERO` (bravery 1, sideAppetite 1,
+fightMargin 0.7, stepCost 0.1) is the whole hero-as-configuration mechanism
+and the CENTRE the panel's six bands are built around. `bravery` 1 means
+"take the bestiary average at face value" — the bot is not told a creature's
+health at a distance (rules.md §7) and `expectedHpFor` is what it guesses
+with. `fightMargin` is no longer one of the six;
 `DANGER_PERSISTENCE` 0.7 is the third dial on the panel.
 
 **It is no longer what a visitor plays.** Each one gets a band ROLLED per

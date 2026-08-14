@@ -126,7 +126,8 @@ e gratis e o bot vaga um andar por 1500 turnos — precisa estar acima de
 
 | traço | objetivo | o que faz |
 |---|---|---|
-| `fightMargin` | sobreviver | fração do hp efetivo que uma luta pode custar |
+| `bravery` | sobreviver | quanto ele SUBESTIMA a vida de uma criatura. Ele não vê vida de longe (`rules.md` §7), só o xp, então precifica pela média do bestiário para aquele xp — e a coragem desconta essa média, espelhada em torno do centro: um entalhe acima (1,16) é ler tudo como tendo 16% menos vida. Não é aceitar odds piores, é **acreditar que morre mais rápido** — certo sobre o lobo, fatal sobre o ogro, ambos xp 4 |
+| `fightMargin` | sobreviver | fração do hp efetivo que uma luta pode custar. **Deixou de ser dial** — é constante decidida; dois dials puxando a mesma decisão de pontas opostas era a confusão que o M47 desfez |
 | `sideAppetite` | chegar rico | apetite pela aposta lateral — e por andar até o escuro caro (0 = nunca; acima de 1 arrisca mais no opcional do que no obrigatório) |
 | `stepCost` | poucos passos | quanto vale um passo em hp. **Nao e bem pressa:** o preco do tile e `stepCost + perigo`, entao valor alto torna o perigo desprezivel na comparacao e a rota vira distancia pura. Medido, 0 quebra o bot (vaga 1500 turnos porque andar e gratis) e de 0,01 a 0,2 nada muda |
 

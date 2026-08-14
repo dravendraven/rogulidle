@@ -71,6 +71,38 @@ export const MONSTER_TABLE = [
   { name: 't-rex',   emoji: '🦖', activation: 15, xp: 10, hp: 12 },
 ];
 
+// WHAT A CREATURE OF THIS xp TYPICALLY HOLDS, averaged over the table rows
+// that share it. The bot is not told a creature's hp any more (observe.js) —
+// only the number over its head — so this is the bestiary knowledge a player
+// builds by playing, and it is honestly WRONG for half the table: wolf and
+// ogre are both xp 4 at hp 5 and 7, so whoever expects 6 is 20% out either
+// way. That error is the point, not a defect in the estimate.
+//
+// Derived from MONSTER_TABLE rather than written down, so a table edit
+// cannot leave a second copy of the bestiary behind.
+const HP_BY_XP = (() => {
+  const sums = new Map();
+  for (const m of MONSTER_TABLE) {
+    const at = sums.get(m.xp) || { total: 0, count: 0 };
+    at.total += m.hp; at.count += 1;
+    sums.set(m.xp, at);
+  }
+  return new Map([...sums].map(([xp, a]) => [xp, a.total / a.count]));
+})();
+
+export function expectedHpFor(xp) {
+  const exact = HP_BY_XP.get(xp);
+  if (exact !== undefined) return exact;
+  // Off the table — the vault's occupant, or anything a later edit adds.
+  // Nearest xp that IS on it, so an unknown creature is guessed like the
+  // most similar known one rather than like nothing.
+  let best = null;
+  for (const [known, hp] of HP_BY_XP) {
+    if (best === null || Math.abs(known - xp) < Math.abs(best[0] - xp)) best = [known, hp];
+  }
+  return best ? best[1] : 1;
+}
+
 export const MONSTER_SKIP_CHANCE = 0.10;       // FAITHFUL engine.cljs:353
 export const MONSTER_DROP_CHANCE = 0.50;       // FAITHFUL generator.cljs:275
 export const MONSTER_DIFFICULTY_SCALE = 0.75;  // FAITHFUL generator.cljs:262
