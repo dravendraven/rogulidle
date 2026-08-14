@@ -4,10 +4,9 @@
 **descartada por medição** (§4). A fila acabou; o que sobrou é um defeito
 achado no caminho, na última seção.
 
-Antiga contagem: uma
-não. Cada uma é construível e observável sozinha; a ordem de construção está
-no fim e **não é a ordem em que estão numeradas aqui** — a numeração é a da
-conversa, para que ela mape no documento.
+Cada peça é construível e observável sozinha. A numeração é a da conversa,
+para que ela mape no documento; a ordem em que foram construídas está no fim
+e não é a mesma.
 
 Começou como "cautela" e cresceu. O assunto real é maior: **como o bot
 precifica cada tile e cada coisa que vale a pena pegar**, e por que quase
@@ -51,7 +50,8 @@ ao risco é a atitude perante o que ainda não foi visto.
 
 # Parte I — o que já entrou
 
-Seis peças, todas medidas, todas em `main` — as duas primeiras da ordem de construção já saíram.
+Todas medidas, todas em `main`. As quatro abaixo são as que entraram antes de
+a fila começar; as sete da Parte II saíram na ordem de construção do fim.
 
 ## 8. `side` saiu do Belief ✅
 
