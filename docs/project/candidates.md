@@ -442,10 +442,19 @@ both achievements are a plaque and neither is a key.
 
 That gives the progression its first stated shape, two rungs:
 
-| achievement | unlocks |
-|---|---|
-| `butcher` 🐷 | choosing a hero — until then the base hero is forced |
-| `bottom` 🕳️ | the entity at floor 10, and hell behind it |
+| achievement | unlocks | |
+|---|---|---|
+| `butcher` 🐷 | choosing a hero — until then the base hero is forced | **BUILT** |
+| `bottom` 🕳️ | the entity at floor 10, and hell behind it | unbuilt |
+
+**The first rung is wired.** `HERO_GATE` in `src/ui/achievements.js` names it,
+`src/ui/roster.js` enforces it: the four heroes are shown but shut, with the
+achievement's own `locked` sentence under them, and a pick made before the gate
+existed reads as the base hero until the pig falls (the stored value survives,
+so the pick comes back the moment it does). Only the PLAYER'S pick is gated —
+`dial-overrides.json`'s `who` is the factory setting and stays able to ship any
+hero. The rail re-reads the gate on every run, so the cast opens without a
+reload on the run after the kill.
 
 **The order enforces itself, which is the strongest version of a ladder.** The
 base hero averages 4.6 floors and kills the Butcher in about 6.5% of runs, so

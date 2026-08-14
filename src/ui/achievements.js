@@ -14,6 +14,14 @@
 // takes no storage access, so this stays out of `src/sim/` in both
 // directions. Nothing here is read by the engine and nothing here changes
 // what a run does.
+//
+// WHAT AN ACHIEVEMENT NOW DOES. Both rows used to be pure record — earned,
+// displayed, inert. `butcher` is the first rung of the ladder in
+// `docs/project/candidates.md` (U11): until the pig on floor 4 is down, the
+// rail offers no hero but the base one. The gate's key and the sentence
+// that explains it therefore both live in this file — a gate whose id is in
+// one file and whose reason is in another drifts the first time the reason
+// is reworded.
 
 const KEY = 'rogulidle-achievements';
 
@@ -37,6 +45,10 @@ export const ACHIEVEMENTS = [
   },
 ];
 
+// The one gate that exists today. Named rather than spelled 'butcher' at
+// the rail, so the day a second gate appears the pattern is already here.
+export const HERO_GATE = 'butcher';
+
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
@@ -59,6 +71,18 @@ function save(data) {
 
 export function getAchievements() {
   return load();
+}
+
+export function isEarned(id) {
+  return Boolean(getAchievements()[id]);
+}
+
+// Why a gate is shut, in the achievement's OWN words — the rail prints the
+// same sentence the locked achievement row already shows, so a player reads
+// one explanation for one fact instead of two that could disagree.
+export function lockedReason(id) {
+  const found = ACHIEVEMENTS.find((a) => a.id === id);
+  return found ? found.locked : '';
 }
 
 // Records `id` as earned on run `run`, and reports whether this was the
