@@ -95,10 +95,14 @@ median session runs.
 **THREE things are DECIDED rather than dials, all three measured inert:**
 `CROWD_PENALTY` 15 (B19), `GOAL_STICKINESS` 1.4 (B20) and `stepCost` 0.1
 (B24 — 18 configurations at n=150 and everything from 0.08 to 0.9 reads the
-same). `READ_AT` 0.9 — the demand when the WHOLE descent is still ahead, scaled
+same). `READ_AT` 0.8 — the demand when the WHOLE descent is still ahead, scaled
 down by the threat still in front (`threatAhead`, src/sim/difficulty.js) and
 by greed — and `READ_CAP` 0.9, the ceiling that keeps a product of three
-multipliers from asking for more bar than exists. Both are FIRST GUESSES. See
+multipliers from asking for more bar than exists. Swept at 0.9 and 0.8; 0.8
+because at 0.9 everything from greed 1.0 up hit the cap on shallow floors and
+three of the six bands became the same setting. THE TOP TWO BANDS ARE STILL
+THE SAME, and cannot both be separated and keep floor 1 meaning near-death:
+the cap is 0.9 and the band range is ninefold. See
 `docs/bot.md`.
 
 ## Tiers

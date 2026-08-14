@@ -242,15 +242,19 @@ export const LOOT_VALUE = true;
 // standing still — a share of hpMax, so it means the same thing whatever the
 // bar is, and it is SCALED BY GREED at the call site (src/bot/bot.js).
 //
-// This is the calibrated centre, not the setting: greed multiplies it, and
-// the six bands run 0.2 to 1.8, so the demand runs from a tenth of the bar
-// to nine tenths of it. Half is a first guess and has never been swept.
+// This is the demand when the WHOLE descent is still ahead; greed and the
+// threat still in front both scale it down from there.
+//
+// 0.8 rather than 0.9, and the difference is the top half of the dial: at
+// 0.9 anything from greed 1.0 up hit READ_CAP on shallow floors, so three of
+// the six bands read at the same hp on the same floor and the setting stopped
+// meaning anything. Swept at both.
 //
 // Higher wastes the heal — the book fills to full, so reading at a scratch
 // throws most of it away. Lower risks never firing: the bot only reads when
 // nothing awake can reach it, and a hero already down to his last point is
 // usually down there BECAUSE something is on him.
-export const READ_AT = 0.9;
+export const READ_AT = 0.8;
 
 // The most the demand may ever be, however the three multipliers land. At
 // 0.9 the strictest possible reader still reads with a point of hp left;
