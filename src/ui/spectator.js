@@ -118,7 +118,7 @@ function grab() {
     'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
     'coins', 'coinPopup', 'damage', 'debugInfo', 'app', 'lab', 'dials',
     'shop', 'shopBalance', 'shopItems', 'shopSkip', 'shopTimerBar',
-    'achievements', 'roster', 'highscores',
+    'achievements', 'roster', 'highscores', 'mapDials',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -714,7 +714,14 @@ function wireLab(overrides, devMode) {
         onRestart: () => { session.restart = true; },
         overrides,
         dev: devMode,
+        // The map goes to the right column, under the numbers. The left
+        // drawer is the BOT — who is playing this run — and the map is the
+        // dungeon every run happens in; sharing one column made the two
+        // read as a single long form. Only reachable in dev mode, so
+        // outside it this mount stays empty and hidden.
+        mounts: { Andar: el.mapDials },
       });
+      el.mapDials.hidden = !el.mapDials.children.length;
     }
   };
 
