@@ -72,6 +72,14 @@
       </p>
     </div>
 
+    <!-- THE RIGHT RAIL, one grid item holding three stacked blocks.
+         They used to be three direct children of .lab pinned to the third
+         column, which put each one in its own grid ROW — and row 1 is as
+         tall as the middle column, so everything under the stats landed
+         below the whole board instead of beside it. A wrapper is what makes
+         them stack against the numbers rather than against the page. -->
+    <div class="rail">
+
     <aside class="panel">
       <div class="chips">
         <span id="xpEarned"></span>
@@ -96,20 +104,17 @@
       </footer>
     </aside>
 
-    <!-- THE MAP'S DIALS, in the right column under the numbers rather than
-         in the drawer on the left. Same trick as the board below: a direct
-         child of .lab pinned to the third track, so it stacks without a
-         wrapper. The left drawer is the BOT — what this run is — and the
-         map is the dungeon those runs happen in; two different questions
-         were reading as one long form when they shared a column.
-         Populated by dials.js through its `mounts`; stays empty outside
-         ?dev=1, which is why it is hidden until something lands in it. -->
+    <!-- THE MAP'S DIALS, under the numbers rather than in the drawer on the
+         left. The left drawer is the BOT — what this run is — and the map is
+         the dungeon those runs happen in; two different questions were
+         reading as one long form when they shared a column. Populated by
+         dials.js through its `mounts`; stays empty outside ?dev=1, which is
+         why it is hidden until something lands in it. -->
     <aside id="mapDials" class="panel map-dials" hidden></aside>
 
-    <!-- The last direct child of .lab, not nested in .panel above: CSS puts
-         it in the SAME grid column (the third track), one row down, so it
-         ends up stacked below .panel without a wrapper element. -->
     <aside id="highscores" class="panel highscores"></aside>
+
+    </div>
   </div>
 
 </div>

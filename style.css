@@ -599,21 +599,28 @@ footer {
    board instead of drifting to the window edges on a wide screen. */
 .side { justify-self: end; width: 100%; max-width: 255px; }
 .middle { min-width: 0; }
-.panel { justify-self: start; }
+/* `.panel` no longer sets justify-self: it is inside `.rail` now, and the
+   rail is the grid item that leans inward. */
 
-/* The highscore board (src/ui/highscores.js) — a 4th direct child of .lab,
-   placed under .panel by targeting the SAME column (the grid's 3rd track)
-   rather than wrapping both in a container element. Auto-placement then
-   puts it one row down, since row 1's 3rd track is already taken. */
-.highscores { grid-column: 3; justify-self: start; }
+/* THE RIGHT RAIL — ONE grid item, three blocks stacked inside it.
+   They were three direct children of .lab pinned to `grid-column: 3`, which
+   gave each its own grid ROW. Row 1 is as tall as the middle column, so
+   everything after the stats rendered below the entire board instead of
+   beside it. Stacking them inside one item is what makes them line up
+   against the numbers rather than against the page. */
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  justify-self: start;
+  min-width: 0;
+}
 
-/* The map's dials, same third track, above the board. Reuses .panel for the
+/* The map's dials, in the rail under the numbers. Reuses .panel for the
    frame and only says what differs: it is a form, so it gets the drawer's
    smaller type and its own scroll before it can push the column taller than
    the screen. */
 .map-dials {
-  grid-column: 3;
-  justify-self: start;
   font-size: 12px;
   max-height: 60vh;
   overflow-y: auto;
@@ -862,11 +869,10 @@ footer {
      The three-track grid becomes a single track — the flanks have nowhere
      to flank from — and each cell stops being pinned to its side. */
   .lab { grid-template-columns: 1fr; }
-  .side, .panel, .highscores, .map-dials { justify-self: stretch; max-width: none; }
-  .map-dials { grid-column: auto; max-height: none; }
+  .side, .rail, .panel, .highscores, .map-dials { justify-self: stretch; max-width: none; }
+  .map-dials { max-height: none; }
   /* Only one track exists here, so the explicit 3rd-column placement above
      would target a column that no longer exists — back to plain flow. */
-  .highscores { grid-column: auto; }
   .dials { width: 100%; max-height: 55vh; padding-right: 0; }
   .app.lab-open { max-width: none; }
 
