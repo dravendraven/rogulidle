@@ -32,7 +32,6 @@ import { MONSTER_SKIP_CHANCE, READ_TURNS } from '../sim/balance.js';
 import {
   CHEST_VALUE_HP, CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_CHEST_COUNT,
   DEFAULT_MONSTER_COUNT, DEFAULT_HERO, GOAL_STICKINESS, LOOT_VALUE, READ_AT,
-  READ_CAP,
 } from './config.js';
 import {
   actionToward, believedWalkable, dijkstra, flood, frontiers, key, routeTo,
@@ -362,14 +361,19 @@ export function makeBot(options = {}) {
     //   greed        how dearly this hero holds a thing, the same meaning it
     //                carries everywhere else in the bot.
     //
-    // CAPPED, and the cap is load-bearing: three multipliers reach past 1
-    // easily — at the top greed band the raw demand is 1.6 bars, which no
-    // hero can ever meet, and the book would simply never be read on the
-    // floors where it was saved. The cap turns "impossible" into "at a
-    // point from death", which is what a miser should be, not a joke.
+    // NO CAP, and removing it is what makes the top of the dial mean
+    // something. The product passes 1 on shallow floors at high greed, and a
+    // demand above one bar is simply unmeetable — so the miser CANNOT read
+    // early, which is the behaviour rather than a bug in it. The ladder that
+    // falls out: the demand drops under a full bar around floor 4 at greed
+    // 1.16, floor 8 at 1.48, floor 9 at 1.8. Capping it flattened those three
+    // into one setting that read at a point from death on floor three.
+    //
+    // The cost is real and deliberate: a band that only becomes possible on
+    // floor 9 fires in the few runs that reach floor 9. Hoarding that hard
+    // is supposed to cost the item.
     const missing = belief.player.hpMax - belief.player.hp;
-    const demand = Math.min(READ_CAP,
-      READ_AT * hero.sideAppetite * (settings.threatAhead ?? 1));
+    const demand = READ_AT * hero.sideAppetite * (settings.threatAhead ?? 1);
     if (missing >= belief.player.hpMax * demand
       && belief.player.inventory.some((i) => i.kind === 'book')
       && safeToStandStill(belief)) {

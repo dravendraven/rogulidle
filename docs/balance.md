@@ -96,13 +96,12 @@ median session runs.
 `CROWD_PENALTY` 15 (B19), `GOAL_STICKINESS` 1.4 (B20) and `stepCost` 0.1
 (B24 — 18 configurations at n=150 and everything from 0.08 to 0.9 reads the
 same). `READ_AT` 0.8 — the demand when the WHOLE descent is still ahead, scaled
-down by the threat still in front (`threatAhead`, src/sim/difficulty.js) and
-by greed — and `READ_CAP` 0.9, the ceiling that keeps a product of three
-multipliers from asking for more bar than exists. Swept at 0.9 and 0.8; 0.8
-because at 0.9 everything from greed 1.0 up hit the cap on shallow floors and
-three of the six bands became the same setting. THE TOP TWO BANDS ARE STILL
-THE SAME, and cannot both be separated and keep floor 1 meaning near-death:
-the cap is 0.9 and the band range is ninefold. See
+down by greed and by the threat still in front (`threatAhead`,
+src/sim/difficulty.js). UNCAPPED on purpose: the product passes one whole bar
+on shallow floors at high greed, and a demand nothing can meet is what stops
+the miser reading early. That is the mechanism, not a defect in it — the
+floor the book first becomes possible on climbs 1, 1, 1, 4, 8, 9 across the
+six bands. A first guess, swept at 0.9 and 0.8. See
 `docs/bot.md`.
 
 ## Tiers

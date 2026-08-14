@@ -256,8 +256,3 @@ export const LOOT_VALUE = true;
 // usually down there BECAUSE something is on him.
 export const READ_AT = 0.8;
 
-// The most the demand may ever be, however the three multipliers land. At
-// 0.9 the strictest possible reader still reads with a point of hp left;
-// without it the top greed band asks for 1.6 bars, which nothing can meet,
-// and a dial setting would silently mean "never" instead of "miserly".
-export const READ_CAP = 0.9;

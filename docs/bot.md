@@ -26,10 +26,12 @@ frases:
   INTEIRA ainda está pela frente — quase morte, por desenho — e a fração de
   ameaça restante (`src/sim/difficulty.js`) a afrouxa conforme o que sobra
   encolhe. Sai da curva de dificuldade, não de um número de andar escolhido
-  a dedo: mexer na curva reajusta o livro de graça. **O teto é
-  load-bearing** — três multiplicadores passam de 1 fácil, e sem ele a faixa
-  mais gananciosa pediria 1,6 barras, que ninguém alcança, e o dial diria
-  "nunca" achando que diz "avarento".
+  a dedo: mexer na curva reajusta o livro de graça. **Sem teto, de
+  propósito** — o produto passa de uma barra inteira nos andares rasos com
+  ganância alta, e uma exigência que ninguém alcança é justamente o que
+  impede o avarento de ler cedo. O andar em que o livro se torna possível
+  sobe 1, 1, 1, 4, 8, 9 pelas seis faixas; nas duas últimas ele quase nunca
+  chega a ler, e isso é o preço de guardar tanto.
 - **A fração é a Ganância**, e é ela que decide QUANDO. O livro cura o que
   falta, então "vale a pena" precisa de uma fração para ser teste — e ganância
   já significa "quanto uma coisa vale para este herói" no resto do bot, então
