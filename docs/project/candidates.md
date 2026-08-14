@@ -378,9 +378,10 @@ At floor 10 the hero may meet an entity offering two portals. One goes back:
 pocket the coins, descend again stronger. The other goes down — twenty more
 floors of hell, the Balrog at the bottom. Reaching the Balrog is meant to be
 nearly impossible and beating it nearly impossible on top of that, so the real
-objective becomes **how deep into hell you got**. The descent runs on a seed
-drawn per day and shared by every player, and the scoreboard is who went
-deepest on today's seed.
+objective becomes **how deep into hell you got**. **Only the descent** runs on a seed drawn per
+day and shared by every player — floors 1-10 stay private and random, one new
+seed per run, the way they are today. The scoreboard is who went deepest on
+today's seed.
 
 **What it solves is the open risk in the owner's own philosophy.** The stated
 position is a deliberately hard baseline with power unlocked through
@@ -396,6 +397,16 @@ safest when it buys a different way to lose rather than a lower chance of
 losing" — a boss nobody beats converts every gain into *losing deeper*, which
 is that sentence with the sign flipped and nothing else changed.
 
+**How many descents a day is the decision this rests on, and it is not
+anti-grind.** With no cap the floor-10 choice is not a choice: descending is
+free and there are forty more attempts today, so the portal home is never taken
+and the entity is a button. A small cap — three — makes "spend one now or go
+back and return stronger" the push-your-luck the whole thing is for.
+`objectives.md` says the same in its own words: an option with no real weakness
+is not an option. The cap also settles the leaderboard's other distortion,
+since best-of-N ranks whoever left the tab open longest whenever N is
+unbounded.
+
 **The daily seed is the strongest part, and not for the obvious reason.** Not
 because dailies are engaging; because THE BOT PLAYS. Sharing the seed removes
 the map from the comparison, and what is left is the only thing the player
@@ -405,6 +416,14 @@ a reason to matter for. Rogule's own daily compares play; this one compares
 preparation, and preparation is what a game that plays itself can actually
 offer. The engine needs nothing new for it: same seed, same run, always
 (`src/sim/rng.js`).
+
+**The private 1-10 does not break that, because the game is idle.** Two players
+enter the same hell with different gear, so a single descent compares build AND
+the luck of the preparation run. Over a day of continuous play the board records
+the BEST descent, which is the maximum of many draws — and the shape of that
+maximum's tail is the configuration, not the luck. Sorting by best-of-N is what
+converts a noisy per-run comparison into a comparison of builds. It is also why
+the cap above matters: it fixes N for everyone.
 
 **It does not reintroduce the daily gate.** The product line is "no daily gate
 — the next run starts the moment the last one ends", and "desafio diário" reads
@@ -461,6 +480,55 @@ This is that shape with the stakes moved: one boundary instead of five, and the
 first, this is a configuration of it and not a second system — and U9's own
 blocker, a balance that is readable and spendable mid-run, is this feature's
 blocker too, since "pocket the coins" is the same machine.
+
+### U12 · The board — a name, a date, and a seed anyone can replay
+
+`owner idea` · **UNSCHEDULED** · U11's expensive blocker, priced down to about
+half a day by dropping accounts
+
+The cheap version of the scoreboard U11 needs. **No login, no accounts, no
+sessions, no device locking.** The player types a name, it lives in
+`localStorage` beside the six stores already there, and using the same name
+means being the same person. That is trust, chosen deliberately: the game is
+played among friends, and every mechanism that would enforce identity costs
+more than the problem.
+
+**What gets submitted is `{name, date, config, runSeed}`** — never a score.
+Not for anti-cheat (the trust is granted) but because the seed is shared and the
+simulation is deterministic, so those four fields let ANY browser replay the
+run and arrive at the same number. Watching how a friend reached hell floor 31
+falls out of what already exists. `runSeed` is the private 1-10 seed and it has
+to be in there: without it the arrival state is unknown and nothing is
+reproducible, since only the hell half is shared.
+
+**Derive the daily seed from the UTC date, not the local one.** A friend in
+another timezone otherwise plays yesterday's or tomorrow's map and the board
+silently compares different dungeons. One line, and the kind of thing that
+surfaces only when somebody travels.
+
+#### The cross-device conflict dissolves, and it is worth knowing why
+
+The worry was two devices on one account picking different seeds and corrupting
+each other's progress. With a date-derived seed there is nothing to reconcile:
+both devices compute the same seed without talking. No lease, no heartbeat, no
+single-instance lock, none of the edge cases those drag in (closed laptop,
+offline play, clock skew, takeover flow).
+
+**The consequence to accept on purpose:** with no account, progression stays PER
+DEVICE. Wallet and achievements on the phone are not the ones on the desktop, so
+a hero unlocked on one is locked on the other. For a game played among friends
+that is probably fine — but it is a decision, not a detail, and it is the whole
+price of dropping accounts.
+
+#### What it still costs
+
+A server, and this would be the first one. "Must run by opening HTML files /
+GitHub Pages as-is" becomes false the moment a board exists. The rule can be
+preserved where it actually matters — the game stays fully playable anonymous
+and offline, with name and board purely additive — but that has to be written
+down rather than left as a consequence. With accounts dropped the server is a
+table with an insert policy and a select; the re-simulation that would have
+been needed for trust is optional, and worth keeping only for replay.
 
 ## Archived
 
