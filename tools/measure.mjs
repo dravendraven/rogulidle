@@ -137,9 +137,15 @@ const GENERATION = {
 // because generation did — the four generation checks above never moved.
 // Read off `run-check.html` in a browser, which returned exactly what the
 // headless runner returned, which is the fidelity this check is for.
+// Re-recorded when the chest gate started sharing the WALK across everything
+// one trip collects (C1 §11). The bot chooses differently; generation did not
+// move, and the four checks above say so. Read off a RELOADED `run-check.html`
+// — the first read returned the old numbers because `import()` caches modules
+// per page load and the stale `bot.js` was still in there, which is the trap
+// CLAUDE.md warns about and it caught me.
 const MEASUREMENT = {
   call: { module: 'check', fn: 'tripwires', args: { runs: 3, firstSeed: 500000 } },
-  values: [0.333, 0, 0, 0, 0.333, 0.667, 1],
+  values: [0, 0, 0, 0, 0.333, 1, 1],
 };
 
 // The exact snippet that produced GENERATION, for re-recording in a browser

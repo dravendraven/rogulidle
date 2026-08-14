@@ -89,6 +89,13 @@ frases:
   custa mais do que o apetite permite. O custo de um guardião se divide entre
   tudo que ele guarda — uma sala de tesouro é `n × valor − 1 × duelo`, não a
   mesma conta feita `n` vezes.
+- **A caminhada também se divide, e faltava.** O duelo era rateado e o `walk`
+  não, então uma sala de seis baús do outro lado do andar era julgada como se
+  o herói fosse até lá seis vezes. O agrupamento é definido **pelo
+  guardião** — o que aquele mesmo bicho cobre, contado uma vez só — porque é o
+  único agrupamento que o bot já calcula. Agrupamento **sem** guardião
+  continua invisível, e consertar isso exige um raio que ninguém tem valor
+  para ainda.
 - **Guardião é toda criatura cujo raio de perseguição cobre o loot** — "pisar
   ali acordaria isso". Não é proximidade em abstrato: um bicho de raio largo
   guarda de longe, um de raio curto só o que está encostado. Antes exigia

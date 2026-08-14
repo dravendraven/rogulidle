@@ -1,6 +1,6 @@
 # Rota e valor: como o bot precifica o tabuleiro
 
-**Onze peças desenhadas numa sessão com o dono.** Quatro já entraram, sete
+**Onze peças desenhadas numa sessão com o dono.** Seis já entraram, cinco
 não. Cada uma é construível e observável sozinha; a ordem de construção está
 no fim e **não é a ordem em que estão numeradas aqui** — a numeração é a da
 conversa, para que ela mape no documento.
@@ -47,7 +47,7 @@ ao risco é a atitude perante o que ainda não foi visto.
 
 # Parte I — o que já entrou
 
-Quatro peças, todas medidas, todas em `main`.
+Seis peças, todas medidas, todas em `main` — as duas primeiras da ordem de construção já saíram.
 
 ## 8. `side` saiu do Belief ✅
 
@@ -338,7 +338,7 @@ idêntica — dá para landar, confirmar que nada moveu, e só depois varrer cad
 metade. É raro conseguir isso num corte deste tamanho, e é por isso que vem
 cedo.
 
-## 11. O valor de um baú é o da sala, não o dele sozinho
+## 11. O valor de um baú é o da sala, não o dele sozinho ✅
 
 **A assimetria, em uma linha: o guardião é rateado, a caminhada não.**
 
@@ -374,8 +374,21 @@ verdade**, porque as duas precisam definir *agrupamento*:
 - **Pela sala**: o bot não sabe o que é sala (a §8 tirou), e re-conceder isso
   desfaz a peça 8.
 
-Recomendação: começar pela primeira, medir, e só inventar raio se o caso sem
-guardião aparecer de verdade.
+**Feito pela primeira**, com o limite declarado no código. Medido, ganância 1,
+150 seeds: andares 4,49 → 4,32 (dentro do ruído), baús laterais 14,54 → 14,70,
+divergem em 82 seeds. E os tripwires no jogo shipado:
+
+```
+mortes de abertura   0,233 → 0,200
+runs completas           0 → 3        ("wins too rare" parou de disparar)
+a aposta está morta  0,845 → 0,908
+```
+
+**A primeira run completa do projeto em muitas sessões apareceu aqui** — e a
+mesma mudança empurrou a aposta para 0,908, na direção de "baú lateral é
+sempre aberto", que é a metade do fio que dispara. Três mudanças seguidas
+empurraram esse fio para o mesmo lado (0,838 → 0,828 → 0,845 → 0,908). É o
+número a vigiar na próxima peça.
 
 ---
 
@@ -416,8 +429,8 @@ sozinho.
 
 | # | peça | como você vê que funcionou | risco |
 |---|---|---|---|
-| 1 | **§7** o corte da `sideAppetite` | nada muda — e é isso que se confirma | nenhum, entra como no-op |
-| 2 | **§11** ratear a caminhada pelo agrupamento | ele deixa de recusar sala de tesouro distante | baixo |
+| ~~1~~ | ~~**§7** o corte da `sideAppetite`~~ ✅ feito | nada muda — e foi isso que se confirmou, 150 de 150 seeds | nenhum |
+| ~~2~~ | ~~**§11** ratear a caminhada~~ ✅ feito | ele deixa de recusar sala de tesouro distante | baixo |
 | 3 | **§1** `bite = 1` e a cautela como taxa de câmbio | cautela alta: desvia de rato. No centro: nada muda | médio — muda o que "perigo" significa |
 | 4 | **§2** calibrar contra um duelo justo | a tabela de seis faixas | nenhum, é medição |
 | 5 | **§3** perseguidor paga metade | ele para de dar a volta para encontrar quem já vem | baixo |

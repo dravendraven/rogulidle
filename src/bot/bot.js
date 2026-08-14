@@ -367,6 +367,49 @@ export function guardCost(belief, pos, { amortise = false, bravery = 1, reach, p
   return total;
 }
 
+// HOW MANY THINGS ONE TRIP TO `pos` ALSO COLLECTS — everything covered by the
+// same guards that cover `pos`, counted once. 1 when nothing guards it.
+//
+// C1 §11. B22 already noticed half of this: a guard's duel is paid ONCE and
+// buys access to everything it covers, so `guardCost` divides it. But the
+// WALK was never divided, and multiplying the chest gate by n shows the
+// error exactly —
+//
+//     what it tested:   n × walk + duel  >  n × value × greed
+//     what is true:         walk + duel  >  n × value × greed
+//
+// The trip is charged n times for going once. A room with six chests across
+// the floor was judged as if the hero walked there six separate times.
+//
+// The cluster is defined BY THE GUARD and that is a deliberate limit, not an
+// oversight: it is the one grouping already computed, it costs nothing, and
+// it is exactly the case B22 was about. An UNGUARDED cluster stays invisible —
+// which is the cheap case the bot should love — and fixing that needs a
+// radius, which is a parameter nobody has a value for yet. Measure first.
+function tripSize(belief, pos, reach) {
+  const covers = (monster, target) => {
+    const spread = reach.get(monster.id);
+    const d = spread && spread.get(key(target));
+    return d !== undefined && isAwakeAt(monster, d);
+  };
+
+  const guards = liveMonsters(belief).filter((m) => covers(m, pos));
+  if (!guards.length) return 1;
+
+  // A union, not a sum: two guards covering the same chest do not make the
+  // trip collect it twice.
+  const together = new Set();
+  for (const monster of guards) {
+    for (const chest of belief.chests.values()) {
+      if (covers(monster, chest.pos)) together.add('c' + chest.id);
+    }
+    for (const item of belief.items.values()) {
+      if (covers(monster, item.pos)) together.add('i' + item.id);
+    }
+  }
+  return Math.max(1, together.size);
+}
+
 // Does the goal chosen last turn still exist and still make sense? A goal
 // survives between turns so the bot commits instead of dithering — the
 // policy must not be a pure function of the belief, which can livelock.
@@ -713,7 +756,10 @@ export function makeBot(options = {}) {
       if (!Number.isFinite(walk)) continue;
       const guard = guardCost(belief, item.pos, guardOpts);
       if (guard > sideBar) continue;              // the gamble refused
-      pool.push({ kind: 'item', id: item.id, pos: item.pos, price: walk + guard });
+      // C1 §11, same as the chest below: one journey buys everything the
+      // same guards cover, so the walk is divided by what the trip collects.
+      const trip = settings.amortiseGuard ? tripSize(belief, item.pos, danger.reach) : 1;
+      pool.push({ kind: 'item', id: item.id, pos: item.pos, price: walk / trip + guard });
     }
 
     for (const chest of belief.chests.values()) {
@@ -749,13 +795,21 @@ export function makeBot(options = {}) {
       // the hero's hp and becomes a multiplier on VALUE, which is the only
       // way the dial gets a quantity of its own instead of pulling on the
       // same threshold courage already pulls on.
+      //
+      // C1 §11 — and the walk is shared by the trip, not paid per chest.
+      // Under the same flag as the guard's amortisation because it is the
+      // same idea finished: B22 divided the duel and left the walk whole, so
+      // a treasure room across the floor was priced as six separate journeys.
+      const trip = settings.amortiseGuard ? tripSize(belief, chest.pos, danger.reach) : 1;
+      const visit = walk / trip + guard;
+
       if (settings.lootValue) {
-        if (walk + guard > settings.chestValueHp * hero.sideAppetite) continue;
+        if (visit > settings.chestValueHp * hero.sideAppetite) continue;
       } else if (guard > sideBar) {
         continue;
       }
 
-      pool.push({ kind: 'chest', id: chest.id, pos: chest.pos, price: walk + guard });
+      pool.push({ kind: 'chest', id: chest.id, pos: chest.pos, price: visit });
     }
 
     // Objective 2 outranks objective 3, so the pool is emptied before the
