@@ -276,8 +276,17 @@ export function dropValue(belief, drop, bravery = 1) {
 function guardCost(belief, pos, amortise = false, bravery = 1) {
   const near = (a, b, reach) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) <= reach;
   let total = 0;
+  // A GUARD IS ANY CREATURE WHOSE CHASE RADIUS COVERS THE LOOT — "standing
+  // there would wake this thing". Not proximity in the abstract: a creature
+  // with a wide radius guards from far, a short-radius one guards only what
+  // it is touching.
+  //
+  // It used to also require `monster.side`, and dropping that is not a
+  // loosening — it is the filter losing its input (`side` no longer crosses
+  // the fog, src/sim/observe.js). It is also more honest: a creature on the
+  // mandatory route that happens to cover a chest still has to be dealt with
+  // before the chest can be had, and the old test priced that guard at zero.
   for (const monster of liveMonsters(belief)) {
-    if (!monster.side) continue;
     if (!near(monster.pos, pos, monster.activation)) continue;
 
     let share = 1;
@@ -602,8 +611,19 @@ export function makeBot(options = {}) {
       // joined. A creature at speed 1 can still be outrun — it hesitates
       // one turn in ten and falls behind — so nothing else in the game
       // changes behaviour here.
+      // ONE BAR FOR EVERY CREATURE. It used to be `monster.side ? sideBar :
+      // fightBar` — a different threshold for a creature standing off the
+      // mandatory route. That distinction is gone because `side` no longer
+      // crosses the fog (src/sim/observe.js), and it was costing nothing: at
+      // the shipped `sideAppetite` of 1, `sideBar` IS `fightBar`, so the
+      // ternary compared a number against itself.
+      //
+      // The optional half of the map still reaches this decision, through
+      // the price rather than through a label: a side room is off the route,
+      // so walking there costs more and its guard costs more. Measured, the
+      // gamble survives the change at every band of greed.
       const inescapable = chasing && (monster.speed ?? 1) > 1;
-      if (!inescapable && duel > (monster.side ? sideBar : fightBar)) continue;
+      if (!inescapable && duel > fightBar) continue;
 
       // M49 — a creature that shows what it carries is priced NET of it.
       // The Butcher is the only one, and the axe is the whole reason the

@@ -85,10 +85,21 @@ frases:
   sendo aberto, porque baú barra o tile e quem passa por cima abre
   (`rules.md` §6). Desviar sairia mais caro em turnos do que os dois que a
   abertura custa.
-- **Sala lateral é a aposta:** loot guardado e luta opcional laterais são
-  ignorados quando o guardião custa mais do que o apetite permite. O custo de
-  um guardião se divide entre tudo que ele guarda — uma sala de tesouro é
-  `n × valor − 1 × duelo`, não a mesma conta feita `n` vezes.
+- **Loot guardado é a aposta:** um baú ou item é ignorado quando o guardião
+  custa mais do que o apetite permite. O custo de um guardião se divide entre
+  tudo que ele guarda — uma sala de tesouro é `n × valor − 1 × duelo`, não a
+  mesma conta feita `n` vezes.
+- **Guardião é toda criatura cujo raio de perseguição cobre o loot** — "pisar
+  ali acordaria isso". Não é proximidade em abstrato: um bicho de raio largo
+  guarda de longe, um de raio curto só o que está encostado. Antes exigia
+  também ser criatura lateral, e isso caiu junto com o rótulo (`rules.md`
+  §7). Ficou mais honesto: um bicho da espinha que por acaso cobre um baú
+  também precisa ser resolvido, e a regra antiga precificava esse guardião em
+  zero.
+- **A luta tem UMA barra, para toda criatura.** Havia uma barra própria para
+  criatura lateral, e ela não custava nada para sair: no valor que ship
+  (`sideAppetite` 1) as duas barras são o mesmo número, então o teste
+  comparava um número contra ele mesmo.
 - **Desconta o prêmio que consegue ver.** Uma criatura que anuncia o próprio
   drop (`rules.md` §7 — só o ocupante do vault) é precificada pelo duelo
   MENOS o que o drop vale, e uma arma vale o duelo que ela pouparia contra o
@@ -142,7 +153,7 @@ e gratis e o bot vaga um andar por 1500 turnos — precisa estar acima de
 |---|---|---|
 | `bravery` | sobreviver | quanto ele SUBESTIMA a vida de uma criatura. Ele nunca vê vida (`rules.md` §7), só o xp, então precifica pela média do bestiário para aquele xp — e a coragem desconta essa média, espelhada em torno do centro: um entalhe acima (1,16) é ler tudo como tendo 16% menos vida. Não é aceitar odds piores, é **acreditar que morre mais rápido** — certo sobre o lobo, fatal sobre o ogro, ambos xp 4 |
 | `fightMargin` | sobreviver | fração do hp efetivo que uma luta pode custar. **Deixou de ser dial** — é constante decidida; dois dials puxando a mesma decisão de pontas opostas era a confusão que o M47 desfez |
-| `sideAppetite` | chegar rico | apetite pela aposta lateral — e por andar até o escuro caro (0 = nunca; acima de 1 arrisca mais no opcional do que no obrigatório) |
+| `sideAppetite` | chegar rico | apetite pela aposta: quanto o guardião de um baú ou item pode custar, quanto vale um baú, quanto andar até o escuro caro, e quão tarde se gasta livro e seringa. **Deixou de valer "arrisca mais no opcional que no obrigatório"** — o bot não sabe mais qual é qual (`rules.md` §7). Está sobrecarregado e o corte está desenhado em `docs/project/cautela.md` §7 |
 | `stepCost` | poucos passos | quanto vale um passo em hp. **Nao e bem pressa:** o preco do tile e `stepCost + perigo`, entao valor alto torna o perigo desprezivel na comparacao e a rota vira distancia pura. Medido, 0 quebra o bot (vaga 1500 turnos porque andar e gratis) e de 0,01 a 0,2 nada muda |
 
 Um herói covarde, ganancioso ou apressado é **outro objeto de config, nunca

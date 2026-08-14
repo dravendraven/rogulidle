@@ -263,7 +263,7 @@ leitura e não dá para separá-las".
 
 | uso | o que realmente é | vai para |
 |---|---|---|
-| `sideBar = sideAppetite × fightBar` — luta lateral, item, fronteira | incerteza aceita | **apetite ao risco** |
+| `sideBar = sideAppetite × fightBar` — item, baú, fronteira | incerteza aceita | **apetite ao risco** |
 | o escuro (5.1) | incerteza aceita | **apetite ao risco** |
 | `chestValueHp × sideAppetite` — preço de reserva do baú | valor | ganância |
 | `READ_AT × sideAppetite` — segurar o livro | valor | ganância |
@@ -326,6 +326,13 @@ palpite decai durante o duelo, e um palpite esgotado é refeito do zero.
 **`meleeCost`.** A seringa passou a somar só criaturas adjacentes. O contador
 da fúria cai a cada turno que passa, então injetar à distância gasta o item na
 caminhada — 40% das injeções eram contra o vazio.
+
+**`side` saiu do Belief.** O bot não sabe mais o que é sala lateral e o que é
+espinha. Medido antes de tirar: a aposta sobrevive em todas as faixas de
+ganância, porque a opcionalidade já estava precificada pela caminhada e pelo
+guardião. Consequência para a peça 7: a `sideBar` perdeu o portão de luta
+(que era inerte no centro do dial de qualquer jeito) e guarda item, baú e
+fronteira — o corte continua valendo, com alcance menor.
 
 **B26 — o tile de uma criatura viva custa o duelo dela.** E a consequência que
 não estava no plano: **um perseguidor adjacente passa a custar zero**, porque

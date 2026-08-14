@@ -61,8 +61,31 @@ const PLAYER_FIELDS = ['pos', 'hp', 'hpMax', 'armour', 'xp', 'inventory', 'kills
 // decision and pays for it with a MEMORY: it started from a guess, it knows
 // every blow it landed, so it can subtract — and it is wrong for exactly as
 // long as its opening guess was wrong.
-const MONSTER_FIELDS = ['id', 'name', 'emoji', 'pos', 'xp', 'activation', 'speed', 'dead', 'side', 'edge'];
-const CHEST_FIELDS = ['id', 'name', 'emoji', 'pos', 'side', 'edge'];
+// NO `side`, and that one was measured out rather than argued out. The flag
+// says "this creature stands in a room the mandatory route never enters" —
+// which encodes WHERE THE EXIT IS, computed over the whole finished map
+// before the hero has seen a tile of it. It was the one grant `rules.md` §7
+// never listed.
+//
+// Blinding the bot to it changed nothing worth explaining. Fraction of side
+// chests opened, 150 runs a band, same seeds:
+//
+//   greed 0.2   0.10 -> 0.19
+//   greed 1.0   0.84 -> 0.86        (what ships)
+//   greed 1.8   0.87 -> 0.90
+//
+// Opening deaths, depth and clears flat at all three. The gamble survives
+// because optionality was ALREADY priced twice: a side room is off the route,
+// so reaching it costs more walk and more guard, and the label was saying the
+// same thing a second time. Only the miser leaked — he now enters about twice
+// as many side rooms, which is the one place the label did work the price did
+// not.
+//
+// And at the shipped dial the label was inert for creatures by construction:
+// `sideBar = sideAppetite × fightBar` is `fightBar` at 1, so
+// `monster.side ? sideBar : fightBar` compared a number against itself.
+const MONSTER_FIELDS = ['id', 'name', 'emoji', 'pos', 'xp', 'activation', 'speed', 'dead', 'edge'];
+const CHEST_FIELDS = ['id', 'name', 'emoji', 'pos', 'edge'];
 // `dmgMin` belongs here beside `dmg`: it is a plain property of an item the
 // hero can already see, not an unrevealed answer, and leaving it out made
 // the bot value a floor axe as if it only widened the die.

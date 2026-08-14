@@ -420,6 +420,19 @@ ela guarda não é vê-la de longe.
 **Quantas criaturas e quantos baús o andar tem é concedido**, de
 propósito — é o que deixa o bot saber quando o escuro não deve mais nada.
 
+**Espinha e lateral NÃO são concedidas.** O bot não recebe em que metade do
+mapa (§2) uma criatura ou um baú está — saber que uma sala é opcional é
+saber que existe caminho até o buraco sem passar por ela, e isso é a
+resposta que a névoa esconde. Ele atravessava no Belief e foi retirado: a
+aposta lateral sobrevive porque **já estava precificada duas vezes**. Sala
+opcional fica fora da rota, então chegar nela custa mais caminhada e mais
+guardião; o rótulo dizia a mesma coisa de novo. Medido nas seis faixas de
+ganância, o avarento continua recusando e o esbanjador continua entrando.
+
+O gerador continua construindo o mapa em torno do eixo — mais ameaça na
+espinha, baú melhor na lateral. O que mudou é só que o herói responde ao que
+aquilo **custa**, não ao que lhe contaram.
+
 ## 8. Como uma travessia e uma run terminam
 
 **Pisar no buraco encerra a travessia. O motor permite isso a qualquer
