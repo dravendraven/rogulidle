@@ -98,6 +98,10 @@ frases:
   único agrupamento que o bot já calcula. Agrupamento **sem** guardião
   continua invisível, e consertar isso exige um raio que ninguém tem valor
   para ainda.
+- **Guardião que a rota atravessa não é cobrado de novo.** Desde o B26 o tile
+  de uma criatura custa o duelo dela, então quando o caminho mais barato até o
+  loot passa POR CIMA do guardião ele já foi pago na caminhada — cobrá-lo
+  também como guardião põe a mesma luta duas vezes no preço.
 - **Guardião é toda criatura cujo raio de perseguição cobre o loot** — "pisar
   ali acordaria isso". Não é proximidade em abstrato: um bicho de raio largo
   guarda de longe, um de raio curto só o que está encostado. Antes exigia

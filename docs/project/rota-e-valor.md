@@ -547,7 +547,7 @@ sozinho.
 **A fila acabou.** O que sobrou não é peça desta proposta e sim um defeito
 achado dentro dela — ver abaixo.
 
-## Aberto: a criatura paga duas vezes no preço de um baú
+## A criatura pagava duas vezes no preço de um baú ✅ consertado
 
 Quando a rota até um baú ATRAVESSA a criatura que o guarda, ela entra na conta
 duas vezes: uma no `walk`, porque desde o B26 o tile dela custa o duelo, e
@@ -555,10 +555,16 @@ outra no `guardCost`, porque o raio dela cobre o baú. É a mesma luta cobrada
 duas vezes.
 
 O efeito é o bot recusar baús que devia pegar e dar voltas que não devia. Não
-precisa de medição para se justificar — a conta está errada. Precisa de decidir
-qual das duas cobranças é a certa naquele caso, e a resposta provável é: se a
-rota atravessa, o guardião já foi pago, então o `guardCost` daquela criatura
-sai.
+precisou de medição para se justificar — a conta estava errada.
+
+**A resposta foi a esperada:** se a rota atravessa, o guardião já foi pago, e o
+`guardCost` daquela criatura sai. A rota até cada baú ou item é reconstruída
+e as criaturas que estão em cima dela ficam de fora da conta de guarda.
+
+Medido, ganância 1, 150 seeds: andares 4,25 → 4,21, baús 13,91 → 13,76,
+divergem em **3 das 150**. Quase nada, e isso é informação: o caso em que a
+rota mais barata atravessa um guardião é raro — o desvio quase sempre ganha.
+Fica porque a conta estava errada, não porque mediu.
 
 **§7 primeiro porque entra provadamente sem mexer em nada** — é o único jeito
 de ganhar dois dials legíveis antes de tudo o mais começar a mover números.

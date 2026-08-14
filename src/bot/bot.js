@@ -386,7 +386,9 @@ export function dropValue(belief, drop, bravery = 1) {
 // now, nothing read. That fixes the other half of the same defect for free —
 // the old test measured a straight line, so a guard behind a wall charged as
 // if it were beside you.
-export function guardCost(belief, pos, { amortise = false, bravery = 1, reach, persistence } = {}) {
+export function guardCost(belief, pos, {
+  amortise = false, bravery = 1, reach, persistence, paidByRoute,
+} = {}) {
   // Steps from a creature to a tile, or undefined when the flood never got
   // there — out of its radius, or no path at all.
   const stepsTo = (monster, target) => {
@@ -396,6 +398,14 @@ export function guardCost(belief, pos, { amortise = false, bravery = 1, reach, p
   let total = 0;
 
   for (const monster of liveMonsters(belief)) {
+    // ALREADY PAID BY THE WALK. Since B26 a creature's tile costs its duel, so
+    // when the cheapest route to this loot goes THROUGH a guard, that guard is
+    // in the walk already — and charging it here too puts the same fight in
+    // the price twice. Measured or not, the arithmetic is simply wrong: the
+    // bot refused chests it should take and detoured round guards it had
+    // already decided to kill.
+    if (paidByRoute && paidByRoute.has(monster.id)) continue;
+
     const steps = stepsTo(monster, pos);
     // The same awake test the danger field runs, on the same numbers — two
     // copies of "does this creature reach here" is how they drift apart.
@@ -745,6 +755,20 @@ export function makeBot(options = {}) {
       return Math.max(0, hero.stepCost + danger.priceAt(x, y));
     }, shrineSink(belief));
 
+    // Which creatures the cheapest route to `pos` walks INTO. Their duel is
+    // already inside the route price (B26), so `guardCost` must not charge it
+    // a second time.
+    const onTheWay = (pos) => {
+      const route = routeTo(field, pos);
+      const ids = new Set();
+      for (const step of route) {
+        for (const m of liveMonsters(belief)) {
+          if (m.pos[0] === step[0] && m.pos[1] === step[1]) ids.add(m.id);
+        }
+      }
+      return ids;
+    };
+
     // What every guard question is answered against: the same flood the
     // danger field already ran, and the same decay it prices tiles with.
     const guardOpts = {
@@ -852,7 +876,7 @@ export function makeBot(options = {}) {
         + (item.armour || 0) + (item.heal || 0) <= 0) continue;
       const walk = priceOfReaching(field, item.pos);
       if (!Number.isFinite(walk)) continue;
-      const guard = guardCost(belief, item.pos, guardOpts);
+      const guard = guardCost(belief, item.pos, { ...guardOpts, paidByRoute: onTheWay(item.pos) });
       if (guard > sideBar) continue;              // the gamble refused
       // C1 §11, same as the chest below: one journey buys everything the
       // same guards cover, so the walk is divided by what the trip collects.
@@ -879,7 +903,7 @@ export function makeBot(options = {}) {
 
       const walk = priceOfReaching(field, chest.pos);
       if (!Number.isFinite(walk)) continue;
-      const guard = guardCost(belief, chest.pos, guardOpts);
+      const guard = guardCost(belief, chest.pos, { ...guardOpts, paidByRoute: onTheWay(chest.pos) });
 
       // B21 — the gamble, refused two different ways.
       //
