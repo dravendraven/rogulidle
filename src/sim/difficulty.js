@@ -11,8 +11,8 @@
 // the first three floors).
 
 import {
-  CHEST_GUARD_RADIUS, EARLY_TIER_CUT,
-  FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL, MAP_DUG_PERCENTAGE,
+  CHEST_GUARD_RADIUS, CHEST_LOOT_CHANCE, CORRIDOR_MIN, corridorRange, EARLY_TIER_CUT,
+  FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL, MAP_DUG_PERCENTAGE, ROOM_BIAS,
   MONSTER_DROP_CHANCE, MONSTER_TABLE,
   OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_CHANCE_PER_LEVEL,
   SHRINE_DISTANCE_SHARE,
@@ -60,6 +60,36 @@ export const CLUSTER_SIZE = 10;
 export const ARMOUR_SCARCITY = 1.32;
 export const POTION_SCARCITY = 1.32;
 export const WEAPON_SCARCITY = 4;
+
+// The two chest numbers above stopped being a RATE at M46 and became a
+// RATIO — `allowEmpty: false` for chests means only their proportion
+// survives, so 1.32/1.32 and 5/5 are the same game and moving one alone
+// only tilts which of the two kinds comes out. The panel still offered
+// them as two "1 em S" sliders, which promised a scarcity neither of them
+// can produce.
+//
+// So the MODEL carries the one number that is actually live: the potion's
+// share of a filled chest. 0 is all shield, 1 is all potion, 0.5 is the
+// even split the shipped pair already produced.
+//
+// It is not a new parameter — it is the two old ones with their dead
+// degree of freedom removed. `chestScarcity` is the single place the pair
+// is rebuilt, so nothing downstream learns a new shape: `itemWeights`
+// still takes a per-kind scarcity, which is right, because the weapon side
+// IS still a rate.
+export const CHEST_MIX = ARMOUR_SCARCITY / (ARMOUR_SCARCITY + POTION_SCARCITY);
+
+// Away from 0 and 1 so neither kind can divide by zero on the way to the
+// pool — the ends of the slider mean "almost never", not "never".
+const MIX_EDGE = 0.02;
+
+// NOTE THE CROSS: a kind's weight is 1/scarcity, so the potion's share of
+// the draw is `armour / (armour + potion)`. Feeding the mix straight into
+// `potion` would invert the slider.
+export function chestScarcity(mix = CHEST_MIX) {
+  const share = Math.min(1 - MIX_EDGE, Math.max(MIX_EDGE, mix));
+  return { armour: share, potion: 1 - share };
+}
 
 // What the deepest corner of floor N reaches up the table, 0-based level.
 // Clamped at 1, where the table runs out — `saturatedAt` reports the floor
@@ -137,7 +167,10 @@ export function floorParams(level) {
     weaponScarcity: WEAPON_SCARCITY,
     armourScarcity: ARMOUR_SCARCITY,
     potionScarcity: POTION_SCARCITY,
+    chestLootChance: CHEST_LOOT_CHANCE,
     dugPercentage: MAP_DUG_PERCENTAGE,
+    roomBias: ROOM_BIAS,
+    corridorLength: corridorRange(),
     shrineDistanceShare: SHRINE_DISTANCE_SHARE,
     // M43 — which floor carries the authored room, travelling as a plan
     // field like everything else so a sweep can turn it off without editing
@@ -170,8 +203,13 @@ export const DEFAULT_MODEL = {
   chestGuardRadius: CHEST_GUARD_RADIUS,
   dropChance: MONSTER_DROP_CHANCE,
   weaponScarcity: WEAPON_SCARCITY,
-  armourScarcity: ARMOUR_SCARCITY,
-  potionScarcity: POTION_SCARCITY,
+  // ONE number where there were two: the potion's share of a filled chest.
+  // See CHEST_MIX above for why the pair could not stay.
+  chestMix: CHEST_MIX,
+  // Whether a chest holds anything at all. This is the gate players were
+  // reaching for when they moved the scarcity sliders, and it was the one
+  // number the panel did not offer.
+  chestLootChance: CHEST_LOOT_CHANCE,
   levels: 10,
   spineThreatShare: SPINE_THREAT_SHARE,
   sideRoomDepthBonus: SIDE_ROOM_DEPTH_BONUS,
@@ -181,6 +219,12 @@ export const DEFAULT_MODEL = {
   // game.js's passthrough, shrineDistanceShare by spawn.js — but neither
   // travelled in the model, so the lab could not reach them.
   dugPercentage: MAP_DUG_PERCENTAGE,
+  // The other half of the map's shape: dugPercentage says HOW MUCH is dug,
+  // these two say into what. `corridorMin` is the scalar the lab moves; the
+  // pair the generator wants is derived from it in makeFloorPlan below, so
+  // the span lives in balance.js and nowhere else.
+  roomBias: ROOM_BIAS,
+  corridorMin: CORRIDOR_MIN,
   shrineDistanceShare: SHRINE_DISTANCE_SHARE,
   vaultLevel: VAULT_LEVEL,
   vaultChestItems: undefined,
@@ -242,12 +286,16 @@ export function makeFloorPlan(model = {}) {
     chestGuardRadius: m.chestGuardRadius,
     dropChance: m.dropChance,
     weaponScarcity: m.weaponScarcity,
-    armourScarcity: m.armourScarcity,
-    potionScarcity: m.potionScarcity,
+    // Rebuilt into the per-kind pair the engine wants, in one place.
+    armourScarcity: chestScarcity(m.chestMix).armour,
+    potionScarcity: chestScarcity(m.chestMix).potion,
+    chestLootChance: m.chestLootChance,
     sideRoomDepthBonus: m.sideRoomDepthBonus,
     spineThreatShare: m.spineThreatShare,
     sideChestBias: m.sideChestBias,
     dugPercentage: m.dugPercentage,
+    roomBias: m.roomBias,
+    corridorLength: corridorRange(m.corridorMin),
     shrineDistanceShare: m.shrineDistanceShare,
     vaultLevel: m.vaultLevel,
     vaultChestItems: m.vaultChestItems,

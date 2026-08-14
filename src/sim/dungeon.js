@@ -191,15 +191,21 @@ export function playDungeon(seed, makePolicy, options = {}) {
       // normal run — silently won.
       armourScarcity: options.armourScarcity ?? options.scarcity ?? plan.armourScarcity,
       potionScarcity: options.scarcity ?? plan.potionScarcity,
+      // Whether a chest holds anything — the gate the panel now offers, and
+      // the one spawn.js already read off `counts` before anything sent it.
+      chestLootChance: plan.chestLootChance,
       // Map-design dials ride along untouched; undefined means "use the
       // shipped value", which populate() resolves against balance.js.
       monsterSpread: plan.monsterSpread,
       sideRoomDepthBonus: plan.sideRoomDepthBonus,
       spineThreatShare: plan.spineThreatShare,
       sideChestBias: plan.sideChestBias,
-      // The map's shape. game.js forwards dugPercentage on to mapgen.js;
-      // spawn.js reads shrineDistanceShare off these counts directly.
+      // The map's shape. game.js forwards dugPercentage, roomBias and
+      // corridorLength on to mapgen.js; spawn.js reads shrineDistanceShare
+      // off these counts directly.
       dugPercentage: plan.dugPercentage,
+      roomBias: plan.roomBias,
+      corridorLength: plan.corridorLength,
       shrineDistanceShare: plan.shrineDistanceShare,
       // M43 — 0 turns the authored room off for the whole descent, which is
       // what a control run needs. Undefined would silently fall back to the

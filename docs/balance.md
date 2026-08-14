@@ -22,11 +22,14 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | | `FLOOR_SPREAD_PER_LEVEL` / `_CAP` | 0.09 / 0.9 | one shared roll widening the whole floor's count with depth |
 | how clustered | `CLUSTER_SIZE` | 10 | creatures sharing one placement anchor and ONE tier draw |
 | how much loot | `CHESTS_PER_FLOOR` | 6 | flat on purpose — loot must not grow as fast as threat |
-| | `ARMOUR_SCARCITY` / `POTION_SCARCITY` | 1.32 / 1.32 | for CHESTS these are now a RATIO, not a rate — equal values split armour and potion evenly (M46) |
+| | `CHEST_LOOT_CHANCE` | 0.5 | how often a chest holds anything, FLAT. Now a model field — it is the gate people were reaching for when they moved the two scarcity sliders |
+| | `CHEST_MIX` | 0.5 | the potion's share of a FILLED chest; 0 is all shield, 1 is all potion. Derived from `ARMOUR_SCARCITY`/`POTION_SCARCITY`, which stay as the engine's per-kind pair and are rebuilt from this by `chestScarcity()` — for chests only their ratio was ever live (M46), so the pair carried a degree of freedom that did nothing |
 | | `WEAPON_SCARCITY` | 4 | 1 creature drop roll in S holds a weapon |
 | | `MONSTER_DROP_CHANCE` | 0.50 | FAITHFUL — chance a corpse leaves anything |
 | | `EARLY_CHEST_QUALITY_BOOST` | 0.5 | floor 1's chests pay better; fades as 1/level |
 | how much the route branches | `MAP_DUG_PERCENTAGE` | 0.15 | less dug = a mandatory path actually exists; a model field, so the lab reaches it |
+| | `ROOM_BIAS` | 1 | how many times likelier the digger attaches a ROOM than a corridor. 1 is ROT's own draw. ROT fixes this pair in its constructor and never exposes it, which is why `MAP_DUG_PERCENTAGE` used to buy rooms and maze corridors together |
+| | `CORRIDOR_MIN` | 1 | shortest corridor the digger may dig; the longest is this + `CORRIDOR_SPAN`. The only dial that changes how far apart rooms sit |
 | | `SPINE_THREAT_SHARE` | 0.7 | share of threat MASS placed on the mandatory route |
 | | `SIDE_ROOM_DEPTH_BONUS` | 0.35 | the whole gamble: side rooms roll risk and reward independently over [0, 2×this] |
 | | `SIDE_CHEST_BIAS` | 8 | how much likelier a chest lands in a side room. Measured only where a side room EXISTS (135 floors in 360): 2.5 puts 39% of the chests there, 8 puts 70%, and it saturates near 90% — the ceiling is how few side rooms the digger makes, not this dial |
@@ -52,14 +55,15 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | dial | value | note |
 |---|---|---|
 | `MAP_SIZE` | 32 | FAITHFUL |
-| `CORRIDOR_LENGTH` / `ROOM_WIDTH` / `ROOM_HEIGHT` | [1,3] / [5,9] / [4,7] | rooms with corridors, not corridors with rooms |
+| `ROOM_WIDTH` / `ROOM_HEIGHT` | [5,9] / [4,7] | rooms with corridors, not corridors with rooms |
+| `CORRIDOR_SPAN` | 2 | the WIDTH of the corridor-length draw. `CORRIDOR_LENGTH` is derived: `[CORRIDOR_MIN, CORRIDOR_MIN + CORRIDOR_SPAN]`. The minimum is the dial above; this is the shape of the draw and stays put |
 | `VISIBLE_DIST` / `CLEAR_DIST` | 9 / 7 | FAITHFUL — `VISIBLE_DIST` is now the DEFAULT reach, which a persona may override (`HEROES` below) |
 | `PLAYER_HP` / `PLAYER_XP` | 10 / 3 | FAITHFUL — and neither ever grows in play |
 | `HIT_CHANCE` | 5/6 | FAITHFUL |
 | `MONSTER_SKIP_CHANCE` | 0.10 | FAITHFUL |
 | `MONSTER_DIFFICULTY_SCALE` | 0.75 | FAITHFUL single-floor default |
 | `MONSTER_COUNT` / `CHEST_COUNT` | 5 / 15 | FAITHFUL single-floor defaults; real runs use `floorParams` |
-| `CHEST_LOOT_CHANCE` | 0.5 | M46 — how often a chest holds anything, FLAT. One gate, one meaning; replaces the positional roll AND the scarcity gate that sat behind it |
+| `ARMOUR_SCARCITY` / `POTION_SCARCITY` | 1.32 / 1.32 | the engine's per-kind pair, kept because `itemWeights` is right to take one — the WEAPON side is still a true rate. The chest side is driven by `CHEST_MIX` above; these two are only its default |
 | `WEAPON_AXE_MIN_TIER` | 4 | below wolf, the axe is absent from the pool, not just rare |
 | `STARTING_ITEMS` | [] | the run starts empty-handed — the opening is hard on purpose |
 | `MONSTER_TABLE` / `ITEM_TABLE` / `MONSTER_WEIGHTS` | — | in `src/sim/balance.js`, values visible there |
