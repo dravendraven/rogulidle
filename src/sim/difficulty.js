@@ -11,8 +11,8 @@
 // the first three floors).
 
 import {
-  CHEST_GUARD_RADIUS, EARLY_TIER_CUT,
-  FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL, MAP_DUG_PERCENTAGE,
+  CHEST_GUARD_RADIUS, CORRIDOR_MIN, corridorRange, EARLY_TIER_CUT,
+  FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL, MAP_DUG_PERCENTAGE, ROOM_BIAS,
   MONSTER_DROP_CHANCE, MONSTER_TABLE,
   OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_CHANCE_PER_LEVEL,
   SHRINE_DISTANCE_SHARE,
@@ -138,6 +138,8 @@ export function floorParams(level) {
     armourScarcity: ARMOUR_SCARCITY,
     potionScarcity: POTION_SCARCITY,
     dugPercentage: MAP_DUG_PERCENTAGE,
+    roomBias: ROOM_BIAS,
+    corridorLength: corridorRange(),
     shrineDistanceShare: SHRINE_DISTANCE_SHARE,
     // M43 — which floor carries the authored room, travelling as a plan
     // field like everything else so a sweep can turn it off without editing
@@ -181,6 +183,12 @@ export const DEFAULT_MODEL = {
   // game.js's passthrough, shrineDistanceShare by spawn.js — but neither
   // travelled in the model, so the lab could not reach them.
   dugPercentage: MAP_DUG_PERCENTAGE,
+  // The other half of the map's shape: dugPercentage says HOW MUCH is dug,
+  // these two say into what. `corridorMin` is the scalar the lab moves; the
+  // pair the generator wants is derived from it in makeFloorPlan below, so
+  // the span lives in balance.js and nowhere else.
+  roomBias: ROOM_BIAS,
+  corridorMin: CORRIDOR_MIN,
   shrineDistanceShare: SHRINE_DISTANCE_SHARE,
   vaultLevel: VAULT_LEVEL,
   vaultChestItems: undefined,
@@ -248,6 +256,8 @@ export function makeFloorPlan(model = {}) {
     spineThreatShare: m.spineThreatShare,
     sideChestBias: m.sideChestBias,
     dugPercentage: m.dugPercentage,
+    roomBias: m.roomBias,
+    corridorLength: corridorRange(m.corridorMin),
     shrineDistanceShare: m.shrineDistanceShare,
     vaultLevel: m.vaultLevel,
     vaultChestItems: m.vaultChestItems,

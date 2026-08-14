@@ -197,9 +197,12 @@ export function playDungeon(seed, makePolicy, options = {}) {
       sideRoomDepthBonus: plan.sideRoomDepthBonus,
       spineThreatShare: plan.spineThreatShare,
       sideChestBias: plan.sideChestBias,
-      // The map's shape. game.js forwards dugPercentage on to mapgen.js;
-      // spawn.js reads shrineDistanceShare off these counts directly.
+      // The map's shape. game.js forwards dugPercentage, roomBias and
+      // corridorLength on to mapgen.js; spawn.js reads shrineDistanceShare
+      // off these counts directly.
       dugPercentage: plan.dugPercentage,
+      roomBias: plan.roomBias,
+      corridorLength: plan.corridorLength,
       shrineDistanceShare: plan.shrineDistanceShare,
       // M43 — 0 turns the authored room off for the whole descent, which is
       // what a control run needs. Undefined would silently fall back to the

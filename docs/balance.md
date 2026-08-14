@@ -27,6 +27,8 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | | `MONSTER_DROP_CHANCE` | 0.50 | FAITHFUL — chance a corpse leaves anything |
 | | `EARLY_CHEST_QUALITY_BOOST` | 0.5 | floor 1's chests pay better; fades as 1/level |
 | how much the route branches | `MAP_DUG_PERCENTAGE` | 0.15 | less dug = a mandatory path actually exists; a model field, so the lab reaches it |
+| | `ROOM_BIAS` | 1 | how many times likelier the digger attaches a ROOM than a corridor. 1 is ROT's own draw. ROT fixes this pair in its constructor and never exposes it, which is why `MAP_DUG_PERCENTAGE` used to buy rooms and maze corridors together |
+| | `CORRIDOR_MIN` | 1 | shortest corridor the digger may dig; the longest is this + `CORRIDOR_SPAN`. The only dial that changes how far apart rooms sit |
 | | `SPINE_THREAT_SHARE` | 0.7 | share of threat MASS placed on the mandatory route |
 | | `SIDE_ROOM_DEPTH_BONUS` | 0.35 | the whole gamble: side rooms roll risk and reward independently over [0, 2×this] |
 | | `SIDE_CHEST_BIAS` | 8 | how much likelier a chest lands in a side room. Measured only where a side room EXISTS (135 floors in 360): 2.5 puts 39% of the chests there, 8 puts 70%, and it saturates near 90% — the ceiling is how few side rooms the digger makes, not this dial |
@@ -52,7 +54,8 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | dial | value | note |
 |---|---|---|
 | `MAP_SIZE` | 32 | FAITHFUL |
-| `CORRIDOR_LENGTH` / `ROOM_WIDTH` / `ROOM_HEIGHT` | [1,3] / [5,9] / [4,7] | rooms with corridors, not corridors with rooms |
+| `ROOM_WIDTH` / `ROOM_HEIGHT` | [5,9] / [4,7] | rooms with corridors, not corridors with rooms |
+| `CORRIDOR_SPAN` | 2 | the WIDTH of the corridor-length draw. `CORRIDOR_LENGTH` is derived: `[CORRIDOR_MIN, CORRIDOR_MIN + CORRIDOR_SPAN]`. The minimum is the dial above; this is the shape of the draw and stays put |
 | `VISIBLE_DIST` / `CLEAR_DIST` | 9 / 7 | FAITHFUL — `VISIBLE_DIST` is now the DEFAULT reach, which a persona may override (`HEROES` below) |
 | `PLAYER_HP` / `PLAYER_XP` | 10 / 3 | FAITHFUL — and neither ever grows in play |
 | `HIT_CHANCE` | 5/6 | FAITHFUL |

@@ -51,6 +51,7 @@ export function newGame(seed, counts = {}) {
     roomWidth: counts.roomWidth,
     roomHeight: counts.roomHeight,
     dugPercentage: counts.dugPercentage,
+    roomBias: counts.roomBias,
   });
   populate(state, state.map, counts);
 

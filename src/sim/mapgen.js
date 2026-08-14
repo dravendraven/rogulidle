@@ -9,7 +9,7 @@
 
 import * as ROT from 'https://cdn.jsdelivr.net/npm/rot-js@2.2.0/+esm';
 import {
-  MAP_SIZE, CORRIDOR_LENGTH, MAP_DUG_PERCENTAGE, ROOM_HEIGHT, ROOM_WIDTH,
+  MAP_SIZE, CORRIDOR_LENGTH, MAP_DUG_PERCENTAGE, ROOM_BIAS, ROOM_HEIGHT, ROOM_WIDTH,
 } from './balance.js';
 
 // Tiles the player and monsters may walk on. FAITHFUL engine.cljs:321.
@@ -83,6 +83,22 @@ export function generateMap(mapSeed, size = MAP_SIZE, options = {}) {
     // mandatory path.
     dugPercentage: options.dugPercentage ?? MAP_DUG_PERCENTAGE,
   });
+
+  // The one place we reach past ROT's public surface, and the reason is that
+  // there is no public surface for it: `_features` is the weight pair the
+  // digger draws room-vs-corridor from, set in its constructor body and NOT
+  // read from the options object. At its stock 4:4 the two are equally
+  // likely, so dugPercentage buys rooms and corridors in lockstep and there
+  // is no way to ask for one without the other.
+  //
+  // Safe to write here because the version is pinned twice over: mapgen.js
+  // imports an exact CDN URL and tools/rot-cdn-hook.mjs throws if that
+  // string ever drifts from the vendored copy the selftest hashes. A ROT
+  // upgrade cannot slip past and silently turn this into a no-op.
+  //
+  // Written as bias-against-1 rather than the stock pair so the number reads
+  // as what it is — a ratio. ROOM_BIAS 1 reproduces 4:4 exactly.
+  digger._features = { room: options.roomBias ?? ROOM_BIAS, corridor: 1 };
 
   // Everything the digger carved out. value 0 = floor.
   const dug = new Set();

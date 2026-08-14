@@ -17,7 +17,26 @@ export const MAP_SIZE = 32;              // FAITHFUL ui.cljs:26
 
 // DIVERGENCE — shortened so the floor reads as rooms with corridors between
 // them, not corridors with rooms attached (was [1, 5]).
-export const CORRIDOR_LENGTH = [1, 3];
+//
+// The MINIMUM is the dial; the span above it is the shape of the draw and
+// stays fixed. Written as a derivation rather than a literal pair because
+// the lab's sliders are scalar, and a pair would have needed a second UI
+// shape to reach a number the model already carries.
+export const CORRIDOR_MIN = 1;
+const CORRIDOR_SPAN = 2;
+export const corridorRange = (min = CORRIDOR_MIN) => [min, min + CORRIDOR_SPAN];
+export const CORRIDOR_LENGTH = corridorRange();
+
+// GUESS — how many times likelier the digger is to attach a ROOM than a
+// corridor. 1 is ROT's own draw.
+//
+// Why this exists at all: ROT's Digger picks room-vs-corridor from a weight
+// pair fixed in its constructor and never exposed as an option, so
+// MAP_DUG_PERCENTAGE below scaled BOTH together — the only way to ask for
+// more side rooms was to also ask for more corridor, which is the maze
+// docs/map-design.md does not want. This is the second half of "the map's
+// shape": dugPercentage says how much is dug, this says into what.
+export const ROOM_BIAS = 1;
 
 // GUESS — raised from ROT's defaults for the same reason CORRIDOR_LENGTH
 // shrank: bigger rooms, shorter hallways.
