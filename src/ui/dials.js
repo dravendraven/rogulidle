@@ -121,8 +121,6 @@ function bandIndexOf(bands, value) {
 // and a budget of 0 turns is not a traversal. Everything else simply may
 // not go negative — see `read` below for why that is enforced twice.
 const MIN_OF = {
-  armourScarcity: 0.05,
-  potionScarcity: 0.05,
   weaponScarcity: 0.5,
   turnBudget: 1,
 };
@@ -243,28 +241,42 @@ export const SECTIONS = [
       },
     ]],
   ]],
-  ['Mapa', [
+  // Split out of a single 'Mapa' section that had grown to hold the
+  // bestiary, the loot table AND the geometry — someone opening the Lab to
+  // change the floor's shape met the monster table first and had to scroll
+  // past all of it. The four names below are the four questions the panel
+  // actually answers.
+  ['Criaturas', [
     ['quantas criaturas', [
       {
         kind: 'model', key: 'monstersBase', label: 'criaturas no andar 1',
-        title: 'Quantidade: criaturas no andar 1', step: 1,
+        title: 'Quantidade: criaturas no andar 1', step: 1, range: [1, 20],
         up: 'abertura mais brutal', down: 'abertura mais mansa',
       },
       {
+        // The old down-text advertised "<1 esvazia o fundo" against a
+        // slider whose minimum is 1 — describing a value the control cannot
+        // produce, which is the sort of thing that teaches people the
+        // captions are decorative.
         kind: 'model', key: 'monsterGrowth', label: 'crescimento por andar',
         title: 'Quantidade: crescimento por andar', step: 0.01, range: [1, 1.3],
-        up: 'descida mais íngreme', down: 'descida mais plana (<1 esvazia o fundo)',
+        up: 'descida mais íngreme', down: 'descida mais plana',
       },
+      // PAIRS: every "…por andar" is the RITMO — how fast the effect
+      // arrives — and every "…máxima" is where it STOPS. The two read
+      // almost identically otherwise, and six different adjectives for two
+      // axes is what made them impossible to tell apart.
       {
         kind: 'model', key: 'spreadPerLevel', label: 'sorteio do andar: largura por andar',
         title: 'Quantidade: variação por andar', step: 0.01, range: [0, 0.3],
-        up: 'lotação mais imprevisível — cheio ou vazio',
-        down: 'lotação mais regular — sempre a média',
+        up: 'a lotação começa a variar mais cedo',
+        down: 'a lotação demora mais a variar',
       },
       {
         kind: 'model', key: 'spreadCap', label: 'sorteio do andar: teto',
         title: 'Quantidade: variação máxima', step: 0.05, range: [0, 1],
-        up: 'fundo mais caótico', down: 'fundo mais previsível',
+        up: 'a variação vai mais longe antes de parar',
+        down: 'a variação para mais cedo',
         note: capNote('spreadPerLevel', 'spreadCap'),
       },
     ]],
@@ -295,12 +307,14 @@ export const SECTIONS = [
       {
         kind: 'model', key: 'tierFloorPerLevel', label: 'piso do tier: sobe por andar',
         title: 'Força: piso sobe por andar', step: 0.01, range: [0, 0.2],
-        up: 'andares mais uniformes — fundo sem ratos', down: 'andares mais desiguais',
+        up: 'os ratos somem mais cedo na descida',
+        down: 'os ratos aguentam até mais fundo',
       },
       {
         kind: 'model', key: 'tierFloorCap', label: 'piso do tier: teto (share)',
         title: 'Força: piso máximo', step: 0.05, range: [0, 1],
-        up: 'fundo mais homogêneo', down: 'fundo mais bagunçado',
+        up: 'o piso sobe mais antes de parar — fundo sem bicho fraco',
+        down: 'o piso para mais cedo — sempre sobra bicho fraco',
         note: capNote('tierFloorPerLevel', 'tierFloorCap'),
       },
       {
@@ -323,7 +337,8 @@ export const SECTIONS = [
       {
         kind: 'model', key: 'tierSlackCap', label: 'folga acima do teto: máx (share)',
         title: 'Força: folga máxima', step: 0.05, range: [0, 1],
-        up: 'fundo mais perigoso', down: 'fundo mais controlado',
+        up: 'a folga cresce mais antes de parar',
+        down: 'a folga para mais cedo',
         note: capNote('tierSlackPerLevel', 'tierSlackCap'),
       },
       {
@@ -346,7 +361,8 @@ export const SECTIONS = [
       {
         kind: 'model', key: 'outOfDepthChanceCap', label: 'cauda rara: teto',
         title: 'Raro: chance máxima', step: 0.01, range: [0, 0.3],
-        up: 'fundo mais imprevisível', down: 'fundo mais confiável',
+        up: 'a chance sobe mais antes de parar',
+        down: 'a chance para mais cedo',
         note: capNote('outOfDepthChancePerLevel', 'outOfDepthChanceCap'),
       },
     ]],
@@ -357,23 +373,34 @@ export const SECTIONS = [
         up: 'mais concentrado — matilhas, andares que variam muito', down: 'mais espalhado e mediano',
       },
     ]],
+  ]],
+  ['Loot', [
     ['quanto loot', [
       {
         kind: 'model', key: 'chests', label: 'baús por andar',
-        title: 'Baús por andar', step: 1,
+        title: 'Baús por andar', step: 1, range: [0, 20],
         up: 'herói mais rico', down: 'herói mais pobre',
       },
       {
-        kind: 'model', key: 'armourScarcity', label: 'escassez de escudo (1 em S)',
-        title: 'Raridade de armadura', step: 0.05, range: [1, 5],
-        up: 'mais escasso', down: 'mais abundante',
+        kind: 'model', key: 'chestLootChance', label: 'chance de o baú ter algo',
+        title: 'Baú: quantos vêm cheios', step: 0.05, range: [0, 1],
+        up: 'quase todo baú paga', down: 'quase todo baú é decepção',
       },
       {
-        kind: 'model', key: 'potionScarcity', label: 'escassez de poção (1 em S)',
-        title: 'Raridade de poção', step: 0.05, range: [1, 5],
-        up: 'mais escasso', down: 'mais abundante',
+        // Replaced `armourScarcity` + `potionScarcity`. Those two were sold
+        // as "1 em S" and had stopped being a rate at M46 — for chests only
+        // their RATIO survives, so moving both together did nothing at all
+        // and moving one did the opposite of what it said. One slider is
+        // the honest shape of the one live degree of freedom.
+        kind: 'model', key: 'chestMix', label: 'escudo ⟷ poção',
+        title: 'Baú: o que vem dentro', step: 0.05, range: [0, 1],
+        up: 'quase só poção — o herói cura e não se protege',
+        down: 'quase só escudo — o herói aguenta e não se cura',
       },
       {
+        // Still a genuine rate, unlike the chest pair above: a corpse's
+        // draw KEEPS its empty slot, so raising this really does make
+        // weapons rarer rather than swapping them for something else.
         kind: 'model', key: 'weaponScarcity', label: 'escassez de arma (1 em S)',
         title: 'Raridade de arma', step: 0.5, range: [1, 10],
         up: 'herói mais fraco', down: 'herói mais armado',
@@ -384,6 +411,8 @@ export const SECTIONS = [
         up: 'matar compensa mais', down: 'matar vira puro custo',
       },
     ]],
+  ]],
+  ['Andar', [
     // The map's own SHAPE — how much dungeon there is and how far the exit
     // sits. Everything in the group below decides what gets PLACED on that
     // shape; nothing there changes the rooms themselves.
@@ -435,21 +464,6 @@ export const SECTIONS = [
         up: 'desvio mais tentador', down: 'loot mais no caminho (1 = sem viés)',
       },
     ]],
-    ['tempo', [
-      {
-        kind: 'run', key: 'turnBudget', label: 'turnos por travessia',
-        title: 'Tempo disponível por andar', step: 50,
-        up: 'mais tolerante ao vagar', down: 'mais implacável — a run morre no relógio',
-      },
-    ]],
-    ['o retorno', [
-      {
-        kind: 'run', key: 'theReturn', label: 'subir de volta depois do fundo',
-        title: 'A volta para casa', type: 'switch',
-        up: 'ligado — 19 travessias, cada andar duas vezes',
-        down: 'desligado — 10 travessias, só a descida',
-      },
-    ]],
     ['a sala do Butcher', [
       {
         // A switch over the ENGINE's own dial rather than a second flag
@@ -461,6 +475,24 @@ export const SECTIONS = [
         title: 'O Butcher', type: 'switch', onValue: VAULT_LEVEL, offValue: 0,
         up: `ligado — andar ${VAULT_LEVEL} ganha a sala 9x9, o troll e 6 baús`,
         down: 'desligado — o jogo volta ao que era antes da sala existir',
+      },
+    ]],
+  ]],
+  // The run itself — neither the floor nor what stands on it.
+  ['A run', [
+    ['tempo', [
+      {
+        kind: 'run', key: 'turnBudget', label: 'turnos por travessia',
+        title: 'Tempo disponível por andar', step: 50, range: [200, 3000],
+        up: 'mais tolerante ao vagar', down: 'mais implacável — a run morre no relógio',
+      },
+    ]],
+    ['o retorno', [
+      {
+        kind: 'run', key: 'theReturn', label: 'subir de volta depois do fundo',
+        title: 'A volta para casa', type: 'switch',
+        up: 'ligado — 19 travessias, cada andar duas vezes',
+        down: 'desligado — 10 travessias, só a descida',
       },
     ]],
   ]],

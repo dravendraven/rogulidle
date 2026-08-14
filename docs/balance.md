@@ -22,7 +22,8 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | | `FLOOR_SPREAD_PER_LEVEL` / `_CAP` | 0.09 / 0.9 | one shared roll widening the whole floor's count with depth |
 | how clustered | `CLUSTER_SIZE` | 10 | creatures sharing one placement anchor and ONE tier draw |
 | how much loot | `CHESTS_PER_FLOOR` | 6 | flat on purpose — loot must not grow as fast as threat |
-| | `ARMOUR_SCARCITY` / `POTION_SCARCITY` | 1.32 / 1.32 | for CHESTS these are now a RATIO, not a rate — equal values split armour and potion evenly (M46) |
+| | `CHEST_LOOT_CHANCE` | 0.5 | how often a chest holds anything, FLAT. Now a model field — it is the gate people were reaching for when they moved the two scarcity sliders |
+| | `CHEST_MIX` | 0.5 | the potion's share of a FILLED chest; 0 is all shield, 1 is all potion. Derived from `ARMOUR_SCARCITY`/`POTION_SCARCITY`, which stay as the engine's per-kind pair and are rebuilt from this by `chestScarcity()` — for chests only their ratio was ever live (M46), so the pair carried a degree of freedom that did nothing |
 | | `WEAPON_SCARCITY` | 4 | 1 creature drop roll in S holds a weapon |
 | | `MONSTER_DROP_CHANCE` | 0.50 | FAITHFUL — chance a corpse leaves anything |
 | | `EARLY_CHEST_QUALITY_BOOST` | 0.5 | floor 1's chests pay better; fades as 1/level |
@@ -62,7 +63,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | `MONSTER_SKIP_CHANCE` | 0.10 | FAITHFUL |
 | `MONSTER_DIFFICULTY_SCALE` | 0.75 | FAITHFUL single-floor default |
 | `MONSTER_COUNT` / `CHEST_COUNT` | 5 / 15 | FAITHFUL single-floor defaults; real runs use `floorParams` |
-| `CHEST_LOOT_CHANCE` | 0.5 | M46 — how often a chest holds anything, FLAT. One gate, one meaning; replaces the positional roll AND the scarcity gate that sat behind it |
+| `ARMOUR_SCARCITY` / `POTION_SCARCITY` | 1.32 / 1.32 | the engine's per-kind pair, kept because `itemWeights` is right to take one — the WEAPON side is still a true rate. The chest side is driven by `CHEST_MIX` above; these two are only its default |
 | `WEAPON_AXE_MIN_TIER` | 4 | below wolf, the axe is absent from the pool, not just rare |
 | `STARTING_ITEMS` | [] | the run starts empty-handed — the opening is hard on purpose |
 | `MONSTER_TABLE` / `ITEM_TABLE` / `MONSTER_WEIGHTS` | — | in `src/sim/balance.js`, values visible there |

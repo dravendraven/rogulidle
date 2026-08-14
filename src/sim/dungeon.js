@@ -191,6 +191,9 @@ export function playDungeon(seed, makePolicy, options = {}) {
       // normal run — silently won.
       armourScarcity: options.armourScarcity ?? options.scarcity ?? plan.armourScarcity,
       potionScarcity: options.scarcity ?? plan.potionScarcity,
+      // Whether a chest holds anything — the gate the panel now offers, and
+      // the one spawn.js already read off `counts` before anything sent it.
+      chestLootChance: plan.chestLootChance,
       // Map-design dials ride along untouched; undefined means "use the
       // shipped value", which populate() resolves against balance.js.
       monsterSpread: plan.monsterSpread,
