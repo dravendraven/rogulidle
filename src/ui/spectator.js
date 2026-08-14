@@ -23,6 +23,7 @@ import { resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
 import { SHOP_ITEMS, pickDefaultPurchase } from './shop.js';
 import { buildDialPanel, resolvedDefaults } from './dials.js';
 import { buildRoster, getChosenHero } from './roster.js';
+import { buildHighscorePanel, recordRun, getHighscores } from './highscores.js';
 import { loadDialOverrides } from './dial-overrides.js';
 import { eventsEnabled, makeEventLayer } from './events.js';
 
@@ -55,6 +56,9 @@ const session = {
   heroEmoji: undefined,
   // The rail's own `show(playing, queued)` (src/ui/roster.js), once built.
   roster: null,
+  // The highscore panel's own `show(data)` (src/ui/highscores.js), once
+  // built — same one-function-returned-from-the-builder shape as `roster`.
+  showHighscores: null,
   history: [],
   // Turns banked from floors already finished this run — see renderHud's
   // xp-rate comment in render.js. 0 in legacy single-floor mode.
@@ -97,7 +101,7 @@ function grab() {
     'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
     'coins', 'coinPopup', 'damage', 'debugInfo', 'app', 'lab', 'dials',
     'shop', 'shopBalance', 'shopItems', 'shopSkip', 'shopTimerBar',
-    'achievements', 'roster',
+    'achievements', 'roster', 'highscores',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -412,16 +416,19 @@ async function runForever(sessionSeed) {
   }
 }
 
-function tallyDescent(run, finalState) {
+function tallyDescent(run, finalState, heroName) {
   session.runsPlayed++;
+
+  // Total turns come from playDungeon's own per-floor records; final
+  // xpEarned comes from the replayed end-of-run state, not from run.levels —
+  // see the note on xpEarnedThisFloor below for why. Needed regardless of
+  // outcome now: the highscore board's step count only cares about a clear,
+  // but its depth and coin columns update on every run.
+  const totalTurns = run.levels.reduce((sum, level) => sum + level.turns, 0);
 
   const lastFloor = run.levels[run.levels.length - 1];
   if (run.cleared) {
     session.cleared++;
-    // Total turns come from playDungeon's own per-floor records; final
-    // xpEarned comes from the replayed end-of-run state, not from
-    // run.levels — see the note on xpEarnedThisFloor below for why.
-    const totalTurns = run.levels.reduce((sum, level) => sum + level.turns, 0);
     // U4's lifetime score keeps a background record even though nothing
     // displays it any more; award() is cheap to leave running in case the
     // display ever comes back.
@@ -456,6 +463,15 @@ function tallyDescent(run, finalState) {
   if (el.achievements) {
     renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), justEarned);
   }
+
+  // U-highscores — src/ui/highscores.js. `session.unbankedCoins` is read
+  // here rather than passed in because it already IS this run's total: the
+  // next run's reset happens at the top of runDescentForever's loop, one
+  // iteration after this call.
+  recordRun(heroName, {
+    depth: run.depth, cleared: run.cleared, coins: session.unbankedCoins, turns: totalTurns,
+  });
+  if (session.showHighscores) session.showHighscores(getHighscores());
 }
 
 async function showDescentSummary(run, finalState) {
@@ -617,7 +633,10 @@ async function runDescentForever(sessionSeed) {
       continue;
     }
 
-    tallyDescent(run, finalState);
+    // `hero.name` — the real name (`HEROES.base.name` is `'base'`, not the
+    // `''` `session.heroName` prints for it) so the highscore board's key
+    // matches `roster.js`'s own ORDER and chip keys.
+    tallyDescent(run, finalState, hero.name);
     await showDescentSummary(run, finalState);
     // The default-purchase draw needs its own seed, same derivation as the
     // run's own (hashSeeds(sessionSeed, runNumber)) — see shop.js's own
@@ -735,6 +754,14 @@ export async function start() {
     const chosen = getChosenHero();
     const first = heroByName(chosen === null ? session.shippedDials.run.who : chosen);
     session.roster(first.name, first.name);
+  }
+
+  // The highscore panel, below it — built the same way: once, up front, so
+  // the first run's row is already on screen instead of appearing blank
+  // until something finishes.
+  if (el.highscores) {
+    session.showHighscores = buildHighscorePanel(el.highscores);
+    session.showHighscores(getHighscores());
   }
 
   // ?seed=whatever makes a whole session reproducible, which is how you go

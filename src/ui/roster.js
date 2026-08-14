@@ -48,8 +48,10 @@ export function setChosenHero(name) {
 
 // Order is deliberate: the ordinary hero first, because it is the one every
 // measurement compares against and the one a visitor should be able to get
-// back to without hunting.
-const ORDER = ['base', 'vito', 'pawa', 'papazito', 'ricardo'];
+// back to without hunting. Exported so any other list of the cast — the
+// highscore table's rows, for one — uses the same order instead of growing
+// a second copy that could drift from it.
+export const ORDER = ['base', 'vito', 'pawa', 'papazito', 'ricardo'];
 
 export function buildRoster(container, { onPick, onRestart } = {}) {
   container.innerHTML = '';
