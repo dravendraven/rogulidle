@@ -250,6 +250,22 @@ export const SECTIONS = [
           'vai atrás de qualquer baú, custe o que custar',
         ],
       },
+      {
+        // The other half of what the Ganância dial used to be (C1 §7). It
+        // multiplies the BAR — what a guard or a dark route may cost —
+        // while greed above multiplies the VALUE. Same centre, same bands,
+        // and the pair ships as a no-op until one of them is turned.
+        kind: 'hero', key: 'riskAppetite', label: 'quanto custo incerto o herói aceita pagar',
+        title: 'Risco', icon: '🎲', bias: true,
+        says: [
+          'não paga nada por nada incerto — só o que está no caminho',
+          'aceita um guardião fraco, nada além',
+          'topa uma aposta pequena',
+          'topa uma aposta boa',
+          'entra em sala guardada que o assusta',
+          'aceita qualquer aposta — entra em tudo',
+        ],
+      },
     ]],
     ['', [
       {

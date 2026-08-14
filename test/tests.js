@@ -3775,7 +3775,12 @@ test('V5 — a cautious hero does not explore into danger', () => {
     '#'.repeat(wide),
   ]);
 
-  const run = (sideAppetite) => {
+  // `riskAppetite`, not `sideAppetite`, and the swap IS C1 §7 working: this
+  // test asks a question about how much uncertain cost the hero accepts, and
+  // it used to ask it through the dial that prices what a chest is WORTH.
+  // The two were one number, so it happened to answer; now the right one
+  // answers and the other cannot.
+  const run = (riskAppetite) => {
     const state = makeState({
       map,
       playerPos: [6, 1],
@@ -3796,7 +3801,7 @@ test('V5 — a cautious hero does not explore into danger', () => {
     // Something is still owed, so the pool is empty and the only decision
     // left is whether to walk into the dark.
     const { actions } = driveBot(state, 4, {
-      monsterCount: 3, chestCount: 3, hero: { ...DEFAULT_HERO, sideAppetite },
+      monsterCount: 3, chestCount: 3, hero: { ...DEFAULT_HERO, riskAppetite },
     });
     return actions;
   };

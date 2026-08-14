@@ -38,18 +38,46 @@ export const DEFAULT_HERO = {
   // wrong about the ogre, both of which are xp 4.
   bravery: 1,
 
-  // Side rooms are the map's gamble, and this is the appetite for it: a
-  // side-room fight or guarded chest is only a candidate while its cost
-  // stays under `sideAppetite × fightMargin × effectiveHp`. 0 never leaves
-  // the mandatory route, 1 gambles at the same bar as any other fight, and
-  // above 1 it risks MORE on the optional than on the mandatory — which is
-  // the only way to say "take this even though it does not pay".
+  // ***** the two halves of what used to be one dial (C1 §7) *****
   //
-  // B25 — 1.0, and under LOOT_VALUE that number has a meaning it did not
-  // have before: it is a multiplier on a chest's EXPECTED VALUE, so 1.0 is
-  // "price a chest at exactly what it is worth". The centre of the Ganância
-  // dial, and the only centre in this file that is derived rather than
-  // chosen — `CHEST_VALUE_HP` computes the value and this leaves it alone.
+  // `sideAppetite` was doing two different jobs and this file said so out
+  // loud — "stops being a share of the hero's hp and becomes a multiplier on
+  // VALUE". `docs/bot.md` recorded the consequence: two effects that "somam
+  // na mesma leitura e não dá para separá-las". A sweep of it moved five
+  // gates at once, two of them in opposite directions, so it could not
+  // answer a question about any of them.
+  //
+  //     the BARS are risk        →  riskAppetite
+  //     the PRICES are greed     →  sideAppetite
+  //
+  // Not a new parameter compensating for an old one (CLAUDE.md) — a fused
+  // one taken apart. Both are born at 1, so the split lands as an exact
+  // no-op and each half can then be swept on its own.
+  //
+  // HOW MUCH UNCERTAIN COST THE HERO ACCEPTS, as a multiple of the bar he
+  // already applies to a plain fight: a guarded chest or item is a candidate
+  // only while its guard stays under `riskAppetite × fightMargin ×
+  // effectiveHp`, and the same bar refuses a frontier with too much danger
+  // on the way. 0 never gambles at all; above 1 it accepts more for what is
+  // optional than for what it cannot avoid.
+  //
+  // It is the same family as `bravery` and a different POPULATION, which is
+  // worth writing down or the two get fused next: bravery is the attitude to
+  // uncertainty about a creature IN SIGHT, this one about what has not been
+  // seen at all.
+  riskAppetite: 1,
+
+  // WHAT A THING IS WORTH TO THIS HERO. Under LOOT_VALUE it multiplies a
+  // chest's EXPECTED VALUE, so 1.0 is "price a chest at exactly what it is
+  // worth" — the only centre in this file that is derived rather than
+  // chosen, because `CHEST_VALUE_HP` computes the value and this leaves it
+  // alone (B25).
+  //
+  // It also decides how long an item is HOARDED (the book's and the
+  // syringe's demand), and that direction is the opposite of the chest's on
+  // purpose: valuing things highly means acquiring more AND spending less.
+  // Miserliness working from both ends, which is why the two stayed
+  // together while the bars left.
   //
   // The earlier 0.5 came from the vault sweeps under the OLD rule, where
   // this was a share of hp and the two numbers are not comparable.

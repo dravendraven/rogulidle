@@ -626,7 +626,12 @@ export function makeBot(options = {}) {
 
     const ehp = effectiveHp(belief.player);
     const fightBar = hero.fightMargin * ehp;
-    const sideBar = hero.sideAppetite * fightBar;
+    // C1 §7 — the BAR is risk, not greed. This is the one line the split
+    // moved: `riskAppetite` and `sideAppetite` are both born at 1, so the
+    // change is an exact no-op until one of them is turned. Everything below
+    // that compares a COST against this bar is asking "how much uncertainty
+    // do I accept"; everything that multiplies a VALUE keeps asking greed.
+    const sideBar = hero.riskAppetite * fightBar;
 
     // Everything worth having, each priced by what acquiring it costs.
     const pool = [];
