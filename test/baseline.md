@@ -1,0 +1,112 @@
+# The baseline bot
+
+What a measurement compares against. When a reading says "better" or
+"worse", this is the thing it is better or worse THAN — and a reading taken
+against anything else is not comparable to one taken against this, however
+similar the two look.
+
+## The configuration IS the baseline
+
+Not the numbers below it. The numbers rot; this list is what has to be held
+fixed for two readings to mean the same thing.
+
+| | what | where |
+|---|---|---|
+| hero | `HEROES.base` — the empty persona | `src/sim/heroes.js` |
+| starting items | **none** | `startingItems: []` |
+| Coragem | `DEFAULT_HERO.fightMargin` | `src/bot/config.js` |
+| Ganância | `DEFAULT_HERO.sideAppetite` | `src/bot/config.js` |
+| Cautela | `DANGER_PERSISTENCE` | `src/bot/config.js` |
+| floor model | `DEFAULT_MODEL` + `dial-overrides.json` | repo root |
+| seeds | `hashSeeds(20260814, 1..n)`, the same set in every cell | |
+
+Values are deliberately not restated here — `docs/balance.md` owns them and
+a copy is a copy that goes stale. Read them from the code.
+
+Three of those are load-bearing in a way that has bitten before:
+
+**Empty hands.** The shop item is a bonus paid AFTER a defeat, so a hero
+holding one is not the hero a first run gets. Measuring with a starting item
+moves every number and the owner had to correct this once already.
+
+**`HEROES.base` must stay empty.** It is the only entry of the cast that is
+byte-identical to the game before personas existed. A sweep run as `pawa` or
+`ricardo` measures that hero, not the game.
+
+**`dial-overrides.json` layered over the code defaults is the shipped
+game**, not `balance.js` alone. A sweep that reads the code only is
+measuring a version nobody plays.
+
+## Running it
+
+```
+node tools/measure.mjs --selftest        # first: is the vendored ROT.js faithful
+node tools/dial-sweep.mjs                # all three dials, 250 runs a cell
+node tools/dial-sweep.mjs 400 cautela    # one dial, more runs
+```
+
+`tools/measure.mjs check tripwires` stays what it always was — the only
+fire-or-not surface. The sweep is for questions of the form "does this dial
+do anything", which the tripwires cannot answer and which kept being
+re-derived by hand.
+
+## Reading the output
+
+**The `delta pareado` column is the answer. The two means beside it are
+not.** Each mean carries a standard error around 0.13 at n=250, so two of
+them cannot resolve a 0.1-floor difference; the same runs differenced seed
+by seed resolve it at a third of that. CLAUDE.md's "do not explain a
+difference until it clears 2 sigma" applies to the paired sigma.
+
+**`runs≠centro` is a different question from depth.** It counts runs that
+came out differently at all. A dial can rewrite 99% of runs and move mean
+depth by 0.04 — that is a dial that changes behaviour without changing
+outcomes, and telling the two apart is most of what this file is for.
+
+## Snapshot — 2026-08-14, at commit `c838763`
+
+Kept because the owner asked for a baseline to compare against, against
+CLAUDE.md's usual rule that no measurement gets written down. It is a
+DATED SNAPSHOT, not a target: if a reading disagrees with it, re-run the
+sweep before believing either.
+
+Centre: mean depth 4.62-4.68, reached floor 7+ in 17%, 21 chests and 21.6
+kills a run, 462 turns.
+
+Paired against that centre, n=300:
+
+| candidate | delta | sigma |
+|---|---|---|
+| Coragem 0.364 | +0.147 ± 0.078 | 1.9 |
+| Coragem 0.588 | +0.050 ± 0.037 | 1.4 |
+| Ganância 0.84 | +0.063 ± 0.070 | 0.9 |
+| Cautela 0.812 | +0.037 ± 0.080 | 0.5 |
+| Cautela 1.036 | −0.007 ± 0.106 | 0.1 |
+
+**Nothing clears 2 sigma, so all three centres are at their optimum as far
+as this can see.** Coragem 0.364 is the only candidate that came close and
+it did not clear the bar. This settles an older open question the other way:
+Ganância's computed centre was suspected of reading ~2 sigma worse than
+bands 0.52/0.84, and at n=300 paired it does not reproduce (0.9 sigma).
+
+The band shape, from the same sweep at n=250 — the useful part, because it
+is what the six named settings actually offer the player:
+
+- **Coragem** — flat from 0.14 to 0.588 (4.62 / 4.79 / 4.66), then falls
+  (1.036 reads 4.36). A plateau with a cliff on the high side.
+- **Ganância** — a real interior peak at 0.84-1.0 (4.68), falling both ways:
+  0.2 reads 3.63 and opens 6 chests a run against 21.
+- **Cautela** — the largest span of the three, and all of it below the
+  centre: 3.50 / 3.82 / 4.42 / 4.71 / 4.66 / 4.64. Rises, then flat from
+  0.588 up. Going down costs 1.2 floors; going up does nothing.
+
+## Known defect this sweep exposed
+
+Cautela's top two bands are **incoherent, not merely inert**. The value is
+the exponent in `menace = bite × persistence^distance`, and the centre of
+0.7 puts bands 5 and 6 at 1.036 and 1.26 — above 1, where menace GROWS with
+distance. Measured at the top band a tile 5 steps from a creature prices at
+3.02 against 2.15 for a tile adjacent to it: the hero fears the far more
+than the near, which is not caution. The band generator has no clamp
+(`src/ui/dials.js`), and raising the centre from 0.5 to 0.7 is what pushed
+the top of the scale past 1 without anything noticing.
