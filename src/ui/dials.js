@@ -19,7 +19,7 @@ import {
   corridorRange, MAP_SIZE, ROOM_HEIGHT, ROOM_WIDTH, roomRange,
   TURN_BUDGET, VAULT_LEVEL, VAULT_SIZE,
 } from '../sim/balance.js';
-import { RETURN_ENABLED } from '../sim/dungeon.js';
+import { LEVELS, RETURN_ENABLED } from '../sim/dungeon.js';
 
 // B20 — SIX NAMED STEPS INSTEAD OF A CONTINUOUS SLIDER, and the count is
 // even on purpose: there is no middle to park on, so every setting leans
@@ -591,16 +591,23 @@ export const SECTIONS = [
     // shape; nothing there changes the rooms themselves.
     ['forma do mapa', [
       {
-        // A SWITCH, not a slider, because the two are different generators
-        // rather than two settings of one. onValue/offValue carry strings
-        // the same way the vault's switch carries a floor number.
-        kind: 'model', key: 'layout', label: 'qual gerador desenha o andar',
-        title: 'Forma do andar', type: 'switch',
-        onValue: 'hub', offValue: 'digger',
-        says: [
-          'salas grudadas uma na outra até encher — sem centro, sem ramos',
-          'uma sala central e um anel de salas em volta, uma por ramo',
-        ],
+        // A SLIDER OVER FLOORS, not a switch over the run. Which floors get
+        // which shape is the question the owner actually asked, and a
+        // switch could only answer "all or none". The live line names the
+        // floors so the modulo never has to be done in anyone's head.
+        kind: 'model', key: 'hubEvery', label: 'de quantos em quantos andares (0 = nunca)',
+        title: 'Andares com sala central', step: 1, range: [0, 10],
+        says: (v) => {
+          const every = v.model.hubEvery;
+          if (!every) return 'nenhum — todo andar é do gerador antigo';
+          const floors = [];
+          for (let f = every; f <= LEVELS; f += every) floors.push(f);
+          if (!floors.length) return 'nenhum — a conta não alcança o andar 10';
+          const list = floors.length === 1
+            ? `o andar ${floors[0]}`
+            : `andares ${floors.slice(0, -1).join(', ')} e ${floors[floors.length - 1]}`;
+          return `${list} com sala central; o resto do gerador antigo`;
+        },
       },
       {
         kind: 'model', key: 'hubBranches', label: 'salas no anel (só na forma central)',

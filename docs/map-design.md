@@ -338,7 +338,13 @@ line should be higher because the line should be higher.
 ## Two shapes now, and the second one is drawn rather than found
 
 **The section below is still true of the Digger, and it stopped being the
-whole story.** `MAP_LAYOUT` picks which generator draws the floor.
+whole story.** `HUB_EVERY` says which floors are dug by the other generator
+— every Nth, 0 for none — so the shape is a property of the FLOOR rather
+than of the run. That is deliberate and it is the DCSS shape: there, a level
+draws a layout from a shelf, and a branch is recognisable because its floors
+are not all the same algorithm. `layoutFor()` in `difficulty.js` is the one
+place that decides, so a third layout is a case there and a file beside
+`layout-hub.js`.
 
 The reason a second one exists is a finding, not a preference. ROT's Digger
 **accretes**: it glues a feature onto the wall of a feature it already dug,
