@@ -122,11 +122,18 @@ frases:
   entrar numa sala apagada. Antes disso o escuro era o **terreno mais barato
   do jogo**, seguro por construção, o que era mentira e não escolha. Olhar
   paga a dívida: tile visto passa a carregar só o que se viu nele.
-- **Explora** enquanto o escuro ainda pode dever algo (as contagens são
-  concedidas — `rules.md` §7), escolhendo a fronteira pela **rota já
-  precificada** e recusando a que tenha mais perigo no caminho do que o
-  apetite permite — a mesma barra da aposta lateral. **Sai** pelo buraco
-  quando nada mais vale.
+- **A fronteira é candidata, não plano B.** Ela entra na mesma lista que
+  criatura, item e baú, pelo preço da rota, e ganha ou perde por ele. Antes
+  ficava num `else` — "só explora quando nada visível vale a pena" — o que
+  fazia o bot alternar em blocos: limpar tudo à vista, varrer, limpar de novo.
+  Agora os dois se misturam.
+- **E a barra do V5 continua.** Tirá-la foi tentado e o teste pegou: uma
+  fronteira **não tem contra o que perder**. Competir por preço só recusa
+  quando existe algo mais barato, e com toda luta recusada a lista fica
+  vazia — então o escuro venceria a qualquer preço, que é o defeito medido de
+  volta com outro nome. Ela é filtrada pela mesma barra da aposta lateral, e
+  o que a §5 comprou foi a outra metade: quando HÁ outros candidatos, a
+  fronteira disputa com eles. **Sai** pelo buraco quando nada mais vale.
 - **Mantém o objetivo atual** a menos que um novo seja claramente mais
   barato (histerese), para não vacilar entre dois quase-iguais.
 

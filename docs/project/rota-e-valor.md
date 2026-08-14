@@ -1,6 +1,6 @@
 # Rota e valor: como o bot precifica o tabuleiro
 
-**Onze peças desenhadas numa sessão com o dono.** Nove já entraram, duas
+**Onze peças desenhadas numa sessão com o dono.** Dez já entraram, uma
 não. Cada uma é construível e observável sozinha; a ordem de construção está
 no fim e **não é a ordem em que estão numeradas aqui** — a numeração é a da
 conversa, para que ela mape no documento.
@@ -250,7 +250,7 @@ E a rota **não pode trocar de moeda** depois que o objetivo é traçado: o
 Dijkstra precisa de um escalar só, e duas moedas exigem um peso, que é um
 parâmetro novo comprando um problema que a moeda única não tinha.
 
-## 5. Fronteira como quarto candidato
+## 5. Fronteira como quarto candidato ✅
 
 Hoje a fronteira **não é candidato, é plano B**: `if (pool.length) {…} else
 { fronteira }`. Ordem de prioridade, não comparação de preço.
@@ -261,6 +261,13 @@ Ela passa a entrar na pool com preço em hp, como criatura, item e baú.
 exploração não ter preço: ela escolhia a fronteira com menos passos, cega a
 perigo, e nenhuma barra podia recusá-la. Com o preço honesto, **o preço já é o
 portão**.
+
+Medido, ganância 1, 150 seeds: andares 4,27 → 4,26 e baús 14,09 → 13,92 —
+parados — mas **76 das 150 seeds divergem**, então o comportamento mudou
+bastante sem mover o agregado. Nos tripwires: a aposta aliviou de 0,892 para
+0,857 (bom, afasta-se de "sempre aberto"), mortes de abertura 0,220 → 0,267, e
+"wins too rare" voltou a disparar com 0 clears contra 1. Um clear em 150 é
+ruído, mas é o fio ligado.
 
 **A objeção que quase matou isto, e a resposta:** "a fronteira com preço =
 `walk` ganha de tudo e o bot nunca briga". Não — ela ganha *enquanto estiver
@@ -487,7 +494,7 @@ sozinho.
 | 4 | **§2** calibrar contra um duelo justo | a tabela de seis faixas | nenhum, é medição |
 | ~~5~~ | ~~**§3** perseguidor paga metade~~ ✅ feito | ele para de dar a volta para encontrar quem já vem | baixo |
 | 6 | **§10** perigo esperado do escuro | ele para de entrar em sala escura como se fosse corredor vazio | médio |
-| 7 | **§5** fronteira na pool, sai o portão do V5 | explorar e brigar se misturam em vez de alternar em blocos | **alto** |
+| ~~7~~ | ~~**§5** fronteira na pool~~ ✅ feito (o portão FICOU) | explorar e brigar se misturam em vez de alternar em blocos | **alto** |
 | 8 | **§6** refúgio | dá para ver o herói recuar de propósito | médio |
 | 9 | **§4** previsão de dois turnos | ele passa por trás da criatura em vez de por diante | alto, e pode não pagar |
 

@@ -909,101 +909,100 @@ export function makeBot(options = {}) {
       pool.push({ kind: 'chest', id: chest.id, pos: chest.pos, price: visit });
     }
 
-    // Objective 2 outranks objective 3, so the pool is emptied before the
-    // shrine is considered; objective 3 orders WITHIN the pool — cheapest
-    // first, held with hysteresis so near-ties do not cause dithering.
+    // C1 §5 — THE FRONTIER IS A CANDIDATE, NOT A FALLBACK.
+    //
+    // It used to sit in an `else`: "only explore when nothing visible is
+    // worth having". That is a priority ordering, not a comparison, and it
+    // made the bot alternate in blocks — clear everything in sight, then
+    // sweep, then clear again. Now the dark competes on price like everything
+    // else, and the two interleave the way a person plays.
+    //
+    // THE OBJECTION, AND WHY IT DOES NOT HOLD. "Priced at the walk alone, a
+    // frontier beats every fight and the bot never brawls." It beats them
+    // WHILE IT IS NEAR. As the floor is swept the frontiers retreat and the
+    // creatures stay put, so fighting wins back on its own — the balance is
+    // self-correcting, and where it tips is exactly where a hero's
+    // personality becomes visible: sweep the floor first, or take what is in
+    // front of you.
+    //
+    // `owed` still gates it, and that is not a bar — it is arithmetic. When
+    // the counts say the dark holds nothing (rules.md §7) there is nothing
+    // to buy there, so it is not a candidate at any price.
+    const unseenChests = settings.chestCount - chestsEverSeen.size;
+    const unseenMonsters = settings.monsterCount - belief.monsters.size;
+    const owed = unseenChests > 0 || unseenMonsters > 0 || !belief.shrine;
+
+    const shrineReachable = belief.shrine
+      && Number.isFinite(priceOfReaching(field, belief.shrine.pos));
+
+    // THE V5 GATE STAYS, and the plan said it would go. Removing it was tried
+    // here and the V5 test caught it within the minute, which is the test
+    // doing exactly its job.
+    //
+    // The design argument was "with the route priced honestly, the price IS
+    // the gate". It is wrong for one reason: **a frontier has nothing to lose
+    // to.** Competing on price only refuses a candidate when something else
+    // is cheaper, and when every fight has been refused the pool is empty —
+    // so the dark wins at any price, which is the measured V5 defect back
+    // under a new name (a hero forbidden from a fight walks into the room
+    // holding it, wakes it, and flees a duel his appetite will not let him
+    // finish).
+    //
+    // So the bar is still a bar. What §5 actually buys is the other half:
+    // when there ARE other candidates the frontier now competes with them on
+    // price instead of waiting in an `else` for them all to be exhausted.
+    const dangerOnTheWay = (pos) => {
+      const price = priceOfReaching(field, pos);
+      if (!Number.isFinite(price)) return Infinity;
+      const steps = field.steps.get(key(pos)) ?? 0;
+      const slack = price - steps * hero.stepCost;
+      // The route price is stepCost SUMMED once per tile and this is the same
+      // quantity MULTIPLIED — in binary the two do not agree, and the ~1e-16
+      // that survives made a corridor with no danger on it read as a gamble.
+      // At appetite 0 the bar is exactly 0, so that residue refused every
+      // frontier, the goal went null, and the bot rested until the turn
+      // budget ran out (measured: 21 of 152 floors, all timeouts).
+      return slack < 1e-9 ? 0 : slack;
+    };
+
+    // One frontier, the cheapest, rather than all of them. Dozens sit at
+    // nearly the same price and flooding the pool with them would let a tie
+    // between two patches of dark outvote a chest.
+    if (owed) {
+      const near = frontiers(belief).reduce((a, pos) => {
+        const price = priceOfReaching(field, pos);
+        if (!Number.isFinite(price) || dangerOnTheWay(pos) > sideBar) return a;
+        return (!a || price < a.price) ? { pos, price } : a;
+      }, null);
+      // `id` so the hysteresis below can recognise it between turns; every
+      // other candidate has one and the frontier used to need its own branch
+      // for the lack of it.
+      if (near) pool.push({ kind: 'frontier', id: key(near.pos), pos: near.pos, price: near.price });
+    }
+
+    // Objective 3 orders WITHIN the pool — cheapest first, held with
+    // hysteresis so near-ties do not cause dithering.
     const held = stillValid(goal, belief, field) ? goal : null;
     if (pool.length) {
       const best = pool.reduce((a, b) => (b.price < a.price ? b : a));
       const current = held && pool.find((g) => g.kind === held.kind && g.id === held.id);
       goal = (current && current.price <= best.price * settings.stickiness)
         ? current : best;
+    } else if (shrineReachable) {
+      // Nothing left worth having: the floor ends.
+      goal = { kind: 'shrine', pos: belief.shrine.pos };
     } else {
-      // Nothing in sight worth having. The dark may still hold something —
-      // the counts are granted — so explore first; the shrine is where the
-      // floor ends when nothing is owed. Frontier goals stay sticky: dozens
-      // sit at the same distance, and re-choosing every step would swap
-      // targets forever without arriving at any.
-      const unseenChests = settings.chestCount - chestsEverSeen.size;
-      const unseenMonsters = settings.monsterCount - belief.monsters.size;
-      const owed = unseenChests > 0 || unseenMonsters > 0 || !belief.shrine;
-
-      const shrineReachable = belief.shrine
-        && Number.isFinite(priceOfReaching(field, belief.shrine.pos));
-
-      // V5 — what the walk into the dark costs in HP, with the walking
-      // itself taken back out. The route price mixes two things the rest of
-      // this function keeps apart: `stepCost` per tile (objective 3, time)
-      // and the danger field (objective 1, survival). Every other gate here
-      // charges hp alone — `duelCost` and `guardCost` are both pure hp and
-      // neither counts the walk — so the bar has to be shown the same
-      // currency or a long safe corridor reads as a gamble.
-      const dangerOnTheWay = (pos) => {
-        const price = priceOfReaching(field, pos);
-        if (!Number.isFinite(price)) return Infinity;
-        const steps = field.steps.get(key(pos)) ?? 0;
-        const slack = price - steps * hero.stepCost;
-        // The route price is stepCost SUMMED once per tile and this is the
-        // same quantity MULTIPLIED — in binary the two do not agree, and the
-        // ~1e-16 that survives made a corridor with no danger on it read as a
-        // gamble. At appetite 0 the bar is exactly 0, so that residue refused
-        // every frontier, the goal went null, and the bot rested until the
-        // turn budget ran out (measured: 21 of 152 floors, all timeouts).
-        // Below the smallest danger the field can produce there is only noise.
-        return slack < 1e-9 ? 0 : slack;
-      };
-
-      // V5 — exploration used to be the one decision nothing gated. It
-      // picked the frontier with the fewest STEPS, a danger-blind ruler
-      // nothing else in the bot uses, and no bar could refuse it. So a
-      // hero forbidden from a fight still walked into the room holding it,
-      // woke what was inside, and then fled from a duel its own appetite
-      // would not let it finish. Measured: `sideAppetite` 0 cut the
-      // Butcher's kills to a twentieth and barely moved its deaths.
-      //
-      // Now the frontier is chosen by the same priced route everything else
-      // is, and refused by the same bar the side-room gamble uses. At
-      // appetite 0 that leaves exactly the frontiers with no danger on the
-      // way — which is what "never leaves the mandatory route" was always
-      // supposed to mean.
-      const frontierOk = (pos) => dangerOnTheWay(pos) <= sideBar;
-
-      if (held && held.kind === 'frontier' && (owed || !shrineReachable)
-        && frontierOk(held.pos)) {
-        // Re-checked rather than held blind: the danger on the way is what
-        // changes while the bot walks, since a creature waking mid-route is
-        // exactly the case this exists for.
-        goal = held;
-      } else if (owed || !shrineReachable) {
-        const near = frontiers(belief).reduce((a, pos) => {
-          const price = priceOfReaching(field, pos);
-          if (!Number.isFinite(price) || !frontierOk(pos)) return a;
-          return (!a || price < a.price) ? { pos, price } : a;
-        }, null);
-        goal = near ? { kind: 'frontier', pos: near.pos } : null;
-      } else {
-        goal = null;
-      }
-
       // Last resort, and the reason it exists: `rest` passes the turn and
       // changes nothing — creatures outside their chase radius do not move —
       // so a turn with no goal reproduces itself exactly and the floor times
       // out on the spot. Standing still is never survival, so a frontier the
-      // appetite refused still beats it. Only reached when the bar rejected
-      // every frontier AND no shrine is known: with either of those the bot
-      // already had somewhere to go.
-      if (!goal && !shrineReachable) {
-        const anywhere = frontiers(belief).reduce((a, pos) => {
-          const price = priceOfReaching(field, pos);
-          if (!Number.isFinite(price)) return a;
-          return (!a || price < a.price) ? { pos, price } : a;
-        }, null);
-        if (anywhere) goal = { kind: 'frontier', pos: anywhere.pos };
-      }
-
-      if (!goal && shrineReachable) {
-        goal = { kind: 'shrine', pos: belief.shrine.pos };
-      }
+      // appetite refused still beats it.
+      const anywhere = frontiers(belief).reduce((a, pos) => {
+        const price = priceOfReaching(field, pos);
+        if (!Number.isFinite(price)) return a;
+        return (!a || price < a.price) ? { pos, price } : a;
+      }, null);
+      goal = anywhere ? { kind: 'frontier', id: key(anywhere.pos), pos: anywhere.pos } : null;
     }
 
     if (settings.trace) {
