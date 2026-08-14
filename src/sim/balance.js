@@ -140,6 +140,19 @@ export const MEAN_BITE = (() => {
   return HIT_CHANCE * (total / MONSTER_TABLE.length);
 })();
 
+// The bestiary's average chase radius. Same standing as `expectedHpFor` and
+// `MEAN_BITE`: a fact about the TABLE, which the bot is entitled to, and not
+// a fact about this floor, which it is not.
+//
+// It exists so the bot can price the DARK (C1 §10): it is told how many
+// creatures a floor holds (rules.md §7) and can see how many it has met, so
+// the difference is out there somewhere — but "somewhere" only becomes a
+// price once you know how much ground one creature threatens.
+export const MEAN_ACTIVATION = (() => {
+  const total = MONSTER_TABLE.reduce((sum, m) => sum + m.activation, 0);
+  return total / MONSTER_TABLE.length;
+})();
+
 export const MONSTER_SKIP_CHANCE = 0.10;       // FAITHFUL engine.cljs:353
 export const MONSTER_DROP_CHANCE = 0.50;       // FAITHFUL generator.cljs:275
 export const MONSTER_DIFFICULTY_SCALE = 0.75;  // FAITHFUL generator.cljs:262

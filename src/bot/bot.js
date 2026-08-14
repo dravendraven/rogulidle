@@ -28,7 +28,9 @@
 import {
   effectiveHp, expectedDamage, rageMultiplier, weaponDamage, weaponMinDamage,
 } from '../sim/combat.js';
-import { expectedHpFor, MONSTER_SKIP_CHANCE, READ_TURNS } from '../sim/balance.js';
+import {
+  expectedHpFor, MAP_SIZE, MEAN_ACTIVATION, MONSTER_SKIP_CHANCE, READ_TURNS,
+} from '../sim/balance.js';
 import {
   CHEST_VALUE_HP, CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_CHEST_COUNT,
   DEFAULT_MONSTER_COUNT, DEFAULT_HERO, GOAL_STICKINESS, LOOT_VALUE, RAGE_AT,
@@ -161,11 +163,60 @@ export function isAwakeAt(monster, distance) {
 // bought: a tile beside a rat now costs more than it did, one beside a dragon
 // less. A cautious hero detouring around a rat is the declared cost, not a
 // defect.
+// ***** WHAT THE DARK COSTS (C1 §10) *****
+//
+// Until now an unseen tile was the CHEAPEST ground in the game.
+// `believedWalkable` calls it passable and the danger field knows no creature
+// there, so the dark was not neutral — it was safe by construction, and that
+// is a lie rather than a choice.
+//
+// The bot already has every number to price it. How many creatures the floor
+// holds is granted (rules.md §7), it can count the ones it has met, and the
+// difference is out there. Spread that difference over the ground it has not
+// seen and each dark tile carries its share.
+//
+// The share is the creature's EMISSION — the exposure mass one creature lays
+// over everything inside its radius, `Σ tiles(d) × persistence^d`, about 4d
+// tiles at Manhattan distance d. So a dark tile costs
+//
+//     (criaturas que faltam / tiles no escuro) × emissão
+//
+// in the same creature-turns the lit part is measured in, which means
+// `caution` scales it exactly as it scales everything else. That is not a
+// stylistic choice: if caution priced known danger and not the dark, turning
+// caution UP would send the hero round a visible wolf and into an unlit room.
+//
+// Courage does not enter. Exposure is blind to strength by definition (§1) —
+// there is no creature's health here to discount, only "how many
+// creature-turns is this". An earlier draft priced the dark as an imagined
+// creature valued by `expectedHpFor`; it contradicted §1 and it was that
+// draft that lost.
+function darkExposure(belief, { persistence, monsterCount }) {
+  const unseenMonsters = Math.max(0, (monsterCount ?? 0) - belief.monsters.size);
+  if (unseenMonsters === 0) return 0;
+
+  // Walls count as unseen ground here, which errs LOW — the dark is priced a
+  // little cheaper than it is. Preferred over guessing at how much of the
+  // unexplored map is diggable, which is a fact about generation the bot has
+  // no business knowing.
+  const unseenTiles = MAP_SIZE * MAP_SIZE - belief.tiles.size;
+  if (unseenTiles <= 0) return 0;
+
+  let emission = 1;
+  for (let d = 1; d < MEAN_ACTIVATION - 1; d++) emission += 4 * d * persistence ** d;
+
+  return (unseenMonsters / unseenTiles) * emission;
+}
+
 export function dangerField(belief, tuning = {}) {
   const persistence = tuning.persistence ?? DANGER_PERSISTENCE;
   const crowdPenalty = tuning.crowdPenalty ?? CROWD_PENALTY;
   const caution = tuning.caution ?? DEFAULT_HERO.caution;
   const stepCost = tuning.stepCost ?? DEFAULT_HERO.stepCost;
+  // Flat across every unseen tile, so it is computed once rather than per
+  // lookup. 0 whenever the floor owes nothing, which is what makes a swept
+  // floor go back to costing steps alone.
+  const dark = darkExposure(belief, { persistence, monsterCount: tuning.monsterCount });
   const passable = believedWalkable(belief);
 
   const menace = new Map();   // tile -> creature-turns of exposure there
@@ -195,7 +246,10 @@ export function dangerField(belief, tuning = {}) {
     reach,
     priceAt(x, y) {
       const tile = x + ',' + y;
-      const exposure = menace.get(tile) || 0;
+      // A tile the hero has never seen carries the floor's unaccounted-for
+      // creatures. A tile he HAS seen carries only what he saw there — the
+      // dark's share is the price of ignorance, and looking pays it off.
+      const exposure = (menace.get(tile) || 0) + (belief.tiles.has(tile) ? 0 : dark);
       if (exposure === 0) return 0;
       // `caution` is HOW MANY STEPS a creature-turn is worth, so the danger
       // half of a tile is `stepCost × caution × exposure` and the whole tile
@@ -652,7 +706,7 @@ export function makeBot(options = {}) {
     // setting, so it is merged in here rather than living in two places.
     const danger = dangerField(belief, {
       ...settings, caution: hero.caution, stepCost: hero.stepCost,
-    });
+    });   // `settings` already carries `monsterCount`, which prices the dark
 
     // B26 — A LIVE CREATURE IS NOT FLOOR. Walking into one attacks it and the
     // hero STAYS PUT (rules.md §6), so a route that crossed a creature for one

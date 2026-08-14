@@ -114,6 +114,14 @@ frases:
   MENOS o que o drop vale, e uma arma vale o duelo que ela pouparia contra o
   que já está à vista. O desconto vale para escolher alvo, nunca para a
   barra de sobrevivência: prêmio bom não deixa luta mais barata em hp.
+- **O escuro custa.** Um tile nunca visto carrega a parte dele das criaturas
+  que o andar ainda deve: `(criaturas que faltam / tiles no escuro) × emissão`,
+  onde a emissão é a massa de exposição que uma criatura espalha pelo próprio
+  raio. Fica na mesma moeda do resto, então a cautela o escala igual — e tem
+  de ser assim, ou cautela alta mandaria o herói contornar um lobo visível e
+  entrar numa sala apagada. Antes disso o escuro era o **terreno mais barato
+  do jogo**, seguro por construção, o que era mentira e não escolha. Olhar
+  paga a dívida: tile visto passa a carregar só o que se viu nele.
 - **Explora** enquanto o escuro ainda pode dever algo (as contagens são
   concedidas — `rules.md` §7), escolhendo a fronteira pela **rota já
   precificada** e recusando a que tenha mais perigo no caminho do que o

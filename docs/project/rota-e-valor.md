@@ -1,6 +1,6 @@
 # Rota e valor: como o bot precifica o tabuleiro
 
-**Onze peças desenhadas numa sessão com o dono.** Oito já entraram, três
+**Onze peças desenhadas numa sessão com o dono.** Nove já entraram, duas
 não. Cada uma é construível e observável sozinha; a ordem de construção está
 no fim e **não é a ordem em que estão numeradas aqui** — a numeração é a da
 conversa, para que ela mape no documento.
@@ -269,7 +269,7 @@ continuam perto, e a briga volta a ganhar sozinha. Isso se auto-equilibra, e é
 onde a personalidade vira comportamento visível: varrer o andar antes contra
 encarar o que está na frente.
 
-## 10. O escuro é exposição, e a cautela escala
+## 10. O escuro é exposição, e a cautela escala ✅
 
 **Hoje o escuro é o terreno mais barato do jogo, sem dial nenhum.**
 `believedWalkable` trata tile nunca visto como passável e o campo de perigo não
@@ -305,6 +305,23 @@ fictícia.
 
 **Quem paga é o apetite ao risco** (§7): o escuro é incerteza, e incerteza
 aceita é a pergunta dele.
+
+A conta que ficou:
+
+```
+escuro = (criaturas que faltam / tiles nunca vistos) × emissão
+emissão = Σ tiles(d) × persistence^d      ≈ 4d tiles à distância d
+```
+
+`MEAN_ACTIVATION` (12,55, derivada da tabela como `MEAN_BITE`) dá o raio, e a
+emissão sai 29,5. Num andar típico — 6 criaturas por achar, 800 tiles no
+escuro — um tile apagado custa **0,45 contra 0,10 de um tile limpo**.
+
+Medido, ganância 1, 150 seeds: andares 4,33 → 4,27, baús 14,23 → 14,09,
+divergem em apenas **10 das 150**. Isso é esperado e não é decepção: a
+fronteira ainda é plano B, então o preço do escuro quase só afeta rotas que
+cortam o desconhecido. **O retorno desta peça vem com a §5**, que é o que ela
+existe para tornar seguro.
 
 ## 6. Refúgio: o tile seguro mais próximo
 
