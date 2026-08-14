@@ -151,6 +151,17 @@ dura que o bot tem sobre o mapa. Tirar isso faz ele contornar estátuas.
 **Custo aceito e declarado:** cautela alta desvia até de rato. É o trade-off,
 não um defeito.
 
+**E ela NÃO está no painel do jogador**, apesar de ter sido desenhada como
+dial. O painel já tinha o `persistence` chamado Cautela, e pôr os dois lado a
+lado é dois dials sobre uma decisão só — persistence é a FORMA do decaimento
+do perigo, caution a MAGNITUDE, e ambos movem a mesma coisa visível: quão
+perto o herói aceita passar. É o padrão do M47.
+
+Então `caution` fica como traço de herói em `src/bot/config.js`, onde um herói
+pode diferir de outro, e fora das seis faixas até que uma varredura diga se os
+dois são separáveis. **Se não forem, um deles é o dial e o outro é constante
+decidida — e essa escolha é do dono, não efeito colateral de nomear.**
+
 ### Por que NÃO `cautela × (1 + exposição)`
 
 Foi a primeira forma escrita e ela achata o perigo. Hoje um tile colado numa

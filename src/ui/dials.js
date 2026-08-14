@@ -268,40 +268,32 @@ export const SECTIONS = [
       },
     ]],
     ['', [
-      {
-        // C1 §1 — the dial that decides how the hero WALKS. It converts the
-        // danger field's creature-turns into hp, so it is the exchange rate
-        // between danger and hurry.
-        //
-        // It TOOK the name Cautela from `persistence` below, which now says
-        // what it actually does: how far the hero's fear reaches. The two are
-        // orthogonal — this one is the magnitude, that one is the shape of
-        // the decay — but two things called Cautela was going to cost
-        // somebody an afternoon.
-        kind: 'hero', key: 'caution', label: 'quanto custa ao herói um turno perto de uma criatura',
-        title: 'Cautela', icon: '🛡️', bias: true,
-        says: [
-          'passa colado em qualquer coisa — perigo quase não pesa',
-          'aceita raspar numa criatura para encurtar caminho',
-          'prefere o caminho limpo quando é parecido',
-          'anda mais para não passar perto',
-          'dá voltas largas em tudo que respira',
-          'desvia até de rato — o caminho seguro a qualquer preço',
-        ],
-      },
     ]],
     ['', [
       {
         // `menace = 1 × persistence^distância`, so a HIGHER value makes the
-        // exposure persist further — the hero fears things from further
-        // away. The old name (`DANGER_FALLOFF`) said the opposite and the
-        // arrows followed it.
+        // exposure persist further — the hero fears things from further away.
+        // The old name (`DANGER_FALLOFF`) said the opposite and the arrows
+        // followed it.
         //
-        // Renamed from Cautela to Vigilância when C1 §1 added the real
-        // caution dial. This one is not about how much danger COSTS, it is
-        // about from how far away it is felt at all.
-        kind: 'bot', key: 'persistence', label: 'de que distância o herói já começa a temer',
-        title: 'Vigilância', icon: '👀', bias: true,
+        // ***** WHY `caution` IS NOT ALSO ON THIS PANEL *****
+        //
+        // C1 §1 added `caution` — the exchange rate between one creature-turn
+        // of exposure and hp — and it was briefly a fifth band here, with
+        // this row renamed out of the way to make room. That was a call taken
+        // mid-implementation and it was the wrong one: the two overlap.
+        // Persistence is the SHAPE of the danger's decay, caution its
+        // MAGNITUDE, and both move the same visible thing — how close the
+        // hero is willing to walk. Two dials on one decision is the M47
+        // confusion this project already paid to undo.
+        //
+        // So `caution` stays a hero trait in `src/bot/config.js`, where a
+        // hero may differ from another, and off the player's panel until a
+        // sweep says the two are separable. If they are not, one of them is
+        // the dial and the other is a decided constant — and that is the
+        // owner's call, not a side effect of naming.
+        kind: 'bot', key: 'persistence', label: 'quanto do perigo sobrevive a cada tile de distância',
+        title: 'Cautela', icon: '👀', bias: true,
         says: [
           'só enxerga perigo colado nele — passa raspando em tudo',
           'desvia pouco; passa perto demais',

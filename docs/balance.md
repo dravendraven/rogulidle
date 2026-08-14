@@ -76,8 +76,8 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 
 ## The bot's numbers — `src/bot/config.js`, not this file's business
 
-**The five player dials are ±80% biases around a calibrated centre** (M47) —
-Coragem, Ganância, Risco, Cautela e Vigilância.
+**The four player dials are ±80% biases around a calibrated centre** (M47) —
+Coragem, Ganância, Risco e Cautela.
 The Lab offers six named bands and none of them is the centre — and NOTHING
 runs at the centre any more: every visitor opens on a band rolled per dial,
 kept from their first session on. What the slider shows is what the run gets,

@@ -125,8 +125,7 @@ frases:
 `makeBot(options)` aceita `hero`, um override de `DEFAULT_HERO`
 (`src/bot/config.js`). Um traço por objetivo:
 
-Os **cinco** tracos que o jogador mexe — Coragem, Ganancia, Risco, Cautela,
-Vigilancia —
+Os **quatro** tracos que o jogador mexe — Coragem, Ganancia, Risco, Cautela —
 aparecem no Lab com a **mesma forma**: um
 vies de ±80% em torno de um centro calibrado, em **seis faixas nomeadas**
 (muito baixo ate muito alto). Seis, numero par, para nao haver meio onde
