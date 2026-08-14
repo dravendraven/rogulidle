@@ -269,11 +269,39 @@ export const SECTIONS = [
     ]],
     ['', [
       {
-        // `menace = mordida × persistence^distância`, so a HIGHER value
-        // makes menace persist further — more cautious. The old name
-        // (`DANGER_FALLOFF`) said the opposite and the arrows followed it.
-        kind: 'bot', key: 'persistence', label: 'quanto do perigo sobrevive a cada tile de distância',
-        title: 'Cautela', icon: '👀', bias: true,
+        // C1 §1 — the dial that decides how the hero WALKS. It converts the
+        // danger field's creature-turns into hp, so it is the exchange rate
+        // between danger and hurry.
+        //
+        // It TOOK the name Cautela from `persistence` below, which now says
+        // what it actually does: how far the hero's fear reaches. The two are
+        // orthogonal — this one is the magnitude, that one is the shape of
+        // the decay — but two things called Cautela was going to cost
+        // somebody an afternoon.
+        kind: 'hero', key: 'caution', label: 'quanto custa ao herói um turno perto de uma criatura',
+        title: 'Cautela', icon: '🛡️', bias: true,
+        says: [
+          'passa colado em qualquer coisa — perigo quase não pesa',
+          'aceita raspar numa criatura para encurtar caminho',
+          'prefere o caminho limpo quando é parecido',
+          'anda mais para não passar perto',
+          'dá voltas largas em tudo que respira',
+          'desvia até de rato — o caminho seguro a qualquer preço',
+        ],
+      },
+    ]],
+    ['', [
+      {
+        // `menace = 1 × persistence^distância`, so a HIGHER value makes the
+        // exposure persist further — the hero fears things from further
+        // away. The old name (`DANGER_FALLOFF`) said the opposite and the
+        // arrows followed it.
+        //
+        // Renamed from Cautela to Vigilância when C1 §1 added the real
+        // caution dial. This one is not about how much danger COSTS, it is
+        // about from how far away it is felt at all.
+        kind: 'bot', key: 'persistence', label: 'de que distância o herói já começa a temer',
+        title: 'Vigilância', icon: '👀', bias: true,
         says: [
           'só enxerga perigo colado nele — passa raspando em tudo',
           'desvia pouco; passa perto demais',

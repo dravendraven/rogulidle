@@ -2,7 +2,7 @@
 // never reads this file, and src/sim/balance.js no longer holds bot dials.
 // Bot rules live in the bot (CLAUDE.md); so do the bot's numbers.
 
-import { CHEST_LOOT_CHANCE } from '../sim/balance.js';
+import { CHEST_LOOT_CHANCE, MEAN_BITE } from '../sim/balance.js';
 import { ARMOUR_SCARCITY, POTION_SCARCITY } from '../sim/difficulty.js';
 import { itemWeights } from '../sim/spawn.js';
 
@@ -82,6 +82,25 @@ export const DEFAULT_HERO = {
   // The earlier 0.5 came from the vault sweeps under the OLD rule, where
   // this was a share of hp and the two numbers are not comparable.
   sideAppetite: 1,
+
+  // WHAT ONE CREATURE-TURN OF EXPOSURE COSTS, IN HP. C1 §1 — the dial that
+  // decides how the hero WALKS, which until now nothing did: three dials all
+  // answered "what is worth taking" and none answered "by which way".
+  //
+  //     preço(tile) = stepCost + caution × exposição(tile)
+  //
+  // The danger field counts creature-turns and this converts them, so it is
+  // the exchange rate between danger and hurry. NOT `caution × (1 +
+  // exposure)`, which was the first form written and flattens the contrast
+  // between a clear tile and a hemmed-in one from about 13:1 to 2:1 — the
+  // multiplier hits both sides and cannot recover it.
+  //
+  // The centre is DERIVED, not chosen: `MEAN_BITE` is the bestiary's average
+  // bite, so the middle band spends the same total danger budget the old
+  // per-creature field spent. Tile by tile it is a different game on purpose
+  // — beside a rat it now costs more, beside a dragon less — because caution
+  // is blind to strength and courage is the dial that is not.
+  caution: MEAN_BITE,
 
   // What one step is worth in hp. This is the exchange rate between goal 3
   // and the other two: raising it makes near goals win harder and empties

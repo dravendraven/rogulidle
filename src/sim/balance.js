@@ -122,6 +122,24 @@ export function expectedHpFor(xp) {
   return best ? best[1] : 1;
 }
 
+// WHAT ONE CREATURE-TURN OF EXPOSURE IS WORTH IN HP, averaged over the whole
+// bestiary. A blow lands `HIT_CHANCE` of the time and rolls uniformly over
+// 0 .. xp-1, so a creature's expected bite is `HIT_CHANCE × (xp − 1) / 2` —
+// the same arithmetic `expectedDamage` does, written out here because
+// combat.js imports this file and the reverse would be a cycle.
+//
+// It exists so the bot's `caution` dial has a centre that is DERIVED rather
+// than chosen (C1 §1 in docs/project/rota-e-valor.md). Caution prices a turn
+// spent next to something, blind to what that something is; at this value it
+// spends the same total danger budget the per-creature bite used to spend, so
+// the dial's middle band is "the game as it was" without anybody picking a
+// number. Unweighted over the table rows — spawn weights would make it a
+// reading of the generator rather than of the bestiary.
+export const MEAN_BITE = (() => {
+  const total = MONSTER_TABLE.reduce((sum, m) => sum + Math.max(0, m.xp - 1) / 2, 0);
+  return HIT_CHANCE * (total / MONSTER_TABLE.length);
+})();
+
 export const MONSTER_SKIP_CHANCE = 0.10;       // FAITHFUL engine.cljs:353
 export const MONSTER_DROP_CHANCE = 0.50;       // FAITHFUL generator.cljs:275
 export const MONSTER_DIFFICULTY_SCALE = 0.75;  // FAITHFUL generator.cljs:262

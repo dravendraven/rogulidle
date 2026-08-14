@@ -76,7 +76,8 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 
 ## The bot's numbers — `src/bot/config.js`, not this file's business
 
-**The four player dials are ±80% biases around a calibrated centre** (M47).
+**The five player dials are ±80% biases around a calibrated centre** (M47) —
+Coragem, Ganância, Risco, Cautela e Vigilância.
 The Lab offers six named bands and none of them is the centre — and NOTHING
 runs at the centre any more: every visitor opens on a band rolled per dial,
 kept from their first session on. What the slider shows is what the run gets,
@@ -89,15 +90,25 @@ the generator weights the kinds. It is 1.5 today and it follows its inputs —
 never tune it by hand.
 
 The bot's dials belong to the bot. `DEFAULT_HERO` (bravery 1, sideAppetite 1,
-riskAppetite 1, fightMargin 0.7, stepCost 0.1) is the whole
+riskAppetite 1, caution MEAN_BITE, fightMargin 0.7, stepCost 0.1) is the whole
 hero-as-configuration mechanism and the CENTRE the panel's six bands are built
 around. `bravery` 1 means "take the bestiary average at face value" — the bot
 is never told a creature's health (rules.md §7) and `expectedHpFor` is what it
-guesses with. `sideAppetite` and `riskAppetite` are the two halves of one
-overloaded dial (C1 §7 in `docs/project/rota-e-valor.md`): greed multiplies
-what a thing is WORTH, risk multiplies the BAR a guard or a dark route may
-cost. Both at 1, the split is an exact no-op. `fightMargin` is no longer one
-of the six; `DANGER_PERSISTENCE` 0.7 is the fourth dial on the panel.
+guesses with.
+
+`sideAppetite` and `riskAppetite` are the two halves of one overloaded dial
+(C1 §7 in `docs/project/rota-e-valor.md`): greed multiplies what a thing is
+WORTH, risk multiplies the BAR a guard or a dark route may cost. Both at 1,
+the split is an exact no-op.
+
+`caution` is the exchange rate between danger and hurry — what one
+creature-turn of exposure costs in hp — and its centre is the SECOND computed
+one in the project: `MEAN_BITE`, the bestiary's average bite, derived from
+`MONSTER_TABLE` so a table edit moves it on its own. `fightMargin` is no
+longer one of the bands; `DANGER_PERSISTENCE` 0.7 is now labelled
+**Vigilância**, because `caution` took the name Cautela. The two are
+orthogonal: persistence is the SHAPE of the danger's decay with distance,
+caution is its MAGNITUDE.
 
 **It is no longer what a visitor plays.** Each one gets a band ROLLED per
 dial on their first session (`src/ui/dials.js`), kept from then on — so

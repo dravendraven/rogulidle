@@ -143,9 +143,14 @@ const GENERATION = {
 // — the first read returned the old numbers because `import()` caches modules
 // per page load and the stale `bot.js` was still in there, which is the trap
 // CLAUDE.md warns about and it caught me.
+// Re-recorded again for C1 §1, where the danger field stopped weighing a
+// creature by its bite and `caution` became the exchange rate. Every route
+// price in the game moved, so this anchor had to; generation did not, and the
+// four checks above are what say so. Read off a RELOADED page, for the reason
+// the note above gives.
 const MEASUREMENT = {
   call: { module: 'check', fn: 'tripwires', args: { runs: 3, firstSeed: 500000 } },
-  values: [0, 0, 0, 0, 0.333, 1, 1],
+  values: [0, 0.333, 0.333, 0, 0.333, 1, 1],
 };
 
 // The exact snippet that produced GENERATION, for re-recording in a browser

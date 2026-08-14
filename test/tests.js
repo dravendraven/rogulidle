@@ -1417,8 +1417,21 @@ test('ricardo walks past the empty chests, and the ordinary hero does not', () =
   assert(ricardo.empty < base.empty / 2, 'the filter barely moved the wasted opens');
 
   // The half that makes it a good trade rather than mere caution: he gives
-  // up nothing. Every chest that actually held something is still opened.
-  assertEq(ricardo.found, base.found, 'ricardo refused a chest that was carrying something');
+  // up nothing.
+  //
+  // NOT equality, and the weakening is deliberate. The two heroes play
+  // DIFFERENT runs — Ricardo sees drops, so his belief and therefore his
+  // route diverge from turn one — and exact equality held only while nothing
+  // else in the pricing separated them. C1 §1 made the danger field blind to
+  // a creature's strength, the routes moved, and Ricardo now finds MORE.
+  // What the test is actually about is that the filter never costs him loot,
+  // and that is what this says.
+  //
+  // The cost of the weaker form, stated so nobody discovers it later: a
+  // filter that wrongly refused one full chest would pass here if the
+  // changed route happened to find two others. Catching that needs a test on
+  // the filter itself, not on run totals.
+  assert(ricardo.found >= base.found, 'ricardo refused a chest that was carrying something');
 });
 
 test('pawa arrives on the next floor wearing what the last one paid for', () => {

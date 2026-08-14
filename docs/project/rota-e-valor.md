@@ -1,6 +1,6 @@
 # Rota e valor: como o bot precifica o tabuleiro
 
-**Onze peças desenhadas numa sessão com o dono.** Seis já entraram, cinco
+**Onze peças desenhadas numa sessão com o dono.** Sete já entraram, quatro
 não. Cada uma é construível e observável sozinha; a ordem de construção está
 no fim e **não é a ordem em que estão numeradas aqui** — a numeração é a da
 conversa, para que ela mape no documento.
@@ -124,7 +124,7 @@ largando briga que ganharia.
 
 # Parte II — o que falta
 
-## 1. A fórmula do preço do tile
+## 1. A fórmula do preço do tile ✅
 
 ```
 preço(tile) = stepCost + cautela × exposição(tile)
@@ -159,8 +159,17 @@ criatura xp 4 custa `0,1 + 1,25` contra `0,1` de um tile limpo — contraste de
 porque multiplica os dois lados igual.
 
 Na forma adotada a cautela é **a taxa de câmbio entre perigo e passo**, e
-ganha um centro calibrado de graça: `cautela = mordida média do bestiário`
-reproduz o jogo de hoje EXATAMENTE. É o ponto neutro que a §2 procurava.
+ganha um centro calibrado de graça: `MEAN_BITE`, a mordida média do bestiário,
+derivada de `MONSTER_TABLE` e não escolhida.
+
+**Correção ao que estava escrito aqui:** esse centro NÃO reproduz o jogo antigo
+exatamente. Ele gasta o mesmo orçamento total de perigo, mas tile a tile é
+outro jogo — ao lado de um rato custa mais do que custava, ao lado de um dragão
+menos. Essa é a troca sendo comprada, não um efeito colateral.
+
+Medido, ganância 1, 150 seeds: andares 4,32 → 4,23 (dentro do ruído), baús
+laterais 14,70 → 13,81, divergem em 60 seeds. E o fio da aposta recuou de
+0,908 para 0,891 — a primeira das quatro mudanças a empurrá-lo de volta.
 
 ## 2. Calibrar a cautela contra um duelo justo
 
@@ -431,7 +440,7 @@ sozinho.
 |---|---|---|---|
 | ~~1~~ | ~~**§7** o corte da `sideAppetite`~~ ✅ feito | nada muda — e foi isso que se confirmou, 150 de 150 seeds | nenhum |
 | ~~2~~ | ~~**§11** ratear a caminhada~~ ✅ feito | ele deixa de recusar sala de tesouro distante | baixo |
-| 3 | **§1** `bite = 1` e a cautela como taxa de câmbio | cautela alta: desvia de rato. No centro: nada muda | médio — muda o que "perigo" significa |
+| ~~3~~ | ~~**§1** `bite = 1` e a cautela como taxa de câmbio~~ ✅ feito | cautela alta: desvia de rato | médio — mudou o que "perigo" significa |
 | 4 | **§2** calibrar contra um duelo justo | a tabela de seis faixas | nenhum, é medição |
 | 5 | **§3** perseguidor paga metade | ele para de dar a volta para encontrar quem já vem | baixo |
 | 6 | **§10** perigo esperado do escuro | ele para de entrar em sala escura como se fosse corredor vazio | médio |

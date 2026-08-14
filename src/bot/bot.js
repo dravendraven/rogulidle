@@ -145,19 +145,34 @@ export function isAwakeAt(monster, distance) {
 // strolling past a wolf to reach a shield: measured before it existed, the
 // bot almost never CHOSE a bad fight — it was caught while doing something
 // else, because routes were priced in steps alone.
+//
+// ***** IT IS BLIND TO WHAT THE CREATURE IS (C1 §1) *****
+//
+// Every creature contributes ONE unit of exposure, decayed by distance — a
+// rat and a dragon weigh the same here. What the field measures is
+// CREATURE-TURNS, and `caution` is the exchange rate that turns those into
+// hp. Judging strength is the courage dial's job, inside `duelCost`, where
+// the hero is actually deciding to fight rather than deciding where to walk.
+//
+// It used to weigh each creature by its own bite. The centre of `caution` is
+// the bestiary's MEAN bite (`MEAN_BITE`, derived in src/sim/balance.js), so
+// the middle band spends the same total danger budget the old field spent —
+// but tile by tile it is NOT the same game, and that is the trade being
+// bought: a tile beside a rat now costs more than it did, one beside a dragon
+// less. A cautious hero detouring around a rat is the declared cost, not a
+// defect.
 export function dangerField(belief, tuning = {}) {
   const persistence = tuning.persistence ?? DANGER_PERSISTENCE;
   const crowdPenalty = tuning.crowdPenalty ?? CROWD_PENALTY;
+  const caution = tuning.caution ?? DEFAULT_HERO.caution;
   const passable = believedWalkable(belief);
 
-  const menace = new Map();   // tile -> expected hp lost per turn there
+  const menace = new Map();   // tile -> creature-turns of exposure there
   const crowd = new Map();    // tile -> how many creatures could strike it
   const reach = new Map();    // monster id -> its step count to each tile
 
   for (const monster of belief.monsters.values()) {
     if (monster.dead) continue;
-    const bite = expectedDamage(monster.xp, 0);
-    if (bite <= 0) continue;
 
     // Flooding from the monster gives its distance to every tile at once,
     // stopped at the chase radius — past it the creature never moves.
@@ -166,7 +181,9 @@ export function dangerField(belief, tuning = {}) {
 
     for (const [tile, distance] of spread.dist) {
       if (!isAwakeAt(monster, distance)) continue;
-      menace.set(tile, (menace.get(tile) || 0) + bite * persistence ** distance);
+      // ONE, not the creature's bite (C1 §1). This map counts CREATURE-TURNS
+      // of exposure, not hp, and `caution` below is the exchange rate.
+      menace.set(tile, (menace.get(tile) || 0) + persistence ** distance);
       if (distance <= 1) crowd.set(tile, (crowd.get(tile) || 0) + 1);
     }
   }
@@ -177,9 +194,12 @@ export function dangerField(belief, tuning = {}) {
     reach,
     priceAt(x, y) {
       const tile = x + ',' + y;
-      const bite = menace.get(tile) || 0;
-      if (bite === 0) return 0;
-      return (crowd.get(tile) || 0) >= 2 ? bite + crowdPenalty : bite;
+      const exposure = menace.get(tile) || 0;
+      if (exposure === 0) return 0;
+      // `caution` converts creature-turns into hp; `crowdPenalty` is already
+      // hp and stays outside the conversion, so the two dials do not
+      // multiply each other.
+      return caution * exposure + ((crowd.get(tile) || 0) >= 2 ? crowdPenalty : 0);
     },
   };
 }
@@ -620,7 +640,9 @@ export function makeBot(options = {}) {
     // the cheapest hp cost of reaching each tile, danger included, so one
     // number compares "walk over there" with "have this fight".
     const passable = believedWalkable(belief);
-    const danger = dangerField(belief, settings);
+    // `caution` is a HERO trait and the rest of the field's tuning is a bot
+    // setting, so it is merged in here rather than living in two places.
+    const danger = dangerField(belief, { ...settings, caution: hero.caution });
 
     // B26 — A LIVE CREATURE IS NOT FLOOR. Walking into one attacks it and the
     // hero STAYS PUT (rules.md §6), so a route that crossed a creature for one
