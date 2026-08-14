@@ -128,9 +128,12 @@ const GENERATION = {
 // asks one question — does the substituted ROT.js produce the browser's
 // dungeons — and that question has nothing to do with how the game is
 // tuned. Readings still default to the shipped game; see main().
+// Re-recorded when the vault wire was added — a SEVENTH value, and the
+// other six are unchanged, which is the check working: adding an
+// instrument moved the instrument list and nothing else.
 const MEASUREMENT = {
   call: { module: 'check', fn: 'tripwires', args: { runs: 3, firstSeed: 500000 } },
-  values: [0.333, 0, 0, 0, 0, 1],
+  values: [0.333, 0, 0, 0, 0, 1, 1],
 };
 
 // The exact snippet that produced GENERATION, for re-recording in a browser

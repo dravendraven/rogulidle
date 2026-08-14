@@ -12,6 +12,7 @@
 
 import { playDungeon, LEVELS, TRAVERSALS } from '../sim/dungeon.js';
 import { makeFloorPlan } from '../sim/difficulty.js';
+import { newGame } from '../sim/game.js';
 import { makeBot } from '../bot/bot.js';
 import { heroByName } from '../sim/heroes.js';
 
@@ -106,6 +107,28 @@ export function tripwires(options = {}) {
     }
   }
 
+  // Did the authored room actually get built? Read off GENERATION rather
+  // than off the runs above, and that is the whole point: a run that dies
+  // on floor 2 never reaches the vault, so counting from play would measure
+  // how deep the bot got and call it a map property.
+  //
+  // The vault needs a 9x9 of untouched rock with a margin, and a single
+  // corridor tile crossing an empty region kills the window — so this is
+  // the one wire the MAP's shape can break on its own, without anything
+  // about creatures or the bot changing.
+  const shape = dials && dials.model ? makeFloorPlan(dials.model) : makeFloorPlan();
+  const vaultLevel = shape(1).vaultLevel;
+  let vaultBuilt = 0;
+  let vaultSeen = 0;
+  if (vaultLevel > 0) {
+    for (let i = 0; i < runs; i++) {
+      const floor = newGame(firstSeed + i, shape(vaultLevel));
+      if (!floor.vault) continue;
+      vaultBuilt++;
+      if (floor.vault.onSpine) vaultSeen++;
+    }
+  }
+
   const sideSeen = sideOpened + sideShut;
   const wire = (name, value, fires, condition) => ({
     name, value: +value.toFixed(3), fires, condition,
@@ -154,6 +177,28 @@ export function tripwires(options = {}) {
         sideSeen ? sideOpened / sideSeen : 0,
         sideSeen > 0 && (sideOpened === 0 || sideShut === 0),
         'fires when side chests are always opened, or never'),
+
+      // The authored room is the answer to "floors 2 to 6 all cost the
+      // same", and it is the one thing on the descent a dial cannot
+      // replace — so a floor that failed to place it is a floor missing
+      // its whole design, not a floor that rolled low.
+      //
+      // The threshold is the DESIGN'S OWN stated tolerance, not a number
+      // chosen here: src/sim/vault.js records the scan failing on about 1
+      // seed in 200 and treats skipping as acceptable at that rate. This
+      // wire is what makes that claim keep being true — it was measured on
+      // the code defaults and the shipped dugPercentage has since moved it
+      // a long way.
+      wire('the vault went missing',
+        runs && vaultLevel > 0 ? vaultBuilt / runs : 1,
+        vaultLevel > 0 && runs > 0 && vaultBuilt / runs < 0.99,
+        'fires when the authored room fails to place on more than 1 floor in 100'),
     ],
+    // Not a wire: how often the vault that DID get built opens onto the
+    // mandatory route. The room is designed to be walked past, so one off
+    // the route is a room nobody was offered — but what share is bad
+    // enough to be a defect is an open design question, and a wire that
+    // fires on an unowned threshold is one people learn to ignore.
+    vaultOnSpine: vaultBuilt ? +(vaultSeen / vaultBuilt).toFixed(3) : 0,
   };
 }

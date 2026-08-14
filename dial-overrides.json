@@ -20,6 +20,8 @@
     "monstersBase": 5,
     "spreadCap": 0.25,
     "dugPercentage": 0.25,
+    "roomBias": 3,
+    "corridorMin": 2,
     "shrineDistanceShare": 0.6
   }
 }

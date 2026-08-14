@@ -350,6 +350,45 @@ The one generation change the bargain needed was digging less than ROT's
 default, so that a mandatory path exists at all. Dig too much and there are
 several equivalent ways through, and "mandatory" stops meaning anything.
 
+### Two knobs, because one was doing two jobs
+
+That paragraph was true and incomplete, and the gap cost this design a
+choice it never had to give up.
+
+ROT's Digger picks room-or-corridor from a weight pair fixed in its
+constructor and never exposed as an option — stock, the two are equally
+likely. So `MAP_DUG_PERCENTAGE` was buying **rooms and corridors in
+lockstep**: the only way to ask for more side rooms was to also ask for
+more corridor, and more corridor is exactly the maze this file says the map
+must not become. Digging less bought linearity by giving up the detours;
+digging more bought detours by giving up the linearity. There was no
+setting that was both, because one number was answering two questions.
+
+`ROOM_BIAS` splits them. **`MAP_DUG_PERCENTAGE` says how much is dug;
+`ROOM_BIAS` says into what.** Bias the draw towards rooms and the same
+excavation comes back as rooms hanging off a shorter route instead of
+sprawl — measured, holding the digging fixed and biasing three-to-one takes
+corridor tiles down by half while side rooms go **up** by a third.
+
+Two things about it are worth keeping in mind before touching it:
+
+- **It pulls against spine share, and that is arithmetic, not a defect.**
+  More side rooms means more places for threat mass to sit off the
+  mandatory route. Property 4 and "some side rooms" are in genuine tension;
+  this knob does not resolve it, it just lets the trade be made on purpose.
+- **`MAP_DUG_PERCENTAGE` still owns the vault.** The authored room needs a
+  9×9 of untouched rock, and a single corridor tile crossing an empty
+  region kills the window. Digging is what eats that space — the bias
+  barely moves it. `run-check.html`'s **"the vault went missing"** wire is
+  what says so out loud; it exists because the claim in `src/sim/vault.js`
+  that the scan fails on 1 seed in 200 was measured on the CODE DEFAULTS
+  and the shipped digging had moved a long way from it without anyone
+  noticing.
+
+`CORRIDOR_MIN` is the third and smallest: the only knob that changes how far
+apart rooms sit. Neither of the other two does — they change how much
+corridor there is, not how long each one runs.
+
 ## One dial does the whole risk/reward trade
 
 A side room is treated as if it sat deeper than it is
