@@ -4,7 +4,7 @@
 import {
   CHEST_GUARD_RADIUS, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP,
-  PLAYER_HP, PLAYER_XP, ROOM_HEIGHT, ROOM_WIDTH, SHRINE_DISTANCE_SHARE,
+  PLAYER_HP, PLAYER_XP, READ_TURNS, ROOM_HEIGHT, ROOM_WIDTH, SHRINE_DISTANCE_SHARE,
   STARTING_ITEMS, TURN_BUDGET, VAULT_BOSS, VAULT_BOSS_DROP, VAULT_CHEST_ITEMS, VAULT_LEVEL,
   VAULT_SIZE, WEAPON_AXE_MIN_TIER,
 } from '../src/sim/balance.js';
@@ -1450,6 +1450,111 @@ test('pawa arrives on the next floor wearing what the last one paid for', () => 
   assertEq(pawa.levels[0].bought.count, 1, 'the row does not say what was bought');
   assertEq(pawa.levels[0].bought.emoji, shield.emoji, 'the row does not say WHAT it was');
   assertEq(base.levels[0].bought, null, 'the ordinary hero bought something mid-run');
+});
+
+// ***** the book, and the five turns it costs ***** //
+
+test('papazito starts with the book and nobody else does', () => {
+  const plan = floorPlan(1);
+  const hasBook = (persona) => newGame(31, { ...plan, persona })
+    .player.inventory.some((i) => i.kind === 'book');
+  assert(hasBook(HEROES.papazito.persona), 'the scholar arrived empty-handed');
+  assert(!hasBook(HEROES.base.persona), 'the ordinary hero was handed a book');
+  assert(!hasBook(HEROES.ricardo.persona), 'a second hero was handed a book');
+});
+
+test('reading costs exactly five turns and then fills the bar', () => {
+  const map = tinyMap([
+    '#####',
+    '#---#',
+    '#####',
+  ]);
+  let state = makeState({ map, playerPos: [1, 1], monsters: [], shrine: { id: 's', emoji: '⛩️', pos: [3, 1] } });
+  state.player.hp = 2;
+  state.player.inventory = [{ ...ITEM_TABLE.find((i) => i.name === 'book'), id: 9 }];
+  const before = state.turn;
+
+  // Four turns in, still reading and still hurt: the heal is not a discount
+  // paid up front, it is what the fifth turn buys.
+  for (let i = 0; i < 4; i++) {
+    state = step(state, i === 0 ? 'read' : 'rest').state;
+    assert(state.player.reading > 0, `the read ended early, on turn ${i + 1}`);
+    assertEq(state.player.hp, 2, 'the hero healed before finishing');
+  }
+
+  state = step(state, 'rest').state;
+  assertEq(state.turn - before, READ_TURNS, 'reading did not cost exactly five turns');
+  assertEq(state.player.hp, state.player.hpMax, 'the book did not fill the bar');
+  assert(!state.player.reading, 'the hero is still reading after the last turn');
+  assert(!state.player.inventory.some((i) => i.kind === 'book'), 'the book survived being read');
+});
+
+test('a read in progress ignores what the bot asks for', () => {
+  // The commitment is the whole price. A reader who could walk away the
+  // moment something woke would be paying nothing.
+  const map = tinyMap([
+    '#####',
+    '#---#',
+    '#####',
+  ]);
+  let state = makeState({ map, playerPos: [1, 1], monsters: [], shrine: { id: 's', emoji: '⛩️', pos: [3, 1] } });
+  state.player.inventory = [{ ...ITEM_TABLE.find((i) => i.name === 'book'), id: 9 }];
+
+  state = step(state, 'read').state;
+  const held = state.player.pos.slice();
+  state = step(state, 'right').state;
+  assertEq(String(state.player.pos), String(held), 'the hero walked out of his own read');
+});
+
+test('creatures act during every turn of a read', () => {
+  // The five turns are free with nothing awake and expensive with something
+  // on the hero's heel — that difference IS the decision (rules.md §4).
+  const map = tinyMap([
+    '##########',
+    '#--------#',
+    '##########',
+  ]);
+  let state = makeState({
+    map,
+    playerPos: [1, 1],
+    monsters: [dummy('rat', [8, 1], { activation: 20 })],
+    shrine: { id: 's', emoji: '⛩️', pos: [9, 1] },
+  });
+  state.player.inventory = [{ ...ITEM_TABLE.find((i) => i.name === 'book'), id: 9 }];
+  const start = state.monsters[0].pos[0];
+
+  for (let i = 0; i < READ_TURNS; i++) state = step(state, i === 0 ? 'read' : 'rest').state;
+  assert(state.monsters[0].pos[0] < start, 'the creature stood still while the hero read');
+});
+
+test('reading without a book passes no turn at all', () => {
+  // Same shape as drinking with no potion (rules.md §6).
+  const map = tinyMap([
+    '#####',
+    '#---#',
+    '#####',
+  ]);
+  const state = makeState({ map, playerPos: [1, 1], monsters: [], shrine: { id: 's', emoji: '⛩️', pos: [3, 1] } });
+  const after = step(state, 'read').state;
+  assertEq(after.turn, state.turn, 'an impossible read cost a turn');
+  assert(!after.player.reading, 'the hero began a read with no book');
+});
+
+test('the read survives the step it is halfway through', () => {
+  // cloneState spreads the player wholesale today, so `reading` crosses for
+  // free — unlike `persona`, which sits at the top of the state and had to be
+  // listed by hand. This is here so a future move to an allow-list cannot
+  // drop it in silence.
+  const map = tinyMap([
+    '#####',
+    '#---#',
+    '#####',
+  ]);
+  let state = makeState({ map, playerPos: [1, 1], monsters: [], shrine: { id: 's', emoji: '⛩️', pos: [3, 1] } });
+  state.player.inventory = [{ ...ITEM_TABLE.find((i) => i.name === 'book'), id: 9 }];
+  state = step(state, 'read').state;
+  assertEq(step(state, 'rest').state.player.reading, state.player.reading - 1,
+    'the reading counter did not survive a step');
 });
 
 // ***** map design: the spine and its detours ***** //

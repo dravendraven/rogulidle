@@ -54,6 +54,10 @@ export const DEFAULT_PERSONA = {
   // values, not deltas — a delta would need to know the base, and the base
   // is a balance value that lives in one place already.
   items: null,
+  // Item NAMES this hero starts every run holding, on top of `STARTING_ITEMS`
+  // (rules.md §5). A hero's kit, not the run's: what the shop bought arrives
+  // by the other door and the two add up rather than replacing each other.
+  kit: null,
 };
 
 export function resolvePersona(persona) {
@@ -106,12 +110,18 @@ export const HEROES = {
   // Sees the whole floor at once — position and type, map-wide. He still
   // does not know what a chest HOLDS: that is Ricardo's axis, and no hero
   // sits at "sees everything" on both.
+  // The two halves hold each other up. Reading costs five turns standing
+  // still, which is free when nothing awake can reach him and fatal when
+  // something can — and knowing WHICH is only possible map-wide, because a
+  // creature's activation radius routinely exceeds what the ordinary hero
+  // can see. Whole-floor sight was inert until there was a decision that
+  // needed it; the book was a gamble until there was sight to settle it.
   papazito: {
     name: 'papazito',
     title: 'o erudito',
     emoji: '🧙',
-    blurb: 'Enxerga o andar inteiro de onde estiver. Não faz ideia do que tem dentro dos baús.',
-    persona: { sightRadius: SIGHT_WHOLE_MAP },
+    blurb: 'Enxerga o andar inteiro. Uma vez por descida, para cinco turnos para ler e volta inteiro.',
+    persona: { sightRadius: SIGHT_WHOLE_MAP, kit: ['book'] },
     bot: {},
   },
   // The opposite trade: ordinary reach, deeper knowledge of what is already

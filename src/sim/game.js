@@ -1,7 +1,7 @@
 // Building and driving a whole run. Spec: docs/rogule-spec.md.
 
 import { generateMap } from './mapgen.js';
-import { MAP_SIZE, STARTING_ITEMS } from './balance.js';
+import { ITEM_TABLE, MAP_SIZE, STARTING_ITEMS } from './balance.js';
 import { hashSeeds, seedFromString } from './rng.js';
 import { nextId, populate } from './spawn.js';
 import { grantArmour, step } from './step.js';
@@ -95,7 +95,15 @@ export function newGame(seed, counts = {}) {
   // shield would otherwise lose the dagger for it, which makes buying strictly
   // worse than not buying. `startingItems` therefore means "what this run
   // brings ON TOP of the kit"; STARTING_ITEMS empty restores the old meaning.
-  const startingKit = [...STARTING_ITEMS, ...(counts.startingItems ?? [])];
+  // The hero's own kit joins the game's and the shop's, by NAME resolved
+  // against ITEM_TABLE here — heroes.js is a values file and has no business
+  // holding a second copy of what a book is. Three sources, one list, and
+  // they add up: `STARTING_ITEMS` is what everyone gets, `persona.kit` what
+  // this hero gets, `counts.startingItems` what this run bought.
+  const heroKit = (state.persona.kit ?? [])
+    .map((name) => ITEM_TABLE.find((i) => i.name === name))
+    .filter(Boolean);
+  const startingKit = [...STARTING_ITEMS, ...heroKit, ...(counts.startingItems ?? [])];
   if (startingKit.length) {
     state.player.inventory = startingKit.map((item) => {
       // Through `heroItem` for the same reason the review made this line go

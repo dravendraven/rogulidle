@@ -4,6 +4,7 @@
 // with the observation that follows. No DOM, no Date.now(), no storage.
 // The map is never cloned — it is immutable once generated.
 
+import { READ_TURNS } from './balance.js';
 import { isWalkable, samePos } from './mapgen.js';
 import { playerAttacks } from './combat.js';
 import { updateMonsters } from './monsters.js';
@@ -26,6 +27,12 @@ import { heroItem } from './heroes.js';
 // the search behaves exactly like the real engine. Not designed on
 // purpose by B14, which only adds the naive top-level policy below;
 // disclosed as a second, emergent place `drink` can now fire from.
+// `read` is NOT here, and that is the same call M35/B14 made about `drink`:
+// the engine accepts it, the bot's menu does not offer it. `tactics.js`
+// enumerates this list for a ONE-turn lookahead, and reading is a FIVE-turn
+// commitment — a search that cannot see past turn one would price it as
+// "stand still once, heal nothing" and fire it at absurd moments. It reaches
+// the engine from a top-level reactive rule instead, the way drinking does.
 export const ACTIONS = ['up', 'down', 'left', 'right', 'rest', 'drink'];
 
 const DIRECTIONS = {
@@ -191,6 +198,43 @@ function resolveEncounters(state, pos) {
 // Nothing to drink is a no-op that does NOT pass the turn — the same shape
 // as walking into a wall (rules.md §6), so a policy that asks for one it
 // does not have cannot burn turns on it.
+// Reading the book: FIVE turns standing still, then back to full hp, and the
+// book is gone. rules.md §5 and §6.
+//
+// The five turns are the entire price, and it is a price that changes with
+// the situation rather than a fixed one: a blow is paid exactly when the
+// hero stops increasing the distance (§4), so standing still costs NOTHING
+// with nothing awake nearby and costs five free hits with something on his
+// heel. Deciding which is the hero's problem, not the engine's.
+//
+// THE COMMITMENT LIVES HERE, not in the bot. Once started, `step` discards
+// whatever action arrives until the count runs out — a reader who could
+// change his mind the moment a creature woke would be paying no price at
+// all, and the price is the whole design.
+function readOneTurn(state) {
+  const player = state.player;
+  player.reading -= 1;
+  if (player.reading > 0) return true;
+
+  delete player.reading;
+  const index = player.inventory.findIndex((i) => i.kind === 'book');
+  if (index >= 0) player.inventory.splice(index, 1);
+
+  const before = player.hp;
+  player.hp = player.hpMax;
+  state.log.push({ type: 'read', healed: player.hp - before, turn: state.turn });
+  return true;
+}
+
+function startReading(state) {
+  // Same shape as drinking without a potion: asking for the impossible
+  // passes no turn at all (§6), so a bot that reads twice loses nothing but
+  // the decision.
+  if (!state.player.inventory.some((i) => i.kind === 'book')) return false;
+  state.player.reading = READ_TURNS;
+  return readOneTurn(state);
+}
+
 function drinkPotion(state) {
   const index = state.player.inventory.findIndex((i) => i.heal > 0);
   if (index < 0) return false;
@@ -207,6 +251,7 @@ function drinkPotion(state) {
 function resolvePlayerAction(state, action) {
   if (action === 'rest') return true;
   if (action === 'drink') return drinkPotion(state);
+  if (action === 'read') return startReading(state);
 
   const dir = DIRECTIONS[action];
   if (!dir) throw new Error('unknown action: ' + action);
@@ -230,7 +275,12 @@ export function step(state, action) {
   const next = cloneState(state);
   if (next.outcome) return { state: next, observation: observe(next, next.persona) };
 
-  const turnPasses = resolvePlayerAction(next, action);
+  // A read in progress OWNS the turn: the action that arrived is discarded,
+  // the count drops, and the creatures act anyway. See `readOneTurn` for why
+  // the commitment is the engine's and not the bot's.
+  const turnPasses = next.player.reading > 0
+    ? readOneTurn(next)
+    : resolvePlayerAction(next, action);
 
   if (!next.outcome && turnPasses) {
     next.turn++;

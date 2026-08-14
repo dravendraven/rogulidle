@@ -15,6 +15,13 @@ Tudo que o bot faz é um desses três aplicado. A política inteira, em seis
 frases:
 
 - **Bebe** uma poção assim que o hp que falta cobre a cura inteira.
+- **Lê o livro** quando a barra cai da metade **e** nada acordado o alcança
+  nos cinco turnos parados (`rules.md` §5). A segunda metade é exata, não
+  chute: criatura fora do raio de ativação não anda, e herói parado não
+  acorda ninguém novo — então só chegam as que já estavam vindo. Isso só
+  fecha para quem enxerga o andar inteiro, que é o mesmo herói que carrega o
+  livro. **Sem porta de profundidade:** sem simular à frente, ele lê na
+  primeira hora calma em que a barra está baixa, e medido isso é cedo.
 - **Nunca começa luta** cujo custo esperado passe de `fightMargin` do hp
   efetivo (hp + armadura). Uma criatura que já persegue paga só a
   caminhada — o duelo dela acontece de qualquer jeito.

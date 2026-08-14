@@ -16,6 +16,9 @@ const VISIBLE_SQ = VISIBLE_DIST * VISIBLE_DIST;
 const CLEAR_SQ = CLEAR_DIST * CLEAR_DIST;
 
 const PLAYER_GLYPH = '🧝';
+// What the hero shows while reading (src/sim/step.js). Its SVG is baked in
+// tiles.js like every other glyph the board draws.
+const READING_GLYPH = '📜';
 const CORPSE_GLYPH = '💀';
 
 let cells = [];
@@ -174,8 +177,12 @@ export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYP
       // NOT `glyph` — that name is the DOM node a few lines down, and
       // assigning the element here handed `tileSvg` an object, which misses
       // the map and paints an EMPTY TILE without a word in the console.
+      //
+      // A hero mid-read BECOMES the book for those five turns. Five frames
+      // of a hero standing still with no explanation is the defect this
+      // whole item was built to avoid — the moment on screen IS the feature.
       if (x === player[0] && y === player[1]) {
-        text = heroGlyph;
+        text = state.player.reading > 0 ? READING_GLYPH : heroGlyph;
         sub = '';
         opacity = 1;
         known = true;

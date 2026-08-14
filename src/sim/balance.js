@@ -144,7 +144,20 @@ export const ITEM_TABLE = [
   // damage (combat.js), which is what makes the axe read as the real weapon
   // upgrade rather than "a dagger and a half".
   { name: 'axe',    emoji: '🪓',  value: 4, dmg: 2, dmgMin: 1, kind: 'weapon' },
+  // The scholar's book (src/sim/heroes.js). NO `heal` field, deliberately:
+  // `drinkPotion` finds a potion by `heal > 0` and the bot values a loose
+  // item by the same handful of fields, so a book carrying one would be
+  // drunk on sight and priced as a potion. What it does is `read` — an
+  // action of its own (rules.md §6), not a bigger potion.
+  { name: 'book',   emoji: '📜',  value: 5, kind: 'book' },
 ];
+
+// How many turns reading costs. The hero does nothing for all of them and
+// the creatures act in every one — which is the whole price, since a blow is
+// paid exactly when the hero stops increasing the distance (rules.md §4).
+// Five: long enough that a pursuer crosses a room, short enough to survive
+// starting one by mistake.
+export const READ_TURNS = 5;
 
 // GUESS — the minimum MONSTER_TABLE index a killed creature must reach
 // before `axe` is even in its drop pool. A FILTER, not a tilt: below this

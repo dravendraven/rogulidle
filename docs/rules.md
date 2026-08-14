@@ -300,6 +300,16 @@ tudo que o herói tem", sem regra separada para esse caso. Item que entra
 assim credita a barra de armadura pela mesma regra do item pego do chão —
 uma função, não duas cópias.
 
+**Existe um item que se lê, e ele não é uma poção maior.** Um herói começa a
+descida com ele. Lido, o herói **passa cinco turnos parado** e volta com a
+barra de vida cheia; o item some. Não cura na hora e não dá para desistir no
+meio — a leitura, uma vez começada, toma os cinco turnos.
+
+O preço não é fixo, e é aí que mora a decisão: como o golpe só é pago quando
+o herói deixa de aumentar a distância (§4), ficar parado não custa **nada**
+se nada acordado o alcança, e custa cinco golpes de graça se algo alcança.
+Saber qual dos dois é o problema de quem lê.
+
 **Quanto um item vale pode depender de quem o carrega.** O mundo larga
 sempre o mesmo item; o que muda é a mão. Um herói pode tirar de uma arma ou
 de um escudo mais — ou menos — do que outro tira do mesmo objeto, e isso
@@ -317,6 +327,11 @@ mesma forma do esbarrão: nada acontece, e as criaturas não agem.
 
 **Atacar, abrir baú, pisar no buraco e beber resolvem no lugar** em vez de
 mover.
+
+**Ler é a única ação que custa mais de um turno**, e enquanto ela corre o
+herói não escolhe nada: o que for pedido é descartado, o turno passa e as
+criaturas agem. Ele volta a decidir quando a leitura acaba — ou não volta,
+se morrer no meio.
 
 **O que impede a entrada impede tudo o que viria depois dela.** Criatura viva
 e baú fechado barram o tile alvo. Barrado o tile, nada mais que estivesse

@@ -91,6 +91,13 @@ function signalsFor(entry, state) {
       : [{ html: `${glyph('🥃')}✗`, kind: 'miss', ...here }];
   }
 
+  if (entry.type === 'read') {
+    // Fires on the LAST of the five turns, which is when the bar jumps —
+    // the four before it are told by the hero holding the book on the
+    // board (src/ui/render.js), not by a signal repeated five times.
+    return [{ html: `${glyph('📜')}+${entry.healed}`, kind: 'heal', ...here }];
+  }
+
   if (entry.type === 'pickup') {
     return [{ html: glyph(EMOJI_OF.get(entry.item) || '❓'), kind: 'gain', ...here }];
   }

@@ -28,10 +28,10 @@
 import {
   effectiveHp, expectedDamage, weaponDamage, weaponMinDamage,
 } from '../sim/combat.js';
-import { MONSTER_SKIP_CHANCE } from '../sim/balance.js';
+import { MONSTER_SKIP_CHANCE, READ_TURNS } from '../sim/balance.js';
 import {
   CHEST_VALUE_HP, CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_CHEST_COUNT,
-  DEFAULT_MONSTER_COUNT, DEFAULT_HERO, GOAL_STICKINESS, LOOT_VALUE,
+  DEFAULT_MONSTER_COUNT, DEFAULT_HERO, GOAL_STICKINESS, LOOT_VALUE, READ_AT,
 } from './config.js';
 import {
   actionToward, believedWalkable, dijkstra, flood, frontiers, key, routeTo,
@@ -259,6 +259,34 @@ function stillValid(goal, belief, field) {
   return distance > 0;                            // standing on it means done
 }
 
+// Whether the hero can stand still for a whole read without being reached.
+// EXACT, not a guess, and that is what makes reading a decision rather than
+// a gamble: a creature is asleep while the hero is farther than its
+// activation radius (rules.md §3), and a hero who does not move wakes nobody
+// new — so the only creatures that can arrive are the ones already awake.
+//
+// IT ONLY WORKS FOR A HERO WHO SEES THE FLOOR. `belief.monsters` holds what
+// has been seen, and the mean activation radius a run meets is wider than
+// the ordinary hero's sight — so for anyone else this would answer "safe"
+// about creatures it simply cannot see. Only the scholar carries the book,
+// and he is the one who sees the whole floor; the two halves are one design.
+//
+// Manhattan rather than a real path, and it errs the safe way: a path is
+// never shorter than the straight-line count, so anything called "close
+// enough to arrive" is at worst early, never late.
+function safeToStandStill(belief) {
+  const [px, py] = belief.player.pos;
+  for (const m of belief.monsters.values()) {
+    if (m.dead) continue;
+    const d = Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py);
+    // `isAwakeAt` rather than a second copy of "awake" written here — the
+    // danger field already answers that question and the two must not drift.
+    if (!isAwakeAt(m, d)) continue;
+    if (d <= READ_TURNS + 1) return false;
+  }
+  return true;
+}
+
 export function makeBot(options = {}) {
   const hero = { ...DEFAULT_HERO, ...(options.hero ?? {}) };
   const settings = {
@@ -300,6 +328,22 @@ export function makeBot(options = {}) {
     const potion = belief.player.inventory.find((i) => i.heal > 0);
     if (potion && belief.player.hpMax - belief.player.hp >= potion.heal) {
       return 'drink';
+    }
+
+    // Objective 1, the scholar's version. Same shape as the potion above —
+    // a threshold on numbers already in hand, no lookahead — but the second
+    // half is what the potion never needed: five turns standing still are
+    // free or fatal depending on what is awake, so the rule asks.
+    //
+    // NO DEPTH GATE, and it is a live question rather than a decision: with
+    // nothing to look ahead with, this fires the first time the bar drops
+    // low on a quiet tile, which will usually be shallow — and the runs die
+    // deep. Whether the book should be held for the floors that kill is for
+    // a measurement to answer, not for a number invented here.
+    if (belief.player.hp <= belief.player.hpMax * READ_AT
+      && belief.player.inventory.some((i) => i.kind === 'book')
+      && safeToStandStill(belief)) {
+      return 'read';
     }
 
     for (const id of belief.chests.keys()) chestsEverSeen.add(id);

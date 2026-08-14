@@ -64,14 +64,18 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | `STARTING_ITEMS` | [] | the run starts empty-handed — the opening is hard on purpose |
 | `MONSTER_TABLE` / `ITEM_TABLE` / `MONSTER_WEIGHTS` | — | in `src/sim/balance.js`, values visible there |
 | `HEROES` / `DEFAULT_PERSONA` | — | in `src/sim/heroes.js`, values visible there — the cast, one object per hero. `base` is empty and must stay empty: it IS the shipped game, and every reading compares against it |
+| `ITEM_TABLE.book` | 📜 | the scholar's, and the only item with no stat at all — what it does is the `read` action (rules.md §5) |
+| `READ_TURNS` | 5 | turns a read costs, standing still, with the creatures acting in every one |
 | `ITEM_TABLE.axe.dmgMin` | 1 | the axe raises the damage die's FLOOR, not just its top — worth twice a point of `dmg` (rules.md §4) |
 
 ## The bot's numbers — `src/bot/config.js`, not this file's business
 
 **The four player dials are ±80% biases around a calibrated centre** (M47).
-The Lab offers six named bands, none of them the centre, and an untouched
-dial runs AT the centre — so opening the panel never moves the balance and
-every setting a player picks is a deliberate detune.
+The Lab offers six named bands and none of them is the centre — and NOTHING
+runs at the centre any more: every visitor opens on a band rolled per dial,
+kept from their first session on. What the slider shows is what the run gets,
+always. (This paragraph said the opposite until the roll shipped, and it is
+the same claim the row below corrects.)
 
 `CHEST_VALUE_HP` is the one centre that is COMPUTED rather than chosen:
 `CHEST_LOOT_CHANCE × the average hp a chest item is worth`, weighted the way
@@ -91,7 +95,9 @@ median session runs.
 **THREE things are DECIDED rather than dials, all three measured inert:**
 `CROWD_PENALTY` 15 (B19), `GOAL_STICKINESS` 1.4 (B20) and `stepCost` 0.1
 (B24 — 18 configurations at n=150 and everything from 0.08 to 0.9 reads the
-same). See `docs/bot.md`.
+same). `READ_AT` 0.5 — how low the bar goes before the scholar's book is
+worth five turns — is a FIRST GUESS and has never been swept. See
+`docs/bot.md`.
 
 ## Tiers
 
