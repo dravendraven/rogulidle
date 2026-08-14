@@ -369,6 +369,228 @@ was never written against.
 And it is the only candidate here that changes what is **seen**. Ten floors
 out of the same digger are visually monotonous.
 
+### U11 · O inferno — a branch at floor 10, and one seed the whole world shares
+
+`owner idea` · **UNSCHEDULED** · recorded whole; the four parts cost wildly
+different amounts and only one of them is expensive
+
+At floor 10 the hero may meet an entity offering two portals. One goes back:
+pocket the coins, descend again stronger. The other goes down — twenty more
+floors of hell, the Balrog at the bottom. Reaching the Balrog is meant to be
+nearly impossible and beating it nearly impossible on top of that, so the real
+objective becomes **how deep into hell you got**. **Only the descent** runs on a seed drawn per
+day and shared by every player — floors 1-10 stay private and random, one new
+seed per run, the way they are today. The scoreboard is who went deepest on
+today's seed.
+
+**What it solves is the open risk in the owner's own philosophy.** The stated
+position is a deliberately hard baseline with power unlocked through
+achievements — and the unanswered half of that is what stops the unlocks from
+eventually trivialising the game. An unreachable victory is an infinite power
+sink. Every fraction of power moves the deepest floor a little and none of them
+ever finishes anything, which is a licence to ship power without first proving
+it did not break the curve. This project has never had that licence and it is
+why every dial change turns into a measurement cycle.
+
+It is also the shape `objectives.md` already asks for. "A permanent unlock is
+safest when it buys a different way to lose rather than a lower chance of
+losing" — a boss nobody beats converts every gain into *losing deeper*, which
+is that sentence with the sign flipped and nothing else changed.
+
+**How many descents a day is the decision this rests on, and it is not
+anti-grind.** With no cap the floor-10 choice is not a choice: descending is
+free and there are forty more attempts today, so the portal home is never taken
+and the entity is a button. A small cap — three — makes "spend one now or go
+back and return stronger" the push-your-luck the whole thing is for.
+`objectives.md` says the same in its own words: an option with no real weakness
+is not an option. The cap also settles the leaderboard's other distortion,
+since best-of-N ranks whoever left the tab open longest whenever N is
+unbounded.
+
+**The daily seed is the strongest part, and not for the obvious reason.** Not
+because dailies are engaging; because THE BOT PLAYS. Sharing the seed removes
+the map from the comparison, and what is left is the only thing the player
+touches: the build — dials, hero, unlocks. It turns a scoreboard into a
+comparison of CONFIGURATIONS, which is exactly the thing the Lab has never had
+a reason to matter for. Rogule's own daily compares play; this one compares
+preparation, and preparation is what a game that plays itself can actually
+offer. The engine needs nothing new for it: same seed, same run, always
+(`src/sim/rng.js`).
+
+**The private 1-10 does not break that, because the game is idle.** Two players
+enter the same hell with different gear, so a single descent compares build AND
+the luck of the preparation run. Over a day of continuous play the board records
+the BEST descent, which is the maximum of many draws — and the shape of that
+maximum's tail is the configuration, not the luck. Sorting by best-of-N is what
+converts a noisy per-run comparison into a comparison of builds. It is also why
+the cap above matters: it fixes N for everyone.
+
+**It does not reintroduce the daily gate.** The product line is "no daily gate
+— the next run starts the moment the last one ends", and "desafio diário" reads
+exactly like the thing that was refused. It is not: hell is a BRANCH off the
+ordinary loop. The main descent stays ungated and endless, and the dated seed
+governs one optional door inside it.
+
+#### Hell is unlocked, and both keys already exist
+
+**The base game has no hell.** It is earned, and the achievement that earns it
+is `bottom` — which is already in `src/ui/achievements.js`, already named, and
+already says the right thing: "dez andares. ninguém chegou ainda". Reaching
+floor 10 is what proves you can walk to the door, so the door appears after you
+have been there. Nothing about the gate needs inventing; it needs WIRING. Today
+both achievements are a plaque and neither is a key.
+
+That gives the progression its first stated shape, two rungs:
+
+| achievement | unlocks |
+|---|---|
+| `butcher` 🐷 | choosing a hero — until then the base hero is forced |
+| `bottom` 🕳️ | the entity at floor 10, and hell behind it |
+
+**The order enforces itself, which is the strongest version of a ladder.** The
+base hero averages 4.6 floors and kills the Butcher in about 6.5% of runs, so
+the first rung is reachable but slow; floor 10 is not reachable with the base
+hero at all, so the second rung needs the first. Neither gate is a rule — each
+is a capability, and the sequence falls out of the numbers rather than out of a
+lock.
+
+**And it answers the objection recorded below** (that floor 10 is effectively
+never reached, so the branch would be invisible) by inverting it. Hell is not
+dead content waiting for nobody: it does not exist yet. That is also the shape
+`objectives.md` prefers — "a permanent unlock is safest when it buys a different
+way to lose rather than a lower chance of losing", and hell buys exactly that.
+It makes nobody stronger; it adds floor to fall through.
+
+#### The shape of the choice: a prompt with a timer, and an RNG default
+
+**Same shape as the shop, because the shop already is this.** `SHOP_MS` is
+30 seconds against `SUMMARY_MS`'s 2.4 — a window sized so a present viewer has a
+real chance to act and an absent one loses nothing. The floor-10 prompt is that
+pattern a second time, and a mid-run shop is not new either: `atTheStairs`
+(`src/sim/dungeon.js`) already runs one for the engineer, so "shop, then the
+portal" reuses a path rather than adding one. Whether the two are one popup or
+two in sequence is open and cheap to change.
+
+**When the timer runs out, the branch is DRAWN, not defaulted to one side.** A
+coin from the run's own stream (`src/sim/rng.js` — never `Math.random`, which is
+banned in `src/sim/`), so an unattended run stays deterministic and a replay
+from `{config, runSeed}` reproduces it exactly. The draw is a placeholder for a
+condition later; recording it as a draw rather than as "always descend" is what
+keeps the unattended path honest while the condition does not exist.
+
+This settles a worry that was recorded here in the wrong place. A live human
+choice would break reproducibility — but only if what was chosen is not
+submitted. It is one field. U12 carries it.
+
+**And it keeps the product's shape intact for the case that matters.** The game
+plays itself and the player configures; a prompt that expires into a draw is
+still a game that runs unattended all day, which is the premise the daily seed
+and the descent cap both rest on.
+
+#### The blockers, hardest last
+
+**The floor-10 branch is invisible today, and that orders the whole feature.**
+Mean depth for the base hero is around 4.6 and floor 7+ happens in 17% of runs;
+floor 10 is effectively never reached. So this sits DOWNSTREAM of the unlock
+system rather than beside it — building the door before anyone can walk to it
+is building nothing. The `bottom` gate above turns that from a scheduling risk
+into the design: the door is not missing, it is unearned.
+
+**Twenty floors of content almost nobody sees** is the worst work-to-eyes ratio
+available — the vault took a whole cycle for one room on one floor. Unless hell
+is not content: `makeFloorPlan` already turns a model into arbitrarily harsh
+floors, so hell as a MODEL with the dials pushed is nearly free, and that has to
+be the first version. New tiles, new bestiary and a named boss are a later
+argument, not this one.
+
+**The Balrog is a design problem this project has already measured and lost
+once.** `decisions.md`: entry and survival are the same number — whether the
+bot takes a fight is `duelCost <= bar` and whether it survives one is roughly
+`duelCost / effectiveHp`, so anything that makes a fight deadlier makes the bot
+REFUSE it instead of losing it. An unbeatable boss is a boss the bot walks away
+from; the run then ends on the turn budget, which is the dullest possible
+ending. The Butcher needed `speed` precisely because it was the one property
+found that moves what a fight COSTS without moving what it is PRICED at. The
+Balrog needs that trick, or a rule that deletes the choice — no retreat, or a
+floor whose only exit is through it.
+
+**The shared scoreboard needs a server, and the project has refused one.** "No
+frameworks, no npm, no build step... must run by opening HTML files / GitHub
+Pages as-is." A leaderboard is state written by many clients and read by all,
+which is the one thing a static host cannot do. Every way around it breaks a
+rule that is currently load-bearing. This is the real cost of the feature — not
+the hell floors, not the boss — and it is worth knowing that BEFORE any of the
+cheap parts get built, because the cheap parts are worth building even if this
+never is.
+
+#### The order that makes it cheap
+
+Hell as a difficulty model, not as content. Then the floor-10 choice. Then a
+date-derived seed with a LOCAL best, which delivers the daily's real mechanic —
+everyone comparing the same map — to anyone willing to screenshot. The shared
+scoreboard last, if ever.
+
+**Relationship to U8/U9, which nobody should re-derive later.** U8 already cuts
+a run into blocks and U9 already puts a hold-or-bank decision at each boundary.
+This is that shape with the stakes moved: one boundary instead of five, and the
+"extract" side is the ordinary game rather than a harder block. If U9 lands
+first, this is a configuration of it and not a second system — and U9's own
+blocker, a balance that is readable and spendable mid-run, is this feature's
+blocker too, since "pocket the coins" is the same machine.
+
+### U12 · The board — a name, a date, and a seed anyone can replay
+
+`owner idea` · **UNSCHEDULED** · U11's expensive blocker, priced down to about
+half a day by dropping accounts
+
+The cheap version of the scoreboard U11 needs. **No login, no accounts, no
+sessions, no device locking.** The player types a name, it lives in
+`localStorage` beside the six stores already there, and using the same name
+means being the same person. That is trust, chosen deliberately: the game is
+played among friends, and every mechanism that would enforce identity costs
+more than the problem.
+
+**What gets submitted is `{name, date, config, runSeed, branch}`** — never a
+score. `branch` is which portal was taken at floor 10, one word, and it is there
+because that choice is a timed prompt a human may answer (U11): the RNG default
+is reproducible from `runSeed` alone, a human's answer is not. Submitting what
+was chosen rather than who chose it makes replay exact either way.
+Not for anti-cheat (the trust is granted) but because the seed is shared and the
+simulation is deterministic, so those five fields let ANY browser replay the
+run and arrive at the same number. Watching how a friend reached hell floor 31
+falls out of what already exists. `runSeed` is the private 1-10 seed and it has
+to be in there: without it the arrival state is unknown and nothing is
+reproducible, since only the hell half is shared.
+
+**Derive the daily seed from the UTC date, not the local one.** A friend in
+another timezone otherwise plays yesterday's or tomorrow's map and the board
+silently compares different dungeons. One line, and the kind of thing that
+surfaces only when somebody travels.
+
+#### The cross-device conflict dissolves, and it is worth knowing why
+
+The worry was two devices on one account picking different seeds and corrupting
+each other's progress. With a date-derived seed there is nothing to reconcile:
+both devices compute the same seed without talking. No lease, no heartbeat, no
+single-instance lock, none of the edge cases those drag in (closed laptop,
+offline play, clock skew, takeover flow).
+
+**The consequence to accept on purpose:** with no account, progression stays PER
+DEVICE. Wallet and achievements on the phone are not the ones on the desktop, so
+a hero unlocked on one is locked on the other. For a game played among friends
+that is probably fine — but it is a decision, not a detail, and it is the whole
+price of dropping accounts.
+
+#### What it still costs
+
+A server, and this would be the first one. "Must run by opening HTML files /
+GitHub Pages as-is" becomes false the moment a board exists. The rule can be
+preserved where it actually matters — the game stays fully playable anonymous
+and offline, with name and board purely additive — but that has to be written
+down rather than left as a consequence. With accounts dropped the server is a
+table with an insert policy and a select; the re-simulation that would have
+been needed for trust is optional, and worth keeping only for replay.
+
 ## Archived
 
 ### The count→strength route — UNARCHIVED, see M7
