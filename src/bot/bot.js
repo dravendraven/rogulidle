@@ -38,6 +38,7 @@ import {
 } from './config.js';
 import {
   actionToward, believedWalkable, dijkstra, flood, frontiers, key, routeTo,
+  unkey,
 } from './nav.js';
 
 // What a fight is expected to cost, before taking it. This is the number
@@ -992,17 +993,53 @@ export function makeBot(options = {}) {
       // Nothing left worth having: the floor ends.
       goal = { kind: 'shrine', pos: belief.shrine.pos };
     } else {
-      // Last resort, and the reason it exists: `rest` passes the turn and
-      // changes nothing — creatures outside their chase radius do not move —
-      // so a turn with no goal reproduces itself exactly and the floor times
-      // out on the spot. Standing still is never survival, so a frontier the
-      // appetite refused still beats it.
-      const anywhere = frontiers(belief).reduce((a, pos) => {
-        const price = priceOfReaching(field, pos);
-        if (!Number.isFinite(price)) return a;
-        return (!a || price < a.price) ? { pos, price } : a;
-      }, null);
-      goal = anywhere ? { kind: 'frontier', id: key(anywhere.pos), pos: anywhere.pos } : null;
+      // C1 §6 — THE REFUGE, and it is the first goal this bot has ever had
+      // that means "away from here". Every other candidate is a thing to GO
+      // AND GET; with nothing left worth having and the appetite refusing
+      // every road, the hero used to walk into the dark he had just refused
+      // because standing still times the floor out. Now he can hide instead.
+      //
+      // A refuge is a tile he has SEEN whose exposure is zero — and that is a
+      // proof, not an estimate: a creature outside its own chase radius is
+      // provably motionless (rules.md §3), and an unseen tile is never zero
+      // now that the dark has a price (§10). It is the one place in the bot
+      // where "safe" is not a guess.
+      //
+      // IT IS NOT A CANDIDATE IN THE POOL, and that is the whole design.
+      // A refuge produces nothing, so it would be cheap ALWAYS — a safe tile
+      // is usually a step away — and a hero who could pick it on price would
+      // hide for the rest of the run. It is a fallback, not an option.
+      //
+      // ONLY WHEN HE IS ACTUALLY EXPOSED. Standing somewhere already safe
+      // there is nothing to flee to, and taking the refuge anyway would
+      // reinstate exactly the timeout the last-resort frontier below exists
+      // to prevent (measured once at 21 floors in 152, all of them running
+      // out of turns).
+      const exposedHere = danger.priceAt(belief.player.pos[0], belief.player.pos[1]) > 0;
+      let refuge = null;
+      if (exposedHere) {
+        for (const [tileKey, cost] of field.cost) {
+          const [x, y] = unkey(tileKey);
+          if (danger.priceAt(x, y) > 0) continue;
+          if (!refuge || cost < refuge.cost) refuge = { pos: [x, y], cost };
+        }
+      }
+
+      if (refuge) {
+        goal = { kind: 'refuge', id: key(refuge.pos), pos: refuge.pos };
+      } else {
+        // Last resort, unchanged: `rest` passes the turn and changes nothing
+        // — creatures outside their chase radius do not move — so a turn with
+        // no goal reproduces itself exactly and the floor times out on the
+        // spot. Standing still is never survival, so a frontier the appetite
+        // refused still beats it.
+        const anywhere = frontiers(belief).reduce((a, pos) => {
+          const price = priceOfReaching(field, pos);
+          if (!Number.isFinite(price)) return a;
+          return (!a || price < a.price) ? { pos, price } : a;
+        }, null);
+        goal = anywhere ? { kind: 'frontier', id: key(anywhere.pos), pos: anywhere.pos } : null;
+      }
     }
 
     if (settings.trace) {

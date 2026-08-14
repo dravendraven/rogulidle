@@ -134,6 +134,16 @@ frases:
   volta com outro nome. Ela é filtrada pela mesma barra da aposta lateral, e
   o que a §5 comprou foi a outra metade: quando HÁ outros candidatos, a
   fronteira disputa com eles. **Sai** pelo buraco quando nada mais vale.
+- **Se refugia** quando não sobrou nada: lista vazia, buraco desconhecido, e
+  ele **exposto**. O refúgio é um tile já visto de exposição zero — e isso é
+  prova, não estimativa, porque criatura fora do próprio raio não anda
+  (`rules.md` §3) e tile no escuro nunca é zero desde que o escuro custa. É o
+  primeiro objetivo do bot que significa **"para longe daqui"**; todos os
+  outros são coisas para ir buscar.
+- **E ele não é candidato na lista, de propósito.** Um refúgio não produz
+  nada, então seria barato SEMPRE — um tile seguro costuma estar a um passo —
+  e um herói que pudesse escolhê-lo por preço se esconderia o resto da run.
+  Só vale já estando exposto: parado num lugar seguro não há do que fugir.
 - **Mantém o objetivo atual** a menos que um novo seja claramente mais
   barato (histerese), para não vacilar entre dois quase-iguais.
 

@@ -1,6 +1,9 @@
 # Rota e valor: como o bot precifica o tabuleiro
 
-**Onze peças desenhadas numa sessão com o dono.** Dez já entraram, uma
+**Onze peças desenhadas numa sessão com o dono.** Dez já entraram; falta só
+a previsão de dois turnos (§4), a única que pode não pagar.
+
+Antiga contagem: uma
 não. Cada uma é construível e observável sozinha; a ordem de construção está
 no fim e **não é a ordem em que estão numeradas aqui** — a numeração é a da
 conversa, para que ela mape no documento.
@@ -330,7 +333,7 @@ fronteira ainda é plano B, então o preço do escuro quase só afeta rotas que
 cortam o desconhecido. **O retorno desta peça vem com a §5**, que é o que ela
 existe para tornar seguro.
 
-## 6. Refúgio: o tile seguro mais próximo
+## 6. Refúgio: o tile seguro mais próximo ✅
 
 Um tile conhecido de **exposição zero**. Como criatura fora do raio é
 provadamente imóvel, exposição zero é **garantia, não palpite** — o refúgio é o
@@ -353,6 +356,18 @@ existe:
 ```
 melhor fronteira custa mais que fightMargin × hp efetivo   →   refúgio
 ```
+
+Medido, 150 runs, 637 andares: o refúgio dispara em **13 andares** e ocupa
+**1,1% dos turnos**. Raro e dramático, que é o que um recuo deve ser.
+Profundidade parada (4,26 → 4,25), 5 seeds divergem.
+
+**E ele oscila, o que precisa ficar escrito.** São 756 turnos de refúgio em 13
+andares — cerca de 58 por andar, alto demais para ser uma fuga só. A causa é
+estrutural: o herói chega ao refúgio, fica seguro, `exposto` vira falso, e o
+último recurso o manda para uma fronteira que a barra tinha recusado; andando
+até ela ele se expõe de novo e volta. O fio da lesma continua em **0**, então
+isso não está estourando o orçamento de turnos — mas é ida-e-volta, e é a
+primeira coisa a procurar quando finalmente se assistir.
 
 Desenho final da escolha:
 
@@ -495,7 +510,7 @@ sozinho.
 | ~~5~~ | ~~**§3** perseguidor paga metade~~ ✅ feito | ele para de dar a volta para encontrar quem já vem | baixo |
 | 6 | **§10** perigo esperado do escuro | ele para de entrar em sala escura como se fosse corredor vazio | médio |
 | ~~7~~ | ~~**§5** fronteira na pool~~ ✅ feito (o portão FICOU) | explorar e brigar se misturam em vez de alternar em blocos | **alto** |
-| 8 | **§6** refúgio | dá para ver o herói recuar de propósito | médio |
+| ~~8~~ | ~~**§6** refúgio~~ ✅ feito | dá para ver o herói recuar de propósito | médio |
 | 9 | **§4** previsão de dois turnos | ele passa por trás da criatura em vez de por diante | alto, e pode não pagar |
 
 **§7 primeiro porque entra provadamente sem mexer em nada** — é o único jeito
