@@ -336,3 +336,47 @@ export function renderHistory(element, history) {
     element.append(chip);
   }
 }
+
+// ***** M50 — the boss bar *****
+//
+// The vault's occupant is the only fight in the game worth announcing, and
+// the only creature the player has a reason to track blow by blow: it is
+// twice as fast, it is the one guaranteed drop, and it is what an
+// achievement is gated on.
+//
+// IT DRAWS THE TRUTH, and that is a VIEW decision the bot does not share.
+// The hero is never told any creature's hp (src/sim/observe.js) — `duelCost`
+// runs on `assumedHp`, a guess from the bestiary average that decays as it
+// lands blows. So the bar can read full while the hero flees, or nearly
+// empty while he commits. That gap is real and it is on screen on purpose;
+// what must never happen is the reverse, a bot that reads this.
+//
+// The channel rule is safe by construction: this takes `state`, it lives in
+// src/ui/, and test/tests.js already fails any read of GameState from
+// src/bot/. Nothing here is passed to anything the bot can see.
+//
+// Shown while the creature is ALIVE AND AWAKE — `activation` covers the
+// whole vault, so it appears on entering the room and goes when the fight
+// is over either way. `hidden` rather than opacity: an empty bar with no
+// fight behind it is the one state that would read as broken.
+export function renderBossBar(element, state) {
+  if (!element) return;
+
+  const boss = state.monsters.find((m) => m.vault && !m.dead);
+  const player = state.player.pos;
+  const awake = boss && distSq(player, boss.pos) < boss.activation * boss.activation;
+  if (!awake) {
+    element.hidden = true;
+    return;
+  }
+
+  const share = boss.hpMax > 0 ? Math.max(0, Math.min(1, boss.hp / boss.hpMax)) : 0;
+  const name = element.querySelector('.boss-bar-name');
+  const fill = element.querySelector('.boss-bar-fill');
+  // The name is written once per appearance, not per turn — it never
+  // changes and the bar redraws every frame.
+  const label = `${boss.name} ${boss.hp}/${boss.hpMax}`;
+  if (name.textContent !== label) name.textContent = label;
+  fill.style.width = `${(100 * share).toFixed(1)}%`;
+  element.hidden = false;
+}

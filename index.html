@@ -40,6 +40,13 @@
                below it: how deep, then the floor, then what it costs. -->
           <div id="floor" class="floor-bar"></div>
           <div id="grid" class="grid"></div>
+          <!-- The boss bar. Over the board rather than beside it: it only
+               exists while one creature is awake, and a slot in the HUD that
+               is empty all run would cost more than it says. -->
+          <div id="bossBar" class="boss-bar" hidden>
+            <div class="boss-bar-name"></div>
+            <div class="boss-bar-track"><div class="boss-bar-fill"></div></div>
+          </div>
           <div id="summary" class="summary">
             <div id="summaryTitle" class="summary-title"></div>
             <div id="summaryBody"></div>

@@ -14,7 +14,7 @@ import { difficultyToParams } from '../sim/difficulty.js';
 import { dangerField, makeBot } from '../bot/bot.js';
 import {
   buildGrid, renderFrame, renderHud, renderHistory, renderAchievements,
-  applyDepth, renderDebugInfo, carriedSvg,
+  applyDepth, renderDebugInfo, carriedSvg, renderBossBar,
 } from './render.js';
 import {
   ACHIEVEMENTS, earn, earnedBy, getAchievements, verifyAchievements,
@@ -118,7 +118,7 @@ function grab() {
     'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
     'coins', 'coinPopup', 'damage', 'debugInfo', 'app', 'lab', 'dials',
     'shop', 'shopBalance', 'shopItems', 'shopSkip', 'shopTimerBar',
-    'achievements', 'roster', 'highscores', 'mapDials',
+    'achievements', 'roster', 'highscores', 'mapDials', 'bossBar',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -176,6 +176,9 @@ async function playFrames(frames, trace, tallyText) {
     // The hero's own face on the board, every frame — the strongest "who is
     // playing" signal there is, and it costs no HUD space at all.
     renderFrame(frame.state, frame.belief, debug, session.heroEmoji);
+    // M50 — after the frame for the same reason the signals are: it sits
+    // over the board, not in it.
+    renderBossBar(el.bossBar, frame.state);
     // After the frame, so a signal is never painted under the tile it
     // belongs to.
     events.show(frame.state);
