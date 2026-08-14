@@ -773,9 +773,20 @@ export function makeBot(options = {}) {
       // the bot walking into a fight it cannot win because the loot is
       // good, which is the failure the margin exists to prevent.
       const prize = settings.lootValue ? dropValue(belief, monster.drop, hero.bravery) : 0;
+
+      // C1 §3 — WALKING TOWARDS SOMETHING THAT IS WALKING TOWARDS YOU COSTS
+      // HALF. The hero closes one tile a turn and so does the creature, so a
+      // gap of `d` shuts in `d/2` turns, not `d`. The approach is priced in
+      // turns of exposure, so it is halved.
+      //
+      // Arithmetic the bot was getting wrong, not a new parameter — and it is
+      // the same clause that already waives the duel for a chaser, for the
+      // same reason: what is coming anyway is not a cost of choosing it.
+      const closing = chasing ? approach / 2 : approach;
+
       pool.push({
         kind: 'monster', id: monster.id, pos: monster.pos,
-        price: approach + Math.max(0, (chasing ? 0 : duel) - prize),
+        price: closing + Math.max(0, (chasing ? 0 : duel) - prize),
       });
     }
 

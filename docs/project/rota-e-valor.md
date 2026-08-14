@@ -1,6 +1,6 @@
 # Rota e valor: como o bot precifica o tabuleiro
 
-**Onze peças desenhadas numa sessão com o dono.** Sete já entraram, quatro
+**Onze peças desenhadas numa sessão com o dono.** Oito já entraram, três
 não. Cada uma é construível e observável sozinha; a ordem de construção está
 no fim e **não é a ordem em que estão numeradas aqui** — a numeração é a da
 conversa, para que ela mape no documento.
@@ -203,16 +203,19 @@ Sem essa âncora, "cautela 1,4" não quer dizer nada; com ela, quer dizer "esse
 herói anda quatro tiles a mais para não trocar um golpe". O ponto neutro da §1
 dá o começo da varredura de graça.
 
-## 3. Perseguidor paga metade do caminho
+## 3. Perseguidor paga metade do caminho ✅
 
 Uma criatura que persegue anda um passo enquanto o herói anda um passo, então
 a distância `d` fecha em `d/2` turnos. Como a cautela é hp por turno, o
 caminho até um perseguidor custa **metade**. Baú e item, parados, pagam
 inteiro.
 
-Não é parâmetro novo — é aritmética que o bot erra hoje. Some o `approach`
-pela metade quando `chasing`, no mesmo lugar onde o duelo já é dispensado
-pelo mesmo motivo ("vai acontecer de qualquer jeito").
+Não é parâmetro novo — é aritmética que o bot errava. Fica no mesmo lugar
+onde o duelo já é dispensado pelo mesmo motivo ("vai acontecer de qualquer
+jeito").
+
+Medido, ganância 1, 150 seeds: andares 4,23 → 4,33 (dentro do ruído), baús
+laterais 13,81 → 14,23, divergem em 30 das 150.
 
 ## 4. Previsão de dois turnos
 
@@ -465,7 +468,7 @@ sozinho.
 | ~~2~~ | ~~**§11** ratear a caminhada~~ ✅ feito | ele deixa de recusar sala de tesouro distante | baixo |
 | ~~3~~ | ~~**§1** `bite = 1` e a cautela como taxa de câmbio~~ ✅ feito | cautela alta: desvia de rato | médio — mudou o que "perigo" significa |
 | 4 | **§2** calibrar contra um duelo justo | a tabela de seis faixas | nenhum, é medição |
-| 5 | **§3** perseguidor paga metade | ele para de dar a volta para encontrar quem já vem | baixo |
+| ~~5~~ | ~~**§3** perseguidor paga metade~~ ✅ feito | ele para de dar a volta para encontrar quem já vem | baixo |
 | 6 | **§10** perigo esperado do escuro | ele para de entrar em sala escura como se fosse corredor vazio | médio |
 | 7 | **§5** fronteira na pool, sai o portão do V5 | explorar e brigar se misturam em vez de alternar em blocos | **alto** |
 | 8 | **§6** refúgio | dá para ver o herói recuar de propósito | médio |

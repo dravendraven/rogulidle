@@ -74,7 +74,9 @@ frases:
   `RAGE_AT` alcança isso.
 - **Nunca começa luta** cujo custo esperado passe de `fightMargin` do hp
   efetivo (hp + armadura). Uma criatura que já persegue paga só a
-  caminhada — o duelo dela acontece de qualquer jeito.
+  caminhada — o duelo dela acontece de qualquer jeito — **e paga metade
+  dela**: o herói fecha um tile por turno e ela também, então uma distância
+  `d` some em `d/2` turnos. É aritmética que o bot errava, não dial novo.
 - Entre tudo que vale ter — item solto, baú, luta pagável — **pega sempre o
   mais barato em hp**, caminhada e perigo incluídos.
 - **Baú que ele sabe estar vazio sai da conta.** Só um herói enxerga o
