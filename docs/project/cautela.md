@@ -26,20 +26,29 @@ Quatro dials, quatro perguntas, nenhum pisando no outro:
 | dial | pergunta | onde entra |
 |---|---|---|
 | coragem | quanto essa criatura aguenta? | dentro do duelo |
-| ganância | vale a pena o que é opcional? | nas barras e no valor |
+| ganância | quanto de risco opcional eu aceito? | nas barras, no valor e **no escuro** |
 | **cautela** | quanto custa um turno exposto? | no preço de cada tile |
-| **curiosidade** | quanto vale o desconhecido? | no preço do tile escuro |
 
-Os dois de baixo não existem ainda.
+Só o de baixo é novo. **A curiosidade foi cortada** — a seção 5 explica por
+quê, e o motivo é a melhor coisa que esta proposta descobriu sobre si mesma.
 
 ## 1. O preço do tile
 
 ```
-preço(tile) = cautela × (1 + exposição(tile))
+preço(tile) = stepCost + cautela × exposição(tile)
 ```
 
 `exposição` = quantas criaturas-turno aquele tile custa. `cautela` = hp por
-turno exposto. O produto é hp, que é a moeda de todo o resto.
+criatura-turno. O produto é hp, que é a moeda de todo o resto.
+
+**Não `cautela × (1 + exposição)`, que foi a primeira forma escrita.** Ela
+achata o perigo: hoje um tile colado numa criatura xp 4 custa `0,1 + 1,25`
+contra `0,1` de um tile limpo, contraste de 13:1; naquela forma o contraste
+vira 2:1 e a cautela não conserta, porque multiplica os dois lados igual.
+
+Na forma acima a cautela é **a taxa de câmbio entre perigo e passo**, e ganha
+um centro calibrado de graça: `cautela = mordida média do bestiário`
+reproduz o jogo de hoje EXATAMENTE. É o ponto neutro que a seção 2 procurava.
 
 **A cautela é CEGA À FORÇA, de propósito.** Ela não lê `xp`, não lê vida,
 não distingue rato de dragão. Quem julga força é a coragem, dentro do duelo.
@@ -113,54 +122,65 @@ exploração não ter preço — ela escolhia a fronteira com menos passos, cega
 perigo, e nenhuma barra podia recusá-la. Com o preço honesto, **o preço já é
 o portão**.
 
-**Entra a curiosidade**, e ela se justifica por uma razão só: nenhum
-parâmetro existente sabe distinguir terreno conhecido de terreno escuro.
-
-```
-custo do tile escuro = stepCost × (2 − curiosidade)
-```
-
-Mesmo espelho que o `assumedHp` já usa para a coragem, mesma máquina de seis
-faixas, e um entalhe significa uma coisa só. Curiosidade 0,2 = escuro custa
-1,8×; 1 = igual ao conhecido; 1,8 = custa 0,2×.
-
 **E o escuro JÁ é o terreno mais barato do jogo, hoje, sem dial nenhum.**
 `believedWalkable` trata tile nunca visto como passável e o campo de perigo
 não conhece criatura lá — então o escuro não é neutro, é *seguro por
-construção*. A curiosidade não cria um viés; ela dá controle sobre um viés
-que já existe e ninguém escolheu.
+construção*. Isso é uma mentira, não uma escolha.
 
-### 5.2 — a coragem entra no custo de explorar?
+### 5.1 — a correção: o escuro tem perigo esperado
 
-**Sim, mas não como o dono formulou, e o alvo é outro.**
-
-Não como desconto no passo. Como **estimativa de risco do desconhecido** — e
-o bot já tem o número, calculado na própria função:
+O bot já tem o número, calculado na própria função:
 
 ```js
 const unseenMonsters = settings.monsterCount - belief.monsters.size;
 ```
 
-Quantas criaturas o andar tem é concedido (`rules.md` §7). Então o escuro
-tem perigo *esperado*, e a coragem desconta essa estimativa exatamente como
-desconta a vida de uma criatura — `× (2 − bravery)`. Não é a coragem
-ganhando uma segunda função: é a mesma função ("acho que é menos perigoso do
-que parece") aplicada onde faltava.
+Quantas criaturas o andar tem é concedido (`rules.md` §7). O escuro passa a
+custar o que essas criaturas custariam.
 
-Isso separa duas coisas que não devem cair no mesmo número:
+**A coragem entra aqui SOZINHA, sem fiação nova.** Precificar uma criatura
+imaginada usa `expectedHpFor` como qualquer outra, e a coragem já desconta
+`expectedHpFor`. Ela não ganha função nova nem precisa ser ligada em lugar
+nenhum — continua significando uma coisa só, e passa a significá-la também
+sobre o que ainda não foi visto.
 
-- **Correção** — o escuro tem risco e a coragem o desconta. Conserta uma
-  mentira. Não precisa de dial novo.
-- **Gosto** — quanto este herói gosta do desconhecido. É traço de
-  personagem, e é aí que a curiosidade vive.
+### 5.2 — por que a curiosidade foi cortada
 
-Fazer a correção primeiro. É bem possível que a curiosidade fique com o
-trabalho certo — ser sabor, não segurança — em vez de carregar as duas e
-tornar a medição ilegível.
+A proposta original tinha um quarto dial (`custo do escuro = stepCost ×
+(2 − curiosidade)`). Ele morreu de uma pergunta do dono: **o escuro é aposta
+cega de DOIS lados** — pode ser uma sala com baú, pode ser um ogro acordado.
+
+Isso mata duas candidatas de uma vez:
+
+- **A coragem é de um lado só.** Ela desconta perigo e não sabe falar de
+  recompensa; sobre uma aposta ela só ficaria otimista sobre metade da conta.
+- **A curiosidade não tem pergunta.** Ela só teria trabalho se o escuro
+  tivesse um VALOR próprio para ela preferir. Não tem — só preço. Então ela
+  seria um desconto no passo sem contraparte.
+
+E a resposta certa já estava no bot: **a ganância é o único dial de dois
+lados**, e ela **já governa a fronteira hoje** —
+
+```js
+const frontierOk = (pos) => dangerOnTheWay(pos) <= sideBar;
+```
+
+`sideAppetite` é literalmente "apetite pelo opcional". O escuro é a aposta
+lateral com a recompensa ainda mais escondida. Não precisa de dono novo,
+precisa que o dono existente receba um preço honesto.
+
+**Risco a declarar:** a ganância já puxa luta lateral, item, baú, hora do
+livro, hora da seringa e fronteira. Somar o escuro é mais do mesmo, e o
+preço disso é que fica difícil dizer qual metade moveu uma medição.
+
+**Se um dia o escuro ganhar valor esperado** (dá: `chestCount − vistos` ×
+valor médio do baú), a curiosidade volta a ter uma pergunta de verdade —
+"gosto do desconhecido mais do que de um baú de mesmo valor". Antes disso,
+não.
 
 **Costura a declarar:** a cautela é cega à força para criaturas *conhecidas*;
 a estimativa do escuro é consciente da força para as *desconhecidas*. São
-populações diferentes, não uma exceção à regra da seção 1.
+populações diferentes, não exceção à regra da seção 1.
 
 ## 6. Refúgio
 
@@ -230,11 +250,33 @@ que ele continua valendo — mas o número a bater não é mais 71.
 
 Cada uma verificável olhando o jogo rodar, e nenhuma depende da seguinte:
 
-1. **`bite = 1`** atrás de um dial. Uma linha. Dá para ver na hora se o herói
-   passa a desviar de rato.
-2. **Metade do caminho para perseguidor.** Correção de aritmética, isolada.
-3. **Previsão de 2 turnos dentro da exposição**, substituindo o decaimento.
-4. **Perigo esperado do escuro**, com a coragem descontando. Correção.
-5. **Fronteira na pool + curiosidade.** A mudança estrutural; aqui a
-   profundidade pode mexer de verdade.
-6. **Refúgio.** É o recuo virando comportamento visível.
+**A primeira vem sozinha e antes de tudo**: ela muda o que "perigo"
+significa, então qualquer medição das outras feita antes dela não vale mais.
+Depois disso o grafo é solto — 2, 7 e 8 não dependem de ninguém, e 4 destrava
+5 e 6.
+
+| # | tarefa | como você vê que funcionou |
+|---|---|---|
+| 1 | `bite = 1` e a cautela como taxa de câmbio, centrada no valor que reproduz hoje | cautela alta: desvia de rato. No centro: nada muda |
+| 2 | Calibrar — varrer e escrever "N turnos de exposição = uma briga justa" | a tabela de seis faixas |
+| 3 | Perseguidor paga metade do caminho | ele para de dar a volta para encontrar quem já vem |
+| 4 | Fronteira entra na pool, sai o portão do V5 | explorar e brigar se misturam em vez de alternar em blocos |
+| 5 | Perigo esperado do escuro (a ganância paga, a coragem desconta por dentro) | ele para de entrar em sala escura como se fosse corredor vazio |
+| 6 | Refúgio | dá para ver o herói recuar de propósito |
+| 7 | Previsão de 2 turnos dentro da exposição | ele passa por trás da criatura em vez de por diante |
+| 8 | B27 — a seringa (fora desta proposta, mesma família) | a fúria deixa de ser gasta numa luta recusada em seguida |
+
+Cada dial novo precisa de linha em `src/ui/dials.js`, faixa de seis entalhes
+e passagem pelo `dial-overrides.json` — sem isso não dá para mexer nele
+rodando, que é o único jeito de julgar qualquer uma destas.
+
+**O maior risco é a tarefa 4.** O V5 existe porque isso já deu errado de um
+jeito medido: o herói entrava na sala com o bicho e depois fugia da luta que
+a própria ganância não deixava terminar. Trocar o portão pelo preço é certo
+*se* o preço for honesto — o B26 arrumou metade (criatura não é chão) e a
+tarefa 5 arruma a outra (o escuro não é seguro). Fazer a 4 sem a 5 é
+reintroduzir o defeito com outro nome.
+
+**A tarefa 7 é a única que pode não pagar.** O que ela compra é assimetria:
+tiles atrás do herói ficam mais seguros que tiles além da criatura, coisa que
+um flood simétrico não sabe dizer. Se não der para ver rodando, joga fora.
