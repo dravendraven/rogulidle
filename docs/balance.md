@@ -78,8 +78,12 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 
 ## The bot's numbers — `src/bot/config.js`, not this file's business
 
-**The player dials are ±80% biases around a calibrated centre** (M47) —
-Coragem, Ganância, Risco and Cautela, the last being `caution`.
+**The three player dials are ±80% biases around a calibrated centre** (M47) —
+Coragem, Ganância and Cautela. `riskAppetite` was briefly a fourth and is now
+a decided constant at 1: every one of the three is already a form of risk —
+courage against a creature, greed for a reward, caution for the road and the
+unknown — so a band named "risk" beside them names the axis rather than
+asking a new question.
 The Lab offers six named bands and none of them is the centre — and NOTHING
 runs at the centre any more: every visitor opens on a band rolled per dial,
 kept from their first session on. What the slider shows is what the run gets,

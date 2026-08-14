@@ -65,10 +65,22 @@ export const DEFAULT_HERO = {
   // on the way. 0 never gambles at all; above 1 it accepts more for what is
   // optional than for what it cannot avoid.
   //
-  // It is the same family as `bravery` and a different POPULATION, which is
-  // worth writing down or the two get fused next: bravery is the attitude to
-  // uncertainty about a creature IN SIGHT, this one about what has not been
-  // seen at all.
+  // DECIDED AT 1, NOT A DIAL, and the reasoning is the owner's: every dial
+  // here is already a form of risk. Courage is how much you risk to face a
+  // creature, greed how much you risk for a reward, caution how much you risk
+  // to explore or to cut a corner. A fourth band called "risk" beside those
+  // three is not a fourth question — it is the name of the axis the other
+  // three already live on.
+  //
+  // What it governs is narrow enough to make the point on its own: two gates,
+  // and one of them (a loose item's guard) is rare, so in play it decides
+  // almost exactly one thing — explore past a creature, or not. Caution
+  // already prices that same walk; this only vetoes it.
+  //
+  // The §7 SPLIT STANDS. Separating value from bar inside the code was right
+  // and stays: `sideAppetite` means value and nothing else. What went is the
+  // bar having a band of its own, which is the shape `fightMargin` above
+  // already has — it matters, and nobody drags it.
   riskAppetite: 1,
 
   // WHAT A THING IS WORTH TO THIS HERO. Under LOOT_VALUE it multiplies a
