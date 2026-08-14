@@ -15,13 +15,24 @@ Tudo que o bot faz é um desses três aplicado. A política inteira, em seis
 frases:
 
 - **Bebe** uma poção assim que o hp que falta cobre a cura inteira.
-- **Lê o livro** quando a barra cai da metade **e** nada acordado o alcança
-  nos cinco turnos parados (`rules.md` §5). A segunda metade é exata, não
-  chute: criatura fora do raio de ativação não anda, e herói parado não
-  acorda ninguém novo — então só chegam as que já estavam vindo. Isso só
-  fecha para quem enxerga o andar inteiro, que é o mesmo herói que carrega o
-  livro. **Sem porta de profundidade:** sem simular à frente, ele lê na
-  primeira hora calma em que a barra está baixa, e medido isso é cedo.
+- **Lê o livro** quando o hp que falta passa de uma fração da barra **e**
+  nada acordado o alcança nos cinco turnos parados (`rules.md` §5). A segunda
+  metade é exata, não chute: criatura fora do raio de ativação não anda, e
+  herói parado não acorda ninguém novo — então só chegam as que já estavam
+  vindo. Isso só fecha para quem enxerga o andar inteiro, que é o mesmo herói
+  que carrega o livro.
+- **A fração é a Ganância**, e é ela que decide QUANDO. O livro cura o que
+  falta, então "vale a pena" precisa de uma fração para ser teste — e ganância
+  já significa "quanto uma coisa vale para este herói" no resto do bot, então
+  ela serve de **preço de reserva** em vez de um segundo dial fazendo o mesmo
+  trabalho. Medido nas seis faixas: o esbanjador lê no andar 1 com a barra
+  quase cheia, o avarento espera até um ponto da morte — e **morre com o livro
+  fechado em 80% das runs**, porque só se lê com o tile calmo e chega-se ao
+  último ponto justamente apanhando. Isso é o traço, não um defeito, mas é o
+  que faz a faixa mais alta quase apagá-lo.
+- **Profundidade não é monótona nisso**, e o pico interior da Ganância já
+  existia antes do livro (M47) — as duas coisas se somam na mesma leitura e
+  não dá para separá-las por esta tabela.
 - **Nunca começa luta** cujo custo esperado passe de `fightMargin` do hp
   efetivo (hp + armadura). Uma criatura que já persegue paga só a
   caminhada — o duelo dela acontece de qualquer jeito.

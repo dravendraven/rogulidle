@@ -340,7 +340,19 @@ export function makeBot(options = {}) {
     // low on a quiet tile, which will usually be shallow — and the runs die
     // deep. Whether the book should be held for the floors that kill is for
     // a measurement to answer, not for a number invented here.
-    if (belief.player.hp <= belief.player.hpMax * READ_AT
+    // GREED IS THE RESERVE PRICE. The book heals whatever is missing, so
+    // "read when the heal is worth it" needs a fraction to be a test at all
+    // — and greed already means "what a thing is worth to this hero"
+    // everywhere else in the bot, so it supplies one rather than a second
+    // dial doing the same job. A miser demands a better deal before spending
+    // an asset: at the top band he reads at a point from death, at the
+    // bottom on the first scratch.
+    //
+    // It buys depth only INDIRECTLY — a low bar is reached deep more often,
+    // but a bad shallow floor reaches it too. If the book has to be held for
+    // the floors that kill, that is a floor gate and a second mechanism.
+    const missing = belief.player.hpMax - belief.player.hp;
+    if (missing >= belief.player.hpMax * READ_AT * hero.sideAppetite
       && belief.player.inventory.some((i) => i.kind === 'book')
       && safeToStandStill(belief)) {
       return 'read';

@@ -238,13 +238,16 @@ export const LOOT_VALUE = true;
 
 // ***** when the scholar reads (src/sim/heroes.js) ***** //
 
-// How low the hp bar has to be before the book is worth five turns standing
-// still. A SHARE of hpMax, not a count, so it means the same thing whatever
-// the bar is.
+// How much of the bar has to be MISSING before the book is worth five turns
+// standing still — a share of hpMax, so it means the same thing whatever the
+// bar is, and it is SCALED BY GREED at the call site (src/bot/bot.js).
 //
-// Half, and it is a first guess rather than a measurement. Higher wastes the
-// heal — the book fills to full, so reading at 80% throws most of it away.
-// Lower risks never firing at all: the bot only reads when nothing awake can
-// reach it, and a hero already down to a quarter is usually down there
-// BECAUSE something is on him.
+// This is the calibrated centre, not the setting: greed multiplies it, and
+// the six bands run 0.2 to 1.8, so the demand runs from a tenth of the bar
+// to nine tenths of it. Half is a first guess and has never been swept.
+//
+// Higher wastes the heal — the book fills to full, so reading at a scratch
+// throws most of it away. Lower risks never firing: the bot only reads when
+// nothing awake can reach it, and a hero already down to his last point is
+// usually down there BECAUSE something is on him.
 export const READ_AT = 0.5;
