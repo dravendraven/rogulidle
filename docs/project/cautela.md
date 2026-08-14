@@ -180,17 +180,59 @@ O bot já tem o número para consertar, calculado na própria função:
 const unseenMonsters = settings.monsterCount - belief.monsters.size;
 ```
 
-Quantas criaturas o andar tem é concedido (`rules.md` §7). O escuro passa a
-custar o que essas criaturas custariam.
+Quantas criaturas o andar tem é concedido (`rules.md` §7). A diferença está
+no escuro, e o escuro passa a custar isso.
 
-**A coragem entra aqui SOZINHA, sem fiação nova.** Precificar uma criatura
-imaginada usa `expectedHpFor` como qualquer outra, e a coragem já desconta
-`expectedHpFor`. Ela não ganha função nova nem precisa ser ligada em lugar
-nenhum — continua significando uma coisa só, e passa a significá-la também
-sobre o que ainda não foi visto.
+**Como EXPOSIÇÃO, não como duelo imaginado — e a cautela escala.**
+
+```
+exposição(tile escuro) = densidade esperada de criaturas ainda não vistas
+preço = stepCost + cautela × exposição            (a mesma fórmula da §1)
+```
+
+Isto é obrigatório e não é escolha de estilo: se a cautela escalasse o perigo
+conhecido e não o escuro, **subir a cautela faria o herói desviar de criatura
+à vista e entrar em sala escura**. O modelo ficaria invertido. A cautela é a
+taxa de câmbio de TODA exposição, vista ou não.
+
+**E por isso a coragem NÃO entra aqui.** Exposição é cega à força por
+definição (§1) — não há vida de criatura para descontar, só "quantas
+criaturas-turno isto me custa". Uma versão anterior desta seção precificava o
+escuro como uma criatura imaginada, avaliada por `expectedHpFor` e descontada
+pela coragem; isso briga com a §1 e foi essa que caiu. O escuro vira um
+número de densidade, não uma criatura fictícia — mais simples, e coerente.
 
 **Quem paga é o apetite ao risco**, pela seção 7: o escuro é incerteza, e
 incerteza aceita é a pergunta dele.
+
+### 5.1b A dívida dos 0,6 de andar, e por que NÃO é esta peça que a paga
+
+Tirar `side` do Belief custou profundidade na faixa mais cautelosa. Medido,
+80 seeds, ganância 0,2:
+
+```
+andares       3,67 ± 0,16   →   3,05 ± 0,14      (~2,9 sigma)
+baús laterais        2,21   →          2,70
+mais raso em 40 seeds, mais fundo em 6
+```
+
+Na faixa que ship (ganância 1) não moveu: 4,41 → 4,44 sobre 150 seeds.
+
+**A causa provável não é o escuro ser de graça — é a barra de luta.** Com
+ganância 0,2 uma criatura lateral enfrentava `0,2 × fightBar`; sem o rótulo
+enfrenta a `fightBar` inteira. O avarento aceita brigas laterais que recusava,
+mata o guardião, e o baú fica de graça — o que casa com abrir mais baús e
+morrer mais raso. **Inferência, não medição:** confirmar contando lutas
+laterais aceitas antes e depois.
+
+Se for isso, dar preço ao escuro não devolve nada, porque o que ele entra é
+sala que ele **já está vendo**. O que pode devolver é a §1: cautela alta torna
+exposição cara, e sala opcional é densa em exposição. Mas cautela e ganância
+são dials diferentes, então isso não é automático — o avarento não é
+necessariamente cauteloso.
+
+**Fica registrado como dívida em aberto, sem dono.** Quem for construir
+qualquer peça daqui olha este número primeiro.
 
 **Costura a declarar:** a cautela é cega à força para criaturas *conhecidas*;
 a estimativa do escuro é consciente da força para as *desconhecidas*. São
@@ -287,15 +329,60 @@ corte deste tamanho, e é por isso que ele vem primeiro.
 
 ---
 
+## 8. O guardião cobra por presença, não por distância
+
+**Observado rodando** (seed 2956634425, andar 6, cautela 1 e coragem 3): o bot
+ignorou um baú imediatamente à sua esquerda, sem guardião perto, e foi buscar
+um objetivo bem mais distante à direita.
+
+A causa está no `guardCost`, e é um booleano onde devia haver uma curva:
+
+```js
+if (!near(monster.pos, pos, monster.activation)) continue;
+total += duelCost(...) / share;
+```
+
+Dentro do raio, o guardião cobra o **duelo inteiro** — a mesma coisa colado no
+baú ou a doze tiles dele. Uma criatura de raio largo guarda meio andar ao
+preço cheio, e um baú que ninguém alcança em menos de dez turnos fica tão caro
+quanto um que está sendo vigiado de perto.
+
+Isso está errado sobre o jogo. Um guardião que leva oito turnos para chegar
+**pode ser batido no tempo**: o herói abre o baú em dois turnos e sai. O duelo
+só é devido inteiro se a criatura efetivamente o alcança.
+
+### A correção não precisa de nada novo
+
+O decaimento por distância já existe e já é decidido — é o `persistence` do
+campo de perigo, que significa exatamente "quanto uma ameaça esmaece por tile
+de distância". O guardião passa a ser cobrado por ele:
+
+```
+total += duelCost(...) × persistence ^ (passos do guardião até o loot) / share
+```
+
+E os passos não precisam ser estimados: **`dangerField` já os calcula e os
+devolve num mapa `reach` que hoje ninguém lê** (`src/bot/bot.js`). São passos
+reais, não distância em L — o que conserta de brinde a outra metade do
+defeito, porque hoje `near` mede em linha reta e cobra guardião do outro lado
+de uma parede como se estivesse ao lado.
+
+Duas coisas de uma correção: a curva em vez do booleano, e o caminho real em
+vez da linha reta. Nenhum parâmetro novo, e um valor calculado que estava
+sendo jogado fora passa a ser usado.
+
+---
+
 ## Ordem de construção
 
 | ordem | peça | como você vê que funcionou |
 |---|---|---|
+| 0 | **§8** o guardião cobra por distância | ele passa a pegar o baú que está do lado |
 | 1 | **§7** o corte da `sideAppetite` | nada muda — e é isso que se confirma |
 | 2 | **§1** `bite = 1` e a cautela como taxa de câmbio | cautela alta: desvia de rato. No centro: nada muda |
 | 3 | **§2** calibrar contra um duelo justo | a tabela de seis faixas |
 | 4 | **§3** perseguidor paga metade | ele para de dar a volta para encontrar quem já vem |
-| 5 | **§5.1** perigo esperado do escuro | ele para de entrar em sala escura como se fosse corredor vazio |
+| 5 | **§5.1** perigo esperado do escuro, como exposição escalada pela cautela | ele para de entrar em sala escura como se fosse corredor vazio |
 | 6 | **§5** fronteira na pool, sai o portão do V5 | explorar e brigar se misturam em vez de alternar em blocos |
 | 7 | **§6** refúgio | dá para ver o herói recuar de propósito |
 | 8 | **§4** previsão de dois turnos | ele passa por trás da criatura em vez de por diante |
@@ -328,11 +415,12 @@ da fúria cai a cada turno que passa, então injetar à distância gasta o item 
 caminhada — 40% das injeções eram contra o vazio.
 
 **`side` saiu do Belief.** O bot não sabe mais o que é sala lateral e o que é
-espinha. Medido antes de tirar: a aposta sobrevive em todas as faixas de
-ganância, porque a opcionalidade já estava precificada pela caminhada e pelo
-guardião. Consequência para a peça 7: a `sideBar` perdeu o portão de luta
-(que era inerte no centro do dial de qualquer jeito) e guarda item, baú e
-fronteira — o corte continua valendo, com alcance menor.
+espinha. A aposta sobrevive em todas as faixas de ganância, porque a
+opcionalidade já estava precificada pela caminhada e pelo guardião — mas
+**cobrou 0,6 de andar do avarento**, e a dívida está aberta na §5.1b.
+Consequência para a peça 7: a `sideBar` perdeu o portão de luta (que era
+inerte no centro do dial de qualquer jeito) e guarda item, baú e fronteira —
+o corte continua valendo, com alcance menor.
 
 **B26 — o tile de uma criatura viva custa o duelo dela.** E a consequência que
 não estava no plano: **um perseguidor adjacente passa a custar zero**, porque
