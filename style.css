@@ -391,7 +391,11 @@ main {
      inside wrap on their own, so this is a squeeze rather than a clip. */
   width: 100%;
   max-width: 210px;
-  align-self: stretch;
+  /* NOT align-self: stretch — that matched the panel's height to the
+     middle column (board + history + achievements), leaving hundreds of
+     empty pixels below the footer. .lab already sets align-items: start,
+     so leaving align-self unset lets the panel end at its own content:
+     carrying's items, then the same .9rem it opened with. */
   display: flex;
   flex-direction: column;
   gap: .85rem;
