@@ -39,6 +39,7 @@ function playOne(seed, dials, hero) {
     monsterCount: floor.monsterCount,
     chestCount: floor.chests,
     threatAhead: floor.threatAhead,
+    floorsAhead: floor.floorsAhead,
     // The hero's own traits win over the dials', which is the direction the
     // lab already works in: a dial is what everyone gets, a hero is who this
     // run is.

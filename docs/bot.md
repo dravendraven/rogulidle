@@ -51,6 +51,13 @@ frases:
   pelo `duelCost`, e não massa de ameaça crua: as unidades da massa são
   `hp × dano`, então um piso fixo aterroriza no andar 1 e é rotina no 9. Sem
   teto, pela mesma razão do livro.
+- **Ele usa a fração de ANDARES restantes, o livro usa a de AMEAÇA** — e a
+  diferença foi medida, não argumentada: a ameaça é concentrada no fim, então
+  a fração dela fica ~0,95 do andar 1 ao 5, justo onde o andar da injeção
+  precisava se separar. **Tem um limite estrutural:** o bot recusa luta que
+  custe mais que `fightMargin` do que ele tem, então custo acima de uma barra
+  só acontece em emboscada — e emboscada não é mais funda que o resto. Daí
+  para cima a exigência só fica rara, não mais profunda.
 - **Nunca começa luta** cujo custo esperado passe de `fightMargin` do hp
   efetivo (hp + armadura). Uma criatura que já persegue paga só a
   caminhada — o duelo dela acontece de qualquer jeito.

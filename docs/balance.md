@@ -105,10 +105,11 @@ the miser reading early. That is the mechanism, not a defect in it — the
 floor the book first becomes possible on climbs 1, 1, 1, 4, 8, 9 across the
 six bands. A first guess, swept at 0.9 and 0.8.
 
-`RAGE_AT` 0.5 — the same shape for the warrior's syringe, against the cost of
-what is already awake on him rather than against the descent. A FIRST GUESS,
-never swept; the book's first guess was wrong by enough to flatten half the
-dial. See
+`RAGE_AT` 1.0 — the same shape for the warrior's syringe, against the cost of
+what is already awake on him, scaled by the share of FLOORS still ahead
+(`floorsAhead`) rather than of threat: threat is back-loaded, so its share is
+flat over the first half of the descent, which is exactly where the injection
+floor needed separating. Swept at 0.5 and 1.0. See
 `docs/bot.md`.
 
 ## Tiers

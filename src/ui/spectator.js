@@ -531,6 +531,7 @@ async function runDescentForever(sessionSeed) {
         // The share of the descent's threat still ahead — what the scholar's
         // book is weighed against (src/sim/difficulty.js).
         threatAhead: floor.threatAhead,
+        floorsAhead: floor.floorsAhead,
         hero: dials.hero,
         ...dials.bot,
       });

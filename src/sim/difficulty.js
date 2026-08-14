@@ -215,9 +215,22 @@ export function makeFloorPlan(model = {}) {
   const aheadOf = (level) => masses.slice(Math.max(0, level - 1))
     .reduce((a, b) => a + b, 0) / total;
 
+  // The share of FLOORS still ahead, and it is not a poorer version of
+  // `threatAhead` — it is the other half of the same question. Threat is
+  // heavily back-loaded, so `threatAhead` sits near 1 for the whole first
+  // half of the descent and can only tell floor 8 from floor 10. Floors are
+  // uniform by construction, so this separates floor 2 from floor 5, which
+  // is exactly where the other one is blind.
+  //
+  // Which to use is a question about the decision, not about the measure: a
+  // hero saving something for "when the dungeon still owes me everything"
+  // wants the threat; one saving it for "later in the run" wants the floors.
+  const floorsAheadOf = (level) => (levels - level + 1) / levels;
+
   return (level) => ({
     level,
     threatAhead: aheadOf(level),
+    floorsAhead: floorsAheadOf(level),
     monsters: monstersAt(m.monstersBase, m.monsterGrowth, Math.max(0, level - 1)),
     monsterSpread: floorSpread(level - 1, m),
     chests: m.chests,

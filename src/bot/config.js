@@ -265,6 +265,13 @@ export const READ_AT = 0.8;
 // is deliberately uncapped: above greed 1 the demand passes what the hero
 // owns, and unmeetable IS "hold it for something real".
 //
-// 0.5 is a FIRST GUESS and has never been swept. The book's first guess was
-// wrong by enough to flatten half the dial, so expect this one to move.
-export const RAGE_AT = 0.5;
+// 1.0, swept at 0.5 and 1.0: it lifts the median injection from floor 4.3 to
+// 5.4 and puts 62% of them on floor 5 or deeper, at the cost of the top band
+// using the syringe in 48% of runs instead of 86%.
+//
+// IT CANNOT BE PUSHED MUCH FURTHER, and the wall is not this number. The bot
+// refuses fights costing more than `fightMargin` of what it has, so
+// `awakeCost` above roughly one bar only ever happens when it is AMBUSHED —
+// and ambushes are no deeper than anything else. Past that point the demand
+// stops discriminating by depth and only gets rarer.
+export const RAGE_AT = 1.0;

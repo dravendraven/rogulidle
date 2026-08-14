@@ -320,6 +320,7 @@ export function makeBot(options = {}) {
     // 1 means "assume the whole run is still ahead", which is what a caller
     // that does not know the curve should get.
     threatAhead: options.threatAhead ?? 1,
+    floorsAhead: options.floorsAhead ?? 1,
     // B21 — the reward half of the chest decision, and the switch that
     // turns it on. Both travel as options so a sweep can A/B them without
     // editing config.js.
@@ -418,9 +419,16 @@ export function makeBot(options = {}) {
     // Uncapped for the reason the book is: at high greed the demand passes
     // everything the hero has, and unmeetable is what "saves it for a real
     // fight" means.
+    // `floorsAhead`, NOT `threatAhead`, and the difference was measured
+    // rather than argued: threat is back-loaded, so its share is still ~0.95
+    // on floors 1 to 5 — precisely where this hero's injection floor was
+    // stuck. Swapping in the flat share of floors left is what lets greed
+    // mean "later in the run" instead of only "a bigger brawl", since a big
+    // brawl happens shallow often enough on its own.
     if (belief.player.inventory.some((i) => i.kind === 'syringe')
       && !belief.player.raging
-      && awakeCost(belief) >= effectiveHp(belief.player) * RAGE_AT * hero.sideAppetite) {
+      && awakeCost(belief) >= effectiveHp(belief.player)
+        * RAGE_AT * hero.sideAppetite * (settings.floorsAhead ?? 1)) {
       return 'rage';
     }
 
