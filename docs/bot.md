@@ -190,14 +190,20 @@ sabe. Qualquer herói pode ser covarde ou ganancioso.
    zero** — precificar o resto em zero deixava o bot mais confiante
    exatamente onde tinha se provado errado.
 
-   **O roteador ainda acha que dá para atravessar uma criatura.** Entrar no
-   tile dela ataca e o herói **não sai do lugar** (`rules.md` §6), mas
-   `believedWalkable` só lê terreno: toda rota cruza um bicho por um
-   `stepCost`, como se fosse chão. Transformar o tile em sumidouro foi
-   medido — recuo sobe 44%, profundidade e mortes iguais — e quebra o V5:
-   uma fronteira atrás de um guardião num corredor vira **inalcançável** em
-   vez de cara. A correção honesta é cobrar o duelo no tile, não apagar o
-   tile. Está no `backlog.md`.
+   **O tile de uma criatura viva custa o DUELO dela** (B26). Entrar nele
+   ataca e o herói não sai do lugar (`rules.md` §6), então cobrar um
+   `stepCost` era precificar um movimento que o motor não permite. Custa o
+   duelo e **só** o duelo — a ameaça por turno do campo de perigo são os
+   mesmos golpes contados de novo. Bloquear o tile em vez de precificá-lo
+   também funciona e foi medido, mas quebra o V5: a fronteira atrás de um
+   guardião vira inalcançável em vez de cara.
+
+   **Consequência que não estava no plano:** um perseguidor adjacente passa a
+   custar exatamente **zero** — a rota até ele *é* o duelo, e o duelo dele
+   não é cobrado porque acontece de qualquer jeito. Ele vira sempre a coisa
+   mais barata do tabuleiro, então o bot **termina a briga** em vez de sair
+   de perto. Medido em 120 runs: recuos caem de 71 para 17 duelos, ataques
+   sobem, profundidade e mortes iguais.
 4. **O mais barato vence**, com histerese. Vazio o conjunto: fronteira (se
    o escuro deve algo), senão buraco.
 5. **Nunca fica parado.** Se o apetite recusou toda fronteira e nenhum

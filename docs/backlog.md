@@ -50,7 +50,8 @@ was five identical risks in a row, which is what the vault answered.
 | R4 | Variance rises through the return (widen the band via the tail/spread dials) | after R2 |
 | U7 | The player chooses which hero to play — UI over the existing `hero` config; the mechanism is built and tested, the roster is not | READY |
 | B15 | Drinking reads the danger field before spending the turn | READY |
-| B26 | A route may not cross a live creature for one `stepCost`: entering its tile attacks it and the hero does not move, so the tile should cost its DUEL. Blocking the tile instead was measured — retreat turns +44%, depth and deaths flat — and it breaks V5, turning a frontier behind a corridor guard from expensive into unreachable | READY — pricing, not blocking |
+| B26 | A route may not cross a live creature for one `stepCost` | DONE — the tile costs its duel; an adjacent pursuer lands at price 0 and the bot finishes brawls instead of leaving them |
+| B27 | The syringe fires when the melee costs MORE than one bar, which is the same test the fight gate uses to refuse it: in 30 of 84 injections the gate still refuses every adjacent creature with the rage already running. Fix is a condition, not a threshold — inject when the rage flips a refused fight into an accepted one — and it deletes `RAGE_AT` along with the greed ladder it buys | NEEDS THE OWNER — deletes a dial |
 | M4 | Side-room risk/reward spread scales with depth | READY |
 | M21 | Deep floors put a creature where the hero lands | READY |
 | M36 | A detour has to be able to cost the run (the cost side of the gamble) | CLOSED by the vault — floor 4 kills 45.6% and skipping it costs the floor's whole reward |

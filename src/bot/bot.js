@@ -521,14 +521,42 @@ export function makeBot(options = {}) {
     // number compares "walk over there" with "have this fight".
     const passable = believedWalkable(belief);
     const danger = dangerField(belief, settings);
+
+    // B26 — A LIVE CREATURE IS NOT FLOOR. Walking into one attacks it and the
+    // hero STAYS PUT (rules.md §6), so a route that crossed a creature for one
+    // `stepCost` was pricing a move the engine does not allow. That single
+    // lie was behind three separate behaviours: the bot refused a fight and
+    // then routed back through it, it walked away from the creature it had
+    // just injected against (89 wasted rage turns over 150 runs), and it
+    // never finished a brawl it had started.
+    //
+    // The tile costs the DUEL, and it costs ONLY the duel — not the duel plus
+    // the menace the danger field puts there. Both are the same blows: the
+    // duel already counts every exchange the fight takes. Charging the step
+    // as well would price a turn the hero never spends walking.
+    //
+    // PRICED, NOT BLOCKED, and the difference was measured. Making the tile a
+    // graph sink also works — retreat turns rose 44% with depth and deaths
+    // flat — but it breaks V5: a frontier behind a corridor guard becomes
+    // UNREACHABLE instead of expensive, so the bot stops exploring past a
+    // guard rather than paying to. An unkillable creature (`hpLost` infinite)
+    // still blocks, which is not a special case — it is the price being true.
+    const duelAt = new Map();
+    for (const monster of liveMonsters(belief)) {
+      duelAt.set(key(monster.pos), duelCost(belief.player, monster, hero.bravery).hpLost);
+    }
+
     // `Math.max(0, ...)` is Dijkstra's precondition, not decoration: a
     // negative tile price makes revisiting a tile cheaper every time round
     // and the search never terminates — the page hangs rather than throws.
     // Reachable from a hostile tuning value (a negative persistence flips
     // menace's sign), so the router refuses one here rather than trusting
     // every caller.
-    const field = dijkstra(belief.player.pos, passable,
-      (x, y) => Math.max(0, hero.stepCost + danger.priceAt(x, y)), shrineSink(belief));
+    const field = dijkstra(belief.player.pos, passable, (x, y) => {
+      const duel = duelAt.get(x + ',' + y);
+      if (duel !== undefined) return duel;
+      return Math.max(0, hero.stepCost + danger.priceAt(x, y));
+    }, shrineSink(belief));
 
     const ehp = effectiveHp(belief.player);
     const fightBar = hero.fightMargin * ehp;
@@ -541,6 +569,12 @@ export function makeBot(options = {}) {
       const walk = priceOfReaching(field, monster.pos);
       if (!Number.isFinite(walk)) continue;
       const duel = duelCost(belief.player, monster, hero.bravery).hpLost;
+
+      // B26 — the route price now ENDS with this creature's own duel, because
+      // its tile is the fight. Take that back out here, or the pool adds the
+      // duel a second time on its own terms (net of the prize, waived when it
+      // is already chasing) and every creature is priced at twice its cost.
+      const approach = walk - duel;
 
       // A creature already chasing charges only the walk: its duel happens
       // whatever the bot does next, so fighting it now is the version where
@@ -584,7 +618,7 @@ export function makeBot(options = {}) {
       const prize = settings.lootValue ? dropValue(belief, monster.drop, hero.bravery) : 0;
       pool.push({
         kind: 'monster', id: monster.id, pos: monster.pos,
-        price: walk + Math.max(0, (chasing ? 0 : duel) - prize),
+        price: approach + Math.max(0, (chasing ? 0 : duel) - prize),
       });
     }
 

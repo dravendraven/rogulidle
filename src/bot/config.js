@@ -293,11 +293,21 @@ export const READ_AT = 0.8;
 //
 // AND THE NUMBER IS NOT WHAT IS WASTING THE ITEM. The sensor moved from
 // every awake creature to the adjacent ones (`meleeCost`), which killed the
-// 40% of injections thrown at empty air. What survived is worse and is not
-// about the syringe at all: of 95 injections, 41 still land no raging blow,
-// and 89 of the wasted turns are the hero WALKING AWAY from the creature he
-// just injected at. He prices an adjacent creature's tile at its full bite,
-// so anything quiet within a dozen steps is cheaper than the fight in his
-// face — B26 in docs/backlog.md is the same defect seen from the router.
-// Retuning this constant cannot reach that.
+// 40% of injections thrown at empty air, and B26 made the router honest —
+// utilisation went 31% -> 41% -> 47% of raging turns landing a blow.
+//
+// WHAT IS LEFT IS A CONTRADICTION BETWEEN THIS CONSTANT AND `fightMargin`,
+// and it is not a tuning problem. At 1.0 the syringe fires when the melee in
+// front of the hero costs MORE than one bar — which is the same test the
+// fight gate uses to REFUSE that melee. Raging halves the duel, but half of
+// "well above 0.7" is still above 0.7: measured over 150 runs, in 30 of 84
+// injections the gate refuses every adjacent creature even with the rage
+// already running, and 35 injections land no blow at all. He spends the item
+// and then walks away from the fight that justified spending it.
+//
+// The fix is a condition rather than a threshold, and it would DELETE this
+// constant: inject when the rage turns a refused fight into an accepted one
+// (`duel > bar` and `ragingDuel <= bar`). That is a no-brainer in the same
+// sense the adjacency rule is. It costs the greed ladder this number buys,
+// so it is the owner's call and not a cleanup.
 export const RAGE_AT = 1.0;

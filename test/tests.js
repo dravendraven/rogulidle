@@ -3684,9 +3684,17 @@ test('V5 — a cautious hero does not explore into danger', () => {
   // refuse it, so a hero forbidden from a fight still walked into the room
   // holding one, woke it, and then fled from a duel it would not finish.
   //
-  // A corridor with exactly one dark end, and a sleeping ogre between the
-  // hero and it. The left end is already in sight, so exploring right is
-  // the only exploration on offer — and the shrine is the only alternative.
+  // A corridor with exactly one dark end, and a sleeping creature BESIDE the
+  // way to it. The left end is already in sight, so exploring right is the
+  // only exploration on offer — and the shrine is the only alternative.
+  //
+  // BESIDE, not in the corridor, and that is B26's doing. The guard used to
+  // stand ON the only route: once a creature's tile costs its duel, walking
+  // past it is not a gamble the appetite can weigh, it is a fight the hero
+  // cannot survive, and every hero refuses correctly for a reason that has
+  // nothing to do with the gate under test. In its own alcove it does what
+  // it was always meant to do — make the route expensive without making it
+  // impossible.
   const wide = 31;
   // The bottom row is walled so the shrine's own tile is not itself a
   // frontier — an unknown tile below it would make the exit the cheapest
@@ -3694,7 +3702,7 @@ test('V5 — a cautious hero does not explore into danger', () => {
   const map = tinyMap([
     '#'.repeat(wide),
     `#${'-'.repeat(wide - 2)}#`,
-    `${'#'.repeat(6)}.${'#'.repeat(wide - 7)}`,
+    `${'#'.repeat(6)}.${'#'.repeat(6)}.${'#'.repeat(wide - 14)}`,
     `${'#'.repeat(6)}.${'#'.repeat(wide - 7)}`,
     '#'.repeat(wide),
   ]);
@@ -3714,7 +3722,7 @@ test('V5 — a cautious hero does not explore into danger', () => {
       // of the frontier gate it is about. The zombie is the only xp 5 on the
       // table, so guess and truth agree and the decision under test is the
       // only thing moving.
-      monsters: [dummy('zombie', [13, 1], { activation: 6 })],
+      monsters: [dummy('zombie', [13, 2], { activation: 6 })],
       shrine: { id: 's', emoji: '🕳️', pos: [6, 3] },
     });
     // Something is still owed, so the pool is empty and the only decision
