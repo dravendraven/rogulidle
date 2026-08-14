@@ -456,6 +456,25 @@ so the pick comes back the moment it does). Only the PLAYER'S pick is gated —
 hero. The rail re-reads the gate on every run, so the cast opens without a
 reload on the run after the kill.
 
+**And the flag became a receipt, because the moment an achievement unlocks
+something a boolean in `localStorage` is the whole feature defeated.** `earn`
+now stores the seed AND the configuration of the run that earned it, and every
+load re-runs those receipts and checks the pig actually died. It is not
+anti-cheat and does not pretend to be — there is no server and the store is
+editable — but forging costs finding a seed and a config that really kill the
+Butcher, which is running the simulation until the pig dies. It is also U12's
+`{name, date, config, runSeed, branch}` four fifths built: `src/ui/run.js` is
+now the ONE place a `(seed, config)` pair becomes a run, shared by the
+spectator loop and the verifier so they cannot drift apart.
+
+Two costs, both real. **A receipt is only replayable by the code that recorded
+it** — change the engine, the bot or a shipped dial and every stored receipt
+stops reproducing, so every unlock re-locks and nothing can tell that from
+forgery. Verification therefore never rewrites the store, so reverting the
+change brings every unlock straight back. And **verification is synchronous at
+load**, one full run per stored receipt: a short run replays in a few hundred
+milliseconds, a cleared one measured 1.4s.
+
 **The order enforces itself, which is the strongest version of a ladder.** The
 base hero averages 4.6 floors and kills the Butcher in about 6.5% of runs, so
 the first rung is reachable but slow; floor 10 is not reachable with the base

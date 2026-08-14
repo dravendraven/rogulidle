@@ -39,6 +39,11 @@ import {
   BIAS_SPREAD, DANGER_PERSISTENCE, DEFAULT_HERO, LOOT_VALUE, biasBands,
 } from '../src/bot/config.js';
 import { tileSvg } from '../src/ui/tiles.js';
+import { playRun } from '../src/ui/run.js';
+import {
+  earnedBy, isEarned, verifyAchievements, HERO_GATE,
+} from '../src/ui/achievements.js';
+import { getChosenHero, setChosenHero } from '../src/ui/roster.js';
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
 
 // ***** tiny test harness ***** //
@@ -3847,6 +3852,111 @@ test('an awake pursuer is fought rather than fled forever', () => {
 
   const { state: after } = driveBot(state, 20, { monsterCount: 1, chestCount: 0 });
   assert(after.monsters.some((m) => m.dead), 'the pursuer was never dealt with');
+});
+
+// ***** U11 — the unlock, and the receipt that has to back it ***** //
+//
+// These are the only tests here that touch localStorage, and run-tests.html
+// is the SAME ORIGIN as index.html — so every one of them saves the real
+// store and puts it back in a `finally`. A test suite that ate a player's
+// unlocks would be worse than no test suite.
+
+const ACH_KEY = 'rogulidle-achievements';
+const HERO_KEY = 'rogulidle-hero';
+
+function withStores(fn) {
+  const saved = [ACH_KEY, HERO_KEY].map((k) => [k, localStorage.getItem(k)]);
+  try {
+    fn();
+  } finally {
+    for (const [k, v] of saved) {
+      if (v === null) localStorage.removeItem(k);
+      else localStorage.setItem(k, v);
+    }
+    // Leave the module agreeing with the store it was handed back.
+    verifyAchievements();
+  }
+}
+
+// A real run that really earned something, FOUND rather than written down.
+//
+// A pinned seed would be a recorded measurement, and this project already
+// knows what happens to those: it goes stale the first time balance moves and
+// then fails for a reason that has nothing to do with what it tests. Searched,
+// the test stays true across any balance change — and if it ever has to search
+// far, that is itself worth seeing.
+//
+// Config `{}` is deliberate: the code defaults, which is what every other test
+// in this file runs on (`test/baseline.md` — this file pins rules, not
+// balance). Memoised because each run costs a couple of hundred milliseconds.
+let earnedRun = null;
+function aRunThatEarned() {
+  if (earnedRun) return earnedRun;
+  for (let i = 1; i <= 60; i++) {
+    const seed = hashSeeds(20260814, i);
+    const got = earnedBy(playRun(seed, {}));
+    if (got.length) {
+      earnedRun = { seed, config: {}, id: got[0] };
+      return earnedRun;
+    }
+  }
+  throw new Error('no seed in 60 earned anything — the receipt cannot be tested');
+}
+
+test('a hand-written achievement flag unlocks nothing', () => {
+  withStores(() => {
+    localStorage.setItem(ACH_KEY, JSON.stringify({ [HERO_GATE]: { run: 1, at: 0 } }));
+    verifyAchievements();
+    assert(!isEarned(HERO_GATE),
+      'a flag typed into the console counted as earned — the gate is a boolean again');
+  });
+});
+
+test('a receipt whose run really did it is accepted', () => {
+  withStores(() => {
+    const hit = aRunThatEarned();
+    localStorage.setItem(ACH_KEY, JSON.stringify({
+      [hit.id]: { run: 1, at: 0, seed: hit.seed, config: hit.config },
+    }));
+    verifyAchievements();
+    assert(isEarned(hit.id), `a genuine receipt for ${hit.id} was refused`);
+  });
+});
+
+test('a receipt pointing at a different run is refused', () => {
+  withStores(() => {
+    const hit = aRunThatEarned();
+    localStorage.setItem(ACH_KEY, JSON.stringify({
+      [hit.id]: { run: 1, at: 0, seed: hit.seed + 1, config: hit.config },
+    }));
+    verifyAchievements();
+    assert(!isEarned(hit.id), 'the seed was changed and the claim still stood');
+  });
+});
+
+test('a refused receipt is ignored, never deleted', () => {
+  // The one thing verification must not do. A receipt stops reproducing when
+  // the engine changes as well as when it is forged, and nothing here can tell
+  // those apart — so a change that broke them must be revertible with every
+  // unlock intact.
+  withStores(() => {
+    const written = JSON.stringify({ [HERO_GATE]: { run: 1, at: 0, seed: 7, config: {} } });
+    localStorage.setItem(ACH_KEY, written);
+    verifyAchievements();
+    assertEq(localStorage.getItem(ACH_KEY), written,
+      'verification rewrote the store');
+  });
+});
+
+test('with the gate shut, a hero picked earlier reads as the base hero', () => {
+  withStores(() => {
+    localStorage.removeItem(ACH_KEY);
+    verifyAchievements();
+    setChosenHero('vito');
+    assertEq(getChosenHero(), '', 'the gate let an unearned hero through');
+    assertEq(localStorage.getItem(HERO_KEY), 'vito',
+      'the gate erased the pick instead of merely refusing it');
+  });
 });
 
 export function runAll() {

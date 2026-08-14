@@ -7,16 +7,18 @@
 // sped up freely.
 
 import { playGame, replayGame } from '../sim/game.js';
-import { coinsFor, playDungeon, LEVELS } from '../sim/dungeon.js';
+import { coinsFor, LEVELS } from '../sim/dungeon.js';
 import { hashSeeds, seedFromString } from '../sim/rng.js';
 import { heroByName } from '../sim/heroes.js';
-import { difficultyToParams, makeFloorPlan } from '../sim/difficulty.js';
+import { difficultyToParams } from '../sim/difficulty.js';
 import { dangerField, makeBot } from '../bot/bot.js';
 import {
   buildGrid, renderFrame, renderHud, renderHistory, renderAchievements,
   applyDepth, renderDebugInfo, carriedSvg,
 } from './render.js';
-import { ACHIEVEMENTS, earn, earnedBy, getAchievements } from './achievements.js';
+import {
+  ACHIEVEMENTS, earn, earnedBy, getAchievements, verifyAchievements,
+} from './achievements.js';
 import { tileSvg } from './tiles.js';
 import { award, resetScore } from './score.js';
 import { resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
@@ -26,6 +28,7 @@ import { buildRoster, getChosenHero } from './roster.js';
 import { buildHighscorePanel, recordRun, getHighscores } from './highscores.js';
 import { loadDialOverrides } from './dial-overrides.js';
 import { eventsEnabled, makeEventLayer } from './events.js';
+import { playRun } from './run.js';
 
 const MAX_TURNS = 900;       // per floor
 const BASE_DELAY = 110;      // ms per turn at 1x
@@ -443,7 +446,7 @@ async function runForever(sessionSeed) {
   }
 }
 
-function tallyDescent(run, finalState, heroName) {
+function tallyDescent(run, finalState, heroName, receipt) {
   session.runsPlayed++;
 
   // Total turns come from playDungeon's own per-floor records; final
@@ -483,9 +486,15 @@ function tallyDescent(run, finalState, heroName) {
   // U11 — what this run earned, read off playDungeon's own result. `earn`
   // reports only the FIRST time, so the celebration fires once and a
   // hundredth Butcher is silent.
+  //
+  // `receipt` is `{ seed, config }` — the run that just did it, stored so a
+  // later load can re-run it and check that it really did. An achievement
+  // now unlocks something (the rail), and a boolean in localStorage unlocks
+  // it for anyone who opens the console; see achievements.js for what the
+  // receipt does and does not claim to be.
   let justEarned = null;
   for (const id of earnedBy(run)) {
-    if (earn(id, session.runNumber)) justEarned = id;
+    if (earn(id, session.runNumber, receipt)) justEarned = id;
   }
   if (el.achievements) {
     renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), justEarned);
@@ -563,36 +572,18 @@ async function runDescentForever(sessionSeed) {
     // Playing AND queued agree again the moment a run is built with the
     // pick: this is what clears the "entra na proxima run" line.
     if (session.roster) session.roster(hero.name, hero.name);
-    const traces = [];
-    const run = playDungeon(seed, (floor) => {
-      const trace = [];
-      traces.push(trace);
-      return makeBot({
-        trace,
-        monsterCount: floor.monsterCount,
-        chestCount: floor.chests,
-        // The share of the descent's threat still ahead — what the scholar's
-        // book is weighed against (src/sim/difficulty.js).
-        threatAhead: floor.threatAhead,
-        floorsAhead: floor.floorsAhead,
-        hero: dials.hero,
-        ...dials.bot,
-      });
-    }, {
-      maxTurns: dials.run.turnBudget,
+    // EVERYTHING BESIDES THE SEED that decides this run, as one plain
+    // object. It is what `playRun` takes, and it is also what an achievement
+    // earned here stores as its receipt — so the run that gets replayed to
+    // verify an unlock is assembled by the same code that built this one and
+    // cannot drift from it (src/ui/run.js says why that matters).
+    const config = {
+      dials,
+      heroName: hero.name,
       startingItems: getHeldItems(),
-      floorPlan: makeFloorPlan(dials.model),
-      // Who is playing (src/ui/dials.js, "quem joga"). Unset resolves to the
-      // shipped hero, so a visitor who never opens the Lab gets exactly the
-      // run they got before heroes existed.
-      hero: hero,
-      // The return switch (src/ui/dials.js). Off is a plain descent, which
-      // is `traversals: LEVELS` — the same pin the analysis modules already
-      // use. On leaves the option unset so dungeon.js's own default (the
-      // full nineteen, down and back up) applies, rather than this page
-      // carrying a second copy of that arithmetic.
-      ...(dials.run.theReturn ? {} : { traversals: LEVELS }),
-    });
+    };
+    const traces = [];
+    const run = playRun(seed, config, (trace) => traces.push(trace));
 
     let finalState = null;
     session.turnOffset = 0;
@@ -664,7 +655,7 @@ async function runDescentForever(sessionSeed) {
     // `hero.name` — the real name (`HEROES.base.name` is `'base'`, not the
     // `''` `session.heroName` prints for it) so the highscore board's key
     // matches `roster.js`'s own ORDER and chip keys.
-    tallyDescent(run, finalState, hero.name);
+    tallyDescent(run, finalState, hero.name, { seed, config });
     await showDescentSummary(run, finalState);
     // The default-purchase draw needs its own seed, same derivation as the
     // run's own (hashSeeds(sessionSeed, runNumber)) — see shop.js's own
@@ -748,6 +739,12 @@ function wireLab(overrides, devMode) {
 export async function start() {
   grab();
   buildGrid(el.grid);
+  // BEFORE anything reads an achievement — the rows below, and the rail's
+  // gate further down. Each stored receipt is re-run and only counts if it
+  // reproduces (src/ui/achievements.js). One full run apiece, two at most,
+  // and nothing at all for a visitor who has earned nothing yet; the grid is
+  // already on screen while it happens.
+  verifyAchievements();
   // Drawn before the first run so the board reads as "two things to do"
   // rather than appearing out of nowhere the moment one is done.
   if (el.achievements) {
