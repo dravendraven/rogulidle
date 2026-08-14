@@ -143,7 +143,9 @@ const GENERATION = {
 // — the first read returned the old numbers because `import()` caches modules
 // per page load and the stale `bot.js` was still in there, which is the trap
 // CLAUDE.md warns about and it caught me.
-// Re-recorded again for C1 §1, where the danger field stopped weighing a
+// Re-recorded a third time when C1 §1 gained its uncertainty term and the
+// caution centre moved from 15.9 to 8.3. Read off a RELOADED page.
+// Re-recorded before that for C1 §1, where the danger field stopped weighing a
 // creature by its bite and `caution` became the exchange rate. Every route
 // price in the game moved, so this anchor had to; generation did not, and the
 // four checks above are what say so. Read off a RELOADED page, for the reason

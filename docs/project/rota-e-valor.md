@@ -331,7 +331,7 @@ continuam perto, e a briga volta a ganhar sozinha. Isso se auto-equilibra, e é
 onde a personalidade vira comportamento visível: varrer o andar antes contra
 encarar o que está na frente.
 
-## 10. O escuro é exposição, e a cautela escala ✅
+## 10. A incerteza é o escuro que um passo ABRE ✅ refeita
 
 **Hoje o escuro é o terreno mais barato do jogo, sem dial nenhum.**
 `believedWalkable` trata tile nunca visto como passável e o campo de perigo não

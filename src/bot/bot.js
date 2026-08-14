@@ -29,7 +29,7 @@ import {
   effectiveHp, expectedDamage, rageMultiplier, weaponDamage, weaponMinDamage,
 } from '../sim/combat.js';
 import {
-  expectedHpFor, MAP_SIZE, MEAN_ACTIVATION, MONSTER_SKIP_CHANCE, READ_TURNS,
+  expectedHpFor, MAP_SIZE, MONSTER_SKIP_CHANCE, READ_TURNS, VISIBLE_DIST,
 } from '../sim/balance.js';
 import {
   CHEST_VALUE_HP, CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_CHEST_COUNT,
@@ -166,47 +166,61 @@ export function isAwakeAt(monster, distance) {
 // defect.
 // ***** WHAT THE DARK COSTS (C1 §10) *****
 //
-// Until now an unseen tile was the CHEAPEST ground in the game.
+// An unseen tile used to be the CHEAPEST ground in the game.
 // `believedWalkable` calls it passable and the danger field knows no creature
-// there, so the dark was not neutral — it was safe by construction, and that
-// is a lie rather than a choice.
+// there, so the dark was not neutral — it was safe by construction.
 //
-// The bot already has every number to price it. How many creatures the floor
-// holds is granted (rules.md §7), it can count the ones it has met, and the
-// difference is out there. Spread that difference over the ground it has not
-// seen and each dark tile carries its share.
+// THE FIRST FIX WAS AIMED AT THE WRONG TILES, and its own measurement said so:
+// it charged only tiles the hero would STEP ON, and moved 10 seeds in 150,
+// because the bot routes through known ground almost always. Meanwhile a
+// KNOWN tile ringed by dark cost nothing at all — the same lie, one layer out.
 //
-// The share is the creature's EMISSION — the exposure mass one creature lays
-// over everything inside its radius, `Σ tiles(d) × persistence^d`, about 4d
-// tiles at Manhattan distance d. So a dark tile costs
+// The owner's reframing is the one that holds: **you do not reveal the dark by
+// standing on it, you reveal it by coming within sight of it.** So what a tile
+// costs in surprise is how much of ITS OWN VIEWPORT is still unknown. A tile
+// deep in swept ground is free; a tile at the edge of the map's darkness is
+// not, whether or not the hero ever steps past it.
 //
-//     (criaturas que faltam / tiles no escuro) × emissão
+// A FRACTION, not a count, and the units are the reason. Exposure runs 0..2
+// creature-turns; an unknown-tile count runs 0..250, and added raw it would
+// drown the creatures by two orders of magnitude. As a share of the viewport
+// it lands in the same range as exposure, so one `caution` scales both and
+// means one thing: how much a turn near danger OR near the unknown is worth.
 //
-// in the same creature-turns the lit part is measured in, which means
-// `caution` scales it exactly as it scales everything else. That is not a
-// stylistic choice: if caution priced known danger and not the dark, turning
-// caution UP would send the hero round a visible wolf and into an unlit room.
+// It also DELETES three pieces the first attempt needed — the density of
+// unseen creatures, `MEAN_ACTIVATION`, and the emission constant. And with
+// them goes a dependency on the granted monster count (rules.md §7): the price
+// of ignorance is now read off the map the hero has actually seen, not off a
+// number he was told.
 //
-// Courage does not enter. Exposure is blind to strength by definition (§1) —
-// there is no creature's health here to discount, only "how many
-// creature-turns is this". An earlier draft priced the dark as an imagined
-// creature valued by `expectedHpFor`; it contradicted §1 and it was that
-// draft that lost.
-function darkExposure(belief, { persistence, monsterCount }) {
-  const unseenMonsters = Math.max(0, (monsterCount ?? 0) - belief.monsters.size);
-  if (unseenMonsters === 0) return 0;
+// A summed-area table over the unknown mask, so a window costs O(1) and the
+// whole thing is one pass over a 32×32 grid per turn.
+function darkFraction(belief) {
+  const n = MAP_SIZE;
+  const w = n + 1;
+  const pre = new Int32Array(w * w);
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      const unknown = belief.tiles.has(x + ',' + y) ? 0 : 1;
+      pre[(y + 1) * w + (x + 1)] = unknown
+        + pre[y * w + (x + 1)] + pre[(y + 1) * w + x] - pre[y * w + x];
+    }
+  }
 
-  // Walls count as unseen ground here, which errs LOW — the dark is priced a
-  // little cheaper than it is. Preferred over guessing at how much of the
-  // unexplored map is diggable, which is a fact about generation the bot has
-  // no business knowing.
-  const unseenTiles = MAP_SIZE * MAP_SIZE - belief.tiles.size;
-  if (unseenTiles <= 0) return 0;
-
-  let emission = 1;
-  for (let d = 1; d < MEAN_ACTIVATION - 1; d++) emission += 4 * d * persistence ** d;
-
-  return (unseenMonsters / unseenTiles) * emission;
+  // The hero's own reach, so "what I would learn standing here" is measured
+  // with the eyes he actually has. A square window rather than the round one
+  // `observe` uses: the corners it adds are the same corners for every tile,
+  // so the ORDER of tiles is untouched and a disc would cost a real scan.
+  return (x, y) => {
+    const x0 = Math.max(0, x - VISIBLE_DIST);
+    const x1 = Math.min(n - 1, x + VISIBLE_DIST);
+    const y0 = Math.max(0, y - VISIBLE_DIST);
+    const y1 = Math.min(n - 1, y + VISIBLE_DIST);
+    const area = (x1 - x0 + 1) * (y1 - y0 + 1);
+    const sum = pre[(y1 + 1) * w + (x1 + 1)] - pre[y0 * w + (x1 + 1)]
+      - pre[(y1 + 1) * w + x0] + pre[y0 * w + x0];
+    return sum / area;
+  };
 }
 
 export function dangerField(belief, tuning = {}) {
@@ -214,10 +228,19 @@ export function dangerField(belief, tuning = {}) {
   const crowdPenalty = tuning.crowdPenalty ?? CROWD_PENALTY;
   const caution = tuning.caution ?? DEFAULT_HERO.caution;
   const stepCost = tuning.stepCost ?? DEFAULT_HERO.stepCost;
-  // Flat across every unseen tile, so it is computed once rather than per
-  // lookup. 0 whenever the floor owes nothing, which is what makes a swept
-  // floor go back to costing steps alone.
-  const dark = darkExposure(belief, { persistence, monsterCount: tuning.monsterCount });
+  // Per tile: how much of what this tile can SEE is still unknown — and then
+  // measured AGAINST WHERE THE HERO STANDS, so what is priced is the dark a
+  // step would ADD, not the dark he is already in.
+  //
+  // The absolute form was built first and it broke the game: the dark share
+  // sits near 0.7 almost everywhere early on while creature exposure is 0
+  // almost everywhere, so under one multiplier the dark drowned the creatures
+  // and a single step came to cost 1.2 hp against a chest worth 1.50. Depth
+  // fell 4.00 -> 2.78 and side chests 12.77 -> 5.82. Uncertainty is a thing
+  // you BUY by walking somewhere new, not a thing you pay rent on.
+  const seen = darkFraction(belief);
+  const here = seen(belief.player.pos[0], belief.player.pos[1]);
+  const darkAt = (x, y) => Math.max(0, seen(x, y) - here);
   const passable = believedWalkable(belief);
 
   const menace = new Map();   // tile -> creature-turns of exposure there
@@ -247,10 +270,10 @@ export function dangerField(belief, tuning = {}) {
     reach,
     priceAt(x, y) {
       const tile = x + ',' + y;
-      // A tile the hero has never seen carries the floor's unaccounted-for
-      // creatures. A tile he HAS seen carries only what he saw there — the
-      // dark's share is the price of ignorance, and looking pays it off.
-      const exposure = (menace.get(tile) || 0) + (belief.tiles.has(tile) ? 0 : dark);
+      // Two kinds of dislike for a turn spent here, in the same unit: what
+      // can hit me, and what I still cannot see. Looking pays the second one
+      // off — a swept floor costs steps alone again.
+      const exposure = (menace.get(tile) || 0) + darkAt(x, y);
       if (exposure === 0) return 0;
       // `caution` is HOW MANY STEPS a creature-turn is worth, so the danger
       // half of a tile is `stepCost × caution × exposure` and the whole tile
@@ -261,6 +284,24 @@ export function dangerField(belief, tuning = {}) {
       //
       // `crowdPenalty` is already hp and stays OUTSIDE that product, or the
       // two dials would multiply each other.
+      return stepCost * caution * exposure
+        + ((crowd.get(tile) || 0) >= 2 ? crowdPenalty : 0);
+    },
+
+    // The CREATURE half alone, with the uncertainty left out. One caller: the
+    // frontier's gate, and it needs this or the test eats itself — that gate
+    // refuses a frontier whose road carries too much danger, and once
+    // uncertainty counts as danger it refuses a frontier for being UNKNOWN,
+    // which is what a frontier is.
+    //
+    // Measured, the circle costs 17% of runs to the turn budget: the bot
+    // refuses every frontier, the pool empties, and it paces between the
+    // refuge and the road it will not take until the floor times out. The
+    // shamble wire caught it.
+    perilAt(x, y) {
+      const tile = x + ',' + y;
+      const exposure = menace.get(tile) || 0;
+      if (exposure === 0) return 0;
       return stepCost * caution * exposure
         + ((crowd.get(tile) || 0) >= 2 ? crowdPenalty : 0);
     },
@@ -976,18 +1017,16 @@ export function makeBot(options = {}) {
     // So the bar is still a bar. What §5 actually buys is the other half:
     // when there ARE other candidates the frontier now competes with them on
     // price instead of waiting in an `else` for them all to be exhausted.
+    // What the road to `pos` costs in CREATURES, walked tile by tile. It used
+    // to be read off the route price with the walking subtracted back out —
+    // which was exact while the only other term was creatures, and became
+    // wrong the moment uncertainty joined them. Summing the creature half
+    // directly says what it means and cannot drift again.
     const dangerOnTheWay = (pos) => {
-      const price = priceOfReaching(field, pos);
-      if (!Number.isFinite(price)) return Infinity;
-      const steps = field.steps.get(key(pos)) ?? 0;
-      const slack = price - steps * hero.stepCost;
-      // The route price is stepCost SUMMED once per tile and this is the same
-      // quantity MULTIPLIED — in binary the two do not agree, and the ~1e-16
-      // that survives made a corridor with no danger on it read as a gamble.
-      // At appetite 0 the bar is exactly 0, so that residue refused every
-      // frontier, the goal went null, and the bot rested until the turn
-      // budget ran out (measured: 21 of 152 floors, all timeouts).
-      return slack < 1e-9 ? 0 : slack;
+      if (!Number.isFinite(priceOfReaching(field, pos))) return Infinity;
+      let peril = 0;
+      for (const [x, y] of routeTo(field, pos)) peril += danger.perilAt(x, y);
+      return peril;
     };
 
     // One frontier, the cheapest, rather than all of them. Dozens sit at

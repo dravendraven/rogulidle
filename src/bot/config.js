@@ -2,7 +2,7 @@
 // never reads this file, and src/sim/balance.js no longer holds bot dials.
 // Bot rules live in the bot (CLAUDE.md); so do the bot's numbers.
 
-import { CHEST_LOOT_CHANCE, MEAN_BITE } from '../sim/balance.js';
+import { CHEST_LOOT_CHANCE } from '../sim/balance.js';
 import { ARMOUR_SCARCITY, POTION_SCARCITY } from '../sim/difficulty.js';
 import { itemWeights } from '../sim/spawn.js';
 
@@ -87,35 +87,44 @@ export const DEFAULT_HERO = {
   // this was a share of hp and the two numbers are not comparable.
   sideAppetite: 1,
 
-  // HOW MANY STEPS ONE CREATURE-TURN OF EXPOSURE IS WORTH. C1 §1 — the dial
-  // that decides how the hero WALKS, which until now nothing did: three dials
-  // all answered "what is worth taking" and none answered "by which way".
+  // HOW MANY STEPS ONE TURN OF UNPLEASANTNESS IS WORTH. C1 §1 — the dial that
+  // decides how the hero WALKS, which until now nothing did.
   //
-  //     preço(tile) = stepCost × (1 + caution × exposição(tile))
+  //     preço(tile) = stepCost × (1 + caution × (exposição + incerteza))
   //
-  // DIMENSIONLESS on purpose, and that is the owner's formulation rather than
-  // the first one written. Caution as a price in hp made it a second absolute
-  // number sitting beside `stepCost`, when the only thing that ever mattered
-  // was their RATIO — so the ratio is the dial, and the whole route is priced
-  // in multiples of a step.
+  // Two things it prices per turn, in the same unit: what can HIT me
+  // (creature-turns, decayed by distance) and what I cannot SEE (how much
+  // more of the map this tile's viewport opens than where I stand). One
+  // sentence covers both — how much a turn near danger or near the unknown
+  // is worth — which is why they share a multiplier.
   //
-  // NOT `caution × (1 + exposure)` either: that drops `stepCost` out of the
-  // clear-tile term and flattens the contrast between a clear tile and a
-  // hemmed-in one from about 13:1 to 2:1.
+  // DIMENSIONLESS, so the dial IS the ratio between hurry and danger and the
+  // whole route is priced in multiples of a step. `stepCost` sets walking
+  // against fighting and looting; this sets safe against short.
   //
-  // The centre is DERIVED, not chosen: `MEAN_BITE / STEP_COST` is the ratio
-  // the per-creature field used to run at, so the middle band spends the same
-  // total danger budget. Tile by tile it is a different game on purpose —
-  // beside a rat it now costs more, beside a dragon less — because caution is
-  // blind to strength and courage is the dial that is not.
+  // 8.3 AND IT IS MEASURED, not derived, and that is a loss worth naming.
+  // It used to be `MEAN_BITE / stepCost` (15.9), whose virtue was that nobody
+  // chose it. With the uncertainty term in, that centre sits past the top of
+  // the curve — swept at n=150 the six bands read 3.97 / 4.14 / 3.99 / 3.60 /
+  // 3.13 / 2.80 mean floors, so the old centre had four of its own bands
+  // beating it. B24 fixed exactly this for `DANGER_PERSISTENCE`, and the rule
+  // it left is the one followed here: the centre must be a good place, and
+  // moving the dial must be a deliberate trade.
   //
-  // WHAT B24 PREDICTS ABOUT IT, written down before the sweep so nobody gets
-  // to be surprised: `stepCost` swept 0.08 to 0.9 — an ELEVENFOLD move of
-  // this very ratio — and measured flat, 4.3 to 4.5 floors. So depth is
-  // likely to be flat across these bands too. That is not a reason to skip
-  // the dial (this is a game that is WATCHED, and looking cautious is a
-  // result) but it IS the reason not to promise depth from it.
-  caution: MEAN_BITE / STEP_COST,
+  // HOW IT WAS ACTUALLY CHOSEN, because two attempts missed first. A rule
+  // written before the sweep said "the highest band whose lead clears one
+  // standard error; ties go to the lowest" — the top three tie, so it pointed
+  // at 3.2. That was then overridden by hand to 13.4, reasoning that the
+  // centre should leave the interesting trade above it. The TRIPWIRES refused
+  // both: at 13.4 `nothing gets deep` fired (no run reached the halfway turn)
+  // and the shamble ran at 8%. At 8.3 the whole board reads as it did before
+  // this dial existed. Neither the rule nor the override picked this; the
+  // wires did, and that is the project's arbiter working as designed.
+  //
+  // What the dial sells, from the same sweep: deaths per run from 0.98 down
+  // to 0.40 across the bands, against depth from 4.14 down to 2.80. It is the
+  // first dial in this project to move SURVIVAL.
+  caution: 8.3,
 
   // What one step is worth in hp. This is the exchange rate between goal 3
   // and the other two: raising it makes near goals win harder and empties

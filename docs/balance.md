@@ -103,16 +103,15 @@ guesses with.
 WORTH, risk multiplies the BAR a guard or a dark route may cost. Both at 1,
 the split is an exact no-op.
 
-`caution` is how many STEPS one creature-turn of exposure is worth —
-dimensionless, so the whole route is priced in multiples of a step and the
-dial IS the ratio between hurry and danger, which is the only thing that ever
-mattered. Its centre is the second computed one in the project:
-`MEAN_BITE / stepCost`, the ratio the old per-creature field ran at. It is a
-hero trait and NOT one of the four bands — see `src/ui/dials.js` for why. `fightMargin` is no
-longer one of the bands; `DANGER_PERSISTENCE` 0.7 is now labelled
-**Vigilância**, because `caution` took the name Cautela. The two are
-orthogonal: persistence is the SHAPE of the danger's decay with distance,
-caution is its MAGNITUDE.
+`caution` is how many steps one turn of unpleasantness is worth —
+dimensionless, so the dial IS the ratio between hurry and danger. It prices
+two things per turn in the same unit: what can HIT the hero, and how much more
+of the map a tile opens than where he stands. **8.3, and MEASURED rather than
+derived** — it was `MEAN_BITE / stepCost` until the uncertainty term went in
+and put that centre past the top of the curve. It is the first dial here to
+move survival: deaths per run go 0.98 to 0.40 across its bands, against depth
+4.14 to 2.80. It is a hero trait and NOT one of the four bands — see
+`src/ui/dials.js` for why.
 
 **It is no longer what a visitor plays.** Each one gets a band ROLLED per
 dial on their first session (`src/ui/dials.js`), kept from then on — so

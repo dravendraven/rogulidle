@@ -118,14 +118,20 @@ frases:
   MENOS o que o drop vale, e uma arma vale o duelo que ela pouparia contra o
   que já está à vista. O desconto vale para escolher alvo, nunca para a
   barra de sobrevivência: prêmio bom não deixa luta mais barata em hp.
-- **O escuro custa.** Um tile nunca visto carrega a parte dele das criaturas
-  que o andar ainda deve: `(criaturas que faltam / tiles no escuro) × emissão`,
-  onde a emissão é a massa de exposição que uma criatura espalha pelo próprio
-  raio. Fica na mesma moeda do resto, então a cautela o escala igual — e tem
-  de ser assim, ou cautela alta mandaria o herói contornar um lobo visível e
-  entrar numa sala apagada. Antes disso o escuro era o **terreno mais barato
-  do jogo**, seguro por construção, o que era mentira e não escolha. Olhar
-  paga a dívida: tile visto passa a carregar só o que se viu nele.
+- **A incerteza custa, e é o que um passo ABRE.** Você não revela o escuro
+  pisando nele, revela chegando perto — então o que um tile cobra é quanto
+  **a mais** do mapa o viewport dele destrava, comparado a onde o herói está.
+  Fica na mesma moeda da exposição, e a cautela escala as duas: um turno perto
+  de perigo e um turno perto do desconhecido são a mesma frase.
+- **A forma absoluta quebra o jogo** e está registrada por isso. Cobrar
+  "quanto escuro há perto daqui" em vez de "quanto a mais eu abro" põe ~0,7
+  em quase todo tile, afoga o termo de criatura, e um passo passa a custar
+  1,2 hp contra um baú que vale 1,50. Profundidade caiu de 4,00 para 2,78.
+- **E a incerteza fica FORA do portão da fronteira.** Aquele portão recusa
+  fronteira cujo caminho tem perigo demais; se a incerteza contar como
+  perigo, ele recusa a fronteira por ela ser desconhecida — que é o que uma
+  fronteira é. O círculo custou 17% das runs ao orçamento de turnos até o fio
+  da lesma pegá-lo.
 - **A fronteira é candidata, não plano B.** Ela entra na mesma lista que
   criatura, item e baú, pelo preço da rota, e ganha ou perde por ele. Antes
   ficava num `else` — "só explora quando nada visível vale a pena" — o que
