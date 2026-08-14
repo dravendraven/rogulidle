@@ -29,6 +29,10 @@ import { eventsEnabled, makeEventLayer } from './events.js';
 
 const MAX_TURNS = 900;       // per floor
 const BASE_DELAY = 110;      // ms per turn at 1x
+// How long the frame on screen lasts. One number for the playback pace AND
+// for how long a floating signal lives, so a hit and a tile step share one
+// beat at every speed setting.
+const turnMs = () => BASE_DELAY / session.speed;
 const SUMMARY_MS = 2400;
 const COIN_POPUP_MS = 900;
 // Long enough to read three options and click one — the shop now opens
@@ -153,7 +157,7 @@ async function playFrames(frames, trace, tallyText) {
     renderHud(el, frame.state, session);
     if (el.tally) el.tally.textContent = tallyText();
 
-    await sleep(BASE_DELAY / session.speed);
+    await sleep(turnMs());
   }
 }
 
@@ -722,7 +726,7 @@ export async function start() {
   if (el.achievements) {
     renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements());
   }
-  events = makeEventLayer(el.stage, el.grid, { enabled: eventsEnabled() });
+  events = makeEventLayer(el.stage, el.grid, { enabled: eventsEnabled(), turnMs });
   wireControls();
 
   // Half speed by default — easier to follow than the old 1x default.

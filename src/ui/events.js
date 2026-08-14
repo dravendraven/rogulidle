@@ -121,7 +121,11 @@ function signalsFor(entry, state) {
 // Owns a transparent layer over the grid and spends the engine's log into
 // it, one frame at a time. `show(state)` is the whole interface: hand it
 // the state being drawn and it renders whatever happened since the last one.
-export function makeEventLayer(stage, grid, { enabled = true } = {}) {
+// `turnMs` is how long the frame being drawn stays on screen. Every signal
+// lives exactly that long, so a hit rises and fades in the same beat the hero
+// takes to step one tile — the two cadences were already identical in real
+// time, but a 900ms float spanning four turns piled up and READ as faster.
+export function makeEventLayer(stage, grid, { enabled = true, turnMs = null } = {}) {
   if (!enabled || !stage || !grid) return { show: () => {} };
 
   const layer = document.createElement('div');
@@ -147,6 +151,7 @@ export function makeEventLayer(stage, grid, { enabled = true } = {}) {
       if (!fresh.length && !reading) return;
 
       const size = grid.clientWidth / VIEW;
+      const life = turnMs ? turnMs() : null;
       let stacked = 0;
 
       if (reading) {
@@ -155,6 +160,7 @@ export function makeEventLayer(stage, grid, { enabled = true } = {}) {
         float.innerHTML = `${glyph('📜')}<span>${reading}</span>`;
         float.style.left = `${grid.offsetLeft + (CENTRE + 0.5) * size}px`;
         float.style.top = `${grid.offsetTop + (CENTRE - 0.35) * size}px`;
+        if (life) float.style.animationDuration = `${life}ms`;
         float.addEventListener('animationend', () => float.remove());
         layer.append(float);
         stacked++;
@@ -174,6 +180,7 @@ export function makeEventLayer(stage, grid, { enabled = true } = {}) {
           // landing on top of each other.
           float.style.top = `${grid.offsetTop + (signal.row - 0.35) * size - stacked * 14}px`;
           stacked++;
+          if (life) float.style.animationDuration = `${life}ms`;
           float.addEventListener('animationend', () => float.remove());
           layer.append(float);
         }
