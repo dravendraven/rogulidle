@@ -698,6 +698,23 @@ footer {
 .event-float.gain   { color: #2e7d4f; }
 .event-float.miss   { color: #8a7f6c; }
 
+/* The read in progress (src/ui/events.js) — one per turn for five turns, so
+   it must not read like the one-off signals around it. It PULSES in place
+   instead of rising and fading: rising says "this happened and is over",
+   pulsing says "this is still going". The count beside the scroll answers
+   how much longer. */
+.event-float.reading {
+  color: #6b4fa0;
+  animation: event-read 620ms ease-in-out forwards;
+}
+.event-float.reading span { margin-left: .15rem; }
+
+@keyframes event-read {
+  from { opacity: 0; transform: translate(-50%, 0) scale(.85); }
+  35%  { opacity: 1; transform: translate(-50%, -3px) scale(1.08); }
+  to   { opacity: 0; transform: translate(-50%, -3px) scale(1); }
+}
+
 @keyframes event-rise {
   from { opacity: 0; transform: translate(-50%, 4px); }
   25%  { opacity: 1; }

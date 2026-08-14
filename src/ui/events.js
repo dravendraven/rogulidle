@@ -13,6 +13,13 @@
 // Reads the engine's own log rather than diffing states: every one of these
 // events is already recorded there, with the turn it happened on, so this
 // invents nothing and cannot disagree with what the engine did.
+//
+// ONE EXCEPTION, and it is deliberate: reading the book is a STATE that
+// lasts five turns, not an event that happens once, and the log only records
+// the moment it finishes. A viewer needs to see the four turns before that
+// too, or the hero simply stands still for most of a room with no reason
+// given. So the layer also reads `player.reading` off the state it is handed
+// — a fact the engine already keeps, not one invented here.
 
 import { ITEM_TABLE, VISIBLE_DIST } from '../sim/balance.js';
 import { tileSvg } from './tiles.js';
@@ -129,13 +136,30 @@ export function makeEventLayer(stage, grid, { enabled = true } = {}) {
       // A new floor is a new state with an empty log — the counter follows
       // it down rather than needing the caller to announce the floor.
       if (log.length < shown) shown = 0;
-      if (log.length === shown) return;
 
-      const fresh = log.slice(shown);
+      // The read in progress, once per turn of it, over the hero's own tile.
+      // Counted DOWN so the signal answers "how much longer" rather than
+      // only "something is happening" — five identical puffs would say the
+      // first and not the second.
+      const reading = state.player.reading || 0;
+      const fresh = log.length > shown ? log.slice(shown) : [];
       shown = log.length;
+      if (!fresh.length && !reading) return;
 
       const size = grid.clientWidth / VIEW;
       let stacked = 0;
+
+      if (reading) {
+        const float = document.createElement('div');
+        float.className = 'event-float reading';
+        float.innerHTML = `${glyph('📜')}<span>${reading}</span>`;
+        float.style.left = `${grid.offsetLeft + (CENTRE + 0.5) * size}px`;
+        float.style.top = `${grid.offsetTop + (CENTRE - 0.35) * size}px`;
+        float.addEventListener('animationend', () => float.remove());
+        layer.append(float);
+        stacked++;
+      }
+
       for (const entry of fresh) {
         for (const signal of signalsFor(entry, state)) {
           if (signal.col < 0 || signal.col >= VIEW) continue;
