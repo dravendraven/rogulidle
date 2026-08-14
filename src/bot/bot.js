@@ -26,12 +26,13 @@
 // makeBot — same code, other numbers. See src/bot/config.js.
 
 import {
-  effectiveHp, expectedDamage, weaponDamage, weaponMinDamage,
+  effectiveHp, expectedDamage, rageMultiplier, weaponDamage, weaponMinDamage,
 } from '../sim/combat.js';
 import { MONSTER_SKIP_CHANCE, READ_TURNS } from '../sim/balance.js';
 import {
   CHEST_VALUE_HP, CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_CHEST_COUNT,
-  DEFAULT_MONSTER_COUNT, DEFAULT_HERO, GOAL_STICKINESS, LOOT_VALUE, READ_AT,
+  DEFAULT_MONSTER_COUNT, DEFAULT_HERO, GOAL_STICKINESS, LOOT_VALUE, RAGE_AT,
+  READ_AT,
 } from './config.js';
 import {
   actionToward, believedWalkable, dijkstra, flood, frontiers, key, routeTo,
@@ -66,7 +67,11 @@ import {
 // it. Pricing it here would restore the coupling and delete the room's
 // whole point — docs/project/decisions.md carries the numbers.
 export function duelCost(player, monster) {
-  const mine = expectedDamage(player.xp, weaponDamage(player), weaponMinDamage(player));
+  // `rageMultiplier` and not a flag read here: the estimate and the roll are
+  // one rule (src/sim/combat.js), and a second copy of the test is how the
+  // bot would spend five turns underrating its own damage.
+  const mine = expectedDamage(player.xp, weaponDamage(player), weaponMinDamage(player),
+    rageMultiplier(player));
   // Monsters carry nothing that fights (their drop is not inventory), so
   // neither half of the weapon formula applies to their blow.
   const theirs = expectedDamage(monster.xp, 0);
@@ -274,6 +279,20 @@ function stillValid(goal, belief, field) {
 // Manhattan rather than a real path, and it errs the safe way: a path is
 // never shorter than the straight-line count, so anything called "close
 // enough to arrive" is at worst early, never late.
+// What every creature already coming at the hero is expected to cost him, in
+// hp. The fight he is IN, not the floor he is on.
+function awakeCost(belief) {
+  const [px, py] = belief.player.pos;
+  let total = 0;
+  for (const m of belief.monsters.values()) {
+    if (m.dead) continue;
+    const d = Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py);
+    if (!isAwakeAt(m, d)) continue;
+    total += duelCost(belief.player, m).hpLost;
+  }
+  return total;
+}
+
 function safeToStandStill(belief) {
   const [px, py] = belief.player.pos;
   for (const m of belief.monsters.values()) {
@@ -378,6 +397,31 @@ export function makeBot(options = {}) {
       && belief.player.inventory.some((i) => i.kind === 'book')
       && safeToStandStill(belief)) {
       return 'read';
+    }
+
+    // THE SYRINGE, and the same sentence as the book with the context term
+    // swapped: what is coming at me right now, instead of what the descent
+    // still owes.
+    //
+    //     cost of everything awake on me  >=  effective hp * RAGE_AT * greed
+    //
+    // Priced in HP, using `duelCost` — the bot's own currency for a fight,
+    // already net of the hero's weapon. Raw threat mass would have been the
+    // obvious quantity and the wrong one: its units are hp × damage, so a
+    // fixed floor terrifying on floor 1 is routine on floor 9, where the mass
+    // is twenty times larger. A share of what the hero HAS is scale-free.
+    //
+    // Only the AWAKE count. A creature outside its chase radius is provably
+    // motionless (rules.md §3), so it is not part of the fight being priced —
+    // the same test the danger field runs.
+    //
+    // Uncapped for the reason the book is: at high greed the demand passes
+    // everything the hero has, and unmeetable is what "saves it for a real
+    // fight" means.
+    if (belief.player.inventory.some((i) => i.kind === 'syringe')
+      && !belief.player.raging
+      && awakeCost(belief) >= effectiveHp(belief.player) * RAGE_AT * hero.sideAppetite) {
+      return 'rage';
     }
 
     for (const id of belief.chests.keys()) chestsEverSeen.add(id);

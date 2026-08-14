@@ -142,17 +142,25 @@ export function makeEventLayer(stage, grid, { enabled = true } = {}) {
       // only "something is happening" — five identical puffs would say the
       // first and not the second.
       const reading = state.player.reading || 0;
+      const raging = state.player.raging || 0;
       const fresh = log.length > shown ? log.slice(shown) : [];
       shown = log.length;
-      if (!fresh.length && !reading) return;
+      if (!fresh.length && !reading && !raging) return;
 
       const size = grid.clientWidth / VIEW;
       let stacked = 0;
 
-      if (reading) {
+      // Both live states pulse the same way and for the same reason: they
+      // last several turns, so a signal that rises once and fades would
+      // announce the start and then leave the viewer watching nothing.
+      const live = reading
+        ? { kind: 'reading', emoji: '📜', left: reading }
+        : (raging ? { kind: 'raging', emoji: '💉', left: raging } : null);
+
+      if (live) {
         const float = document.createElement('div');
-        float.className = 'event-float reading';
-        float.innerHTML = `${glyph('📜')}<span>${reading}</span>`;
+        float.className = `event-float ${live.kind}`;
+        float.innerHTML = `${glyph(live.emoji)}<span>${live.left}</span>`;
         float.style.left = `${grid.offsetLeft + (CENTRE + 0.5) * size}px`;
         float.style.top = `${grid.offsetTop + (CENTRE - 0.35) * size}px`;
         float.addEventListener('animationend', () => float.remove());

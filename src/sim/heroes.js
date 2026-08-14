@@ -162,20 +162,18 @@ export const HEROES = {
     bot: {},
     stairs: { buy: 'shield', price: 1, maxPerFloor: 1 },
   },
-  // A dagger that never lands for zero, and shields that hold less. Measured
-  // as the one version of this trait that is not net-negative; the axe
-  // variants all lost more to the armour bar than the weapon paid back.
+  // The only hero who is strong EARLY. The run starts empty-handed on purpose
+  // and the opening is the hardest part of it (rules.md §5), so a dagger from
+  // turn one attacks the real bottleneck — and it fades on its own as
+  // everyone else finds weapons. The syringe is the other half: a burst that
+  // scales with whatever he has picked up, rather than a bonus that is
+  // enormous at floor 1 and irrelevant at floor 9.
   vito: {
     name: 'vito',
     title: 'o guerreiro',
     emoji: '🦸‍♂️',
-    blurb: 'A adaga na mão dele nunca sai pela culatra. O escudo, esse ele veste torto.',
-    persona: {
-      items: {
-        dagger: { dmgMin: 1 },
-        shield: { armour: 2 },
-      },
-    },
+    blurb: 'Começa armado, quando todo mundo começa de mãos vazias. Uma vez por descida, dobra o próprio dano por cinco turnos.',
+    persona: { kit: ['dagger', 'adrenaline'] },
     bot: {},
   },
 };

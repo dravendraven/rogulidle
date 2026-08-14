@@ -38,7 +38,12 @@ export function isVisible(playerPos, pos, radius = VISIBLE_DIST) {
 // An explicit ALLOW-LIST per kind, not a hardcoded omission of `drop`
 // alone — a clone of a growing object is exactly the pattern that leaks the
 // next field someone adds to `MONSTER_TABLE` or a live entity too.
-const PLAYER_FIELDS = ['pos', 'hp', 'hpMax', 'armour', 'xp', 'inventory', 'kills', 'xpEarned'];
+// `raging` is here because the bot has to price fights with the damage it
+// ACTUALLY has. Leave it out and everything still passes — the hero simply
+// underestimates himself for five turns, silently, which is the worst shape
+// a defect can take. It is the hero's own state, not an unrevealed answer,
+// so nothing about the fog rule objects.
+const PLAYER_FIELDS = ['pos', 'hp', 'hpMax', 'armour', 'xp', 'inventory', 'kills', 'xpEarned', 'raging'];
 // `speed` (M44) is here on purpose. It is a plain property of a creature
 // the hero can already see, in the same class as `xp` and `activation` —
 // not an unrevealed answer — so hiding it would be using the fog to conceal

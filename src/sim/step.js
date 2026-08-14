@@ -4,7 +4,7 @@
 // with the observation that follows. No DOM, no Date.now(), no storage.
 // The map is never cloned — it is immutable once generated.
 
-import { READ_TURNS } from './balance.js';
+import { RAGE_TURNS, READ_TURNS } from './balance.js';
 import { isWalkable, samePos } from './mapgen.js';
 import { playerAttacks } from './combat.js';
 import { updateMonsters } from './monsters.js';
@@ -226,6 +226,19 @@ function readOneTurn(state) {
   return true;
 }
 
+// The syringe: five turns of a damage die stretched at the top
+// (src/sim/combat.js). Nothing like reading — it does NOT take the hero's
+// turns away. He fights exactly as he would have, harder, which is why this
+// is a counter and not a commitment.
+function startRage(state) {
+  const index = state.player.inventory.findIndex((i) => i.kind === 'syringe');
+  if (index < 0) return false;
+  state.player.inventory.splice(index, 1);
+  state.player.raging = RAGE_TURNS;
+  state.log.push({ type: 'rage', turns: RAGE_TURNS, turn: state.turn });
+  return true;
+}
+
 function startReading(state) {
   // Same shape as drinking without a potion: asking for the impossible
   // passes no turn at all (§6), so a bot that reads twice loses nothing but
@@ -252,6 +265,7 @@ function resolvePlayerAction(state, action) {
   if (action === 'rest') return true;
   if (action === 'drink') return drinkPotion(state);
   if (action === 'read') return startReading(state);
+  if (action === 'rage') return startRage(state);
 
   const dir = DIRECTIONS[action];
   if (!dir) throw new Error('unknown action: ' + action);
@@ -278,12 +292,18 @@ export function step(state, action) {
   // A read in progress OWNS the turn: the action that arrived is discarded,
   // the count drops, and the creatures act anyway. See `readOneTurn` for why
   // the commitment is the engine's and not the bot's.
+  //
+  // The rage clock is read BEFORE the action so the turn that starts it does
+  // not spend one of its own turns: the syringe costs the turn it is used
+  // on, and the five that follow are the five that hit harder.
+  const wasRaging = next.player.raging > 0;
   const turnPasses = next.player.reading > 0
     ? readOneTurn(next)
     : resolvePlayerAction(next, action);
 
   if (!next.outcome && turnPasses) {
     next.turn++;
+    if (wasRaging && --next.player.raging <= 0) delete next.player.raging;
     updateMonsters(next, next.map);
   }
 

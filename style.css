@@ -726,6 +726,15 @@ footer {
 }
 .event-float.reading span { margin-left: .15rem; }
 
+/* The rage, same pulse as the read and a different colour — one is a hero
+   standing still, the other a hero hitting twice as hard, and they must not
+   read as the same event. */
+.event-float.raging {
+  color: #c0392b;
+  animation: event-read 620ms ease-in-out forwards;
+}
+.event-float.raging span { margin-left: .15rem; }
+
 @keyframes event-read {
   from { opacity: 0; transform: translate(-50%, 0) scale(.85); }
   35%  { opacity: 1; transform: translate(-50%, -3px) scale(1.08); }

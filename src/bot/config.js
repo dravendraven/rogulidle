@@ -256,3 +256,15 @@ export const LOOT_VALUE = true;
 // usually down there BECAUSE something is on him.
 export const READ_AT = 0.8;
 
+
+// ***** when the warrior injects (src/sim/heroes.js) ***** //
+
+// What share of everything he has the fight in front of him must be expected
+// to cost, before the syringe is worth spending. Greed multiplies it, exactly
+// as it does the book's demand — a miser saves it for a bigger fight — and it
+// is deliberately uncapped: above greed 1 the demand passes what the hero
+// owns, and unmeetable IS "hold it for something real".
+//
+// 0.5 is a FIRST GUESS and has never been swept. The book's first guess was
+// wrong by enough to flatten half the dial, so expect this one to move.
+export const RAGE_AT = 0.5;

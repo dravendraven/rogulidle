@@ -3,7 +3,7 @@
 // The blow always goes attacker -> defender and there is NO counter-attack:
 // only whoever moved gets to hit. A duel is therefore strictly alternating.
 
-import { HIT_CHANCE } from './balance.js';
+import { HIT_CHANCE, RAGE_MULT } from './balance.js';
 import { drawChance, drawInt } from './rng.js';
 
 // Monsters have no inventory at all, so they never get a weapon bonus — the
@@ -73,8 +73,21 @@ export function applyDamage(defender, damage) {
 //
 // The defender does not enter the formula: armour is extra hp, so toughness
 // changes how many blows are survived, never how hard one lands.
-export function expectedDamage(attackerXp, weapons = 0, minDamage = 0) {
-  const max = Math.max(0, attackerXp + weapons - 1);
+// How far the TOP of an attacker's die is stretched right now. 1 for
+// everything in the game except a hero mid-rage (src/sim/step.js) — a
+// multiplier rather than a bonus, so it means the same thing to a bare hero
+// and an armed one instead of being enormous early and irrelevant later.
+//
+// A function rather than a field read inline, because BOTH halves of combat
+// have to agree about the die: the roll below and the estimate the bot
+// prices fights with. Two copies of this test is how a bot ends up
+// underestimating its own damage for five turns and nothing fails.
+export function rageMultiplier(entity) {
+  return entity && entity.raging > 0 ? RAGE_MULT : 1;
+}
+
+export function expectedDamage(attackerXp, weapons = 0, minDamage = 0, topMult = 1) {
+  const max = Math.max(0, Math.round((attackerXp + weapons - 1) * topMult));
   const min = Math.min(Math.max(0, minDamage), max);
 
   let total = 0;
@@ -95,8 +108,10 @@ export function resolveAttack(state, attacker, defender) {
   // `state.sim` marks a hypothetical world, never the real game. There,
   // blows land for their average instead of being rolled, so a simulation
   // stays deterministic and free of luck branches.
+  const topMult = rageMultiplier(attacker);
+
   if (state.sim) {
-    const damage = expectedDamage(attacker.xp, weapons, weaponFloor);
+    const damage = expectedDamage(attacker.xp, weapons, weaponFloor, topMult);
     applyDamage(defender, damage);
     return { damage, killed: defender.hp <= 0, hit: true };
   }
@@ -106,7 +121,11 @@ export function resolveAttack(state, attacker, defender) {
   // Same clamp as expectedDamage above, for the same reason — and drawInt
   // spends exactly one stream value whatever the range, so raising the
   // floor cannot shift any later draw.
-  const max = Math.max(0, attacker.xp + weapons - 1);
+  // Same arithmetic as `expectedDamage` above, and it has to stay the same:
+  // the estimate the bot plans with and the die the engine rolls are one
+  // rule. `drawInt` spends exactly one stream value whatever the range, so
+  // widening the die cannot shift any later draw.
+  const max = Math.max(0, Math.round((attacker.xp + weapons - 1) * topMult));
   const roll = drawInt(state, 'combat', Math.min(weaponFloor, max), max);
 
   const damage = roll * hit;

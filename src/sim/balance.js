@@ -150,6 +150,10 @@ export const ITEM_TABLE = [
   // drunk on sight and priced as a potion. What it does is `read` — an
   // action of its own (rules.md §6), not a bigger potion.
   { name: 'book',   emoji: '📜',  value: 5, kind: 'book' },
+  // Vito's, and no stat of its own for the same reason the book has none:
+  // what it does is the `rage` action. A `dmg` here would be added to the
+  // die like any weapon, and adding is exactly what this does NOT do.
+  { name: 'adrenaline', emoji: '💉', value: 5, kind: 'syringe' },
 ];
 
 // How many turns reading costs. The hero does nothing for all of them and
@@ -158,6 +162,14 @@ export const ITEM_TABLE = [
 // Five: long enough that a pursuer crosses a room, short enough to survive
 // starting one by mistake.
 export const READ_TURNS = 5;
+
+// How many turns the syringe lasts, and by how much it lifts the TOP of the
+// damage die. Doubling rather than adding: a flat bonus is enormous on a
+// bare hero and irrelevant on an armed one, while a multiplier means the
+// same thing at floor 1 and floor 9. It does not touch the die's floor —
+// `dmgMin` stays where it is, so the swing widens rather than shifting.
+export const RAGE_TURNS = 5;
+export const RAGE_MULT = 2;
 
 // GUESS — the minimum MONSTER_TABLE index a killed creature must reach
 // before `axe` is even in its drop pool. A FILTER, not a tilt: below this

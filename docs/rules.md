@@ -310,6 +310,13 @@ o herói deixa de aumentar a distância (§4), ficar parado não custa **nada**
 se nada acordado o alcança, e custa cinco golpes de graça se algo alcança.
 Saber qual dos dois é o problema de quem lê.
 
+**E existe um item que se injeta.** Outro herói começa com ele. Usado, custa
+o turno e então, pelos cinco turnos seguintes, **o TOPO do dado de dano
+dobra** — o piso não se mexe, então o que aumenta é a amplitude, não o
+mínimo. Multiplica em vez de somar de propósito: um bônus fixo seria enorme
+num herói desarmado e irrelevante num equipado, e um fator vale o mesmo nos
+dois. Ele continua agindo normalmente enquanto dura; não há nada a esperar.
+
 **Quanto um item vale pode depender de quem o carrega.** O mundo larga
 sempre o mesmo item; o que muda é a mão. Um herói pode tirar de uma arma ou
 de um escudo mais — ou menos — do que outro tira do mesmo objeto, e isso

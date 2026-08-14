@@ -44,6 +44,13 @@ frases:
 - **Profundidade não é monótona nisso**, e o pico interior da Ganância já
   existia antes do livro (M47) — as duas coisas se somam na mesma leitura e
   não dá para separá-las por esta tabela.
+- **Injeta a adrenalina** quando o que já está acordado em cima dele custaria
+  mais que uma fração do hp efetivo — `custo dos acordados ≥ hp efetivo ×
+  RAGE_AT × ganância`. Mesma frase do livro com o contexto trocado: lá é o
+  que a descida ainda deve, aqui é a briga que já está vindo. Preço em hp
+  pelo `duelCost`, e não massa de ameaça crua: as unidades da massa são
+  `hp × dano`, então um piso fixo aterroriza no andar 1 e é rotina no 9. Sem
+  teto, pela mesma razão do livro.
 - **Nunca começa luta** cujo custo esperado passe de `fightMargin` do hp
   efetivo (hp + armadura). Uma criatura que já persegue paga só a
   caminhada — o duelo dela acontece de qualquer jeito.

@@ -4,7 +4,8 @@
 import {
   CHEST_GUARD_RADIUS, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP,
-  PLAYER_HP, PLAYER_XP, READ_TURNS, ROOM_HEIGHT, ROOM_WIDTH, SHRINE_DISTANCE_SHARE,
+  PLAYER_HP, PLAYER_XP, RAGE_MULT, RAGE_TURNS, READ_TURNS, ROOM_HEIGHT,
+  ROOM_WIDTH, SHRINE_DISTANCE_SHARE,
   STARTING_ITEMS, TURN_BUDGET, VAULT_BOSS, VAULT_BOSS_DROP, VAULT_CHEST_ITEMS, VAULT_LEVEL,
   VAULT_SIZE, WEAPON_AXE_MIN_TIER,
 } from '../src/sim/balance.js';
@@ -15,7 +16,7 @@ import { step, ACTIONS, grantArmour } from '../src/sim/step.js';
 import { observe, emptyBelief, foldBelief } from '../src/sim/observe.js';
 import { DEFAULT_PERSONA, HEROES, heroItem } from '../src/sim/heroes.js';
 import {
-  weaponDamage, weaponMinDamage, armourValue, effectiveHp,
+  weaponDamage, weaponMinDamage, armourValue, effectiveHp, expectedDamage,
 } from '../src/sim/combat.js';
 import { findPath, playerPassable, posKey } from '../src/sim/mapgen.js';
 import { drawLogUniform, drawWeighted, hashSeeds, makeRng } from '../src/sim/rng.js';
@@ -1350,7 +1351,10 @@ test('the persona never crosses into Observation or Belief', () => {
 test("an item is worth what the hero's hands make it", () => {
   const dagger = ITEM_TABLE.find((i) => i.name === 'dagger');
   const shield = ITEM_TABLE.find((i) => i.name === 'shield');
-  const vito = HEROES.vito.persona;
+  // A PERSONA WRITTEN HERE, not whichever hero happens to use the mechanism
+  // this week. Pinned to a real one, this test failed the day Vito's trait
+  // was retuned — and what it is for is the machinery, which did not change.
+  const vito = { items: { dagger: { dmgMin: 1 }, shield: { armour: 2 } } };
 
   assertEq(heroItem(dagger, vito).dmgMin, 1, 'the dagger did not gain its floor');
   assertEq(heroItem(dagger, vito).dmg, dagger.dmg, 'the override touched a field it was not given');
@@ -1372,7 +1376,8 @@ test('a picked-up item goes through the same rule as a bought one', () => {
   ]);
   const state = makeState({ map, playerPos: [1, 1], monsters: [], shrine: { id: 's', emoji: '⛩️', pos: [3, 1] } });
   state.items = [{ ...ITEM_TABLE.find((i) => i.name === 'shield'), id: 77, pos: [2, 1] }];
-  state.persona = HEROES.vito.persona;
+  // Written here rather than borrowed from a hero, same reason as above.
+  state.persona = { items: { shield: { armour: 2 } } };
   const after = step(state, 'right').state;
   assertEq(after.player.armour, 2, 'the pickup path credited the world value, not the hero value');
   assertEq(after.player.inventory[0].armour, 2, 'the bag holds the world item, not the hero one');
@@ -1555,6 +1560,71 @@ test('the read survives the step it is halfway through', () => {
   state = step(state, 'read').state;
   assertEq(step(state, 'rest').state.player.reading, state.player.reading - 1,
     'the reading counter did not survive a step');
+});
+
+// ***** the syringe, and the five turns it doubles ***** //
+
+test('vito starts armed, when the run starts empty-handed', () => {
+  const plan = floorPlan(1);
+  const held = (persona) => newGame(77, { ...plan, persona })
+    .player.inventory.map((i) => i.name).sort();
+  assertEq(String(held(HEROES.vito.persona)), 'adrenaline,dagger', 'the warrior arrived empty-handed');
+  assertEq(String(held(HEROES.base.persona)), '', 'the ordinary hero was armed');
+});
+
+test('the rage doubles the top of the die and leaves its floor alone', () => {
+  // The whole point of a multiplier over a bonus: it grows with the gear.
+  const bare = expectedDamage(PLAYER_XP, 0, 0);
+  const bareRaging = expectedDamage(PLAYER_XP, 0, 0, RAGE_MULT);
+  assert(bareRaging > bare * 1.9, 'a bare hero barely gained from raging');
+
+  // With an axe the floor must survive: dmgMin is the bottom, not the top.
+  const axe = ITEM_TABLE.find((i) => i.name === 'axe');
+  const armed = expectedDamage(PLAYER_XP, axe.dmg, axe.dmgMin);
+  const armedRaging = expectedDamage(PLAYER_XP, axe.dmg, axe.dmgMin, RAGE_MULT);
+  assert(armedRaging > armed, 'raging did nothing for an armed hero');
+});
+
+test('raging is priced by the bot, not only rolled by the engine', () => {
+  // The silent failure this guards: leave `raging` off the Belief allow-list
+  // and every test still passes while the bot underrates itself for five
+  // turns. `duelCost` is what decides which fights it takes.
+  const wolf = MONSTER_TABLE.find((m) => m.name === 'wolf');
+  const calm = { xp: PLAYER_XP, hp: 10, armour: 0, inventory: [] };
+  const raging = { ...calm, raging: RAGE_TURNS };
+  assert(duelCost(raging, wolf).hpLost < duelCost(calm, wolf).hpLost,
+    'the bot prices a raging duel the same as a calm one');
+
+  const state = makeState({ map: tinyMap(['###', '#-#', '###']), playerPos: [1, 1], monsters: [] });
+  state.player.raging = RAGE_TURNS;
+  assert('raging' in observe(state).player, 'raging never reaches the bot');
+});
+
+test('the syringe lasts five ATTACKING turns, and the injection is not one', () => {
+  const map = tinyMap([
+    '#####',
+    '#---#',
+    '#####',
+  ]);
+  let state = makeState({ map, playerPos: [1, 1], monsters: [], shrine: { id: 's', emoji: '⛩️', pos: [3, 1] } });
+  state.player.inventory = [{ ...ITEM_TABLE.find((i) => i.name === 'adrenaline'), id: 9 }];
+
+  state = step(state, 'rage').state;
+  assertEq(state.player.raging, RAGE_TURNS, 'the turn it was used ate one of its own turns');
+  assert(!state.player.inventory.some((i) => i.kind === 'syringe'), 'the syringe survived being used');
+
+  for (let i = 0; i < RAGE_TURNS; i++) {
+    assert(state.player.raging > 0, `the rage ended early, on turn ${i + 1}`);
+    state = step(state, 'rest').state;
+  }
+  assert(!state.player.raging, 'the rage outlasted its five turns');
+});
+
+test('raging without a syringe passes no turn at all', () => {
+  const state = makeState({ map: tinyMap(['###', '#-#', '###']), playerPos: [1, 1], monsters: [] });
+  const after = step(state, 'rage').state;
+  assertEq(after.turn, state.turn, 'an impossible rage cost a turn');
+  assert(!after.player.raging, 'the hero raged with nothing to inject');
 });
 
 // ***** map design: the spine and its detours ***** //
