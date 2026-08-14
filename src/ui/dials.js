@@ -43,8 +43,21 @@ const BAND_NAMES = [
 // real setting to describe and the old "calibrado" sentence describes a
 // state that can no longer happen.
 function effectLine(dial, index) {
-  const i = Math.max(0, Math.min(5, Number(index)));
-  return dial.says[i];
+  return dial.says[notchOf(index)];
+}
+
+function notchOf(index) {
+  return Math.max(0, Math.min(5, Number(index)));
+}
+
+// The colour the sentence is written in, by which way the notch leans. The
+// ⬆️/🔻 pair that M48 replaced carried this for free — a red triangle for the
+// low end, a blue arrow for the high one — and losing it made six sentences
+// read as one flat block. `band-0` is the extreme low end, `band-5` the
+// extreme high one; the two middle notches stay dim, because they are the
+// ones that are not saying anything strong.
+function bandClass(index) {
+  return `band-${notchOf(index)}`;
 }
 
 // EVERY VISITOR GETS A DIFFERENT BOT, and they get it without choosing.
@@ -655,8 +668,10 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
         const effect = document.createElement('div');
         effect.className = 'dial-effect';
         if (bands) {
-          // One live sentence about the current notch.
+          // One live sentence about the current notch, coloured by which way
+          // that notch leans.
           effect.textContent = effectLine(dial, input.value);
+          effect.classList.add(bandClass(input.value));
         } else {
           const upSpan = document.createElement('span');
           upSpan.textContent = `⬆️ ${up}`;
@@ -691,6 +706,7 @@ export function buildDialPanel(container, { onRestart, overrides = {}, dev = fal
             // `valueOut` guard, and a banded dial no longer has one.
             input.title = `${BAND_NAMES[Number(input.value)]} · ${bands[Number(input.value)]}`;
             effect.textContent = effectLine(dial, input.value);
+            effect.className = `dial-effect ${bandClass(input.value)}`;
           }
           if (valueOut) {
             valueOut.textContent = isSwitch

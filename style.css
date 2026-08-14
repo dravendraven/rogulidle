@@ -421,8 +421,11 @@ main {
   color: #8a7f6c;
   margin-bottom: .25rem;
 }
-.inventory { display: flex; flex-wrap: wrap; gap: 2px; }
-.inventory svg { width: 20px; height: 20px; }
+/* Wraps within the panel and never widens it: min-width 0 lets the flex row
+   shrink below its content, and the items keep their size instead of being
+   squashed. */
+.inventory { display: flex; flex-wrap: wrap; gap: 2px; min-width: 0; }
+.inventory svg { width: 20px; height: 20px; flex: 0 0 auto; }
 
 .history { display: flex; flex-wrap: wrap; gap: .3rem; }
 .history-chip {
@@ -521,7 +524,10 @@ footer {
    the whole reason this is a grid and not the flex row it used to be. */
 .lab {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  /* minmax(0, 1fr), not 1fr: a plain fraction has an AUTO minimum, so a long
+     row in a flank — a full carrying line — could push its track wider and
+     shove the board off centre. Zero minimum makes the flanks wrap instead. */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 1.4rem;
   align-items: start;
 }
@@ -658,9 +664,16 @@ footer {
   line-height: 1.4;
   margin-top: .15rem;
 }
-/* Detuned from the calibrated centre — the one state worth colouring, since
-   it is the only one the player caused. */
-.dial-effect.tuned { color: #e8a33d; }
+/* The colour the ⬆️/🔻 pair used to carry: the low end of a banded dial reads
+   red, the high end green, and the two middle notches stay dim. Six
+   sentences in one colour read as a paragraph; this makes the extremes
+   visible without reading them. */
+.dial-effect.band-0 { color: #c0392b; }
+.dial-effect.band-1 { color: #cf7a3a; }
+.dial-effect.band-2,
+.dial-effect.band-3 { color: var(--dim); }
+.dial-effect.band-4 { color: #56893a; }
+.dial-effect.band-5 { color: var(--accent); }
 .dial-value { cursor: help; }
 
 .dial-buttons { display: flex; gap: .5rem; margin: .9rem 0 .3rem; }
