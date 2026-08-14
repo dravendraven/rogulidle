@@ -32,9 +32,11 @@ import {
   CLUSTER_SIZE, MONSTERS_BASE, MONSTER_GROWTH,
   MONSTER_STRENGTH, POTION_SCARCITY, WEAPON_SCARCITY,
 } from '../src/sim/difficulty.js';
-import { assumedHp, dangerField, dropValue, duelCost, makeBot } from '../src/bot/bot.js';
 import {
-  BIAS_SPREAD, DEFAULT_HERO, LOOT_VALUE, biasBands,
+  assumedHp, dangerField, dropValue, duelCost, guardCost, makeBot,
+} from '../src/bot/bot.js';
+import {
+  BIAS_SPREAD, DANGER_PERSISTENCE, DEFAULT_HERO, LOOT_VALUE, biasBands,
 } from '../src/bot/config.js';
 import { tileSvg } from '../src/ui/tiles.js';
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
@@ -1595,6 +1597,68 @@ test('wolf and ogre are the same creature, and stay that way', () => {
   assertEq(assumedHp({ ...wolf, hp: 5 }), assumedHp(wolf), 'a real hp on the entity was read');
 });
 
+// ***** a guard charges by distance, not by presence ***** //
+
+// A long corridor and one chest, so the only thing that moves between the two
+// halves of each test is where the creature stands.
+function guardBoard(monsterPos, extra = {}) {
+  const wide = 24;
+  const map = tinyMap([
+    '#'.repeat(wide),
+    `#${'-'.repeat(wide - 2)}#`,
+    '#'.repeat(wide),
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [1, 1],
+    monsters: [dummy('wolf', monsterPos, { activation: 22, ...extra })],
+    chests: [{ id: 90, name: 'chest', emoji: '🎁', pos: [3, 1], edge: false }],
+    shrine: { id: 's', emoji: '⛩️', pos: [22, 1] },
+  });
+  // Whole-map sight, so the creature's distance is the only thing under test
+  // and not whether the hero can see it at all.
+  const belief = foldBelief(emptyBelief(), observe(state, { sightRadius: 64 }));
+  const danger = dangerField(belief);
+  return { belief, opts: { reach: danger.reach, persistence: DANGER_PERSISTENCE } };
+}
+
+test('a guard eight tiles from the chest charges less than one beside it', () => {
+  // The defect this fixes, seen on seed 2956634425: inside its radius a guard
+  // charged the WHOLE duel however far away it stood, so one wide-radius
+  // creature priced half a floor at full cost and the bot walked past a chest
+  // at its elbow.
+  const beside = guardBoard([4, 1]);
+  const far = guardBoard([12, 1]);
+
+  const a = guardCost(beside.belief, [3, 1], beside.opts);
+  const b = guardCost(far.belief, [3, 1], far.opts);
+
+  assert(a > 0, 'a creature next to the chest charges nothing');
+  assert(b < a, 'distance did not make the guard cheaper');
+  // Nine steps of decay is a big discount, and it should be: nine turns is
+  // long enough to open the chest and be gone.
+  assert(b < a * 0.2, 'the discount is too shallow to change a decision');
+});
+
+test('a guard that cannot be outrun charges in full, however far', () => {
+  // The Butcher's rule (B18): the hero moves one tile a turn and it moves
+  // two, so "grab it and leave" is not a plan. Without this the vault's far
+  // chests would cost about a twentieth of its duel and the room would stop
+  // being a barrier.
+  const beside = guardBoard([4, 1], { speed: 2 });
+  const far = guardBoard([12, 1], { speed: 2 });
+
+  const a = guardCost(beside.belief, [3, 1], beside.opts);
+  const b = guardCost(far.belief, [3, 1], far.opts);
+  assert(Math.abs(a - b) < 1e-9, 'a creature that outruns the hero got a distance discount');
+});
+
+test('out of reach is not a guard at all', () => {
+  const away = guardBoard([12, 1], { activation: 4 });
+  assertEq(guardCost(away.belief, [3, 1], away.opts), 0,
+    'a creature that cannot reach the chest still charged for it');
+});
+
 // ***** the bot remembers the blows it landed ***** //
 
 test('the blow the hero swung reaches the Observation, and only that turn', () => {
@@ -2079,9 +2143,13 @@ test('the vault holds every chest the floor has, at authored positions', () => {
 });
 
 test('every vault chest is inside the Butcher\'s reach', () => {
-  // `guardCost` (src/bot/bot.js) charges the creature's whole duel against
-  // any chest within its activation radius, so what that radius covers is
-  // what the loot costs. An earlier layout left two chests outside it to
+  // `guardCost` (src/bot/bot.js) charges a guard's duel against any chest
+  // within its activation radius, so what that radius covers is what the
+  // loot costs. That charge now FADES with distance for an ordinary
+  // creature — you can grab the loot and leave before it arrives — but the
+  // Butcher is `speed` 2 and cannot be outrun, so inside its reach every
+  // chest still costs the whole duel. An earlier layout left two chests
+  // outside it to
   // grade the room; measured, those two were opened in 89.7% of vaults
   // against 39.2% for the guarded ones and the room stopped being a
   // barrier. One chest slipping out of reach brings that straight back.

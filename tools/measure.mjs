@@ -131,9 +131,15 @@ const GENERATION = {
 // Re-recorded when the vault wire was added — a SEVENTH value, and the
 // other six are unchanged, which is the check working: adding an
 // instrument moved the instrument list and nothing else.
+// Re-recorded when `guardCost` started charging a guard by DISTANCE instead
+// of by presence. Two wires moved (`nothing gets deep` 0 -> 0.333, `the
+// gamble is dead` 1 -> 0.667) because the BOT chooses differently, not
+// because generation did — the four generation checks above never moved.
+// Read off `run-check.html` in a browser, which returned exactly what the
+// headless runner returned, which is the fidelity this check is for.
 const MEASUREMENT = {
   call: { module: 'check', fn: 'tripwires', args: { runs: 3, firstSeed: 500000 } },
-  values: [0.333, 0, 0, 0, 0, 1, 1],
+  values: [0.333, 0, 0, 0, 0.333, 0.667, 1],
 };
 
 // The exact snippet that produced GENERATION, for re-recording in a browser

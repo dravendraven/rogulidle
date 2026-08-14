@@ -273,21 +273,50 @@ export function dropValue(belief, drop, bravery = 1) {
   return flat + saved;
 }
 
-function guardCost(belief, pos, amortise = false, bravery = 1) {
-  const near = (a, b, reach) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) <= reach;
+// A GUARD IS ANY CREATURE WHOSE CHASE RADIUS COVERS THE LOOT — "standing
+// there would wake this thing". Not proximity in the abstract: a creature
+// with a wide radius guards from far, a short-radius one guards only what it
+// is touching.
+//
+// It used to also require `monster.side`, and dropping that is not a
+// loosening — it is the filter losing its input (`side` no longer crosses the
+// fog, src/sim/observe.js). It is also more honest: a creature on the
+// mandatory route that happens to cover a chest still has to be dealt with
+// before the chest can be had, and the old test priced that guard at zero.
+//
+// ***** IT CHARGES BY DISTANCE, NOT BY PRESENCE *****
+//
+// Watched, not derived: on seed 2956634425 the bot walked past a chest at its
+// elbow with nothing near it and went for something much further away. Inside
+// its radius, a guard used to charge the WHOLE duel — the same standing on the
+// chest or twelve tiles from it — so one wide-radius creature priced half a
+// floor at full cost.
+//
+// That is wrong about the game, not just about the arithmetic. A guard eight
+// turns away CAN BE BEATEN TO IT: the hero opens the chest in two turns and
+// leaves. The duel is only owed in full if the creature actually arrives, and
+// `persistence` is already the project's decided answer to "how much does a
+// threat fade per tile between us".
+//
+// The steps are REAL PATH STEPS and they cost nothing to get: `dangerField`
+// already floods from every creature and hands back a `reach` map that, until
+// now, nothing read. That fixes the other half of the same defect for free —
+// the old test measured a straight line, so a guard behind a wall charged as
+// if it were beside you.
+export function guardCost(belief, pos, { amortise = false, bravery = 1, reach, persistence } = {}) {
+  // Steps from a creature to a tile, or undefined when the flood never got
+  // there — out of its radius, or no path at all.
+  const stepsTo = (monster, target) => {
+    const spread = reach.get(monster.id);
+    return spread && spread.get(key(target));
+  };
   let total = 0;
-  // A GUARD IS ANY CREATURE WHOSE CHASE RADIUS COVERS THE LOOT — "standing
-  // there would wake this thing". Not proximity in the abstract: a creature
-  // with a wide radius guards from far, a short-radius one guards only what
-  // it is touching.
-  //
-  // It used to also require `monster.side`, and dropping that is not a
-  // loosening — it is the filter losing its input (`side` no longer crosses
-  // the fog, src/sim/observe.js). It is also more honest: a creature on the
-  // mandatory route that happens to cover a chest still has to be dealt with
-  // before the chest can be had, and the old test priced that guard at zero.
+
   for (const monster of liveMonsters(belief)) {
-    if (!near(monster.pos, pos, monster.activation)) continue;
+    const steps = stepsTo(monster, pos);
+    // The same awake test the danger field runs, on the same numbers — two
+    // copies of "does this creature reach here" is how they drift apart.
+    if (steps === undefined || !isAwakeAt(monster, steps)) continue;
 
     let share = 1;
     if (amortise) {
@@ -296,10 +325,12 @@ function guardCost(belief, pos, amortise = false, bravery = 1) {
       // access to all of them.
       let guarded = 0;
       for (const chest of belief.chests.values()) {
-        if (near(monster.pos, chest.pos, monster.activation)) guarded++;
+        const d = stepsTo(monster, chest.pos);
+        if (d !== undefined && isAwakeAt(monster, d)) guarded++;
       }
       for (const item of belief.items.values()) {
-        if (near(monster.pos, item.pos, monster.activation)) guarded++;
+        const d = stepsTo(monster, item.pos);
+        if (d !== undefined && isAwakeAt(monster, d)) guarded++;
       }
       share = Math.max(1, guarded);
     }
@@ -314,7 +345,24 @@ function guardCost(belief, pos, amortise = false, bravery = 1) {
     // an A/B that leaves half the value model on measures nothing.
     const prize = amortise ? dropValue(belief, monster.drop, bravery) : 0;
     const net = Math.max(0, duelCost(belief.player, monster, bravery).hpLost - prize);
-    total += net / share;
+
+    // THE DISCOUNT IS FOR BEING BEATEN TO THE LOOT, so a creature that cannot
+    // be outrun does not give it. B18's rule, in the one other place it
+    // belongs: the hero moves one tile a turn, a `speed` 2 creature moves
+    // two, so the gap never grows and "grab it and leave" is not a plan —
+    // it arrives, and the whole duel is owed however far away it started.
+    //
+    // This is what keeps the vault a room and not a shop. The Butcher has
+    // reach 10 over a 9-wide room, so under a flat decay its far chests
+    // would cost about a twentieth of its duel and the authored barrier
+    // would evaporate — against a measured finding (chests outside its reach
+    // were opened 89.7% of the time against 39.2% for the guarded ones).
+    // It is also the only creature in the game this reaches: everything on
+    // MONSTER_TABLE leaves `speed` unset.
+    //
+    // `steps` 0 is a creature standing on the loot: full duel either way.
+    const outrunnable = (monster.speed ?? 1) <= 1;
+    total += net * (outrunnable ? persistence ** steps : 1) / share;
   }
   return total;
 }
@@ -567,6 +615,15 @@ export function makeBot(options = {}) {
       return Math.max(0, hero.stepCost + danger.priceAt(x, y));
     }, shrineSink(belief));
 
+    // What every guard question is answered against: the same flood the
+    // danger field already ran, and the same decay it prices tiles with.
+    const guardOpts = {
+      amortise: settings.amortiseGuard,
+      bravery: hero.bravery,
+      reach: danger.reach,
+      persistence: settings.persistence ?? DANGER_PERSISTENCE,
+    };
+
     const ehp = effectiveHp(belief.player);
     const fightBar = hero.fightMargin * ehp;
     const sideBar = hero.sideAppetite * fightBar;
@@ -649,7 +706,7 @@ export function makeBot(options = {}) {
         + (item.armour || 0) + (item.heal || 0) <= 0) continue;
       const walk = priceOfReaching(field, item.pos);
       if (!Number.isFinite(walk)) continue;
-      const guard = guardCost(belief, item.pos, settings.amortiseGuard, hero.bravery);
+      const guard = guardCost(belief, item.pos, guardOpts);
       if (guard > sideBar) continue;              // the gamble refused
       pool.push({ kind: 'item', id: item.id, pos: item.pos, price: walk + guard });
     }
@@ -673,7 +730,7 @@ export function makeBot(options = {}) {
 
       const walk = priceOfReaching(field, chest.pos);
       if (!Number.isFinite(walk)) continue;
-      const guard = guardCost(belief, chest.pos, settings.amortiseGuard, hero.bravery);
+      const guard = guardCost(belief, chest.pos, guardOpts);
 
       // B21 — the gamble, refused two different ways.
       //
