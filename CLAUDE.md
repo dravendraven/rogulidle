@@ -136,29 +136,37 @@ language — the maintainer is not a professional developer, and the point of
 the shape is that the risks never get left out because the work went well.
 
 ```
-<título, no máximo 10 palavras>
+<título, no máximo 12 palavras>
 
-<o que foi feito>, um parágrafo
+<o que foi feito> — parágrafo de no máximo 50 palavras
 
 <benefícios>
-<bullet points>
+<UM bullet point>
 
 <riscos>
-<bullet points>
+<UM bullet point>
 
-<próximos passos sugeridos>
+<próximos passos sugeridos> <relação valor/risco>
 ```
 
-Two things the shape is for, and both are easy to skip without it:
+The limits are the point, and each one is doing a job:
 
-- **Riscos is not optional and not a formality.** What was measured but not
+- **One bullet, not a list.** A list lets everything in and ranks nothing;
+  one slot forces the question "what is the single biggest one" to actually
+  be answered. If the second item mattered as much, say that instead.
+- **Riscos is never empty and never a formality.** What was measured but not
   established, what shipped without being watched, what a number cannot
-  say — this project's method is "whoever built a change does not decide
-  whether it worked", and this is where that gets honoured. An empty risks
-  section is a claim, so make it one you can defend.
-- **Benefícios describes what the OWNER gets**, not what the code now does.
-  "The bot reads a book" is a changelog line; "the scholar finally has a
+  say — the project's method is "whoever built a change does not decide
+  whether it worked", and this is the slot where that survives a good day.
+  "No risks" is a claim; make it one you can defend.
+- **Benefícios is what the OWNER gets**, not what the code now does. "The
+  bot reads a book" is a changelog line; "the scholar finally has a
   behaviour you can recognise by watching" is a benefit.
+- **Every next step carries its value against its risk.** A suggestion
+  without that is a wish list — the owner is choosing what to spend a
+  session on, and the ranking is most of the information.
+- **Fifty words is short on purpose.** What does not fit belongs in the
+  commit message, which is where the reasoning is supposed to live anyway.
 
 ## Owner context
 Solo maintainer, basic coding knowledge, builds via Claude Code.
