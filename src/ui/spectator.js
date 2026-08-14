@@ -29,10 +29,20 @@ import { eventsEnabled, makeEventLayer } from './events.js';
 
 const MAX_TURNS = 900;       // per floor
 const BASE_DELAY = 110;      // ms per turn at 1x
-// How long the frame on screen lasts. One number for the playback pace AND
-// for how long a floating signal lives, so a hit and a tile step share one
-// beat at every speed setting.
+// How long the frame on screen lasts. Everything else about the pace is a
+// RATIO of this one number, so the whole playback keeps its shape at every
+// setting of the speed control.
 const turnMs = () => BASE_DELAY / session.speed;
+// A signal lives twice a turn: tied to the turn so it scales with speed, but
+// deliberately outliving the frame that spawned it. One turn exactly was
+// tried and read as a flicker — the eye needs the "−3" still on screen when
+// the next frame arrives to register that a blow landed at all.
+const SIGNAL_TURNS = 2;
+const signalMs = () => turnMs() * SIGNAL_TURNS;
+// …and a turn that fought holds half again as long as a turn that only
+// walked. The hit is the moment worth reading and it is the one the eye has
+// least help with: a step MOVES the hero, a blow leaves the board still.
+const COMBAT_STRETCH = 1.5;
 const SUMMARY_MS = 2400;
 const COIN_POPUP_MS = 900;
 // Long enough to read three options and click one — the shop now opens
@@ -119,6 +129,19 @@ async function waitWhilePaused() {
 
 // A wall bump costs no turn, so its frame looks identical to the one before
 // it. Dropping those keeps the playback from stuttering.
+// Did this frame land a blow? The engine's log already records every attack
+// with the turn it happened on, so this reads the same source the signals do
+// rather than inventing a second notion of "was there combat".
+function fought(frame, previous) {
+  const log = frame.state.log;
+  // A new floor starts a new, empty log — a shorter log than the frame
+  // before it means the counter has to start over, not go negative.
+  const before = previous && previous.state.log.length <= log.length
+    ? previous.state.log.length
+    : 0;
+  return log.slice(before).some((entry) => entry.type === 'attack');
+}
+
 function watchableFrames(frames) {
   const out = [frames[0]];
   for (let i = 1; i < frames.length; i++) {
@@ -157,7 +180,7 @@ async function playFrames(frames, trace, tallyText) {
     renderHud(el, frame.state, session);
     if (el.tally) el.tally.textContent = tallyText();
 
-    await sleep(turnMs());
+    await sleep(turnMs() * (fought(frame, frames[i - 1]) ? COMBAT_STRETCH : 1));
   }
 }
 
@@ -726,7 +749,7 @@ export async function start() {
   if (el.achievements) {
     renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements());
   }
-  events = makeEventLayer(el.stage, el.grid, { enabled: eventsEnabled(), turnMs });
+  events = makeEventLayer(el.stage, el.grid, { enabled: eventsEnabled(), signalMs });
   wireControls();
 
   // Half speed by default — easier to follow than the old 1x default.

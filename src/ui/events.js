@@ -121,11 +121,12 @@ function signalsFor(entry, state) {
 // Owns a transparent layer over the grid and spends the engine's log into
 // it, one frame at a time. `show(state)` is the whole interface: hand it
 // the state being drawn and it renders whatever happened since the last one.
-// `turnMs` is how long the frame being drawn stays on screen. Every signal
-// lives exactly that long, so a hit rises and fades in the same beat the hero
-// takes to step one tile — the two cadences were already identical in real
-// time, but a 900ms float spanning four turns piled up and READ as faster.
-export function makeEventLayer(stage, grid, { enabled = true, turnMs = null } = {}) {
+// `signalMs` is how long a float should live, handed in as a function rather
+// than a number because the speed control moves it mid-run. The caller owns
+// that arithmetic (src/ui/spectator.js): the layer only obeys it. Without it
+// the floats fall back to the fixed life the stylesheet gives them, which at
+// speed spans several turns and piles up.
+export function makeEventLayer(stage, grid, { enabled = true, signalMs = null } = {}) {
   if (!enabled || !stage || !grid) return { show: () => {} };
 
   const layer = document.createElement('div');
@@ -151,7 +152,7 @@ export function makeEventLayer(stage, grid, { enabled = true, turnMs = null } = 
       if (!fresh.length && !reading) return;
 
       const size = grid.clientWidth / VIEW;
-      const life = turnMs ? turnMs() : null;
+      const life = signalMs ? signalMs() : null;
       let stacked = 0;
 
       if (reading) {
