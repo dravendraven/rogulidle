@@ -369,6 +369,99 @@ was never written against.
 And it is the only candidate here that changes what is **seen**. Ten floors
 out of the same digger are visually monotonous.
 
+### U11 · O inferno — a branch at floor 10, and one seed the whole world shares
+
+`owner idea` · **UNSCHEDULED** · recorded whole; the four parts cost wildly
+different amounts and only one of them is expensive
+
+At floor 10 the hero may meet an entity offering two portals. One goes back:
+pocket the coins, descend again stronger. The other goes down — twenty more
+floors of hell, the Balrog at the bottom. Reaching the Balrog is meant to be
+nearly impossible and beating it nearly impossible on top of that, so the real
+objective becomes **how deep into hell you got**. The descent runs on a seed
+drawn per day and shared by every player, and the scoreboard is who went
+deepest on today's seed.
+
+**What it solves is the open risk in the owner's own philosophy.** The stated
+position is a deliberately hard baseline with power unlocked through
+achievements — and the unanswered half of that is what stops the unlocks from
+eventually trivialising the game. An unreachable victory is an infinite power
+sink. Every fraction of power moves the deepest floor a little and none of them
+ever finishes anything, which is a licence to ship power without first proving
+it did not break the curve. This project has never had that licence and it is
+why every dial change turns into a measurement cycle.
+
+It is also the shape `objectives.md` already asks for. "A permanent unlock is
+safest when it buys a different way to lose rather than a lower chance of
+losing" — a boss nobody beats converts every gain into *losing deeper*, which
+is that sentence with the sign flipped and nothing else changed.
+
+**The daily seed is the strongest part, and not for the obvious reason.** Not
+because dailies are engaging; because THE BOT PLAYS. Sharing the seed removes
+the map from the comparison, and what is left is the only thing the player
+touches: the build — dials, hero, unlocks. It turns a scoreboard into a
+comparison of CONFIGURATIONS, which is exactly the thing the Lab has never had
+a reason to matter for. Rogule's own daily compares play; this one compares
+preparation, and preparation is what a game that plays itself can actually
+offer. The engine needs nothing new for it: same seed, same run, always
+(`src/sim/rng.js`).
+
+**It does not reintroduce the daily gate.** The product line is "no daily gate
+— the next run starts the moment the last one ends", and "desafio diário" reads
+exactly like the thing that was refused. It is not: hell is a BRANCH off the
+ordinary loop. The main descent stays ungated and endless, and the dated seed
+governs one optional door inside it.
+
+#### The blockers, hardest last
+
+**The floor-10 branch is invisible today, and that orders the whole feature.**
+Mean depth for the base hero is around 4.6 and floor 7+ happens in 17% of runs;
+floor 10 is effectively never reached. So this sits DOWNSTREAM of the unlock
+system rather than beside it — building the door before anyone can walk to it
+is building nothing.
+
+**Twenty floors of content almost nobody sees** is the worst work-to-eyes ratio
+available — the vault took a whole cycle for one room on one floor. Unless hell
+is not content: `makeFloorPlan` already turns a model into arbitrarily harsh
+floors, so hell as a MODEL with the dials pushed is nearly free, and that has to
+be the first version. New tiles, new bestiary and a named boss are a later
+argument, not this one.
+
+**The Balrog is a design problem this project has already measured and lost
+once.** `decisions.md`: entry and survival are the same number — whether the
+bot takes a fight is `duelCost <= bar` and whether it survives one is roughly
+`duelCost / effectiveHp`, so anything that makes a fight deadlier makes the bot
+REFUSE it instead of losing it. An unbeatable boss is a boss the bot walks away
+from; the run then ends on the turn budget, which is the dullest possible
+ending. The Butcher needed `speed` precisely because it was the one property
+found that moves what a fight COSTS without moving what it is PRICED at. The
+Balrog needs that trick, or a rule that deletes the choice — no retreat, or a
+floor whose only exit is through it.
+
+**The shared scoreboard needs a server, and the project has refused one.** "No
+frameworks, no npm, no build step... must run by opening HTML files / GitHub
+Pages as-is." A leaderboard is state written by many clients and read by all,
+which is the one thing a static host cannot do. Every way around it breaks a
+rule that is currently load-bearing. This is the real cost of the feature — not
+the hell floors, not the boss — and it is worth knowing that BEFORE any of the
+cheap parts get built, because the cheap parts are worth building even if this
+never is.
+
+#### The order that makes it cheap
+
+Hell as a difficulty model, not as content. Then the floor-10 choice. Then a
+date-derived seed with a LOCAL best, which delivers the daily's real mechanic —
+everyone comparing the same map — to anyone willing to screenshot. The shared
+scoreboard last, if ever.
+
+**Relationship to U8/U9, which nobody should re-derive later.** U8 already cuts
+a run into blocks and U9 already puts a hold-or-bank decision at each boundary.
+This is that shape with the stakes moved: one boundary instead of five, and the
+"extract" side is the ordinary game rather than a harder block. If U9 lands
+first, this is a configuration of it and not a second system — and U9's own
+blocker, a balance that is readable and spendable mid-run, is this feature's
+blocker too, since "pocket the coins" is the same machine.
+
 ## Archived
 
 ### The count→strength route — UNARCHIVED, see M7
