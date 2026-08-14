@@ -133,9 +133,17 @@ export const DEFAULT_HERO = {
   // this dial existed. Neither the rule nor the override picked this; the
   // wires did, and that is the project's arbiter working as designed.
   //
-  // What the dial sells, from the same sweep: deaths per run from 0.98 down
-  // to 0.40 across the bands, against depth from 4.14 down to 2.80. It is the
-  // first dial in this project to move SURVIVAL.
+  // AND THE BIG RESULT THIS DIAL SEEMED TO BUY WAS THE BUG. With uncertainty
+  // priced per tile, the bands read deaths 0.98 down to 0.40 against depth
+  // 4.14 down to 2.80, and that was reported as the first dial here to move
+  // survival. It was not: the per-tile form charged a compounding surcharge
+  // on every step, so high caution simply made the hero barely move — he died
+  // less because he went nowhere. With uncertainty moved onto the GOAL, where
+  // it belongs, deaths read 1.00 flat across all six bands and depth shows no
+  // trend. Caution is back to being a dial that does not measurably separate.
+  //
+  // The centre stayed at 8.3 through that correction and has NOT been re-swept
+  // for the goal-priced form. It is inherited, not chosen.
   caution: 8.3,
 
   // What one step is worth in hp. This is the exchange rate between goal 3

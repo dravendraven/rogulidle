@@ -118,15 +118,21 @@ frases:
   MENOS o que o drop vale, e uma arma vale o duelo que ela pouparia contra o
   que já está à vista. O desconto vale para escolher alvo, nunca para a
   barra de sobrevivência: prêmio bom não deixa luta mais barata em hp.
-- **A incerteza custa, e é o que um passo ABRE.** Você não revela o escuro
-  pisando nele, revela chegando perto — então o que um tile cobra é quanto
-  **a mais** do mapa o viewport dele destrava, comparado a onde o herói está.
-  Fica na mesma moeda da exposição, e a cautela escala as duas: um turno perto
-  de perigo e um turno perto do desconhecido são a mesma frase.
-- **A forma absoluta quebra o jogo** e está registrada por isso. Cobrar
-  "quanto escuro há perto daqui" em vez de "quanto a mais eu abro" põe ~0,7
-  em quase todo tile, afoga o termo de criatura, e um passo passa a custar
-  1,2 hp contra um baú que vale 1,50. Profundidade caiu de 4,00 para 2,78.
+- **A incerteza custa, e é cobrada no OBJETIVO, uma vez.** Ela é quanto a mais
+  do mapa o alvo destrava em relação a onde o herói está — o que a viagem
+  abre. Um alvo cujo viewport não alcança nada de novo é grátis; a fronteira,
+  que fica na beira do desconhecido por definição, é quem mais paga, e é esse
+  o contrapeso da cautela sobre explorar.
+- **Não no preço do tile, e as duas tentativas que falharam ficam escritas.**
+  A forma absoluta — "quanto escuro há perto daqui" — põe ~0,7 em quase todo
+  tile, afoga o termo de criatura e derruba a profundidade de 4,00 para 2,78.
+  A forma delta por tile parece certa e **conta duplicado**: o Dijkstra soma
+  os preços ao longo da rota, e o delta do tile 2 já contém o do tile 1, então
+  uma caminhada de dez passos paga ~0,55 onde o destino custa 0,105. Vira uma
+  sobretaxa por passo — um segundo `stepCost` disfarçado — cobrada até sobre
+  chão já visto, e como o `walk` está no preço de todo candidato, a cautela
+  passava a comer a ganância: o raio de saque ia de ~15 tiles na cautela baixa
+  para ~6 na alta, e um baú SEM guardião num andar calmo era recusado.
 - **E a incerteza fica FORA do portão da fronteira.** Aquele portão recusa
   fronteira cujo caminho tem perigo demais; se a incerteza contar como
   perigo, ele recusa a fronteira por ela ser desconhecida — que é o que uma

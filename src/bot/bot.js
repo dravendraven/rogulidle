@@ -228,19 +228,7 @@ export function dangerField(belief, tuning = {}) {
   const crowdPenalty = tuning.crowdPenalty ?? CROWD_PENALTY;
   const caution = tuning.caution ?? DEFAULT_HERO.caution;
   const stepCost = tuning.stepCost ?? DEFAULT_HERO.stepCost;
-  // Per tile: how much of what this tile can SEE is still unknown — and then
-  // measured AGAINST WHERE THE HERO STANDS, so what is priced is the dark a
-  // step would ADD, not the dark he is already in.
-  //
-  // The absolute form was built first and it broke the game: the dark share
-  // sits near 0.7 almost everywhere early on while creature exposure is 0
-  // almost everywhere, so under one multiplier the dark drowned the creatures
-  // and a single step came to cost 1.2 hp against a chest worth 1.50. Depth
-  // fell 4.00 -> 2.78 and side chests 12.77 -> 5.82. Uncertainty is a thing
-  // you BUY by walking somewhere new, not a thing you pay rent on.
-  const seen = darkFraction(belief);
-  const here = seen(belief.player.pos[0], belief.player.pos[1]);
-  const darkAt = (x, y) => Math.max(0, seen(x, y) - here);
+  const darkAt = darkFraction(belief);
   const passable = believedWalkable(belief);
 
   const menace = new Map();   // tile -> creature-turns of exposure there
@@ -268,43 +256,36 @@ export function dangerField(belief, tuning = {}) {
     menace,
     crowd,
     reach,
-    priceAt(x, y) {
-      const tile = x + ',' + y;
-      // Two kinds of dislike for a turn spent here, in the same unit: what
-      // can hit me, and what I still cannot see. Looking pays the second one
-      // off — a swept floor costs steps alone again.
-      const exposure = (menace.get(tile) || 0) + darkAt(x, y);
-      if (exposure === 0) return 0;
-      // `caution` is HOW MANY STEPS a creature-turn is worth, so the danger
-      // half of a tile is `stepCost × caution × exposure` and the whole tile
-      // comes out as `stepCost × (1 + caution × exposure)` once the caller
-      // adds its step. The route is priced in multiples of a step, and the
-      // only number that ever mattered — the ratio between hurry and
-      // danger — is the dial itself.
-      //
-      // `crowdPenalty` is already hp and stays OUTSIDE that product, or the
-      // two dials would multiply each other.
-      return stepCost * caution * exposure
-        + ((crowd.get(tile) || 0) >= 2 ? crowdPenalty : 0);
-    },
-
-    // The CREATURE half alone, with the uncertainty left out. One caller: the
-    // frontier's gate, and it needs this or the test eats itself — that gate
-    // refuses a frontier whose road carries too much danger, and once
-    // uncertainty counts as danger it refuses a frontier for being UNKNOWN,
-    // which is what a frontier is.
+    // CREATURES ONLY. Uncertainty used to be added here and it was wrong in a
+    // way that took a seed report to see: the term is `dark(tile) −
+    // dark(here)`, and Dijkstra SUMS tile prices along a route — so tile 2
+    // charged a delta that already contained tile 1's, tile 3 contained both,
+    // and a ten-step walk paid about 0.55 where its destination costs 0.105.
+    // The same revealed ground, billed again at every step, growing
+    // quadratically.
     //
-    // Measured, the circle costs 17% of runs to the turn budget: the bot
-    // refuses every frontier, the pool empties, and it paces between the
-    // refuge and the road it will not take until the floor times out. The
-    // shamble wire caught it.
-    perilAt(x, y) {
+    // What it became in practice was a second `stepCost` in disguise, scaled
+    // by caution — a surcharge on walking ANYWHERE new, charged over ground
+    // the hero had already seen (measured: 0.011 hp at one step from him,
+    // 0.105 at nine, with no dark tile within twelve). And since `walk` is in
+    // every candidate's price, caution was quietly eating greed: the loot
+    // radius ran about 15 tiles at low caution and 6 at high, which is how an
+    // UNGUARDED chest on a quiet floor came to be refused.
+    //
+    // Uncertainty now lives on the GOAL instead — see `opening` in `decide`.
+    // Paid once for the journey, which is what it always meant.
+    priceAt(x, y) {
       const tile = x + ',' + y;
       const exposure = menace.get(tile) || 0;
       if (exposure === 0) return 0;
       return stepCost * caution * exposure
         + ((crowd.get(tile) || 0) >= 2 ? crowdPenalty : 0);
     },
+
+    // The raw share of a tile's viewport that is still unknown. `decide` reads
+    // it twice — at the goal and under the hero's feet — and prices the
+    // difference once.
+    unknownAt: darkAt,
   };
 }
 
@@ -796,6 +777,21 @@ export function makeBot(options = {}) {
       return Math.max(0, hero.stepCost + danger.priceAt(x, y));
     }, shrineSink(belief));
 
+    // WHAT A JOURNEY TO `pos` OPENS, in hp, paid ONCE. C1 §10, third form and
+    // the one the owner asked for: uncertainty chooses whether to go, not
+    // which way to walk. A goal whose viewport reaches no further into the
+    // dark than the hero's own is free; the frontier, which sits on the edge
+    // of the unknown by definition, is the one that pays most — and that is
+    // the counterweight caution was built to put on exploring.
+    //
+    // On the GOAL and never on a tile, because the tile version double-counts
+    // (see `priceAt`). Clamped at zero so walking back into known ground is
+    // free rather than a rebate — and a negative price would break Dijkstra
+    // anyway, which is the same wall the "greed values the dark" idea hit.
+    const unknownHere = danger.unknownAt(belief.player.pos[0], belief.player.pos[1]);
+    const opening = (pos) => hero.caution * hero.stepCost
+      * Math.max(0, danger.unknownAt(pos[0], pos[1]) - unknownHere);
+
     // Which creatures the cheapest route to `pos` walks INTO. Their duel is
     // already inside the route price (B26), so `guardCost` must not charge it
     // a second time.
@@ -906,7 +902,7 @@ export function makeBot(options = {}) {
 
       pool.push({
         kind: 'monster', id: monster.id, pos: monster.pos,
-        price: closing + Math.max(0, (chasing ? 0 : duel) - prize),
+        price: closing + opening(monster.pos) + Math.max(0, (chasing ? 0 : duel) - prize),
       });
     }
 
@@ -922,7 +918,10 @@ export function makeBot(options = {}) {
       // C1 §11, same as the chest below: one journey buys everything the
       // same guards cover, so the walk is divided by what the trip collects.
       const trip = settings.amortiseGuard ? tripSize(belief, item.pos, danger.reach) : 1;
-      pool.push({ kind: 'item', id: item.id, pos: item.pos, price: walk / trip + guard });
+      pool.push({
+        kind: 'item', id: item.id, pos: item.pos,
+        price: walk / trip + guard + opening(item.pos),
+      });
     }
 
     for (const chest of belief.chests.values()) {
@@ -964,7 +963,7 @@ export function makeBot(options = {}) {
       // same idea finished: B22 divided the duel and left the walk whole, so
       // a treasure room across the floor was priced as six separate journeys.
       const trip = settings.amortiseGuard ? tripSize(belief, chest.pos, danger.reach) : 1;
-      const visit = walk / trip + guard;
+      const visit = walk / trip + guard + opening(chest.pos);
 
       if (settings.lootValue) {
         if (visit > settings.chestValueHp * hero.sideAppetite) continue;
@@ -1025,7 +1024,7 @@ export function makeBot(options = {}) {
     const dangerOnTheWay = (pos) => {
       if (!Number.isFinite(priceOfReaching(field, pos))) return Infinity;
       let peril = 0;
-      for (const [x, y] of routeTo(field, pos)) peril += danger.perilAt(x, y);
+      for (const [x, y] of routeTo(field, pos)) peril += danger.priceAt(x, y);
       return peril;
     };
 
@@ -1041,7 +1040,12 @@ export function makeBot(options = {}) {
       // `id` so the hysteresis below can recognise it between turns; every
       // other candidate has one and the frontier used to need its own branch
       // for the lack of it.
-      if (near) pool.push({ kind: 'frontier', id: key(near.pos), pos: near.pos, price: near.price });
+      if (near) {
+        pool.push({
+          kind: 'frontier', id: key(near.pos), pos: near.pos,
+          price: near.price + opening(near.pos),
+        });
+      }
     }
 
     // Objective 3 orders WITHIN the pool — cheapest first, held with
