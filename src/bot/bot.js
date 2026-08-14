@@ -32,6 +32,7 @@ import { MONSTER_SKIP_CHANCE, READ_TURNS } from '../sim/balance.js';
 import {
   CHEST_VALUE_HP, CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_CHEST_COUNT,
   DEFAULT_MONSTER_COUNT, DEFAULT_HERO, GOAL_STICKINESS, LOOT_VALUE, READ_AT,
+  READ_CAP,
 } from './config.js';
 import {
   actionToward, believedWalkable, dijkstra, flood, frontiers, key, routeTo,
@@ -296,6 +297,11 @@ export function makeBot(options = {}) {
     // read from balance, or sweeping the map would break the stop condition.
     monsterCount: options.monsterCount ?? DEFAULT_MONSTER_COUNT,
     chestCount: options.chestCount ?? DEFAULT_CHEST_COUNT,
+    // Granted the same way the counts are (rules.md §7): a fact about the
+    // SHAPE of the descent, not about what is behind the fog on this floor.
+    // 1 means "assume the whole run is still ahead", which is what a caller
+    // that does not know the curve should get.
+    threatAhead: options.threatAhead ?? 1,
     // B21 — the reward half of the chest decision, and the switch that
     // turns it on. Both travel as options so a sweep can A/B them without
     // editing config.js.
@@ -340,19 +346,31 @@ export function makeBot(options = {}) {
     // low on a quiet tile, which will usually be shallow — and the runs die
     // deep. Whether the book should be held for the floors that kill is for
     // a measurement to answer, not for a number invented here.
-    // GREED IS THE RESERVE PRICE. The book heals whatever is missing, so
-    // "read when the heal is worth it" needs a fraction to be a test at all
-    // — and greed already means "what a thing is worth to this hero"
-    // everywhere else in the bot, so it supplies one rather than a second
-    // dial doing the same job. A miser demands a better deal before spending
-    // an asset: at the top band he reads at a point from death, at the
-    // bottom on the first scratch.
+    // WHAT THE BOOK IS WORTH SPENDING ON, in one product of three terms:
     //
-    // It buys depth only INDIRECTLY — a low bar is reached deep more often,
-    // but a bad shallow floor reaches it too. If the book has to be held for
-    // the floors that kill, that is a floor gate and a second mechanism.
+    //     missing  >=  hpMax * READ_AT * greed * threatAhead
+    //
+    // `READ_AT` is the demand when the WHOLE run is still ahead — near
+    // death, by design — and each term bends it for one reason:
+    //
+    //   threatAhead  the share of the descent's threat still in front
+    //                (src/sim/difficulty.js). Save it while the dungeon
+    //                still owes you everything; spend it once it does not.
+    //                A quantity out of the difficulty curve rather than a
+    //                floor number somebody chose, so retuning the curve
+    //                retunes this for free.
+    //   greed        how dearly this hero holds a thing, the same meaning it
+    //                carries everywhere else in the bot.
+    //
+    // CAPPED, and the cap is load-bearing: three multipliers reach past 1
+    // easily — at the top greed band the raw demand is 1.6 bars, which no
+    // hero can ever meet, and the book would simply never be read on the
+    // floors where it was saved. The cap turns "impossible" into "at a
+    // point from death", which is what a miser should be, not a joke.
     const missing = belief.player.hpMax - belief.player.hp;
-    if (missing >= belief.player.hpMax * READ_AT * hero.sideAppetite
+    const demand = Math.min(READ_CAP,
+      READ_AT * hero.sideAppetite * (settings.threatAhead ?? 1));
+    if (missing >= belief.player.hpMax * demand
       && belief.player.inventory.some((i) => i.kind === 'book')
       && safeToStandStill(belief)) {
       return 'read';

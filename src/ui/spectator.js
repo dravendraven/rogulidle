@@ -528,6 +528,9 @@ async function runDescentForever(sessionSeed) {
         trace,
         monsterCount: floor.monsterCount,
         chestCount: floor.chests,
+        // The share of the descent's threat still ahead — what the scholar's
+        // book is weighed against (src/sim/difficulty.js).
+        threatAhead: floor.threatAhead,
         hero: dials.hero,
         ...dials.bot,
       });

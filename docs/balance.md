@@ -95,8 +95,10 @@ median session runs.
 **THREE things are DECIDED rather than dials, all three measured inert:**
 `CROWD_PENALTY` 15 (B19), `GOAL_STICKINESS` 1.4 (B20) and `stepCost` 0.1
 (B24 — 18 configurations at n=150 and everything from 0.08 to 0.9 reads the
-same). `READ_AT` 0.5 — how low the bar goes before the scholar's book is
-worth five turns — is a FIRST GUESS and has never been swept. See
+same). `READ_AT` 0.9 — the demand when the WHOLE descent is still ahead, scaled
+down by the threat still in front (`threatAhead`, src/sim/difficulty.js) and
+by greed — and `READ_CAP` 0.9, the ceiling that keeps a product of three
+multipliers from asking for more bar than exists. Both are FIRST GUESSES. See
 `docs/bot.md`.
 
 ## Tiers

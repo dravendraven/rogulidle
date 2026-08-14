@@ -191,8 +191,33 @@ export const DEFAULT_MODEL = {
 // Level is 1-based here, matching dungeon.js rather than floorParams.
 export function makeFloorPlan(model = {}) {
   const m = { ...DEFAULT_MODEL, ...model };
+
+  // HOW MUCH OF THE RUN'S THREAT IS STILL IN FRONT OF THIS FLOOR, as a share
+  // of the whole descent — 1 on floor 1, and falling. One number, computed
+  // once from THIS model rather than from the code constants, because the
+  // two are different games (see `massOfPlan`).
+  //
+  // It exists so a decision about spending a once-per-run resource can be
+  // made against what the run still demands, instead of against a floor
+  // number somebody picked. The mass is heavily back-loaded, so this stays
+  // near 1 for the first half of the descent and then falls away — which is
+  // the honest shape of the danger, not a defect in the measure.
+  const plainPlan = (level) => ({
+    monsters: monstersAt(m.monstersBase, m.monsterGrowth, Math.max(0, level - 1)),
+    difficultyScale: floorStrength(level - 1, m),
+    tierFloorShare: tierFloorShare(level - 1, m),
+    tierSlack: tierSlack(level - 1, m),
+  });
+  const levels = m.levels ?? 10;
+  const masses = [];
+  for (let i = 1; i <= levels; i++) masses.push(massOfPlan(plainPlan(i)));
+  const total = masses.reduce((a, b) => a + b, 0) || 1;
+  const aheadOf = (level) => masses.slice(Math.max(0, level - 1))
+    .reduce((a, b) => a + b, 0) / total;
+
   return (level) => ({
     level,
+    threatAhead: aheadOf(level),
     monsters: monstersAt(m.monstersBase, m.monsterGrowth, Math.max(0, level - 1)),
     monsterSpread: floorSpread(level - 1, m),
     chests: m.chests,
@@ -270,11 +295,18 @@ function expectedMonsterMass(scale, minIndex = 0, maxIndex = MONSTER_TABLE.lengt
 // generation parameters — so this always describes the game that runs.
 // Mirrors spawn.js's band arithmetic exactly; one source of truth for what
 // the band means is `floorParams` feeding both.
-export function expectedFloorMass(level) {
-  const p = floorParams(level);
+// Takes a PLAN, so it describes whatever model produced that plan. The
+// version below that takes a level number reads the code constants, which
+// are not the shipped game once dial-overrides.json says otherwise — this is
+// the half a caller with a model should use.
+export function massOfPlan(p) {
   const ceilingIndex = Math.floor(p.difficultyScale * (MONSTER_TABLE.length - 1));
   const minIndex = Math.floor(p.tierFloorShare * ceilingIndex);
   const maxIndex = Math.max(minIndex,
     Math.min(MONSTER_TABLE.length - 1, ceilingIndex + p.tierSlack));
   return p.monsters * expectedMonsterMass(p.difficultyScale, minIndex, maxIndex);
+}
+
+export function expectedFloorMass(level) {
+  return massOfPlan(floorParams(level));
 }

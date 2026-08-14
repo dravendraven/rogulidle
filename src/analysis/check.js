@@ -38,6 +38,7 @@ function playOne(seed, dials, hero) {
   return playDungeon(seed, (floor) => makeBot({
     monsterCount: floor.monsterCount,
     chestCount: floor.chests,
+    threatAhead: floor.threatAhead,
     // The hero's own traits win over the dials', which is the direction the
     // lab already works in: a dial is what everyone gets, a hero is who this
     // run is.
