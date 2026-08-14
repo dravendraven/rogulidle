@@ -395,6 +395,18 @@ export const SECTIONS = [
         down: 'mais linear — uma rota obrigatória clara',
       },
       {
+        kind: 'model', key: 'roomBias', label: 'preferência por sala sobre corredor',
+        title: 'Mapa: salas vs. corredores', step: 0.5, range: [1, 6],
+        up: 'a mesma escavação vira sala — laterais sem labirinto',
+        down: '1 = o sorteio cru do ROT, muito corredor',
+      },
+      {
+        kind: 'model', key: 'corridorMin', label: 'comprimento do corredor',
+        title: 'Mapa: distância entre salas', step: 1, range: [1, 5],
+        up: 'salas mais afastadas, mais rocha entre elas',
+        down: 'salas coladas, quase encostando',
+      },
+      {
         kind: 'model', key: 'shrineDistanceShare', label: 'quão longe fica o buraco de descida',
         title: 'Mapa: distância do buraco', step: 0.05, range: [0, 1],
         up: 'travessia mais longa — o buraco no ponto mais distante',
