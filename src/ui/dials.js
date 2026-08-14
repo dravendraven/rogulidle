@@ -13,7 +13,8 @@ import {
   CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_HERO, GOAL_STICKINESS, biasBands,
 } from '../bot/config.js';
 import {
-  corridorRange, MAP_SIZE, TURN_BUDGET, VAULT_LEVEL, VAULT_SIZE,
+  corridorRange, MAP_SIZE, ROOM_HEIGHT, ROOM_WIDTH, roomRange,
+  TURN_BUDGET, VAULT_LEVEL, VAULT_SIZE,
 } from '../sim/balance.js';
 import { RETURN_ENABLED } from '../sim/dungeon.js';
 
@@ -179,6 +180,27 @@ function dugNote(values) {
 function corridorNote(values) {
   const [min, max] = corridorRange(values.model.corridorMin);
   return `corredores de ${min} a ${max} tiles`;
+}
+
+// The scale is a multiplier, which is the honest shape for "one number
+// moving four", but a multiplier is not something you can picture. The
+// note is: it prints the tiles the generator will actually be asked for.
+function roomNote(values) {
+  const [wMin, wMax] = roomRange(ROOM_WIDTH, values.model.roomScale);
+  const [hMin, hMax] = roomRange(ROOM_HEIGHT, values.model.roomScale);
+  return `salas de ${wMin}–${wMax} × ${hMin}–${hMax} tiles`;
+}
+
+// The grid is square, so the interesting number is not the side but the
+// AREA the digging then divides — that is what the room count tracks.
+// Stated against the shipped grid so a change reads as "twice the floor"
+// rather than as a number with no scale attached.
+function mapNote(values) {
+  const side = values.model.mapSize ?? MAP_SIZE;
+  const area = (side - 2) * (side - 2);
+  const base = (MAP_SIZE - 2) * (MAP_SIZE - 2);
+  return `${side}×${side} — ${(area / base).toFixed(2)}× o andar de hoje, `
+    + 'e a travessia cresce junto';
 }
 
 // Reads a `min(cap, perLevel × andar)` pair back to the player as the floor
@@ -499,6 +521,29 @@ export const SECTIONS = [
         up: 'mais andar para percorrer — e o vault deixa de caber',
         down: 'andar menor e mais linear',
         note: dugNote,
+      },
+      {
+        // THE dial for how many places a floor has. dugPercentage and
+        // roomBias argue about how much area becomes floor; this one
+        // divides the result, and measured it moves the count further than
+        // both of them together.
+        //
+        // Capped at 44 rather than left open: `SIGHT_WHOLE_MAP`
+        // (src/sim/heroes.js) is MAP_SIZE × 2 and covers the diagonal of a
+        // 45-tile grid, so a bigger map would quietly blind the one persona
+        // that is supposed to see everything.
+        kind: 'model', key: 'mapSize', label: 'lado do grid em tiles',
+        title: 'Tamanho do andar', step: 2, range: [24, 44],
+        up: 'mais lugares para ir — e travessias bem mais longas',
+        down: 'andar apertado, tudo perto de tudo',
+        note: mapNote,
+      },
+      {
+        kind: 'model', key: 'roomScale', label: 'multiplicador do tamanho da sala',
+        title: 'Salas grandes ou pequenas', step: 0.1, range: [0.5, 1.5],
+        up: 'poucas salas grandes',
+        down: 'muitas salas pequenas — mais destinos, cada um menor',
+        note: roomNote,
       },
       {
         kind: 'model', key: 'roomBias', label: 'preferência por sala sobre corredor',

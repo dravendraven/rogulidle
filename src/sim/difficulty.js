@@ -12,7 +12,8 @@
 
 import {
   CHEST_GUARD_RADIUS, CHEST_LOOT_CHANCE, CORRIDOR_MIN, corridorRange, EARLY_TIER_CUT,
-  FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL, MAP_DUG_PERCENTAGE, ROOM_BIAS,
+  FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL, MAP_DUG_PERCENTAGE, MAP_SIZE,
+  ROOM_BIAS, ROOM_HEIGHT, ROOM_SCALE, ROOM_WIDTH, roomRange,
   MONSTER_DROP_CHANCE, MONSTER_TABLE,
   OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_CHANCE_PER_LEVEL,
   SHRINE_DISTANCE_SHARE,
@@ -171,6 +172,9 @@ export function floorParams(level) {
     dugPercentage: MAP_DUG_PERCENTAGE,
     roomBias: ROOM_BIAS,
     corridorLength: corridorRange(),
+    mapSize: MAP_SIZE,
+    roomWidth: roomRange(ROOM_WIDTH),
+    roomHeight: roomRange(ROOM_HEIGHT),
     shrineDistanceShare: SHRINE_DISTANCE_SHARE,
     // M43 — which floor carries the authored room, travelling as a plan
     // field like everything else so a sweep can turn it off without editing
@@ -225,6 +229,12 @@ export const DEFAULT_MODEL = {
   // the span lives in balance.js and nowhere else.
   roomBias: ROOM_BIAS,
   corridorMin: CORRIDOR_MIN,
+  // How much floor there is, and how finely it is cut. These two are the
+  // pair that decides how many DESTINATIONS a floor offers — measured, the
+  // scale moves that count further than dugPercentage and roomBias
+  // together, because those two argue about area and this one divides it.
+  mapSize: MAP_SIZE,
+  roomScale: ROOM_SCALE,
   shrineDistanceShare: SHRINE_DISTANCE_SHARE,
   vaultLevel: VAULT_LEVEL,
   vaultChestItems: undefined,
@@ -296,6 +306,9 @@ export function makeFloorPlan(model = {}) {
     dugPercentage: m.dugPercentage,
     roomBias: m.roomBias,
     corridorLength: corridorRange(m.corridorMin),
+    mapSize: m.mapSize,
+    roomWidth: roomRange(ROOM_WIDTH, m.roomScale),
+    roomHeight: roomRange(ROOM_HEIGHT, m.roomScale),
     shrineDistanceShare: m.shrineDistanceShare,
     vaultLevel: m.vaultLevel,
     vaultChestItems: m.vaultChestItems,

@@ -20,9 +20,18 @@ export function unkey(k) {
   return [+x, +y];
 }
 
+// The grid's own bounds, off the belief. `MAP_SIZE` is the fallback for a
+// belief that has not folded an observation yet — and it used to be the
+// ONLY answer, which is what made the grid unchangeable: a bigger map and
+// the router simply refused to leave the first 32 columns.
+function boundsOf(belief) {
+  return [belief.w ?? MAP_SIZE, belief.h ?? MAP_SIZE];
+}
+
 export function believedWalkable(belief) {
+  const [w, h] = boundsOf(belief);
   return (x, y) => {
-    if (x < 0 || y < 0 || x >= MAP_SIZE || y >= MAP_SIZE) return false;
+    if (x < 0 || y < 0 || x >= w || y >= h) return false;
     const kind = belief.tiles.get(x + ',' + y);
     if (kind === undefined) return true;          // never seen — worth trying
     return WALKABLE.includes(kind);
@@ -183,13 +192,14 @@ export function actionToward(from, next) {
 // it is required to kill, nor the shrine.
 export function frontiers(belief) {
   const out = [];
+  const [w, h] = boundsOf(belief);
   for (const [tileKey, kind] of belief.tiles) {
     if (!WALKABLE.includes(kind)) continue;
     const [x, y] = unkey(tileKey);
     for (const [dx, dy] of STEPS) {
       const nx = x + dx;
       const ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= MAP_SIZE || ny >= MAP_SIZE) continue;
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
       if (!belief.tiles.has(nx + ',' + ny)) {
         out.push([x, y]);
         break;

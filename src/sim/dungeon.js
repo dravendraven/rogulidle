@@ -206,6 +206,11 @@ export function playDungeon(seed, makePolicy, options = {}) {
       dugPercentage: plan.dugPercentage,
       roomBias: plan.roomBias,
       corridorLength: plan.corridorLength,
+      // How big the grid is, and how big a room on it may be. game.js
+      // forwards all three to mapgen.js.
+      mapSize: plan.mapSize,
+      roomWidth: plan.roomWidth,
+      roomHeight: plan.roomHeight,
       shrineDistanceShare: plan.shrineDistanceShare,
       // M43 — 0 turns the authored room off for the whole descent, which is
       // what a control run needs. Undefined would silently fall back to the
