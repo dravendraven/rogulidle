@@ -198,14 +198,35 @@ Medido, ganância 1, 150 seeds: andares 4,32 → 4,23 (dentro do ruído), baús
 laterais 14,70 → 13,81, divergem em 60 seeds. E o fio da aposta recuou de
 0,908 para 0,891 — a primeira das quatro mudanças a empurrá-lo de volta.
 
-## 2. Calibrar a cautela contra um duelo justo
+## 2. Calibrar a cautela contra um duelo justo ⚠️ NÃO FEITA, e há motivo
 
-A cautela não é escolhida como número, é escolhida como frase: **quantos
-turnos de exposição valem uma briga justa.** É isso que se varre e se olha.
+A intenção era escolher a cautela como frase e não como número: **quantos
+turnos de exposição valem uma briga justa.**
 
-Sem essa âncora, "cautela 1,4" não quer dizer nada; com ela, quer dizer "esse
-herói anda quatro tiles a mais para não trocar um golpe". O ponto neutro da §1
-dá o começo da varredura de graça.
+**A frase nunca foi escrita, porque as varreduras disseram que não há o que
+calibrar.** Duas medições independentes, as duas nas seis faixas:
+
+```
+rota      desvio 1,22 → 1,26   reversão 1,2% → 1,6%   sangue 0,1 → 0,3
+cerco     0,64% → 0,64% formado, 1,20% → 1,21% no próximo turno
+```
+
+Da faixa mínima à máxima — nove vezes o valor — nada se move fora do ruído. O
+`B24` previa isso e a previsão foi escrita no `config.js` ANTES da varredura:
+o `stepCost` já tinha sido varrido de 0,08 a 0,9, que é ONZE vezes a mesma
+razão entre pressa e perigo, e mediu plano.
+
+**A pergunta que fica não é sobre o dial, é sobre o MAPA.** Uma taxa de câmbio
+entre perigo e passo só pode separar se houver mais de um caminho. Com
+`MAP_DUG_PERCENTAGE` em 0,15 existe rota obrigatória e pouca malha — pode
+simplesmente não haver por onde desviar. `ROOM_SCALE` e `MAP_SIZE` (agora
+dials do mapa) são onde isso se testa, e é uma sessão sobre geração, não
+sobre o bot.
+
+**Consequência prática:** enquanto isso não for respondido, a cautela é um
+dial que não paga o próprio custo. Ela está fora do painel do jogador por
+outro motivo (§1), e essas duas coisas juntas dizem que ela pode acabar sendo
+constante decidida em vez de dial.
 
 ## 3. Perseguidor paga metade do caminho ✅
 
@@ -412,7 +433,7 @@ lista vazia:
    senão                    → rest
 ```
 
-## 7. Decompor `sideAppetite` em apetite ao risco × ganância
+## 7. Decompor `sideAppetite` em apetite ao risco × ganância ✅
 
 **Não é adicionar um dial, é separar um que já está sobrecarregado** — e essa
 distinção importa, porque a regra do `CLAUDE.md` proíbe compensar um parâmetro
