@@ -126,10 +126,39 @@ Opening files directly will not work; ES modules need `http://`.
 
 ## Workflow
 - Small commits with clear messages after each working change.
-- After building something, briefly explain what was created and where, in
-  plain language (the maintainer is not a professional developer).
 - If a request conflicts with the rules or the objectives, say so before
   coding.
+
+### How a session reports back
+
+**Every session working on rogulidle answers in this shape**, in plain
+language — the maintainer is not a professional developer, and the point of
+the shape is that the risks never get left out because the work went well.
+
+```
+<título, no máximo 10 palavras>
+
+<o que foi feito>, um parágrafo
+
+<benefícios>
+<bullet points>
+
+<riscos>
+<bullet points>
+
+<próximos passos sugeridos>
+```
+
+Two things the shape is for, and both are easy to skip without it:
+
+- **Riscos is not optional and not a formality.** What was measured but not
+  established, what shipped without being watched, what a number cannot
+  say — this project's method is "whoever built a change does not decide
+  whether it worked", and this is where that gets honoured. An empty risks
+  section is a claim, so make it one you can defend.
+- **Benefícios describes what the OWNER gets**, not what the code now does.
+  "The bot reads a book" is a changelog line; "the scholar finally has a
+  behaviour you can recognise by watching" is a benefit.
 
 ## Owner context
 Solo maintainer, basic coding knowledge, builds via Claude Code.
