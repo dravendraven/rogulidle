@@ -50,6 +50,7 @@ was five identical risks in a row, which is what the vault answered.
 | R4 | Variance rises through the return (widen the band via the tail/spread dials) | after R2 |
 | U7 | The player chooses which hero to play — UI over the existing `hero` config; the mechanism is built and tested, the roster is not | READY |
 | B15 | Drinking reads the danger field before spending the turn | READY |
+| B26 | A route may not cross a live creature for one `stepCost`: entering its tile attacks it and the hero does not move, so the tile should cost its DUEL. Blocking the tile instead was measured — retreat turns +44%, depth and deaths flat — and it breaks V5, turning a frontier behind a corridor guard from expensive into unreachable | READY — pricing, not blocking |
 | M4 | Side-room risk/reward spread scales with depth | READY |
 | M21 | Deep floors put a creature where the hero lands | READY |
 | M36 | A detour has to be able to cost the run (the cost side of the gamble) | CLOSED by the vault — floor 4 kills 45.6% and skipping it costs the floor's whole reward |

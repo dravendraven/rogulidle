@@ -68,10 +68,41 @@ import {
 // whole point — docs/project/decisions.md carries the numbers.
 // HOW MUCH HEALTH THE BOT BELIEVES IS IN FRONT OF IT.
 //
-// It is told a creature's hp only in melee (src/sim/observe.js), so at the
-// moment the decision is actually made — walk into that room or not — this
-// estimate is all there is. `expectedHpFor` is the bestiary average for that
-// xp; `bravery` bends it.
+// It is NEVER told a creature's hp (src/sim/observe.js), at any range, so
+// this estimate is all there is from the first decision to the last blow.
+// `expectedHpFor` is the bestiary average for that xp; `bravery` bends it.
+//
+// AND THEN IT SUBTRACTS WHAT IT HAS ALREADY DONE. `hurt` is the bot's own
+// tally of the blows it landed on this creature, folded into Belief from the
+// blow the hero perceives each turn. So a duel opens on a guess and that
+// guess DECAYS as the fight goes: the cost of finishing something half dead
+// is priced as half, which is what lets the fight gate flip mid-brawl in
+// either direction — cheap enough to finish, or dear enough to walk away
+// from — without the answer ever crossing the fog.
+//
+// AND A GUESS THAT RUNS OUT IS RE-GUESSED, NOT FLOORED. A creature still
+// standing when the tally says it should be dead has FALSIFIED the estimate,
+// and the only thing the bot may conclude is that it is fighting something
+// tougher than the average of its kind — so it guesses again, from the top,
+// with the same bestiary it had before.
+//
+// What that replaces was worse than a rounding choice. Flooring the estimate
+// at 1 hp put `turns` under one, and `duelCost` subtracts a turn for the
+// hero's free first blow — so the rest of a fight the hero was LOSING was
+// priced at exactly zero, and the bot was at its most confident precisely
+// where it had been proven wrong.
+//
+// Honest about what it bought: over 120 runs this moved no behaviour at all
+// — same depth, same deaths, same 71 duels broken off, 226 refusals against
+// 220. The window is narrow (the next blow usually kills) and the reason to
+// keep it is that the alternative cannot be defended, not that it measured.
+//
+// The retreat itself already worked and the first probe that said otherwise
+// was broken: it compared distances at the END of a turn, and a same-speed
+// chaser steps back in on that same turn, so every successful retreat read as
+// a hero who had not moved. Measured properly the bot breaks off 3.2% of its
+// duels. What actually caps that number is the ROUTER, not this — see
+// `shrineSink` below.
 //
 // BRAVERY IS A DISCOUNT ON THE ESTIMATE, mirrored around the centre: a dial
 // one notch up (1.16) makes the hero read the creature as holding 16% LESS
@@ -81,8 +112,9 @@ import {
 // ogre) and sometimes fatal (the ogre). The dial cannot make him right; it
 // chooses which way he is wrong.
 export function assumedHp(monster, bravery = 1) {
-  if (monster.hp !== undefined) return monster.hp;
-  return Math.max(1, expectedHpFor(monster.xp) * (2 - bravery));
+  const opening = expectedHpFor(monster.xp) * (2 - bravery);
+  const left = opening - (monster.hurt || 0);
+  return left > 0 ? left : opening;
 }
 
 export function duelCost(player, monster, bravery = 1) {
@@ -157,6 +189,21 @@ export function dangerField(belief, tuning = {}) {
 // shrine tile is a graph sink — enterable, never left — or the bot ends
 // floors by accident reaching loot on the far side (measured at 27% of
 // floors before the sink existed).
+//
+// A LIVE CREATURE IS ARGUABLY THE SAME SHAPE AND IS DELIBERATELY LEFT OUT.
+// Walking into one attacks it and the hero STAYS PUT (rules.md §6), so the
+// router is modelling a move the engine does not allow: `believedWalkable`
+// reads terrain only, every route crosses a creature for one `stepCost` as
+// if it were floor, and the danger field charges the per-turn bite instead
+// of the duel that entering actually starts.
+//
+// Adding creatures here was tried and measured. Retreat turns rose 44% (225
+// to 324 over 120 runs) with depth and deaths flat — and it broke the thing
+// V5 exists to protect: a frontier behind a creature in a corridor becomes
+// UNREACHABLE rather than expensive, so the bot stops exploring past a guard
+// instead of paying for it. The honest fix prices the duel onto the tile
+// rather than deleting the tile, which is a change to the route model and
+// wants its own measurement. docs/backlog.md carries it.
 function shrineSink(belief) {
   if (!belief.shrine) return () => false;
   const tile = key(belief.shrine.pos);

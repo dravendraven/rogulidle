@@ -126,7 +126,7 @@ e gratis e o bot vaga um andar por 1500 turnos — precisa estar acima de
 
 | traço | objetivo | o que faz |
 |---|---|---|
-| `bravery` | sobreviver | quanto ele SUBESTIMA a vida de uma criatura. Ele não vê vida de longe (`rules.md` §7), só o xp, então precifica pela média do bestiário para aquele xp — e a coragem desconta essa média, espelhada em torno do centro: um entalhe acima (1,16) é ler tudo como tendo 16% menos vida. Não é aceitar odds piores, é **acreditar que morre mais rápido** — certo sobre o lobo, fatal sobre o ogro, ambos xp 4 |
+| `bravery` | sobreviver | quanto ele SUBESTIMA a vida de uma criatura. Ele nunca vê vida (`rules.md` §7), só o xp, então precifica pela média do bestiário para aquele xp — e a coragem desconta essa média, espelhada em torno do centro: um entalhe acima (1,16) é ler tudo como tendo 16% menos vida. Não é aceitar odds piores, é **acreditar que morre mais rápido** — certo sobre o lobo, fatal sobre o ogro, ambos xp 4 |
 | `fightMargin` | sobreviver | fração do hp efetivo que uma luta pode custar. **Deixou de ser dial** — é constante decidida; dois dials puxando a mesma decisão de pontas opostas era a confusão que o M47 desfez |
 | `sideAppetite` | chegar rico | apetite pela aposta lateral — e por andar até o escuro caro (0 = nunca; acima de 1 arrisca mais no opcional do que no obrigatório) |
 | `stepCost` | poucos passos | quanto vale um passo em hp. **Nao e bem pressa:** o preco do tile e `stepCost + perigo`, entao valor alto torna o perigo desprezivel na comparacao e a rota vira distancia pura. Medido, 0 quebra o bot (vaga 1500 turnos porque andar e gratis) e de 0,01 a 0,2 nada muda |
@@ -167,6 +167,23 @@ sabe. Qualquer herói pode ser covarde ou ganancioso.
    achada que move o custo real sem mover o preço, e o vault depende disso.
    O campo **viaja no Belief** e poderia ser lido; nada o lê. Corrigir isso
    é um ato deliberado, não uma faxina — `decisions.md`, M44.
+
+   **`duelCost` desconta os golpes que o próprio bot já deu.** O Belief soma
+   por criatura quanto ele tirou dela (`rules.md` §7), então o palpite cai
+   durante o duelo e terminar algo meio morto é precificado como meio. É o
+   que faz o portão poder virar no meio da briga, para os dois lados.
+   Zerado o desconto com a criatura ainda de pé, ele **palpita de novo do
+   zero** — precificar o resto em zero deixava o bot mais confiante
+   exatamente onde tinha se provado errado.
+
+   **O roteador ainda acha que dá para atravessar uma criatura.** Entrar no
+   tile dela ataca e o herói **não sai do lugar** (`rules.md` §6), mas
+   `believedWalkable` só lê terreno: toda rota cruza um bicho por um
+   `stepCost`, como se fosse chão. Transformar o tile em sumidouro foi
+   medido — recuo sobe 44%, profundidade e mortes iguais — e quebra o V5:
+   uma fronteira atrás de um guardião num corredor vira **inalcançável** em
+   vez de cara. A correção honesta é cobrar o duelo no tile, não apagar o
+   tile. Está no `backlog.md`.
 4. **O mais barato vence**, com histerese. Vazio o conjunto: fronteira (se
    o escuro deve algo), senão buraco.
 5. **Nunca fica parado.** Se o apetite recusou toda fronteira e nenhum

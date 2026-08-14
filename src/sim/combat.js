@@ -157,6 +157,18 @@ export function playerAttacks(state, monster) {
     state.player.xpEarned += monster.xp;
   }
 
+  // THE BLOW THE HERO JUST LANDED, on the state rather than only in the log:
+  // `cloneState` does not carry it, so it exists for exactly one turn and the
+  // Observation of that turn can report it (src/sim/observe.js). The log has
+  // the same numbers but keys the target by NAME, which cannot say WHICH of
+  // the three skeletons was hit.
+  //
+  // Nothing unrevealed crosses here. How hard the hero hit is his own arm,
+  // not the creature's health — what it does downstream is let the bot
+  // SUBTRACT from a guess it made itself, and a guess minus known blows is
+  // still a guess.
+  state.blow = { id: monster.id, damage: result.damage };
+
   state.log.push({
     type: 'attack', by: 'player', target: monster.name,
     damage: result.damage, killed: result.killed, turn: state.turn,

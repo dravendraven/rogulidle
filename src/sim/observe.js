@@ -55,13 +55,13 @@ const PLAYER_FIELDS = ['pos', 'hp', 'hpMax', 'armour', 'xp', 'inventory', 'kills
 // what a player sees over a creature's head is its xp, never its health. The
 // bot has to COMMIT to a fight on an estimate (src/sim/balance.js's
 // `expectedHpFor`) and finds out whether it guessed right by fighting.
+// NOT EVEN IN MELEE, and that reversal is the point of `blow` below. Health
+// visible up close kept the mid-duel decision alive but did it by handing
+// over the answer, which is the thing the fog is for. The bot now keeps the
+// decision and pays for it with a MEMORY: it started from a guess, it knows
+// every blow it landed, so it can subtract — and it is wrong for exactly as
+// long as its opening guess was wrong.
 const MONSTER_FIELDS = ['id', 'name', 'emoji', 'pos', 'xp', 'activation', 'speed', 'dead', 'side', 'edge'];
-// …except the one it is standing next to. Health hidden at a distance and
-// plain in melee is how a person plays it, and it is what keeps the mid-duel
-// reversal alive: the cost of a fight already joined falls as the thing in
-// front of you visibly dies, so the bot still breaks off a losing brawl
-// instead of committing blind to the end.
-const MELEE_FIELDS = [...MONSTER_FIELDS, 'hp', 'hpMax'];
 const CHEST_FIELDS = ['id', 'name', 'emoji', 'pos', 'side', 'edge'];
 // `dmgMin` belongs here beside `dmg`: it is a plain property of an item the
 // hero can already see, not an unrevealed answer, and leaving it out made
@@ -86,11 +86,10 @@ const SHRINE_FIELDS = ['id', 'emoji', 'pos'];
 // Narrow on purpose: nothing on MONSTER_TABLE sets it, so every ordinary
 // corpse keeps its secret and M28's leak stays closed. `revealsDrop` also
 // travels, so the renderer and the tests can tell which creatures advertise.
-function monsterFields(revealLoot, monster, inMelee = false) {
-  const seen = inMelee ? MELEE_FIELDS : MONSTER_FIELDS;
+function monsterFields(revealLoot, monster) {
   const base = monster && monster.revealsDrop
-    ? [...seen, 'revealsDrop', 'drop']
-    : seen;
+    ? [...MONSTER_FIELDS, 'revealsDrop', 'drop']
+    : MONSTER_FIELDS;
   return revealLoot ? [...base, 'drop'] : base;
 }
 function chestFields(revealLoot) {
@@ -139,21 +138,21 @@ export function observe(state, options = {}) {
   }
 
   const seen = (entity) => visible.has(posKey(entity.pos));
-  // Melee reach: the eight tiles around the hero plus his own. The engine
-  // only ever strikes orthogonally, so this is generous on purpose — being
-  // able to read the health of something you could be hit by next turn is
-  // the point, not the exact attack geometry.
-  const adjacent = (a, b) => Math.abs(a[0] - b[0]) <= 1 && Math.abs(a[1] - b[1]) <= 1;
 
   return {
     turn: state.turn,
     outcome: state.outcome,
     // You always know your own hp, xp, inventory and step count.
     player: copyEntity(state.player, PLAYER_FIELDS),
+    // …and the blow you just swung, if you swung one (src/sim/combat.js).
+    // Set only on the turn the hero attacked and never carried by
+    // `cloneState`, so this is null on every other turn without anything
+    // having to clear it.
+    blow: state.blow ?? null,
     visible,
     tiles,
     monsters: state.monsters.filter(seen).map((m) => copyEntity(m,
-      monsterFields(revealLoot, m, adjacent(from, m.pos)))),
+      monsterFields(revealLoot, m))),
     items: state.items.filter(seen).map((i) => copyEntity(i, ITEM_FIELDS)),
     chests: state.chests.filter(seen).map((c) => copyEntity(c, chestFields(revealLoot))),
     shrine: seen(state.shrine) ? copyEntity(state.shrine, SHRINE_FIELDS) : null,
@@ -198,7 +197,14 @@ function refresh(remembered, observed, visible, turn) {
     if (visible.has(posKey(entity.pos))) next.delete(id);
   }
   for (const entity of observed) {
-    next.set(entity.id, { ...entity, lastSeenTurn: turn });
+    // What the bot WORKED OUT about a thing survives seeing it again. Only
+    // `hurt` qualifies today — it is the bot's own tally of blows landed, not
+    // something the observation reports, so a fresh sighting would otherwise
+    // wipe the fight's whole history every turn. Nothing but a monster ever
+    // carries it, so chests and items are untouched.
+    const before = remembered.get(entity.id);
+    const kept = before && before.hurt ? { hurt: before.hurt } : null;
+    next.set(entity.id, { ...entity, ...kept, lastSeenTurn: turn });
   }
   return next;
 }
@@ -226,6 +232,21 @@ export function foldBelief(belief, obs) {
   // from far away stays exact for as long as the bot keeps its distance —
   // see docs/bot.md.
   b.monsters = refresh(b.monsters, obs.monsters, obs.visible, obs.turn);
+
+  // THE ONE THING THE BOT LEARNS BY ACTING RATHER THAN BY LOOKING. Health
+  // never crosses, so a duel opens on a guess; every blow the hero lands is
+  // then subtracted from it (src/bot/bot.js's `assumedHp`), and a fight
+  // already joined gets cheaper as it is won. This is the memory that makes
+  // breaking off a brawl possible without showing the bot the answer.
+  //
+  // AFTER the refresh above, never before: the refresh rebuilds the entry
+  // from this turn's sighting, so a blow folded first would be overwritten by
+  // it. Silently, and only in the case where the creature is visible — which
+  // is every case that matters.
+  if (obs.blow) {
+    const m = b.monsters.get(obs.blow.id);
+    if (m) b.monsters.set(obs.blow.id, { ...m, hurt: (m.hurt || 0) + obs.blow.damage });
+  }
 
   if (obs.shrine) b.shrine = { ...obs.shrine, lastSeenTurn: obs.turn };
 

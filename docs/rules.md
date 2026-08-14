@@ -382,12 +382,22 @@ não revelada já a vazou, mesmo que ninguém o leia — foi por isso que o item
 já sorteado de uma criatura saiu do Belief. O que atravessa é lista
 explícita por tipo de entidade, não cópia do objeto inteiro.
 
-**A vida de uma criatura não atravessa — só o número acima da cabeça.** O
-que o bot recebe de longe é o xp, que é a mordida; quanto ela aguenta, não.
-Ele só descobre isso **encostado nela**, e aí a vida atravessa normalmente.
-Duas consequências deliberadas: comprometer-se com uma luta é sempre um
-palpite, e desistir dela no meio continua possível, porque a criatura que
-está na sua frente morrendo é visível.
+**A vida de uma criatura nunca atravessa — só o número acima da cabeça.** O
+que o bot recebe é o xp, que é a mordida; quanto ela aguenta, não. E isso
+vale **em qualquer distância, inclusive encostado nela**: comprometer-se com
+uma luta é sempre um palpite, do primeiro ao último golpe.
+
+**Mas o golpe que o próprio herói deu atravessa.** Ele sabe em quem bateu e
+quanto tirou — é o braço dele, não resposta escondida da criatura. O Belief
+soma isso por criatura, então o palpite inicial vai sendo descontado durante
+o duelo e uma luta já começada fica mais barata conforme é ganha. É o que
+permite desistir dela no meio sem que a névoa seja aberta.
+
+**Quando o desconto zera e a criatura continua de pé, o palpite foi
+refutado** — e a única coisa que o bot pode concluir é que estava lutando
+contra algo mais duro que a média da espécie. Ele palpita de novo, do zero.
+Não vale supor que sobrou nada: um resto avaliado em zero faria o bot mais
+confiante justamente onde ele já se provou errado.
 
 **A lista abre por dois lados, e eles são de naturezas diferentes.**
 

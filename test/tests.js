@@ -1564,7 +1564,7 @@ test('the read survives the step it is halfway through', () => {
 
 // ***** courage is a guess about health, not a wider margin ***** //
 
-test("the bot is told a creature's health only in melee", () => {
+test("a creature's health never crosses, at any range", () => {
   const map = tinyMap([
     '#########',
     '#-------#',
@@ -1579,19 +1579,95 @@ test("the bot is told a creature's health only in melee", () => {
   const seen = observe(state).monsters;
   const near = seen.find((m) => m.name === 'ogre');
   const far = seen.find((m) => m.name === 'wolf');
-  assert('hp' in near, 'the creature he is standing next to hides its health');
+  assert(!('hp' in near), 'the creature he is standing next to handed over its health');
   assert(!('hp' in far), 'a creature across the room handed over its health');
   assert('xp' in far, 'the number over the head has to stay visible');
 });
 
-test('wolf and ogre are the same creature until he is next to one', () => {
+test('wolf and ogre are the same creature, and stay that way', () => {
   // The whole point of the estimate: they share xp 4 at hp 5 and hp 7, so
-  // the bestiary average is wrong about both, by 20% each way.
+  // the bestiary average is wrong about both, by 20% each way — and no
+  // amount of standing next to one settles it.
   const wolf = { name: 'wolf', xp: 4, activation: 20, pos: [9, 9] };
   const ogre = { name: 'ogre', xp: 4, activation: 20, pos: [9, 9] };
   assertEq(assumedHp(wolf), assumedHp(ogre), 'two xp-4 creatures were guessed differently');
   assert(assumedHp(wolf) > 5 && assumedHp(wolf) < 7, 'the guess is not between the two truths');
-  assertEq(assumedHp({ ...wolf, hp: 5 }), 5, 'a creature in melee was still guessed at');
+  assertEq(assumedHp({ ...wolf, hp: 5 }), assumedHp(wolf), 'a real hp on the entity was read');
+});
+
+// ***** the bot remembers the blows it landed ***** //
+
+test('the blow the hero swung reaches the Observation, and only that turn', () => {
+  const map = tinyMap([
+    '#####',
+    '#---#',
+    '#####',
+  ]);
+  const state = makeState({
+    map,
+    playerPos: [1, 1],
+    monsters: [dummy('rat', [2, 1], { activation: 20, hp: 40 })],
+    shrine: { id: 's', emoji: '⛩️', pos: [3, 1] },
+  });
+  assertEq(observe(state).blow, null, 'a blow was reported before one was thrown');
+
+  const hit = step(state, 'right');
+  const target = state.monsters[0].id;
+  assertEq(hit.observation.blow.id, target, 'the blow named the wrong creature');
+  // The last log entry is the creature hitting BACK — the monsters move
+  // after the player's action — so this has to ask for the hero's own.
+  const swung = hit.state.log.filter((e) => e.type === 'attack' && e.by === 'player').at(-1);
+  assertEq(hit.observation.blow.damage, swung.damage,
+    'the reported blow and the logged blow disagree');
+
+  // One turn only: `cloneState` does not carry it, so resting clears it with
+  // nothing having to do the clearing.
+  assertEq(step(hit.state, 'rest').observation.blow, null, 'the blow outlived its turn');
+});
+
+test('the guess decays by what the bot has already landed', () => {
+  const wolf = { id: 3, name: 'wolf', xp: 4, activation: 20, pos: [9, 9] };
+  const fresh = assumedHp(wolf);
+  assertEq(assumedHp({ ...wolf, hurt: 2 }), fresh - 2, 'a landed blow did not come off the guess');
+
+  // Still standing after the guess ran out is proof the guess was low, so
+  // the bot guesses again instead of pricing the rest of the fight at
+  // nothing — which is what a floored estimate did.
+  assertEq(assumedHp({ ...wolf, hurt: 999 }), fresh, 'an exhausted guess was not made again');
+  assert(duelCost({ xp: PLAYER_XP, hp: 10, armour: 0, inventory: [] }, { ...wolf, hurt: 999 }).hpLost > 0,
+    'a falsified guess priced the rest of the fight at zero');
+
+  const hero = { xp: PLAYER_XP, hp: 10, armour: 0, inventory: [] };
+  assert(duelCost(hero, { ...wolf, hurt: 3 }).hpLost < duelCost(hero, wolf).hpLost,
+    'a half-dead creature was not a cheaper fight');
+});
+
+test('the tally survives seeing the creature again', () => {
+  // `refresh` rebuilds a remembered monster from each new sighting, so the
+  // memory the bot BUILT has to be carried across it by hand.
+  const map = tinyMap([
+    '#####',
+    '#---#',
+    '#####',
+  ]);
+  let state = makeState({
+    map,
+    playerPos: [1, 1],
+    monsters: [dummy('rat', [2, 1], { activation: 20, hp: 40 })],
+    shrine: { id: 's', emoji: '⛩️', pos: [3, 1] },
+  });
+  const target = state.monsters[0].id;
+
+  let belief = foldBelief(emptyBelief(), observe(state));
+  let dealt = 0;
+  for (let i = 0; i < 6; i++) {
+    const out = step(state, 'right');
+    state = out.state;
+    if (out.observation.blow) dealt += out.observation.blow.damage;
+    belief = foldBelief(belief, out.observation);
+  }
+  assertEq(belief.monsters.get(target).hurt || 0, dealt,
+    'the tally does not match the blows that landed');
 });
 
 test('bravery discounts the guess, mirrored around the centre', () => {
