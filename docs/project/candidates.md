@@ -431,6 +431,36 @@ exactly like the thing that was refused. It is not: hell is a BRANCH off the
 ordinary loop. The main descent stays ungated and endless, and the dated seed
 governs one optional door inside it.
 
+#### Hell is unlocked, and both keys already exist
+
+**The base game has no hell.** It is earned, and the achievement that earns it
+is `bottom` — which is already in `src/ui/achievements.js`, already named, and
+already says the right thing: "dez andares. ninguém chegou ainda". Reaching
+floor 10 is what proves you can walk to the door, so the door appears after you
+have been there. Nothing about the gate needs inventing; it needs WIRING. Today
+both achievements are a plaque and neither is a key.
+
+That gives the progression its first stated shape, two rungs:
+
+| achievement | unlocks |
+|---|---|
+| `butcher` 🐷 | choosing a hero — until then the base hero is forced |
+| `bottom` 🕳️ | the entity at floor 10, and hell behind it |
+
+**The order enforces itself, which is the strongest version of a ladder.** The
+base hero averages 4.6 floors and kills the Butcher in about 6.5% of runs, so
+the first rung is reachable but slow; floor 10 is not reachable with the base
+hero at all, so the second rung needs the first. Neither gate is a rule — each
+is a capability, and the sequence falls out of the numbers rather than out of a
+lock.
+
+**And it answers the objection recorded below** (that floor 10 is effectively
+never reached, so the branch would be invisible) by inverting it. Hell is not
+dead content waiting for nobody: it does not exist yet. That is also the shape
+`objectives.md` prefers — "a permanent unlock is safest when it buys a different
+way to lose rather than a lower chance of losing", and hell buys exactly that.
+It makes nobody stronger; it adds floor to fall through.
+
 #### The shape of the choice: a prompt with a timer, and an RNG default
 
 **Same shape as the shop, because the shop already is this.** `SHOP_MS` is
@@ -463,7 +493,8 @@ and the descent cap both rest on.
 Mean depth for the base hero is around 4.6 and floor 7+ happens in 17% of runs;
 floor 10 is effectively never reached. So this sits DOWNSTREAM of the unlock
 system rather than beside it — building the door before anyone can walk to it
-is building nothing.
+is building nothing. The `bottom` gate above turns that from a scheduling risk
+into the design: the door is not missing, it is unearned.
 
 **Twenty floors of content almost nobody sees** is the worst work-to-eyes ratio
 available — the vault took a whole cycle for one room on one floor. Unless hell
