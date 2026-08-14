@@ -51,6 +51,7 @@ was five identical risks in a row, which is what the vault answered.
 | U7 | The player chooses which hero to play — UI over the existing `hero` config; the mechanism is built and tested, the roster is not | READY |
 | B15 | Drinking reads the danger field before spending the turn | READY |
 | B26 | A route may not cross a live creature for one `stepCost` | DONE — the tile costs its duel; an adjacent pursuer lands at price 0 and the bot finishes brawls instead of leaving them |
+| C1 | Cautela and curiosidade: two dials that decide the ROUTE, the frontier as a real candidate, and the refuge. Six pieces, each buildable and watchable alone — the whole design, its open seams and its build order are in `docs/project/cautela.md` | READY — start at piece 1 |
 | B27 | The syringe fires when the melee costs MORE than one bar, which is the same test the fight gate uses to refuse it: in 30 of 84 injections the gate still refuses every adjacent creature with the rage already running. Fix is a condition, not a threshold — inject when the rage flips a refused fight into an accepted one — and it deletes `RAGE_AT` along with the greed ladder it buys | NEEDS THE OWNER — deletes a dial |
 | M4 | Side-room risk/reward spread scales with depth | READY |
 | M21 | Deep floors put a creature where the hero lands | READY |
