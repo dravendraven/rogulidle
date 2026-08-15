@@ -19,7 +19,7 @@
 // Nothing here is read by the engine; it only decides which config the page
 // hands it.
 
-import { HEROES } from '../sim/heroes.js';
+import { HEROES, heroLabel } from '../sim/heroes.js';
 import { tileSvg } from './tiles.js';
 import { HERO_GATE, isEarned, lockedReason } from './achievements.js';
 
@@ -169,7 +169,7 @@ export function buildRoster(container, { onPick, onRestart, onPreview } = {}) {
     chip.type = 'button';
     chip.className = 'roster-chip';
     chip.dataset.hero = hero.name;
-    chip.title = `${hero.name}, ${hero.title}`;
+    chip.title = heroLabel(hero);
     chip.innerHTML = tileSvg(hero.emoji) || '';
 
     chip.addEventListener('click', () => {
@@ -247,8 +247,8 @@ export function buildRoster(container, { onPick, onRestart, onPreview } = {}) {
       // card, which is the whole change.
       chip.classList.toggle('locked', shut);
       chip.title = shut
-        ? `${HEROES[key].name} — ${lockLine()}`
-        : `${HEROES[key].name}, ${HEROES[key].title}`;
+        ? `${heroLabel(HEROES[key])} — ${lockLine()}`
+        : heroLabel(HEROES[key]);
       // `playing` and `queued` follow the RUN, never the card. That is what
       // keeps the ordinary hero lit while a locked face is being read: he
       // is still the one playing, and the lit chip is the only thing on
@@ -260,7 +260,7 @@ export function buildRoster(container, { onPick, onRestart, onPreview } = {}) {
 
     const hero = HEROES[showing] || HEROES.base;
     face.innerHTML = tileSvg(hero.emoji) || '';
-    name.textContent = `${hero.name}, ${hero.title}`;
+    name.textContent = heroLabel(hero);
 
     // THE BLURB SLOT CARRIES THE LOCK. A locked hero's card says why he
     // cannot be had instead of what he does — the reason belongs where the

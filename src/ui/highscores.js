@@ -8,7 +8,7 @@
 // `src/sim/` in both directions. Nothing here is read by the engine and
 // nothing here changes what a run does — it only remembers what happened.
 
-import { HEROES } from '../sim/heroes.js';
+import { HEROES, heroLabel } from '../sim/heroes.js';
 import { ORDER } from './roster.js';
 import { tileSvg } from './tiles.js';
 
@@ -109,7 +109,7 @@ export function buildHighscorePanel(container) {
     const tab = document.createElement('button');
     tab.type = 'button';
     tab.className = 'highscore-tab';
-    tab.title = hero.name === 'base' ? 'o de sempre' : `${hero.name}, ${hero.title}`;
+    tab.title = heroLabel(hero);
     tab.innerHTML = tileSvg(hero.emoji) || '';
     tab.addEventListener('click', () => {
       const now = tab.classList.contains('selected');
@@ -148,7 +148,7 @@ export function buildHighscorePanel(container) {
     const face = document.createElement('td');
     face.className = 'highscore-face';
     face.innerHTML = tileSvg(hero.emoji) || '';
-    face.title = hero.name === 'base' ? 'o de sempre' : `${hero.name}, ${hero.title}`;
+    face.title = heroLabel(hero);
 
     const depth = document.createElement('td');
     const coins = document.createElement('td');
