@@ -136,11 +136,14 @@ the miser reading early. That is the mechanism, not a defect in it — the
 floor the book first becomes possible on climbs 1, 1, 1, 4, 8, 9 across the
 six bands. A first guess, swept at 0.9 and 0.8.
 
-`RAGE_AT` 1.0 — the same shape for the warrior's syringe, against the cost of
-what is already awake on him, scaled by the share of FLOORS still ahead
-(`floorsAhead`) rather than of threat: threat is back-loaded, so its share is
-flat over the first half of the descent, which is exactly where the injection
-floor needed separating. Swept at 0.5 and 1.0. See
+**The warrior's syringe has no number of its own**, and that is the point.
+`RAGE_AT` used to be one, pointed at the same bar the fight gate refuses on, so
+the item was spent where the bot then walked away. It was deleted rather than
+retuned. What triggers the injection now is a CONDITION — would rage flip this
+adjacent duel from refused to accepted — and greed enters as a reserve price on
+the flip, written against the bar the hero already carries: the sober duel must
+cost at least `fightMargin × effectiveHp × sideAppetite`. No new constant, and
+the low half of the dial is inert because the flip already floors it. See
 `docs/bot.md`.
 
 ## Tiers

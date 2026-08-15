@@ -1840,6 +1840,38 @@ test('raging without a syringe passes no turn at all', () => {
   assert(!after.player.raging, 'the hero raged with nothing to inject');
 });
 
+// A RULE, not a metric — which is why it is here and not among the
+// tripwires. "The syringe is never spent outside a fight" is either true of
+// every injection or the trigger is broken; there is no share of it to
+// watch, and a wire measuring it would read zero injections on the base
+// hero, who owns no syringe. The trigger asks whether rage would flip an
+// ADJACENT duel from refused to accepted, so an injection with nobody in
+// reach is impossible by construction — this is what makes that stay true.
+test('vito never injects with no creature beside him', () => {
+  const vito = HEROES.vito;
+  let injections = 0;
+  for (let seed = 0; seed < 12; seed++) {
+    const run = playDungeon(770000 + seed, (f) => makeBot({
+      monsterCount: f.monsterCount, chestCount: f.chests,
+      threatAhead: f.threatAhead, floorsAhead: f.floorsAhead, hero: vito.bot,
+    }), { hero: vito });
+    for (const level of run.levels) {
+      const frames = replayGame(level.replay);
+      for (let i = 1; i < frames.length; i++) {
+        const before = frames[i - 1].state;
+        if (before.player.raging || !frames[i].state.player.raging) continue;
+        injections++;
+        const [px, py] = before.player.pos;
+        assert(before.monsters.some((m) => !m.dead
+          && Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py) === 1),
+        `injected on floor ${level.level} with nothing adjacent`);
+      }
+    }
+  }
+  // Otherwise the loop above proves nothing and passes anyway.
+  assert(injections > 0, 'no syringe was used in the whole sample');
+});
+
 // ***** map design: the spine and its detours ***** //
 //
 // docs/map-design.md. Every "70% of the threat mass is on the mandatory

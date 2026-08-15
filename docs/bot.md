@@ -56,11 +56,21 @@ frases:
   mesmo teste que o portão usa para RECUSAR essa luta. Medido: em 30 de 84
   injeções o portão recusava toda criatura adjacente com a fúria já ligada. O
   item era gasto exatamente onde o bot ia embora.
-- **E custou a escada de ganância.** O limiar antigo era multiplicado pela
-  ganância e pela fração de andares restantes, então o andar da injeção subia
-  com a avareza (4,3 a 5,4 pelas faixas). Uma condição não tem limiar para
-  dobrar. Foi troca escolhida: item nunca desperdiçado no lugar de um item cujo
-  momento carregava um traço.
+- **E a ganância voltou como preço de reserva, não como limiar.** A condição
+  diz que o item nunca é desperdiçado; a ganância diz se ESTA luta vale gastá-lo.
+  A exigência é escrita contra a barra que o herói já carrega — o duelo sóbrio
+  precisa custar pelo menos `barra × ganância` — então nenhum número novo
+  aparece. Um avarento espera um resgate de quase duas barras; um perdulário
+  aceita o primeiro que aparecer.
+- **A metade de baixo do dial não faz nada, e isso é a regra, não defeito.** A
+  condição já exige que o duelo sóbrio passe de uma barra, então qualquer
+  exigência abaixo de uma barra está satisfeita antes de ser feita. Ninguém pode
+  ser mais perdulário que "gasta sempre que ajudaria" — esse É o piso.
+- **A escada que isso comprou é outra, e vale dizer qual.** O `RAGE_AT` antigo
+  movia o ANDAR da injeção (4,3 a 5,4 pelas faixas); o preço de reserva move a
+  QUANTIDADE — 63 a 28 injeções pelas faixas, com o andar mediano parado em 4.
+  Em troca, a fração de turnos de fúria que viram golpe sobe de 47% para 58%:
+  segurado para lutas maiores, o item é menos desperdiçado.
 - **Nunca começa luta** cujo custo esperado passe de `fightMargin` do hp
   efetivo (hp + armadura). Uma criatura que já persegue paga só a
   caminhada — o duelo dela acontece de qualquer jeito — **e paga metade

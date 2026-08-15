@@ -53,6 +53,7 @@ was five identical risks in a row, which is what the vault answered.
 | B26 | A route may not cross a live creature for one `stepCost` | DONE — the tile costs its duel; an adjacent pursuer lands at price 0 and the bot finishes brawls instead of leaving them |
 | C1 | How the bot prices the board: `sideAppetite` splits into risk appetite × greed, `cautela` prices exposure per turn, the dark stops being free, the frontier becomes a real candidate, the refuge gives the bot its first goal meaning "away", and a chest is valued by its room instead of alone. Eleven pieces, four already in — the design, the open debt, what was rejected and the build order are in `docs/project/rota-e-valor.md` | READY — start with the split, which ships as a no-op |
 | B27 | The syringe fired above the same bar the fight gate uses to refuse | DONE — it is a condition now: inject when raging flips a refused fight into an accepted one. `RAGE_AT` deleted |
+| B28 | B27 traded away greed's grip on the syringe — the item's timing carried no trait | DONE — greed is a reserve PRICE on the flip: the sober duel must cost at least `fightBar × sideAppetite`. No new constant; the low half of the dial is inert because the flip already floors it |
 | M4 | Side-room risk/reward spread scales with depth | READY |
 | M21 | Deep floors put a creature where the hero lands | READY |
 | M36 | A detour has to be able to cost the run (the cost side of the gamble) | CLOSED by the vault — floor 4 kills 45.6% and skipping it costs the floor's whole reward |

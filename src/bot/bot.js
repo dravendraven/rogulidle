@@ -583,17 +583,38 @@ function stillValid(goal, belief, field) {
 // It deletes `RAGE_AT`, and with it the greed ladder that number bought — how
 // deep the injection sat was a function of the threshold, and a condition has
 // no threshold to bend. That loss is real and was the owner's call.
+// AND GREED IS THE RESERVE PRICE ON THE FLIP. The condition says the item is
+// never WASTED; greed says whether this particular flip is worth spending it
+// on. The demand is written against the bar the hero already carries, so no
+// new constant appears:
+//
+//     the sober duel must cost at least  fightBar × greed
+//
+// A miser waits for a fight worth nearly two bars sober; a spendthrift takes
+// the first flip going. It restores the ladder `RAGE_AT` used to buy — the
+// injection floor rose with avarice — without the defect that killed it: the
+// old number pointed at the same bar the fight gate refuses on, so the item
+// was spent where the bot then walked away. Here the gate's own verdict is the
+// trigger and greed only says how big a rescue is worth one.
+//
+// THE LOW HALF OF THE DIAL IS INERT, and that is a property rather than a
+// flaw. The flip already requires the sober duel to exceed one bar, so any
+// demand below one bar is satisfied before it is asked. A spendthrift cannot
+// be more spendthrift than "spend whenever it would help" — that IS the floor.
 function rageWouldFlip(belief, hero) {
   const [px, py] = belief.player.pos;
   // The bar reads the same either way — `effectiveHp` is hp plus armour and
   // rage touches neither. Only the DUEL moves.
   const bar = hero.fightMargin * effectiveHp(belief.player);
+  const demand = bar * hero.sideAppetite;
   const enraged = { ...belief.player, raging: RAGE_TURNS };
 
   for (const m of belief.monsters.values()) {
     if (m.dead) continue;
     if (Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py) !== 1) continue;
-    if (duelCost(belief.player, m, hero.bravery).hpLost <= bar) continue;
+    const sober = duelCost(belief.player, m, hero.bravery).hpLost;
+    if (sober <= bar) continue;              // he would take it anyway
+    if (sober < demand) continue;            // too small a rescue to spend on
     if (duelCost(enraged, m, hero.bravery).hpLost <= bar) return true;
   }
   return false;
