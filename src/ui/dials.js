@@ -8,7 +8,8 @@
 // starts, which is the same door a sweep already used.
 
 import {
-  DEFAULT_MODEL, floorSpread, floorStrength, monstersAt, saturatedAt, tierFloorShare,
+  anchorAt, DEFAULT_MODEL, floorSpread, floorStrength, monstersAt, saturatedAt,
+  tierFloorShare,
 } from '../sim/difficulty.js';
 import { MONSTER_TABLE } from '../sim/balance.js';
 import { VAULT_MARGIN } from '../sim/vault.js';
@@ -202,6 +203,17 @@ const MIN_OF = {
 // traversals cross them, not how deep it goes.
 const LAST = 9;
 
+// THE STRETCH THE ROW IS TALKING ABOUT. A sentence under a dial describes
+// the segment that dial belongs to, so its far end is the floor before the
+// next anchor — not floor 10 — and its step count is how many floors that
+// is, not nine. Every line here said "no andar 10" and counted nine steps,
+// which was true while there was only ever one anchor.
+function span(values) {
+  const from = values.curve ? values.curve.editFloor : 1;
+  const to = values.curve ? values.curve.until : LAST + 1;
+  return { from, to, steps: Math.max(0, to - from) };
+}
+
 // Which creature sits at a 0..1 position up the bestiary. What "strength
 // 0.26" means is unreadable; "o teto do andar 1 é o boar" is not.
 function creatureAt(share) {
@@ -211,40 +223,51 @@ function creatureAt(share) {
 
 const pct = (n) => `${Math.round(n * 100)}%`;
 
+// EVERY FLOOR NAMED HERE IS THE ONE ON SCREEN, not floor 1. These sentences
+// were written when a dial was a statement about the top of the dungeon;
+// under an anchor at floor 5 the same words described the wrong floor, which
+// is worse than saying nothing.
 function countSays(values) {
   const m = values.model;
-  const deep = monstersAt(m.monstersBase, m.monsterGrowth, LAST);
-  return `${m.monstersBase} criaturas no andar 1, ${deep} no andar 10`;
+  const { from, to, steps } = span(values);
+  if (!steps) return `${m.monstersBase} criaturas no andar ${from}`;
+  const deep = monstersAt(m.monstersBase, m.monsterGrowth, steps);
+  return `${m.monstersBase} criaturas no andar ${from}, ${deep} no andar ${to}`;
 }
 
 function spreadSays(values) {
-  const at = floorSpread(LAST, values.model);
+  const { to, steps } = span(values);
+  const at = floorSpread(steps, values.model);
   return at > 0
-    ? `no andar 10 a lotação varia ±${pct(at)} — cheio ou vazio`
+    ? `no andar ${to} a lotação varia ±${pct(at)} — cheio ou vazio`
     : 'todo andar tem exatamente a lotação da conta';
 }
 
 function ceilingSays(values) {
   const m = values.model;
-  return `o teto do andar 1 é o ${creatureAt(floorStrength(0, m))}, `
-    + `o do 10 é o ${creatureAt(floorStrength(LAST, m))}`;
+  const { from, to, steps } = span(values);
+  if (!steps) return `o teto do andar ${from} é o ${creatureAt(floorStrength(0, m))}`;
+  return `o teto do andar ${from} é o ${creatureAt(floorStrength(0, m))}, `
+    + `o do ${to} é o ${creatureAt(floorStrength(steps, m))}`;
 }
 
 function tierFloorSays(values) {
   const m = values.model;
-  const share = tierFloorShare(LAST, m);
-  const bottom = floorStrength(LAST, m) * share;
+  const { to, steps } = span(values);
+  const share = tierFloorShare(steps, m);
+  const bottom = floorStrength(steps, m) * share;
   return share > 0
-    ? `no andar 10 nada abaixo do ${creatureAt(bottom)} aparece`
-    : 'rato pode aparecer no andar 10';
+    ? `no andar ${to} nada abaixo do ${creatureAt(bottom)} aparece`
+    : `rato pode aparecer no andar ${to}`;
 }
 
 function earlyCutSays(values) {
   const m = values.model;
   const rows = m.earlyTierCut;
-  if (!rows) return 'o andar 1 não ganha desconto nenhum';
+  const from = values.curve.editFloor;
+  if (!rows) return `o andar ${from} não ganha desconto nenhum`;
   const full = creatureAt(floorStrength(0, m));
-  return `sem o corte o teto do andar 1 seria o ${full} — desce ${rows} linha`
+  return `sem o corte o teto do andar ${from} seria o ${full} — desce ${rows} linha`
     + `${rows > 1 ? 's' : ''}`;
 }
 
@@ -326,16 +349,20 @@ function mapNote(values) {
 // it starts biting on — or says it never does. Every dial named "…máxima"
 // in this file is that shape, and a cap the slope cannot reach in ten
 // floors is inert, however alarming its number looks.
-function capNote(perLevelKey, capKey, levels = 10) {
+function capNote(perLevelKey, capKey, startKey) {
   return (values) => {
     const perLevel = values.model[perLevelKey];
     const cap = values.model[capKey];
-    if (!(perLevel > 0)) return 'inativo — a inclinação é 0';
-    const reach = perLevel * (levels - 1);
-    if (reach < cap) {
-      return `inativo — a inclinação só chega a ${reach.toFixed(2)} no andar ${levels}`;
+    const start = values.model[startKey] ?? 0;
+    const { from, to, steps } = span(values);
+    if (!(perLevel > 0)) {
+      return start >= cap ? `já no teto desde o andar ${from}` : 'inativo — a inclinação é 0';
     }
-    return `ativo do andar ${Math.ceil(cap / perLevel) + 1} em diante`;
+    const reach = start + perLevel * steps;
+    if (reach < cap) {
+      return `inativo — a inclinação só chega a ${reach.toFixed(2)} no andar ${to}`;
+    }
+    return `ativo do andar ${from + Math.ceil((cap - start) / perLevel)} em diante`;
   };
 }
 
@@ -430,11 +457,45 @@ export const SECTIONS = [
   // change the floor's shape met the monster table first and had to scroll
   // past all of it. The four names below are the four questions the panel
   // actually answers.
+  // THE CURVE'S ANCHORS, at the top of the dials they govern rather than
+  // inside one of them. They steer which floor every model row below is
+  // describing — Criaturas, Loot AND Andar, which is why they sit above all
+  // three instead of in the map's panel where the idea started.
+  //
+  // `kind: 'curve'` marks them as panel state: read() skips them, the save
+  // button skips them, and nothing downstream ever sees them.
+  ['A curva', [
+    ['', [
+      {
+        kind: 'curve', key: 'editFloor', label: 'andar que os dials abaixo descrevem',
+        title: 'Andar', step: 1, range: [1, 10],
+        says: (v) => (v.curve.isAnchor
+          ? `os dials abaixo descrevem o andar ${v.curve.editFloor} e você pode movê-los`
+          : `os dials abaixo mostram o que a curva produz no andar `
+            + `${v.curve.editFloor} — cinza, porque quem manda aqui é uma âncora acima`),
+      },
+      {
+        kind: 'curve', key: 'isAnchor', label: 'começar uma curva nova neste andar',
+        title: 'Âncora aqui', type: 'switch',
+        says: (v) => {
+          const { editFloor, isAnchor, until } = v.curve;
+          if (!isAnchor) return 'este andar segue a curva de uma âncora acima';
+          const reach = editFloor === until
+            ? `só o andar ${editFloor}`
+            : `os andares ${editFloor} a ${until}`;
+          const above = editFloor > 1 ? `; 1 a ${editFloor - 1} não mudam` : '';
+          return `${reach} seguem estes dials${above}`;
+        },
+      },
+    ]],
+  ]],
   ['Criaturas', [
     ['quantas criaturas', [
       {
-        kind: 'model', key: 'monstersBase', label: 'criaturas no andar 1',
-        title: 'Quantidade: criaturas no andar 1', step: 1, range: [1, 20],
+        kind: 'model', key: 'monstersBase',
+        label: (v) => `criaturas no andar ${v.curve.editFloor}`,
+        title: (v) => `Quantidade: criaturas no andar ${v.curve.editFloor}`,
+        step: 1, range: [1, 20],
         says: countSays,
       },
       {
@@ -459,13 +520,15 @@ export const SECTIONS = [
         kind: 'model', key: 'spreadCap', label: 'sorteio do andar: teto',
         title: 'Quantidade: variação máxima', step: 0.05, range: [0, 1],
         says: spreadSays,
-        note: capNote('spreadPerLevel', 'spreadCap'),
+        note: capNote('spreadPerLevel', 'spreadCap', 'spreadStart'),
       },
     ]],
     ['quão fortes', [
       {
-        kind: 'model', key: 'strength', label: 'teto da tabela no andar 1 (0..1)',
-        title: 'Força: teto no andar 1', step: 0.01, range: [0, 1],
+        kind: 'model', key: 'strength',
+        label: (v) => `teto da tabela no andar ${v.curve.editFloor} (0..1)`,
+        title: (v) => `Força: teto no andar ${v.curve.editFloor}`,
+        step: 0.01, range: [0, 1],
         says: ceilingSays,
       },
       {
@@ -476,12 +539,17 @@ export const SECTIONS = [
         // the ramp hits the table's top row, every deeper floor has the SAME
         // ceiling and only the creature count still grows.
         note: (values) => {
-          // Ten FLOORS, always — the return switch changes how many
-          // traversals cross them, not how deep the dungeon goes.
-          const at = saturatedAt(values.model, 10);
-          return at
-            ? `satura no andar ${at} — do ${at} ao 10 o teto é sempre t-rex`
-            : 'não satura: o teto ainda sobe no andar 10';
+          // `saturatedAt` counts STEPS from the model's own base, so what it
+          // returns is an offset into this segment, not a floor of the
+          // dungeon. It was read as a floor while there was only one anchor
+          // and the two were the same number.
+          const { from, to, steps } = span(values);
+          const at = saturatedAt(values.model, steps + 1);
+          if (!at) return `não satura: o teto ainda sobe no andar ${to}`;
+          const floor = from + at - 1;
+          return floor >= to
+            ? `satura no andar ${floor}, o último deste trecho`
+            : `satura no andar ${floor} — do ${floor} ao ${to} o teto é sempre t-rex`;
         },
       },
     ]],
@@ -495,7 +563,7 @@ export const SECTIONS = [
         kind: 'model', key: 'tierFloorCap', label: 'piso do tier: teto (share)',
         title: 'Força: piso máximo', step: 0.05, range: [0, 1],
         says: tierFloorSays,
-        note: capNote('tierFloorPerLevel', 'tierFloorCap'),
+        note: capNote('tierFloorPerLevel', 'tierFloorCap', 'tierFloorStart'),
       },
       {
         kind: 'model', key: 'tierSlackPerLevel', label: 'folga acima do teto: por andar',
@@ -504,38 +572,42 @@ export const SECTIONS = [
         // under 0.5 at floor 10 rounds to zero rows and the dial does
         // nothing at all. That was true of the shipped value for a while.
         note: (values) => {
-          const rows = Math.floor(Math.min(
-            values.model.tierSlackCap, values.model.tierSlackPerLevel * 9,
-          ) * 2);
+          const { to, steps } = span(values);
+          const rows = Math.floor(Math.min(values.model.tierSlackCap,
+            (values.model.tierSlackStart ?? 0)
+            + values.model.tierSlackPerLevel * steps) * 2);
           return rows > 0
-            ? `chega a +${rows} linha${rows > 1 ? 's' : ''} no andar 10`
-            : 'inativo — não chega a +1 linha inteira em 10 andares';
+            ? `chega a +${rows} linha${rows > 1 ? 's' : ''} no andar ${to}`
+            : `inativo — não chega a +1 linha inteira até o andar ${to}`;
         },
       },
       {
         kind: 'model', key: 'tierSlackCap', label: 'folga acima do teto: máx (share)',
         title: 'Força: folga máxima', step: 0.05, range: [0, 1],
-        note: capNote('tierSlackPerLevel', 'tierSlackCap'),
+        note: capNote('tierSlackPerLevel', 'tierSlackCap', 'tierSlackStart'),
       },
       {
-        kind: 'model', key: 'earlyTierCut', label: 'corte do andar 1 (linhas da tabela)',
-        title: 'Força: desconto só do andar 1', step: 1, range: [0, 3],
+        kind: 'model', key: 'earlyTierCut',
+        label: (v) => `corte do andar ${v.curve.editFloor} (linhas da tabela)`,
+        title: (v) => `Força: desconto só do andar ${v.curve.editFloor}`,
+        step: 1, range: [0, 3],
         says: earlyCutSays,
       },
       {
         kind: 'model', key: 'outOfDepthChancePerLevel', label: 'cauda rara: chance por andar',
         title: 'Raro: chance por andar', step: 0.005, range: [0, 0.05],
         note: (values) => {
-          const at10 = Math.min(
-            values.model.outOfDepthChanceCap, values.model.outOfDepthChancePerLevel * 9,
-          );
-          return `${(at10 * 100).toFixed(1)}% no andar 10 — repinta 1 monstro, não adiciona`;
+          const { to, steps } = span(values);
+          const deep = Math.min(values.model.outOfDepthChanceCap,
+            (values.model.outOfDepthChanceStart ?? 0)
+            + values.model.outOfDepthChancePerLevel * steps);
+          return `${(deep * 100).toFixed(1)}% no andar ${to} — repinta 1 monstro, não adiciona`;
         },
       },
       {
         kind: 'model', key: 'outOfDepthChanceCap', label: 'cauda rara: teto',
         title: 'Raro: chance máxima', step: 0.01, range: [0, 0.3],
-        note: capNote('outOfDepthChancePerLevel', 'outOfDepthChanceCap'),
+        note: capNote('outOfDepthChancePerLevel', 'outOfDepthChanceCap', 'outOfDepthChanceStart'),
       },
     ]],
     ['quão agrupadas', [
@@ -585,12 +657,11 @@ export const SECTIONS = [
       },
     ]],
   ]],
-  ['Andar', [
-    // FIRST, because it is the one control here you use while looking at
-    // the others: every dial below describes a floor, and this is what puts
-    // the floor you care about on screen without sitting through the ones
-    // above it.
-    ['testar um andar', [
+  // NOT a dial of the dungeon — a dial of the WATCHING. Everything in Andar
+  // below describes what a floor is; this decides which one you are shown.
+  // They were in one section and the two questions read as one.
+  ['Simulação', [
+    ['', [
       {
         kind: 'run', key: 'startFloor', label: 'começar a descida neste andar',
         title: 'Começar no andar', step: 1, range: [1, 10],
@@ -600,6 +671,8 @@ export const SECTIONS = [
             + 'de mãos vazias, então isso mostra a FORMA do andar, não o custo'),
       },
     ]],
+  ]],
+  ['Andar', [
     // The map's own SHAPE — how much dungeon there is and how far the exit
     // sits. Everything in the group below decides what gets PLACED on that
     // shape; nothing there changes the rooms themselves.
@@ -776,6 +849,7 @@ export const SECTIONS = [
 const BOT_DEFAULTS = {
   persistence: DANGER_PERSISTENCE, crowdPenalty: CROWD_PENALTY, stickiness: GOAL_STICKINESS,
 };
+const CURVE_DEFAULTS = { editFloor: 1, isAnchor: true };
 const RUN_DEFAULTS = {
   turnBudget: TURN_BUDGET, theReturn: RETURN_ENABLED, who: '', startFloor: 1,
 };
@@ -786,6 +860,7 @@ const RUN_DEFAULTS = {
 // so "shipped" always means what a fresh visitor actually gets today, not
 // what the source code says in isolation.
 function defaultOf(kind, key, overrides = {}) {
+  if (kind === 'curve') return CURVE_DEFAULTS[key];
   const shipped = kind === 'model' ? DEFAULT_MODEL[key]
     : kind === 'hero' ? DEFAULT_HERO[key]
     : kind === 'bot' ? BOT_DEFAULTS[key]
@@ -809,6 +884,8 @@ export function resolvedDefaults(overrides = {}) {
   for (const [, groups] of SECTIONS) {
     for (const [, list] of groups) {
       for (const { kind, key } of list) {
+        // Panel state, not a value the run has any use for.
+        if (kind === 'curve') continue;
         out[kind][key] = defaultOf(kind, key, overrides);
       }
     }
@@ -835,7 +912,7 @@ function precisionOf(step) {
 // dial-overrides.json download; see that button's own handler for why a
 // download is the honest stopping point on a static site.
 export function buildDialPanel(container, {
-  onRestart, overrides = {}, dev = false, mounts = null,
+  onRestart, overrides = {}, dev = false, mounts = null, buttonsMount = null,
 } = {}) {
   container.innerHTML = '';
   const inputs = [];
@@ -947,7 +1024,14 @@ export function buildDialPanel(container, {
         }
         const caption = document.createElement('label');
         caption.className = 'dial-title';
-        caption.textContent = title || label;
+        // A TITLE CAN MOVE. Three of them name a floor — "criaturas no andar
+        // 1" — and once the curve came in pieces that was a lie on every
+        // anchor but the first: the row was describing floor 5 under a
+        // heading that said 1. `titleOf` gets the whole form, same as
+        // `says`, and is repainted with it.
+        caption.textContent = typeof title === 'function' ? title({
+          curve: { editFloor: 1, isAnchor: true, until: LEVELS },
+        }) : (title || label);
         // The long wording and the dial's real name both moved to the
         // tooltip. A row is three lines now — name, slider, what it is doing
         // — and a fourth line of prose above the control was the panel
@@ -1080,18 +1164,161 @@ export function buildDialPanel(container, {
         sectionEl.append(row);
         inputs.push({
           kind, key, input, def, min, valueOut, step, isSwitch, onOff, bands,
+          titleEl: (typeof title === 'function' || typeof label === 'function')
+            ? caption : null,
+          titleOf: typeof title === 'function' ? title : null,
+          labelOf: typeof label === 'function' ? label : null,
+          key2: key,
         });
       }
     }
   }
 
+  // ***** the curve's anchors *****
+  //
+  // A model dial no longer holds one number for the whole descent — it holds
+  // one per ANCHOR, and the panel shows one anchor at a time. Floor 1 is
+  // always an anchor and cannot stop being one: a curve has to start
+  // somewhere.
+  //
+  // A floor that is NOT an anchor still shows every dial, greyed, holding
+  // what the active curve produces there. That is the answer to "what is
+  // floor 5 actually like", which this panel could not give before — the
+  // numbers were all statements about floor 1.
+  // FIELDS THAT BELONG TO THE RUN, not to an anchor — difficulty.js's own
+  // list, kept in step by name. `anchorAt` strips them from a segment, so a
+  // row for one of them painted from the segment showed UNDEFINED: the
+  // Butcher's switch read "off" on every floor but the first, while the run
+  // it described had him. They always read and write the first anchor, and
+  // never grey out — a run-wide answer does not change with the floor you
+  // happen to be looking at.
+  const RUN_WIDE_KEYS = new Set(['levels', 'vaultLevel', 'vaultChestItems', 'vaultBoss']);
+  const modelRows = inputs.filter((i) => i.kind === 'model' && !RUN_WIDE_KEYS.has(i.key));
+  const runWideRows = inputs.filter((i) => i.kind === 'model' && RUN_WIDE_KEYS.has(i.key));
+  const floorRow = inputs.find((i) => i.kind === 'curve' && i.key === 'editFloor');
+  const anchorRow = inputs.find((i) => i.kind === 'curve' && i.key === 'isAnchor');
+
+  // What a row is currently worth, in the shape the model wants. Same three
+  // cases read() has, kept beside it rather than shared because read() walks
+  // every kind and this one is asked about a single row.
+  const valueOfRow = (row) => {
+    if (row.isSwitch) return row.input.checked ? row.onOff.on : row.onOff.off;
+    if (row.bands) {
+      return row.bands[Math.max(0, Math.min(row.bands.length - 1, Number(row.input.value)))];
+    }
+    const n = Number(row.input.value);
+    return Number.isFinite(n) ? Math.max(row.min, n) : row.def;
+  };
+
+  const anchors = new Map();
+  const curveModel = () => {
+    const floors = [...anchors.keys()].sort((a, b) => a - b)
+      .map((from) => ({ from, ...anchors.get(from) }));
+    // The first anchor is ALSO the model's root, because that is what a
+    // model without `floors` has always meant and what every
+    // dial-overrides.json written before this carried.
+    return { ...anchors.get(1), floors };
+  };
+
+  if (floorRow && anchorRow) {
+    // Seeded from what ships. `floors` in dial-overrides.json is honoured if
+    // it is there; a file without one is a single anchor at floor 1, which
+    // is every file that exists today.
+    const shipped = resolvedDefaults(overrides).model;
+    const shippedFloors = (overrides.model && overrides.model.floors) || [];
+    anchors.set(1, { ...shipped });
+    for (const seg of shippedFloors) {
+      const from = Math.max(1, Math.round(seg.from ?? 1));
+      anchors.set(from, { ...(from === 1 ? shipped : anchorAt({ ...shipped, floors: shippedFloors }, from)), ...seg });
+      delete anchors.get(from).from;
+    }
+
+    const paintRow = (row, value, editable) => {
+      if (row.isSwitch) row.input.checked = value === row.onOff.on;
+      else if (row.bands) row.input.value = String(bandIndexOf(row.bands, Number(value)));
+      else row.input.value = String(value);
+      row.input.disabled = !editable;
+      if (row.valueOut) {
+        row.valueOut.textContent = row.isSwitch
+          ? (row.input.checked ? 'ligado' : 'desligado')
+          : Number(row.input.value).toFixed(precisionOf(row.step));
+      }
+      // Greyed the same way disabled inputs are, so a whole column of
+      // read-only numbers reads as "this is what it IS" rather than as a
+      // form that stopped responding.
+      row.input.closest('.dial').classList.toggle('readonly', !editable);
+    };
+
+    const applyFloor = (floor) => {
+      const isAnchor = anchors.has(floor);
+      const values = isAnchor ? anchors.get(floor) : anchorAt(curveModel(), floor);
+      for (const row of modelRows) paintRow(row, values[row.key], isAnchor);
+      // Always the run's answer, always editable.
+      const root = anchors.get(1) || {};
+      for (const row of runWideRows) paintRow(row, root[row.key], true);
+      anchorRow.input.checked = isAnchor;
+      // Floor 1 anchors by definition, so its switch is on and unusable.
+      anchorRow.input.disabled = floor <= 1;
+      anchorRow.input.closest('.dial').classList.toggle('readonly', floor <= 1);
+    };
+
+    floorRow.input.addEventListener('input', () => {
+      applyFloor(Number(floorRow.input.value));
+      refreshLive();
+    });
+
+    anchorRow.input.addEventListener('input', () => {
+      const floor = Number(floorRow.input.value);
+      if (floor <= 1) { anchorRow.input.checked = true; return; }
+      // Ticking SEEDS the anchor with what the curve already produces here,
+      // so the act of anchoring changes as little as it can — every number
+      // that moves after this is one you moved.
+      if (anchorRow.input.checked) anchors.set(floor, anchorAt(curveModel(), floor));
+      else anchors.delete(floor);
+      applyFloor(floor);
+      refreshLive();
+    });
+
+    // A model dial writes into the anchor on screen. Registered AFTER the
+    // row's own listener, which is why it repaints: that one already ran
+    // refreshLive() against the anchor as it was a moment ago.
+    for (const row of modelRows) {
+      row.input.addEventListener('input', () => {
+        const floor = Number(floorRow.input.value);
+        if (!anchors.has(floor)) return;
+        anchors.get(floor)[row.key] = valueOfRow(row);
+        refreshLive();
+      });
+    }
+    // A run-wide row writes to the FIRST anchor whatever floor is on screen,
+    // because that is the one makeFloorPlan reads it off.
+    for (const row of runWideRows) {
+      row.input.addEventListener('input', () => {
+        anchors.get(1)[row.key] = valueOfRow(row);
+        refreshLive();
+      });
+    }
+
+    applyFloor(1);
+  } else {
+    // No curve controls drawn — outside dev mode the map section does not
+    // exist. One anchor, straight off what ships.
+    anchors.set(1, { ...resolvedDefaults(overrides).model });
+  }
+
+  // OUTSIDE the drawer when the page offers somewhere. `.dials` scrolls at
+  // 70vh, so buttons appended into it sat below thirty rows of sliders and
+  // you had to scroll the whole form to reach "reiniciar" — the one control
+  // you press after every edit.
+  const buttonBar = buttonsMount || container;
+  if (buttonsMount) buttonsMount.innerHTML = '';
   const buttons = document.createElement('div');
   buttons.className = 'dial-buttons';
   const restart = document.createElement('button');
   restart.type = 'button';
   restart.textContent = '↻ reiniciar com estes valores';
   buttons.append(restart);
-  container.append(buttons);
+  buttonBar.append(buttons);
 
   // NO "padrões" BUTTON. It restored the calibrated centre, and there is no
   // centre to go back to any more — every dial opens on this visitor's own
@@ -1119,6 +1346,12 @@ export function buildDialPanel(container, {
     for (const {
       kind, key, input, def, min, isSwitch, onOff, bands,
     } of inputs) {
+      // Panel state — which floor is on screen, and whether it anchors.
+      // Never a value the run receives.
+      if (kind === 'curve') continue;
+      // A model dial belongs to the ANCHOR being edited, not to one flat
+      // model. `anchors` below owns them; this loop only reads the rest.
+      if (kind === 'model') continue;
       if (isSwitch) {
         out[kind][key] = input.checked ? onOff.on : onOff.off;
         continue;
@@ -1133,6 +1366,11 @@ export function buildDialPanel(container, {
       const value = Number(input.value);
       out[kind][key] = Number.isFinite(value) ? Math.max(min, value) : def;
     }
+    // The model, in pieces. The first anchor is the model's root — that is
+    // what makeFloorPlan treats as "the segment from floor 1" and what a
+    // dial-overrides.json without `floors` has always been — and every
+    // anchor, including that one, is repeated in the list.
+    out.model = curveModel();
     return out;
   };
 
@@ -1142,9 +1380,38 @@ export function buildDialPanel(container, {
   //
   // A line that throws must not take the panel down with it: it is
   // commentary, not the value.
+  // What the live lines are told. Deliberately NOT what read() gives the
+  // run: on a floor that is not an anchor the dials show the curve's output
+  // there, and a sentence under them has to describe that, not floor 1.
+  const formValues = () => {
+    const out = read();
+    const floor = floorRow ? Number(floorRow.input.value) : 1;
+    // Where this anchor's reach ENDS: the floor before the next anchor, or
+    // the bottom. Printed so "nothing I do here touches the floors above"
+    // is on screen rather than something to be trusted.
+    const next = [...anchors.keys()].sort((a, b) => a - b).find((f) => f > floor);
+    out.curve = {
+      editFloor: floor,
+      isAnchor: anchors.has(floor),
+      until: next ? next - 1 : LEVELS,
+    };
+    out.model = anchors.has(floor)
+      ? { ...anchors.get(floor) }
+      : anchorAt(curveModel(), floor);
+    return out;
+  };
+
   const refreshLive = () => {
+    const values = formValues();
+    for (const row of inputs) {
+      if (!row.titleEl) continue;
+      try {
+        if (row.titleOf) row.titleEl.textContent = row.titleOf(values);
+        if (row.labelOf) row.titleEl.title = `${row.labelOf(values)}
+${row.key2}`;
+      } catch { /* commentary, not the value */ }
+    }
     if (!notes.length && !effects.length) return;
-    const values = read();
     for (const paint of effects) {
       try {
         paint(values);
@@ -1179,7 +1446,7 @@ export function buildDialPanel(container, {
 
     const note = document.createElement('div');
     note.className = 'dial-savenote';
-    container.append(note);
+    buttonBar.append(note);
 
     save.addEventListener('click', () => {
       // Starts from what was already shipped (`overrides`), not from an
@@ -1190,6 +1457,13 @@ export function buildDialPanel(container, {
       for (const {
         kind, key, input, min, isSwitch, onOff, bands,
       } of inputs) {
+        // Panel state, never a shipped value.
+        if (kind === 'curve') continue;
+        // A model dial belongs to an ANCHOR, and only one anchor is on
+        // screen — writing the visible row into a flat `model` would ship
+        // whichever floor happened to be selected as if it were floor 1.
+        // The whole curve goes below instead.
+        if (kind === 'model') continue;
         if (!input.classList.contains('changed')) continue;
         if (isSwitch) {
           merged[kind] = merged[kind] || {};
@@ -1209,6 +1483,16 @@ export function buildDialPanel(container, {
         merged[kind] = merged[kind] || {};
         merged[kind][key] = Math.max(min, value);
       }
+
+      // THE CURVE, whole. Every anchor's full set of values rather than a
+      // diff: an anchor is only meaningful complete, and a file that carried
+      // half of one would inherit the rest from code defaults that may have
+      // moved since. The first anchor doubles as the model's root, which is
+      // what a file without `floors` has always been.
+      const floors = curveModel().floors;
+      merged.model = { ...(anchors.get(1) || {}) };
+      if (floors.length > 1) merged.model.floors = floors;
+      else delete merged.model.floors;
 
       const blob = new Blob([JSON.stringify(merged, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);

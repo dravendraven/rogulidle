@@ -17,6 +17,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | | `STRENGTH_GROWTH` | 1.1452 | that ceiling multiplies by this per floor |
 | how much that threat varies | `TIER_FLOOR_PER_LEVEL` / `_CAP` | 0.08 / 0.5 | the band's minimum tier rises with depth, as a share of the floor's own ceiling |
 | | `TIER_SLACK_PER_LEVEL` / `_CAP` | 0.08 / 0.5 | whole table rows the drawn slot may sit above the ceiling (0 shallow, 1 from floor 8) |
+| | `tierFloorStart` / `tierSlackStart` / `outOfDepthChanceStart` / `spreadStart` | 0 / 0 / 0 / 0 | where each rate family STARTS, so a curve re-anchored part way down the dungeon continues instead of restarting at zero. 0 is the shipped game — with one anchor there was never anything to continue from. Model fields only, no constant: they exist for `model.floors` (see `map-design.md`) and make all six growth families the same shape, a starting value and a rate |
 | | `EARLY_TIER_CUT` | 1 | whole rows trimmed off floor 1's ceiling, floor 1 only |
 | | `OUT_OF_DEPTH_CHANCE_PER_LEVEL` / `_CAP` | 0.02 / 0.15 | the rare top-of-table reskin; zero on floor 1, capped well under certainty |
 | | `FLOOR_SPREAD_PER_LEVEL` / `_CAP` | 0.09 / 0.9 | one shared roll widening the whole floor's count with depth |
@@ -42,7 +43,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | | `CHEST_GUARD_RADIUS` | 8 | every chest gets a creature within this — loot is not free |
 | the authored room | `VAULT_LEVEL` | 4 | which floor carries the vault, 1-based; 0 turns it off |
 | | `VAULT_SIZE` | 9 | its side in tiles — above any generated room, so the shape says it was placed |
-| | `VAULT_BOSS` | 🐷 hp 12 / xp 5 / activation 10 / **speed 2** | the Butcher; not a `MONSTER_TABLE` row and never drawn. hp sets who ENTERS (it is what `duelCost` reads), xp and speed set who WINS |
+| | `VAULT_BOSS` | 🐷 hp 12 / xp 5 / activation 10 / **speed 2** | the Butcher; not a `MONSTER_TABLE` row and never drawn. **xp** sets who ENTERS — the bot is never told a creature's hp, it guesses one from xp (`assumedHp`, bent by Coragem) — while **hp and speed** set who WINS. So both of those make the fight harder without making the bot warier, which is the room's whole trick |
 | | `VAULT_BOSS_DROP` | `axe` | the only guaranteed drop in the game — and `VAULT_BOSS.revealsDrop` puts it in Belief, so it is the only drop the bot can price before the kill |
 | | `VAULT_CHEST_ITEMS` | 4 × shield, 4 × potion | the vault floor's ONLY chests — it places none of its own; authored rather than rolled |
 
@@ -51,7 +52,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | dial | value | one sentence |
 |---|---|---|
 | `TURN_BUDGET` | 1500 | turns one traversal may spend; running out ends the run — the only brake on the shamble |
-| `COIN_RATE` | 10 | what a completed traversal pays per unit of xp-per-turn; was hardcoded in the page until a hero had to spend coin mid-run |
+| `COIN_RATE` | 20 | what a completed traversal pays per unit of xp-per-turn; the payout is rounded, so this is also its RESOLUTION — at 10 almost every floor paid 1, 2 or 3. Doubled 2026-08-15 together with the shop's prices (shield 2 / dagger 10 / axe 16, `src/ui/shop.js`) and pawa's stairs price (2, `HEROES`), so purchasing power is unchanged and only the step size halved |
 | `startFloor` | 1 | LAB ONLY, and it has no constant — a run option the panel sets, so the floor you want to look at is on screen without watching the ones above it. The hero arrives EMPTY-HANDED, so it shows a floor's shape and lies about its cost: measured, ~39 turns on floor 4 against ~77 on floor 1, and it clears floor 4 7% of the time against 97% on floor 1 |
 | `RETURN_ENABLED` | false | whether the run the pages ask for includes the climb back out; off is a plain ten-traversal descent (rules.md §1) |
 

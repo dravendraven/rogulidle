@@ -169,6 +169,22 @@ export function expectedHpFor(xp) {
   return best ? best[1] : 1;
 }
 
+// The glyph of a creature, by the name the engine writes into `killedBy`
+// (src/sim/combat.js). The vault's occupant is in here as well as the table
+// because it is NOT a `MONSTER_TABLE` row and never drawn — anything that
+// looks a creature up by name has to know about both, and a second copy of
+// that fact is how the Butcher shipped invisible once already.
+//
+// Returns null for an unknown name rather than a placeholder: the caller
+// decides what nothing looks like, and a run that ended without a killer
+// (the turn budget) has no creature to draw.
+export function monsterEmoji(name) {
+  if (!name) return null;
+  if (name === VAULT_BOSS.name) return VAULT_BOSS.emoji;
+  const row = MONSTER_TABLE.find((m) => m.name === name);
+  return row ? row.emoji : null;
+}
+
 export const MONSTER_SKIP_CHANCE = 0.10;       // FAITHFUL engine.cljs:353
 export const MONSTER_DROP_CHANCE = 0.50;       // FAITHFUL generator.cljs:275
 export const MONSTER_DIFFICULTY_SCALE = 0.75;  // FAITHFUL generator.cljs:262
@@ -466,4 +482,11 @@ export const TURN_BUDGET = 1500;
 // It lived hardcoded in `src/ui/spectator.js` until a hero needed to spend
 // coin mid-run and the formula had to exist in one place both could call —
 // the value moved here with it rather than being copied.
-export const COIN_RATE = 10;
+//
+// 10 → 20 (owner, 2026-08-15). The payout is ROUNDED, so the rate is also
+// the resolution: at 10 nearly every floor paid 1, 2 or 3 and a thin floor
+// (0.04 xp/turn) paid nothing at all. Doubling it does not make the hero
+// richer — the shop's prices double in the same commit (src/ui/shop.js) and
+// so does the one hero who spends mid-run (src/sim/heroes.js's pawa) — it
+// buys HALF-COIN STEPS, so floors that used to price the same now differ.
+export const COIN_RATE = 20;

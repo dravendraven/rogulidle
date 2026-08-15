@@ -133,7 +133,78 @@ Um andar, quatro texturas. É catálogo aplicado dentro de um mapa só.
 
 ---
 
+## O fundo não é o mesmo andar com bichos piores
+
+Lido depois da primeira passada, com a pergunta "o que o DCSS faz nos
+andares difíceis". A resposta é estrutural e não depende de nenhum valor:
+**quanto mais fundo, menos procedural e mais forma reconhecível.**
+
+**A profundidade DESTRAVA formas.** Três layouts declaram `DEPTH: D:9-`, ou
+seja, andar 9 em diante — não existem nos rasos:
+
+| layout | forma | onde aparece |
+|---|---|---|
+| `forbidden_donut` | um anel com buraco no meio | só Depths |
+| `big_octagon` | câmara octogonal com anéis de pilares | `D:9-`, Depths |
+| `cross` | uma cruz gigante atravessando o mapa | `D:9-`, Depths |
+| `roguey` | grade de salas com labirinto entre elas | `D:9-`, Depths |
+
+O leque de formas **abre** conforme se desce, em vez de o mesmo leque ficar
+mais povoado.
+
+**E o ramo final quase não é procedural.** Zot sorteia um layout de
+corredores e o resto são **dez entradas autorais**, cada uma uma forma
+forçada diferente: castelo com câmaras internas, funil duplo, cata-vento
+radial, gancho em S, um corredor estreito com grades de ferro, um salão
+aberto onde o Orbe é visível da porta.
+
+### O que isso quer dizer aqui
+
+**Decisão do dono, tomada ao ler isto:** os andares fundos — 8–10, ou 9–10 —
+ganham gerador próprio ou padrões especiais, em vez de serem os mesmos
+andares com criaturas piores.
+
+Duas peças para isso já existem e não foram construídas pensando nele:
+`HUB_EVERY` escolhe QUAIS andares usam outro gerador, e `model.floors`
+permite que os andares fundos tenham a sua própria curva. O que falta é a
+terceira forma — e a leitura acima diz que ela deve ser **rara e
+reconhecível**, não uma variação da que já existe.
+
+## Fechadura e chave: o DCSS tem, e usa uma vez
+
+**Porta rúnica não é fechadura.** É AVISO: abre normalmente, e a runa
+desenhada quer dizer "isto foi posto aqui de propósito" — você escolhe
+entrar sabendo. Não existe item-chave para porta em lugar nenhum do jogo.
+
+**Mas existe uma coisa exata, usada uma única vez.** O portão de Zot exige
+três runas colhidas nos fins de ramo anteriores — `ASSERT(ZOT_ENTRY_RUNES ==
+3)` em `stairs.cc` — e a ficção é literalmente uma chave numa fechadura:
+
+> "You insert the %s rune into the lock."
+> "The lock glows eerily!"
+> "With a soft hiss the gate opens wide!"
+
+Colhida antes, gasta depois, na porta mais importante do jogo.
+
+**A diferença que importa, e é de desenho, não de implementação.** O DCSS
+gasta esse mecanismo UMA vez. A raridade é parte do que o faz significar
+alguma coisa: um portão que se abre uma vez por partida é um evento, e uma
+porta trancada por andar é mobília. Se a versão daqui for por andar, isso é
+uma escolha a fazer de olhos abertos, não um detalhe.
+
+**A versão desenhada aqui** (dono, mesma conversa): a chave sai de um baú
+VAZIO — hoje metade dos baús não paga nada — sorteada em algum andar antes
+do andar da porta. E o dono decidiu que **poder passar reto pela chave é o
+desenho, não o defeito**: Ganância alta favorece pegá-la e pode matar,
+Ganância baixa arrisca perder a porta ao evitar uma luta. O mecanismo pendura
+numa decisão que o bot já toma, em vez de inventar uma nova.
+
 ## O que roubar, em ordem
+
+**A ordem mudou depois da leitura dos andares fundos.** O catálogo continua
+sendo a ideia certa, mas o terceiro layout agora tem um destino: ser a forma
+que só aparece no fundo. Escolher qual portar é uma pergunta sobre o que os
+andares 8–10 devem ser, não sobre qual algoritmo é mais bonito.
 
 ### Primeiro: a ideia do catálogo
 

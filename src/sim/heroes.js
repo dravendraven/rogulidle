@@ -68,6 +68,14 @@ export function resolvePersona(persona) {
 // the page reads a name off a dial, and the headless runner takes one as
 // JSON. An unknown name is the shipped hero rather than a crash — a dial
 // override or a typed argument is not worth a blank screen over.
+// How a hero is written on screen, everywhere. Two call sites print it (the
+// roster card and the highscore tabs) and a third prints it into a tooltip;
+// a label assembled by hand in each would drift the first time one of them
+// changed.
+export function heroLabel(hero) {
+  return `${hero.display || hero.name}, ${hero.title}`;
+}
+
 export function heroByName(name) {
   return (name && HEROES[name]) || HEROES.base;
 }
@@ -101,9 +109,21 @@ export function heroItem(item, persona) {
 export const HEROES = {
   base: {
     name: 'base',
-    title: 'o de sempre',
+    // WHAT THE PLAYER READS, when that is not the same as who this is.
+    //
+    // `name` is the IDENTITY and it stays `base`: it is the map key, the
+    // value a pick is stored under (src/ui/roster.js), and the label every
+    // measurement carries (src/analysis/check.js, test/baseline.md). The
+    // ordinary hero got a name on screen without any of that moving.
+    //
+    // One field could not do both jobs, which is the whole reason this one
+    // exists — and `title` could not carry it either, being already the
+    // other half of the same label. Absent means the two are the same,
+    // which is true of everybody else in the cast.
+    display: 'Aurélio',
+    title: 'o duende',
     emoji: '🧝',
-    blurb: 'Sem truque nenhum. Só a névoa, a sorte e o que der para carregar.',
+    blurb: 'Não aceita ajuda, dica nem atalho. Prefere morrer limpo a vencer devendo.',
     persona: {},
     bot: {},
   },
@@ -153,6 +173,11 @@ export const HEROES = {
   // third of floors and a cap of 2 is reached on roughly one floor in two
   // hundred, i.e. it stops doing anything at all. Recorded because a change
   // to either number can silently retire the other.
+  //
+  // Those two paragraphs are in OLD coin units. `COIN_RATE` doubled (10 → 20,
+  // 2026-08-15), so the price doubled with it to leave him where he was: 2
+  // here now means what 1 meant then. Read the numbers above as halves of
+  // this scale — "raise the price to 2" is "raise it to 4" today.
   pawa: {
     name: 'pawa',
     title: 'o engenheiro',
@@ -160,7 +185,7 @@ export const HEROES = {
     blurb: 'Todo andar que ele fecha, o troco já virou chapa de metal.',
     persona: {},
     bot: {},
-    stairs: { buy: 'shield', price: 1, maxPerFloor: 1 },
+    stairs: { buy: 'shield', price: 2, maxPerFloor: 1 },
   },
   // The only hero who is strong EARLY. The run starts empty-handed on purpose
   // and the opening is the hardest part of it (rules.md §5), so a dagger from

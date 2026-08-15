@@ -5,7 +5,7 @@
 // what the bot REMEMBERS but cannot currently see, which is the whole point
 // of the fog decision being real — you can watch the map fill in.
 
-import { CLEAR_DIST, VISIBLE_DIST } from '../sim/balance.js';
+import { CLEAR_DIST, monsterEmoji, VISIBLE_DIST } from '../sim/balance.js';
 import { weaponDamage, weaponMinDamage } from '../sim/combat.js';
 import { distSq, posKey } from '../sim/mapgen.js';
 import { tileSvg } from './tiles.js';
@@ -336,8 +336,23 @@ export function renderHistory(element, history) {
     const chip = document.createElement('span');
     chip.className = 'history-chip' + (entry.cleared ? ' cleared' : '');
     const icon = entry.cleared ? '🟩' : entry.cause === 'timeout' ? '🕳️' : '💀';
-    chip.innerHTML = `<span class="depth">${entry.depth}</span>${tileSvg(icon)}`;
-    chip.title = `run ${entry.run}`;
+
+    // WHAT KILLED IT, beside the skull. A row of identical skulls says only
+    // "it died", which the depth number already said; the creature is the
+    // part a viewer can learn from — five wolves in a row is a difficulty
+    // reading, and the pig showing up at all means the vault was entered.
+    //
+    // Only on a death: a clear has no killer and a run out of turns was not
+    // killed by anything. `monsterEmoji` returns null for both, and for any
+    // name whose glyph is missing, so the chip falls back to the skull alone
+    // rather than to an empty box (src/ui/tiles.js draws nothing it does not
+    // know).
+    const killer = entry.cleared ? null : monsterEmoji(entry.killedBy);
+    const killerSvg = killer ? tileSvg(killer) : null;
+
+    chip.innerHTML = `<span class="depth">${entry.depth}</span>${tileSvg(icon)}`
+      + (killerSvg || '');
+    chip.title = entry.killedBy ? `run ${entry.run} — ${entry.killedBy}` : `run ${entry.run}`;
     element.append(chip);
   }
 }

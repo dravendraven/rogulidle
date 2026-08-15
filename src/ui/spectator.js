@@ -121,7 +121,7 @@ function grab() {
     'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
     'coins', 'coinPopup', 'damage', 'debugInfo', 'app', 'lab', 'dials',
     'shop', 'shopBalance', 'shopItems', 'shopSkip', 'shopTimerBar',
-    'achievements', 'roster', 'highscores', 'mapDials', 'bossBar',
+    'achievements', 'roster', 'highscores', 'mapDials', 'simDials', 'dialButtons', 'bossBar',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -191,6 +191,19 @@ async function playFrames(frames, trace, tallyText) {
 
     await sleep(turnMs() * (fought(frame, frames[i - 1]) ? COMBAT_STRETCH : 1));
   }
+
+  // M50 — and the bar goes when the floor's playback does.
+  //
+  // It was drawn from the frame on screen, so the LAST frame of a floor the
+  // hero lost is one where the Butcher is alive and awake — the bar's own
+  // condition — and nothing draws another frame afterwards. It sat over the
+  // summary and over the shop, at z-index 3 against their `auto`, looking
+  // exactly like a panel that had frozen.
+  //
+  // Here rather than at the start of the next floor: what is between two
+  // floors is the summary and the shop, and that is precisely where it must
+  // already be gone.
+  if (el.bossBar) el.bossBar.hidden = true;
 }
 
 const legacyTallyText = () =>
@@ -247,7 +260,15 @@ async function showCoinPopup(coins, bought) {
   let waited = 0;
   let flipped = false;
   while (waited < until) {
-    await waitWhilePaused();
+    // Pausing freezes the timer, which is the point — but it must not
+    // freeze the BUTTON. `waitWhilePaused` alone parks the loop inside
+    // itself, so a click set `skipped` and nothing ever read it again: the
+    // shop stayed open with a dead skip and a stalled bar until the player
+    // happened to press play. A pause is a request to stop the clock, not
+    // to stop taking input.
+    while (session.paused && !skipped) await sleep(80);
+    if (skipped) break;
+
     await sleep(80);
     waited += 80;
     if (bought && !flipped && waited >= flipAt) {
@@ -485,6 +506,10 @@ function tallyDescent(run, finalState, heroName, receipt) {
     depth: run.depth,
     cleared: run.cleared,
     cause: run.cleared ? 'cleared' : lastFloor.outcome,
+    // WHO did it, by name, straight off the engine's own record
+    // (src/sim/combat.js writes it). Null on a clear and on a run that ran
+    // out of turns — nothing killed those.
+    killedBy: run.killedBy || null,
   });
   if (session.history.length > HISTORY_LEN) session.history.length = HISTORY_LEN;
   if (el.history) renderHistory(el.history, session.history);
@@ -759,7 +784,8 @@ function wireLab(overrides, devMode) {
         // dungeon every run happens in; sharing one column made the two
         // read as a single long form. Only reachable in dev mode, so
         // outside it this mount stays empty and hidden.
-        mounts: { Andar: el.mapDials },
+        mounts: { Andar: el.mapDials, 'Simulação': el.simDials },
+        buttonsMount: el.dialButtons,
       });
     }
   };
@@ -771,7 +797,9 @@ function wireLab(overrides, devMode) {
   // would read as something that failed to load.
   const show = (on) => {
     el.dials.hidden = !on;
+    el.dialButtons.hidden = !on;
     el.mapDials.hidden = !on || !el.mapDials.children.length;
+    el.simDials.hidden = !on || !el.simDials.children.length;
     el.app.classList.toggle('lab-open', on);
     el.lab.textContent = on ? '🧪 lab on' : '🧪 lab';
   };
