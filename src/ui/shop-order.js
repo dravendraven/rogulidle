@@ -47,7 +47,7 @@ export function buildShopOrder(container, { onChange } = {}) {
   // call, and the same one M48 made about the dials' own captions.
   const caption = document.createElement('div');
   caption.className = 'shop-order-caption';
-  caption.textContent = 'compra sozinha nesta ordem';
+  caption.textContent = 'compra automática nessa ordem';
   section.append(caption);
 
   const list = document.createElement('div');
