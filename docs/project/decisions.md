@@ -1500,3 +1500,59 @@ right one — so the centre sits where the arithmetic puts it and the two
 bands below it are better. Either the expected-value calculation is missing
 a term the hero actually experiences, or walking is under-priced in the same
 comparison. Open, and not to be closed by nudging the constant.
+
+## U13 — the game was not running while you were away, and one line of the loop was why
+
+An idle game that stops when you look away is not idle. It did stop: every
+delay in `src/ui/spectator.js` came from one `sleep()` built on `setTimeout`,
+and a browser clamps `setTimeout` in a hidden tab.
+
+### Measured with both sources in the same page at the same time
+
+`tools/timer-probe.html` runs the same 110ms interval two ways in one page and
+counts only the ticks that land while the tab is hidden:
+
+| source | ticks per second (asked: 9.09) | worst gap |
+|---|---|---|
+| `setTimeout` | 1.11 | 1.0s |
+| `setInterval` inside a Worker | 9.09 | 0.1s |
+
+Chrome's own documented behaviour is worse than what the probe had time to
+see: a page hidden for more than five minutes drops to one timer call per
+**minute**. The probe window was about two minutes, so the 1.11 above is the
+mild tier.
+
+**The clamp is on timers, not on the page.** A worker's `postMessage` is a
+message task, so a worker can keep time and the page merely answers it. That
+is the whole of `src/ui/clock.js`.
+
+### Why the clock, and not the loops
+
+Frames, the shop's thirty seconds, the summary card, the coin popup and the
+pause loop are all paced by that one `sleep()`, and all of them were slowed by
+the same factor — the shop's bar was taking six minutes to cross. Replacing
+the primitive fixed every one of them without touching a single loop, and
+without a new dial anywhere.
+
+### Catch-up was considered and NOT built
+
+A worker does not survive the browser *freezing* the page (Chrome's
+Memory/Energy Saver, a phone backgrounding the browser). The complete answer
+to that is for the game to notice the wall-clock time it lost and fast-forward
+through it, which is what other idle games do.
+
+It was left out because it costs more than it is worth until something shows
+the freeze actually happens here. A run is 258ms of simulation plus 62ms of
+replay and buys about 40 seconds of playback — 0.8% of a core, so running at
+full speed while hidden is nearly free, but *catching up* an hour away means
+about 30 seconds of blocking work the moment you come back, and a cap on that
+is a new parameter existing only to protect another parameter. The probe
+reports a `freeze` event if it ever sees one; if it does, that is when this
+gets built.
+
+### What is not fixed
+
+`run-check.html` still paces itself with its own `setTimeout` (line 85), so
+`CLAUDE.md`'s "keep the tab visible while it runs" is still true for the
+tripwires. Same one-line fix available; not taken here because it would make
+that instruction stale in a doc this change had no other reason to touch.
