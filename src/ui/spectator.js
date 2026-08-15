@@ -261,15 +261,17 @@ async function showCoinPopup(coins, bought) {
   let waited = 0;
   let flipped = false;
   while (waited < until) {
-    // Pausing freezes the timer, which is the point — but it must not
-    // freeze the BUTTON. `waitWhilePaused` alone parks the loop inside
-    // itself, so a click set `skipped` and nothing ever read it again: the
-    // shop stayed open with a dead skip and a stalled bar until the player
-    // happened to press play. A pause is a request to stop the clock, not
-    // to stop taking input.
-    while (session.paused && !skipped) await sleep(80);
-    if (skipped) break;
-
+    // PLAIN `waitWhilePaused`, and it has to stay plain. The shop's loop
+    // does something cleverer — it keeps taking input while paused, because
+    // it has a skip button that must not go dead — and that version was
+    // copied in here, `skipped` and all. This popup has no button: there is
+    // no `skipped` in scope, so the copy threw a ReferenceError on the FIRST
+    // completed traversal of every run, killed the loop that awaited it, and
+    // left the game frozen on "+2 🪙" with no error on screen.
+    //
+    // The freeze it was fixing was real and the fix was right; it was
+    // applied to two functions when only one had the problem.
+    await waitWhilePaused();
     await sleep(80);
     waited += 80;
     if (bought && !flipped && waited >= flipAt) {
