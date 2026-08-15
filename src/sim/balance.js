@@ -169,6 +169,22 @@ export function expectedHpFor(xp) {
   return best ? best[1] : 1;
 }
 
+// The glyph of a creature, by the name the engine writes into `killedBy`
+// (src/sim/combat.js). The vault's occupant is in here as well as the table
+// because it is NOT a `MONSTER_TABLE` row and never drawn — anything that
+// looks a creature up by name has to know about both, and a second copy of
+// that fact is how the Butcher shipped invisible once already.
+//
+// Returns null for an unknown name rather than a placeholder: the caller
+// decides what nothing looks like, and a run that ended without a killer
+// (the turn budget) has no creature to draw.
+export function monsterEmoji(name) {
+  if (!name) return null;
+  if (name === VAULT_BOSS.name) return VAULT_BOSS.emoji;
+  const row = MONSTER_TABLE.find((m) => m.name === name);
+  return row ? row.emoji : null;
+}
+
 export const MONSTER_SKIP_CHANCE = 0.10;       // FAITHFUL engine.cljs:353
 export const MONSTER_DROP_CHANCE = 0.50;       // FAITHFUL generator.cljs:275
 export const MONSTER_DIFFICULTY_SCALE = 0.75;  // FAITHFUL generator.cljs:262

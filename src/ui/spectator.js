@@ -485,6 +485,10 @@ function tallyDescent(run, finalState, heroName, receipt) {
     depth: run.depth,
     cleared: run.cleared,
     cause: run.cleared ? 'cleared' : lastFloor.outcome,
+    // WHO did it, by name, straight off the engine's own record
+    // (src/sim/combat.js writes it). Null on a clear and on a run that ran
+    // out of turns — nothing killed those.
+    killedBy: run.killedBy || null,
   });
   if (session.history.length > HISTORY_LEN) session.history.length = HISTORY_LEN;
   if (el.history) renderHistory(el.history, session.history);
