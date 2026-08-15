@@ -212,10 +212,15 @@ function creatureAt(share) {
 
 const pct = (n) => `${Math.round(n * 100)}%`;
 
+// EVERY FLOOR NAMED HERE IS THE ONE ON SCREEN, not floor 1. These sentences
+// were written when a dial was a statement about the top of the dungeon;
+// under an anchor at floor 5 the same words described the wrong floor, which
+// is worse than saying nothing.
 function countSays(values) {
   const m = values.model;
-  const deep = monstersAt(m.monstersBase, m.monsterGrowth, LAST);
-  return `${m.monstersBase} criaturas no andar 1, ${deep} no andar 10`;
+  const from = values.curve.editFloor;
+  const deep = monstersAt(m.monstersBase, m.monsterGrowth, LAST - (from - 1));
+  return `${m.monstersBase} criaturas no andar ${from}, ${deep} no andar ${LAST + 1}`;
 }
 
 function spreadSays(values) {
@@ -227,8 +232,9 @@ function spreadSays(values) {
 
 function ceilingSays(values) {
   const m = values.model;
-  return `o teto do andar 1 é o ${creatureAt(floorStrength(0, m))}, `
-    + `o do 10 é o ${creatureAt(floorStrength(LAST, m))}`;
+  const from = values.curve.editFloor;
+  return `o teto do andar ${from} é o ${creatureAt(floorStrength(0, m))}, `
+    + `o do ${LAST + 1} é o ${creatureAt(floorStrength(LAST - (from - 1), m))}`;
 }
 
 function tierFloorSays(values) {
@@ -243,9 +249,10 @@ function tierFloorSays(values) {
 function earlyCutSays(values) {
   const m = values.model;
   const rows = m.earlyTierCut;
-  if (!rows) return 'o andar 1 não ganha desconto nenhum';
+  const from = values.curve.editFloor;
+  if (!rows) return `o andar ${from} não ganha desconto nenhum`;
   const full = creatureAt(floorStrength(0, m));
-  return `sem o corte o teto do andar 1 seria o ${full} — desce ${rows} linha`
+  return `sem o corte o teto do andar ${from} seria o ${full} — desce ${rows} linha`
     + `${rows > 1 ? 's' : ''}`;
 }
 
@@ -451,10 +458,15 @@ export const SECTIONS = [
       {
         kind: 'curve', key: 'isAnchor', label: 'começar uma curva nova neste andar',
         title: 'Âncora aqui', type: 'switch',
-        says: [
-          'este andar segue a curva de cima',
-          'daqui para baixo a curva é a que estes dials definem',
-        ],
+        says: (v) => {
+          const { editFloor, isAnchor, until } = v.curve;
+          if (!isAnchor) return 'este andar segue a curva de uma âncora acima';
+          const reach = editFloor === until
+            ? `só o andar ${editFloor}`
+            : `os andares ${editFloor} a ${until}`;
+          const above = editFloor > 1 ? `; 1 a ${editFloor - 1} não mudam` : '';
+          return `${reach} seguem estes dials${above}`;
+        },
       },
     ]],
   ]],
@@ -462,7 +474,8 @@ export const SECTIONS = [
     ['quantas criaturas', [
       {
         kind: 'model', key: 'monstersBase', label: 'criaturas no andar 1',
-        title: 'Quantidade: criaturas no andar 1', step: 1, range: [1, 20],
+        title: (v) => `Quantidade: criaturas no andar ${v.curve.editFloor}`,
+        step: 1, range: [1, 20],
         says: countSays,
       },
       {
@@ -493,7 +506,8 @@ export const SECTIONS = [
     ['quão fortes', [
       {
         kind: 'model', key: 'strength', label: 'teto da tabela no andar 1 (0..1)',
-        title: 'Força: teto no andar 1', step: 0.01, range: [0, 1],
+        title: (v) => `Força: teto no andar ${v.curve.editFloor}`,
+        step: 0.01, range: [0, 1],
         says: ceilingSays,
       },
       {
@@ -547,7 +561,8 @@ export const SECTIONS = [
       },
       {
         kind: 'model', key: 'earlyTierCut', label: 'corte do andar 1 (linhas da tabela)',
-        title: 'Força: desconto só do andar 1', step: 1, range: [0, 3],
+        title: (v) => `Força: desconto só do andar ${v.curve.editFloor}`,
+        step: 1, range: [0, 3],
         says: earlyCutSays,
       },
       {
@@ -980,7 +995,14 @@ export function buildDialPanel(container, {
         }
         const caption = document.createElement('label');
         caption.className = 'dial-title';
-        caption.textContent = title || label;
+        // A TITLE CAN MOVE. Three of them name a floor — "criaturas no andar
+        // 1" — and once the curve came in pieces that was a lie on every
+        // anchor but the first: the row was describing floor 5 under a
+        // heading that said 1. `titleOf` gets the whole form, same as
+        // `says`, and is repainted with it.
+        caption.textContent = typeof title === 'function' ? title({
+          curve: { editFloor: 1, isAnchor: true, until: LEVELS },
+        }) : (title || label);
         // The long wording and the dial's real name both moved to the
         // tooltip. A row is three lines now — name, slider, what it is doing
         // — and a fourth line of prose above the control was the panel
@@ -1113,6 +1135,8 @@ export function buildDialPanel(container, {
         sectionEl.append(row);
         inputs.push({
           kind, key, input, def, min, valueOut, step, isSwitch, onOff, bands,
+          titleEl: typeof title === 'function' ? caption : null,
+          titleOf: typeof title === 'function' ? title : null,
         });
       }
     }
@@ -1310,7 +1334,15 @@ export function buildDialPanel(container, {
   const formValues = () => {
     const out = read();
     const floor = floorRow ? Number(floorRow.input.value) : 1;
-    out.curve = { editFloor: floor, isAnchor: anchors.has(floor) };
+    // Where this anchor's reach ENDS: the floor before the next anchor, or
+    // the bottom. Printed so "nothing I do here touches the floors above"
+    // is on screen rather than something to be trusted.
+    const next = [...anchors.keys()].sort((a, b) => a - b).find((f) => f > floor);
+    out.curve = {
+      editFloor: floor,
+      isAnchor: anchors.has(floor),
+      until: next ? next - 1 : LEVELS,
+    };
     out.model = anchors.has(floor)
       ? { ...anchors.get(floor) }
       : anchorAt(curveModel(), floor);
@@ -1318,8 +1350,14 @@ export function buildDialPanel(container, {
   };
 
   const refreshLive = () => {
-    if (!notes.length && !effects.length) return;
     const values = formValues();
+    for (const row of inputs) {
+      if (!row.titleEl) continue;
+      try {
+        row.titleEl.textContent = row.titleOf(values);
+      } catch { /* commentary, not the value */ }
+    }
+    if (!notes.length && !effects.length) return;
     for (const paint of effects) {
       try {
         paint(values);
