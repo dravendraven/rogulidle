@@ -52,6 +52,9 @@ export function newGame(seed, counts = {}) {
     roomHeight: counts.roomHeight,
     dugPercentage: counts.dugPercentage,
     roomBias: counts.roomBias,
+    layout: counts.layout,
+    hubBranches: counts.hubBranches,
+    hubRings: counts.hubRings,
   });
   populate(state, state.map, counts);
 

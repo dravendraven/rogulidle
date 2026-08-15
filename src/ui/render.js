@@ -228,9 +228,14 @@ export function carriedSvg(inventory) {
   return kept.length ? kept.map((item) => tileSvg(item.emoji) || '').join('') : '—';
 }
 
-function hearts(current, max, armour = 0) {
+// `filled` is a parameter rather than a second copy of this loop: the boss
+// bar wants the same pips in another colour, and the one thing that must not
+// drift between the two is what an empty pip looks like. Red for the enemy
+// so the two bars are never read as the same pool — green is the hero's, and
+// they can be on screen at once.
+function hearts(current, max, armour = 0, filled = '🟩') {
   let out = '';
-  for (let i = 0; i < max; i++) out += tileSvg(i < current ? '🟩' : '⬜') || '';
+  for (let i = 0; i < max; i++) out += tileSvg(i < current ? filled : '⬜') || '';
   for (let i = 0; i < armour; i++) out += tileSvg('🛡️') || '';
   return out;
 }
@@ -335,4 +340,56 @@ export function renderHistory(element, history) {
     chip.title = `run ${entry.run}`;
     element.append(chip);
   }
+}
+
+// ***** M50 — the boss bar *****
+//
+// The vault's occupant is the only fight in the game worth announcing, and
+// the only creature the player has a reason to track blow by blow: it is
+// twice as fast, it is the one guaranteed drop, and it is what an
+// achievement is gated on.
+//
+// IT DRAWS THE TRUTH, and that is a VIEW decision the bot does not share.
+// The hero is never told any creature's hp (src/sim/observe.js) — `duelCost`
+// runs on `assumedHp`, a guess from the bestiary average that decays as it
+// lands blows. So the bar can read full while the hero flees, or nearly
+// empty while he commits. That gap is real and it is on screen on purpose;
+// what must never happen is the reverse, a bot that reads this.
+//
+// The channel rule is safe by construction: this takes `state`, it lives in
+// src/ui/, and test/tests.js already fails any read of GameState from
+// src/bot/. Nothing here is passed to anything the bot can see.
+//
+// Shown while the creature is ALIVE AND AWAKE — `activation` covers the
+// whole vault, so it appears on entering the room and goes when the fight
+// is over either way. `hidden` rather than opacity: an empty bar with no
+// fight behind it is the one state that would read as broken.
+export function renderBossBar(element, state) {
+  if (!element) return;
+
+  const boss = state.monsters.find((m) => m.vault && !m.dead);
+  const player = state.player.pos;
+  const awake = boss && distSq(player, boss.pos) < boss.activation * boss.activation;
+  if (!awake) {
+    element.hidden = true;
+    return;
+  }
+
+  const name = element.querySelector('.boss-bar-name');
+  const hp = element.querySelector('.boss-bar-hp');
+  // The name is written once per appearance, not per turn — it never changes
+  // and the bar redraws every frame. No numbers beside it: the pips ARE the
+  // count, and a figure that says the same thing twice is the one the eye
+  // stops reading.
+  if (name.textContent !== boss.name) name.textContent = boss.name;
+
+  // Rebuilt only when the count moves. The pips are inline SVG, so redrawing
+  // twelve of them every frame at 8x would be the most expensive thing on
+  // the page for no visible difference.
+  const shown = `${boss.hp}/${boss.hpMax}`;
+  if (hp.dataset.shown !== shown) {
+    hp.innerHTML = hearts(boss.hp, boss.hpMax, 0, '🟥');
+    hp.dataset.shown = shown;
+  }
+  element.hidden = false;
 }

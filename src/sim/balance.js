@@ -68,6 +68,28 @@ export function roomRange(pair, scale = ROOM_SCALE) {
   return pair.map((n) => Math.max(ROOM_MIN_SIDE, Math.round(n * scale)));
 }
 
+// WHICH FLOORS ARE DUG AS A HUB — a central room with a ring of rooms
+// around it (src/sim/layout-hub.js) — instead of by ROT's accretion, the
+// only generator this game had.
+//
+// Every Nth floor, and 0 is never. One number rather than a list because
+// it covers the cases that matter: 4 gives floors 4 and 8, 10 gives the
+// bottom alone, 1 gives all of them.
+//
+// PER FLOOR rather than per run, which is the thing worth copying from
+// DCSS: it has no generator with parameters, it has a shelf of them and
+// draws one per level, each declaring where it may appear.
+// docs/project/dcss-layouts.md is the study. A third layout is a file and
+// a case in `layoutFor`, not a redesign.
+export const HUB_EVERY = 0;
+
+// GUESS — rooms in the hub's ring, and how many rings. Only read by the
+// hub layout. The room SIZE is not a dial there: a ring is a packing
+// problem, so layout-hub.js solves the size down from ROOM_WIDTH/HEIGHT
+// until the geometry closes.
+export const HUB_BRANCHES = 4;
+export const HUB_RINGS = 1;
+
 // GUESS — how much of the grid the digger hollows out. Lower means fewer,
 // more separate rooms — the map design needs a MANDATORY path to exist, and
 // at ROT's default 0.2 there are usually several equivalent ways through.

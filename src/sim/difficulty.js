@@ -13,6 +13,7 @@
 import {
   CHEST_GUARD_RADIUS, CHEST_LOOT_CHANCE, CORRIDOR_MIN, corridorRange, EARLY_TIER_CUT,
   FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL, MAP_DUG_PERCENTAGE, MAP_SIZE,
+  HUB_BRANCHES, HUB_EVERY, HUB_RINGS,
   ROOM_BIAS, ROOM_HEIGHT, ROOM_SCALE, ROOM_WIDTH, roomRange,
   MONSTER_DROP_CHANCE, MONSTER_TABLE,
   OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_CHANCE_PER_LEVEL,
@@ -147,6 +148,14 @@ export function tierSlack(level, model = {}) {
 
 // Creature count on a floor, `step` floors below the first. At least one
 // creature always, or a "floor" is just a walk.
+// WHICH GENERATOR DRAWS FLOOR `floor` — 1-based, the number the player
+// sees. Every Nth floor is a hub and the rest are ROT's accretion; 0 is
+// never. One place, so `floorParams` and `makeFloorPlan` cannot disagree
+// about which floors are which, and the one place a third layout is added.
+export function layoutFor(floor, every = HUB_EVERY) {
+  return every > 0 && floor % every === 0 ? 'hub' : 'digger';
+}
+
 export function monstersAt(base, growth, step) {
   return Math.max(1, Math.round(base * Math.pow(growth, step)));
 }
@@ -173,6 +182,9 @@ export function floorParams(level) {
     roomBias: ROOM_BIAS,
     corridorLength: corridorRange(),
     mapSize: MAP_SIZE,
+    layout: layoutFor(level + 1),
+    hubBranches: HUB_BRANCHES,
+    hubRings: HUB_RINGS,
     roomWidth: roomRange(ROOM_WIDTH),
     roomHeight: roomRange(ROOM_HEIGHT),
     shrineDistanceShare: SHRINE_DISTANCE_SHARE,
@@ -235,6 +247,10 @@ export const DEFAULT_MODEL = {
   // together, because those two argue about area and this one divides it.
   mapSize: MAP_SIZE,
   roomScale: ROOM_SCALE,
+  // Which generator draws the floor, and the hub's own two numbers.
+  hubEvery: HUB_EVERY,
+  hubBranches: HUB_BRANCHES,
+  hubRings: HUB_RINGS,
   shrineDistanceShare: SHRINE_DISTANCE_SHARE,
   vaultLevel: VAULT_LEVEL,
   vaultChestItems: undefined,
@@ -307,6 +323,9 @@ export function makeFloorPlan(model = {}) {
     roomBias: m.roomBias,
     corridorLength: corridorRange(m.corridorMin),
     mapSize: m.mapSize,
+    layout: layoutFor(level, m.hubEvery),
+    hubBranches: m.hubBranches,
+    hubRings: m.hubRings,
     roomWidth: roomRange(ROOM_WIDTH, m.roomScale),
     roomHeight: roomRange(ROOM_HEIGHT, m.roomScale),
     shrineDistanceShare: m.shrineDistanceShare,

@@ -13,6 +13,8 @@ import {
 } from './balance.js';
 
 // Tiles the player and monsters may walk on. FAITHFUL engine.cljs:321.
+import { hubLayout } from './layout-hub.js';
+
 const WALKABLE = ['room', 'door', 'corridor'];
 
 export function tileAt(map, x, y) {
@@ -67,10 +69,10 @@ export function playerPassable(map) {
   return (x, y) => isWalkable(map, x, y);
 }
 
-// Generates the dungeon. `mapSeed` is an int derived from the run seed.
-export function generateMap(mapSeed, size = MAP_SIZE, options = {}) {
-  ROT.RNG.setSeed(mapSeed);
-
+// ROT's Digger, as a layout: hands back the same `{ dug, rooms }` the hub
+// layout does, so `generateMap` below can pick between them and nothing
+// after the pick knows which ran.
+function diggerLayout(size, options) {
   const digger = new ROT.Map.Digger(size, size, {
     corridorLength: options.corridorLength ?? CORRIDOR_LENGTH,
     // M16 — previously unset, so ROT's own defaults applied and nobody had
@@ -118,6 +120,36 @@ export function generateMap(mapSeed, size = MAP_SIZE, options = {}) {
     room.center = roomCenter(room);
     return room;
   });
+
+  return { dug, rooms };
+}
+
+// Generates the dungeon. `mapSeed` is an int derived from the run seed.
+//
+// TWO LAYOUTS, one classification. `options.layout` picks which shape gets
+// dug; everything below the pick — walls, corridors, doors, the tile array
+// — is shared, which is what keeps spine.js, vault.js and spawn.js from
+// ever needing to know. Adding a third layout is adding a case here and a
+// file beside layout-hub.js.
+//
+// ROT's Digger stays the default. See docs/project/dcss-layouts.md for why
+// there is a second one at all: DCSS has no generator with parameters, it
+// has a catalogue and draws one per floor, and that is the thing worth
+// copying rather than any particular algorithm.
+export function generateMap(mapSeed, size = MAP_SIZE, options = {}) {
+  ROT.RNG.setSeed(mapSeed);
+
+  // Handed to the hub layout so this stays the ONE file that touches ROT's
+  // global RNG — the same rule the header states, kept while the layouts
+  // multiply.
+  // The hub returns null when the grid is too small for the arms it was
+  // asked for — a floor is not optional, so that falls back to the Digger
+  // rather than failing. The dial can ask for something that does not fit;
+  // the game still has to start.
+  const hub = options.layout === 'hub'
+    ? hubLayout(size, options, () => ROT.RNG.getUniform())
+    : null;
+  const { dug, rooms } = hub ?? diggerLayout(size, options);
 
   // Classify every position, in the same order the original merges them so
   // that later kinds win over earlier ones (generator.cljs:204):

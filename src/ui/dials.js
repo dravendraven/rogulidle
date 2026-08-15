@@ -19,7 +19,7 @@ import {
   corridorRange, MAP_SIZE, ROOM_HEIGHT, ROOM_WIDTH, roomRange,
   TURN_BUDGET, VAULT_LEVEL, VAULT_SIZE,
 } from '../sim/balance.js';
-import { RETURN_ENABLED } from '../sim/dungeon.js';
+import { LEVELS, RETURN_ENABLED } from '../sim/dungeon.js';
 
 // B20 — SIX NAMED STEPS INSTEAD OF A CONTINUOUS SLIDER, and the count is
 // even on purpose: there is no middle to park on, so every setting leans
@@ -591,6 +591,43 @@ export const SECTIONS = [
     // shape; nothing there changes the rooms themselves.
     ['forma do mapa', [
       {
+        // A SLIDER OVER FLOORS, not a switch over the run. Which floors get
+        // which shape is the question the owner actually asked, and a
+        // switch could only answer "all or none". The live line names the
+        // floors so the modulo never has to be done in anyone's head.
+        kind: 'model', key: 'hubEvery', label: 'de quantos em quantos andares (0 = nunca)',
+        title: 'Andares com sala central', step: 1, range: [0, 10],
+        says: (v) => {
+          const every = v.model.hubEvery;
+          if (!every) return 'nenhum — todo andar é do gerador antigo';
+          const floors = [];
+          for (let f = every; f <= LEVELS; f += every) floors.push(f);
+          if (!floors.length) return 'nenhum — a conta não alcança o andar 10';
+          const list = floors.length === 1
+            ? `o andar ${floors[0]}`
+            : `andares ${floors.slice(0, -1).join(', ')} e ${floors[floors.length - 1]}`;
+          return `${list} com sala central; o resto do gerador antigo`;
+        },
+      },
+      {
+        kind: 'model', key: 'hubBranches', label: 'salas no anel (só na forma central)',
+        title: 'Quantos ramos', step: 1, range: [2, 8],
+        says: (v) => (v.model.layout === 'hub'
+          ? `${v.model.hubBranches} caminhos saindo da sala inicial`
+          : 'inativo — a forma do andar não é a central'),
+      },
+      {
+        kind: 'model', key: 'hubRings', label: 'anéis de salas (só na forma central)',
+        title: 'Quantos anéis', step: 1, range: [1, 2],
+        says: (v) => {
+          if (v.model.layout !== 'hub') return 'inativo — a forma do andar não é a central';
+          const total = 1 + v.model.hubBranches * v.model.hubRings;
+          return v.model.hubRings > 1
+            ? `${total} salas, e o anel de fora força salas menores`
+            : `${total} salas — centro mais um anel`;
+        },
+      },
+      {
         // Retitled when roomBias landed. "quantidade de salas" was true while
         // this was the only shape dial; with a second one beside it the two
         // titles collided, and this is the one that stopped being about
@@ -911,7 +948,13 @@ export function buildDialPanel(container, {
           track.className = 'dial-switch';
           input = document.createElement('input');
           input.type = 'checkbox';
-          input.checked = Boolean(def);
+          // NOT `Boolean(def)`. A switch whose off position is a STRING —
+          // the layout, whose two values are 'digger' and 'hub' — is truthy
+          // in both positions, so coercing opened it checked while the
+          // value under it said otherwise. Compare against the on value the
+          // dial actually declared; only a switch with no onValue at all
+          // falls back to the boolean it really carries.
+          input.checked = onValue !== undefined ? def === onOff.on : Boolean(def);
           valueOut = document.createElement('span');
           valueOut.className = 'dial-value';
           valueOut.textContent = input.checked ? 'ligado' : 'desligado';
@@ -1000,7 +1043,7 @@ export function buildDialPanel(container, {
           // there is no notch that means "leave it alone".
           if (bands) input.dataset.touched = '1';
           const isChanged = isSwitch
-            ? input.checked !== Boolean(def)
+            ? (input.checked ? onOff.on : onOff.off) !== def
             : bands
               ? true
               : Number(input.value) !== def;

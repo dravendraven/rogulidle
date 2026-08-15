@@ -335,6 +335,53 @@ Draw the two lines to state the intent, solve the dials for pressure, then
 watched run wins. The failure mode to recognise is the moment someone argues a
 line should be higher because the line should be higher.
 
+## Two shapes now, and the second one is drawn rather than found
+
+**The section below is still true of the Digger, and it stopped being the
+whole story.** `HUB_EVERY` says which floors are dug by the other generator
+— every Nth, 0 for none — so the shape is a property of the FLOOR rather
+than of the run. That is deliberate and it is the DCSS shape: there, a level
+draws a layout from a shelf, and a branch is recognisable because its floors
+are not all the same algorithm. `layoutFor()` in `difficulty.js` is the one
+place that decides, so a third layout is a case there and a file beside
+`layout-hub.js`.
+
+The reason a second one exists is a finding, not a preference. ROT's Digger
+**accretes**: it glues a feature onto the wall of a feature it already dug,
+at random, until the quota is full. It holds no notion of a centre, of a
+branch, or of how many ways lead out of anywhere — so a floor with a
+deliberate shape is not a setting of it. The owner spent a session tuning it
+and disliked every result, which is the evidence that the numbers were never
+what was wrong.
+
+`hub` computes instead: a central room, a ring of rooms around it, a corridor
+to each. `docs/project/dcss-layouts.md` is where it came from — DCSS's
+`layout_geoelf_octagon`, whose header comment is "A large central room, with
+2 rings of other rooms around it".
+
+**What it changes for this document.** On a hub floor the hero starts at the
+centre and the exit sits on the rim, so **the spine is drawn rather than
+discovered**: the route is one arm and every other arm is refusable by
+construction. `spine.js` still reads it the same way — it runs A* and
+classifies what the path crosses — but on a Digger floor that reading is of
+an accident, and here it is of a decision. The bargain this file describes
+finally has geometry built to hold it.
+
+**What it costs, and it is not small.** Connectivity was free with the
+Digger and is not free here: a computed layout can strand a room, so
+`test/tests.js` asserts every room is reachable across five configurations.
+DCSS's own answer is heavier — it validates after building and **vetoes the
+whole level** when it fails, discarding and rebuilding. We assert instead of
+veto because the arms are joined to the centre by construction; if a third
+layout ever cannot promise that, the veto is what it needs.
+
+**Two rings ask for a big grid.** A ring is a packing problem — arms must
+clear the hub, each other, and the map's edge — so the layout solves the
+room size DOWN from `ROOM_WIDTH`/`ROOM_HEIGHT` until the geometry closes,
+and returns nothing when it cannot. Measured: two rings on a 44-grid come
+out at 11 rooms; on 32 the same request produces small ones or falls back to
+the Digger.
+
 ## Nothing new is dug
 
 The digger already produces maps with a route from hero to shrine and rooms

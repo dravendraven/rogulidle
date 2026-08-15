@@ -211,6 +211,10 @@ export function playDungeon(seed, makePolicy, options = {}) {
       mapSize: plan.mapSize,
       roomWidth: plan.roomWidth,
       roomHeight: plan.roomHeight,
+      // Which generator draws the floor, and the hub's own two numbers.
+      layout: plan.layout,
+      hubBranches: plan.hubBranches,
+      hubRings: plan.hubRings,
       shrineDistanceShare: plan.shrineDistanceShare,
       // M43 — 0 turns the authored room off for the whole descent, which is
       // what a control run needs. Undefined would silently fall back to the
