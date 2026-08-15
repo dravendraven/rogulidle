@@ -42,9 +42,19 @@ import {
 } from './nav.js';
 
 // What a fight is expected to cost, before taking it. This is the number
-// objective 1 gates on — NOT the xp above the monster's head. xp only says
-// how hard it hits; the cost also depends on how long it takes to kill, so
-// a wolf and an ogre share xp 4 while the ogre costs half again as much.
+// objective 1 gates on.
+//
+// EVERYTHING IN IT COMES FROM xp. The blow the creature lands is priced from
+// xp, and so is how long it takes to kill — the hero is never told a
+// creature's hp (src/sim/observe.js does not carry the field), so `turns`
+// runs on `assumedHp`, the bestiary AVERAGE for that xp, bent by bravery.
+//
+// This paragraph used to say the opposite — that xp only said how hard a
+// creature hits and hp decided the rest — and it was true until the hp
+// estimate replaced the real number. Two creatures sharing an xp are now
+// priced identically here however much hp they really have, which is the
+// property the vault leans on: raising the Butcher's hp makes the fight
+// longer and deadlier WITHOUT making the bot any warier of starting it.
 //
 // They land (1 - skip) of their turns, and never the last one: the blow
 // that kills them happens on the player's turn.
@@ -123,7 +133,7 @@ export function assumedHp(monster, bravery = 1) {
 export function duelCost(player, monster, bravery = 1) {
   // `rageMultiplier` and not a flag read here: the estimate and the roll are
   // one rule (src/sim/combat.js), and a second copy of the test is how the
-  // bot would spend five turns underrating its own damage.
+  // bot would spend the whole rage underrating its own damage.
   const mine = expectedDamage(player.xp, weaponDamage(player), weaponMinDamage(player),
     rageMultiplier(player));
   // Monsters carry nothing that fights (their drop is not inventory), so

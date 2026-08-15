@@ -43,7 +43,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | | `CHEST_GUARD_RADIUS` | 8 | every chest gets a creature within this — loot is not free |
 | the authored room | `VAULT_LEVEL` | 4 | which floor carries the vault, 1-based; 0 turns it off |
 | | `VAULT_SIZE` | 9 | its side in tiles — above any generated room, so the shape says it was placed |
-| | `VAULT_BOSS` | 🐷 hp 12 / xp 5 / activation 10 / **speed 2** | the Butcher; not a `MONSTER_TABLE` row and never drawn. hp sets who ENTERS (it is what `duelCost` reads), xp and speed set who WINS |
+| | `VAULT_BOSS` | 🐷 hp 12 / xp 5 / activation 10 / **speed 2** | the Butcher; not a `MONSTER_TABLE` row and never drawn. **xp** sets who ENTERS — the bot is never told a creature's hp, it guesses one from xp (`assumedHp`, bent by Coragem) — while **hp and speed** set who WINS. So both of those make the fight harder without making the bot warier, which is the room's whole trick |
 | | `VAULT_BOSS_DROP` | `axe` | the only guaranteed drop in the game — and `VAULT_BOSS.revealsDrop` puts it in Belief, so it is the only drop the bot can price before the kill |
 | | `VAULT_CHEST_ITEMS` | 4 × shield, 4 × potion | the vault floor's ONLY chests — it places none of its own; authored rather than rolled |
 
@@ -77,7 +77,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | `ITEM_TABLE.book` | 📜 | the scholar's, and the only item with no stat at all — what it does is the `read` action (rules.md §5) |
 | `READ_TURNS` | 5 | turns a read costs, standing still, with the creatures acting in every one |
 | `ITEM_TABLE.adrenaline` | 💉 | the warrior's, and stat-less for the same reason the book is — what it does is the `rage` action |
-| `RAGE_TURNS` / `RAGE_MULT` | 5 / 2 | attacking turns the syringe lasts, and what it multiplies the damage die's TOP by. A multiplier, not a bonus: it means the same to a bare hero and an armed one |
+| `RAGE_TURNS` / `RAGE_MULT` | 3 / 2.5 | attacking turns the syringe lasts, and what it multiplies the damage die's TOP by. A multiplier, not a bonus: it means the same to a bare hero and an armed one. Shorter and harder since B32 |
 | `ITEM_TABLE.axe.dmgMin` | 1 | the axe raises the damage die's FLOOR, not just its top — worth twice a point of `dmg` (rules.md §4) |
 
 ## The bot's numbers — `src/bot/config.js`, not this file's business

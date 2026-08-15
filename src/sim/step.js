@@ -226,7 +226,7 @@ function readOneTurn(state) {
   return true;
 }
 
-// The syringe: five turns of a damage die stretched at the top
+// The syringe: `RAGE_TURNS` of a damage die stretched at the top
 // (src/sim/combat.js). Nothing like reading — it does NOT take the hero's
 // turns away. He fights exactly as he would have, harder, which is why this
 // is a counter and not a commitment.
@@ -295,7 +295,7 @@ export function step(state, action) {
   //
   // The rage clock is read BEFORE the action so the turn that starts it does
   // not spend one of its own turns: the syringe costs the turn it is used
-  // on, and the five that follow are the five that hit harder.
+  // on, and the ones that follow are the ones that hit harder.
   const wasRaging = next.player.raging > 0;
   const turnPasses = next.player.reading > 0
     ? readOneTurn(next)

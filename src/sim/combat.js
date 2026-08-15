@@ -81,7 +81,7 @@ export function applyDamage(defender, damage) {
 // A function rather than a field read inline, because BOTH halves of combat
 // have to agree about the die: the roll below and the estimate the bot
 // prices fights with. Two copies of this test is how a bot ends up
-// underestimating its own damage for five turns and nothing fails.
+// underestimating its own damage for the whole rage and nothing fails.
 export function rageMultiplier(entity) {
   return entity && entity.raging > 0 ? RAGE_MULT : 1;
 }
