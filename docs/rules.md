@@ -220,9 +220,8 @@ reverteu a adoção registrada em `decisions.md`.
 tempo, o que dá para acampar.
 
 **Portanto: arma é a única coisa no jogo que deixa o herói permanentemente
-mais forte.** Essa frase carrega mais peso de desenho que qualquer outra
-aqui — é por isso que de onde a arma vem é uma decisão de balanço, não de
-sabor.
+mais forte.** Armadura é barra consumida e poção é uso único; xp e hp máximo
+não crescem. Nada mais é permanente.
 
 ## 5. Itens e de onde vêm
 
@@ -235,10 +234,8 @@ tornada improvável.
 **O ocupante do vault (§3) larga o machado, sempre — e o carrega à vista.**
 É o único drop garantido do jogo — não passa pela chance de largar algo nem
 pelo sorteio de qual arma — e a única criatura cujo drop atravessa a névoa
-(§7). Sabe-se o que ele carrega antes de entrar, porque a sala é uma aposta
-feita de fora: prêmio invisível não entra em conta nenhuma, e escolha sem
-informação é preferência, não decisão. É o que faz a recompensa pagar o
-risco em vez de empilhar uma segunda aposta sobre a primeira.
+(§7). Ou seja: o que a sala paga é sabido antes de entrar nela, e o que
+continua incerto é só se o herói sai vivo com aquilo.
 
 **O vault tem baús próprios, extras aos do andar, e o conteúdo deles é
 fixo.** Mesmo pagamento em toda seed, nas mesmas posições. É a única
@@ -277,11 +274,9 @@ desperdiça poção achada com saúde, o motor se recusava a pegá-la com hp
 cheio e a deixava no chão. Beber sob comando apaga as duas regras de uma
 vez.
 
-**A run começa de mãos vazias.** O herói entra no andar 1 sem nada, e a
-abertura é difícil de propósito. Como arma só cai de criatura, o único jeito
-de se armar é vencer luta — que é exatamente o que um herói desarmado faz
-mal. Esse travamento é real e está aceito: é o preço de uma abertura que
-filtra.
+**A run começa de mãos vazias.** O herói entra no andar 1 sem nada. Como arma
+só cai de criatura (acima), armar-se exige vencer luta desarmado — o ciclo é
+consequência das regras, não uma trava escrita à parte.
 
 **Existe um kit inicial, e hoje ele está vazio.** É um valor, não uma
 máquina: o motor sempre aplica o kit, e o kit não conter nada é o que faz o
@@ -481,10 +476,19 @@ declarado como pendência em vez de deixado implícito.
 **Moeda por travessia concluída**, derivada de xp por turno. Toda travessia
 paga, ida e volta.
 
-**Moeda só é efetivamente ganha se a run for concluída** — e concluir agora é
-completar as dezenove travessias, não chegar ao fundo (§1). Morrer descarta o
-acumulado e zera também o saldo guardado e o item comprado. Sem flag: é a
-regra, e a alternativa nunca chegou a ser medida.
+**A moeda é da run, e não sobrevive a ela.** O saldo começa em zero em toda
+run, é gasto na loja que fecha aquela run, e o que não for gasto é
+descartado. Não há saldo guardado entre runs.
+
+**Andar não concluído não paga, e o que já foi pago não é devolvido.** Morrer
+ou estourar o orçamento no meio de uma travessia encerra a run sem pagar
+aquela travessia; o que as travessias anteriores pagaram continua no saldo e
+vai para a loja do mesmo jeito.
+
+**Morrer perde o que o herói estava carregando.** O item que ele começou a
+run segurando — comprado na loja anterior — é perdido junto com a run.
+Concluir a run o mantém, e a compra seguinte SOMA ao que já estava guardado:
+runs concluídas em sequência acumulam itens iniciais.
 
 **Um herói pode gastar antes de a run acabar.** Existe herói para quem cada
 andar concluído já é uma compra: a moeda que aquele andar pagou vira item na
@@ -513,17 +517,13 @@ o mesmo `?seed=` reproduz também a loja.
 
 **A loja vende também um consumível, e ele é o item mais barato dela.** Ele
 não some no fim da run: entra na run seguinte como qualquer outra compra, e
-só é gasto quando o herói o usa. Existe para que o troco tenha onde ir — o
-saldo é ímpar com frequência, e sem um item de preço mínimo a moeda que sobra
-seria descartada na porta.
+só é gasto quando o herói o usa. O preço mínimo da prateleira é o que decide
+se um saldo sobra sem comprar nada.
 
-**A economia de itens da loja está sabidamente desequilibrada, e isso é
-deliberado.** Preço fixo com compra múltipla torna o escudo a compra racional
-e a segunda arma um mau negócio — armadura é linear e sem teto, arma tem
-retorno decrescente por ponto. O consumível não conserta isso: ele compra a
-abertura, que é onde a run morre (§5), enquanto a armadura só rende depois de
-o herói viver o bastante para empilhá-la. Aceito por ora; o conserto é
-estrutural e está no M32, não numa mudança de preço.
+**Os preços são fixos e não escalam com nada** — nem com a profundidade
+alcançada, nem com o que já foi comprado antes. O que cada item custa está em
+`src/ui/shop.js`; o que cada compra vale em jogo está medido em
+`docs/project/decisions.md`, não aqui.
 
 ## 10. Onde este jogo se afasta do Rogule
 
