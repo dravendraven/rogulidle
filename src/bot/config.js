@@ -364,41 +364,21 @@ export const LOOT_VALUE = true;
 export const READ_AT = 0.8;
 
 
-// ***** when the warrior injects (src/sim/heroes.js) ***** //
-
-// What share of everything he has the fight in front of him must be expected
-// to cost, before the syringe is worth spending. Greed multiplies it, exactly
-// as it does the book's demand — a miser saves it for a bigger fight — and it
-// is deliberately uncapped: above greed 1 the demand passes what the hero
-// owns, and unmeetable IS "hold it for something real".
+// ***** when the warrior injects: NO NUMBER AT ALL (B27) ***** //
 //
-// 1.0, swept at 0.5 and 1.0: it lifts the median injection from floor 4.3 to
-// 5.4 and puts 62% of them on floor 5 or deeper, at the cost of the top band
-// using the syringe in 48% of runs instead of 86%.
+// `RAGE_AT` used to live here — the share of everything he has that the fight
+// in front of him had to be expected to cost. It is gone, and what replaced it
+// is a CONDITION rather than a smaller threshold: inject when raging turns a
+// fight the gate refuses into one it accepts (`rageWouldFlip`, src/bot/bot.js).
 //
-// IT CANNOT BE PUSHED MUCH FURTHER, and the wall is not this number. The bot
-// refuses fights costing more than `fightMargin` of what it has, so a melee
-// cost above roughly one bar only ever happens when it is AMBUSHED — and
-// ambushes are no deeper than anything else. Past that point the demand
-// stops discriminating by depth and only gets rarer.
+// The old number could not be tuned out of its problem, because the problem
+// was that it pointed at the same bar the fight gate uses to REFUSE a fight.
+// It fired above one bar; the gate refuses above one bar; so the item was
+// spent precisely where the bot then walked away. Measured: 30 of 84
+// injections had every adjacent creature refused with the rage already on.
 //
-// AND THE NUMBER IS NOT WHAT IS WASTING THE ITEM. The sensor moved from
-// every awake creature to the adjacent ones (`meleeCost`), which killed the
-// 40% of injections thrown at empty air, and B26 made the router honest —
-// utilisation went 31% -> 41% -> 47% of raging turns landing a blow.
-//
-// WHAT IS LEFT IS A CONTRADICTION BETWEEN THIS CONSTANT AND `fightMargin`,
-// and it is not a tuning problem. At 1.0 the syringe fires when the melee in
-// front of the hero costs MORE than one bar — which is the same test the
-// fight gate uses to REFUSE that melee. Raging halves the duel, but half of
-// "well above 0.7" is still above 0.7: measured over 150 runs, in 30 of 84
-// injections the gate refuses every adjacent creature even with the rage
-// already running, and 35 injections land no blow at all. He spends the item
-// and then walks away from the fight that justified spending it.
-//
-// The fix is a condition rather than a threshold, and it would DELETE this
-// constant: inject when the rage turns a refused fight into an accepted one
-// (`duel > bar` and `ragingDuel <= bar`). That is a no-brainer in the same
-// sense the adjacency rule is. It costs the greed ladder this number buys,
-// so it is the owner's call and not a cleanup.
-export const RAGE_AT = 1.0;
+// The cost, and it is real: that threshold was multiplied by greed and by the
+// share of floors left, so the injection floor rose with avarice — median 4.3
+// to 5.4 across the bands. A condition has nothing to bend, so the ladder is
+// gone. The owner chose an item that is never wasted over an item whose timing
+// carried a trait.

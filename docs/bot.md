@@ -44,34 +44,23 @@ frases:
 - **Profundidade não é monótona nisso**, e o pico interior da Ganância já
   existia antes do livro (M47) — as duas coisas se somam na mesma leitura e
   não dá para separá-las por esta tabela.
-- **Injeta a adrenalina** quando o que está ao alcance do braço custaria mais
-  que uma fração do hp efetivo — `custo do corpo a corpo ≥ hp efetivo ×
-  RAGE_AT × ganância`. Mesma frase do livro com o contexto trocado: lá é o
-  que a descida ainda deve, aqui é a briga que está acontecendo. Preço em hp
-  pelo `duelCost`, e não massa de ameaça crua: as unidades da massa são
-  `hp × dano`, então um piso fixo aterroriza no andar 1 e é rotina no 9. Sem
-  teto, pela mesma razão do livro.
-- **Só conta criatura ADJACENTE, e isso é definição, não ajuste.** O
-  contador da fúria cai a cada turno que passa, andar incluído
-  (`rules.md` §5), então injetar contra algo que ainda precisa ser alcançado
-  gasta o item na caminhada. Não existe tabuleiro onde enfurecer contra o
-  vazio esteja certo. Antes disso ele somava toda criatura dentro do próprio
-  raio: medido em 150 runs, 40% das injeções não tinham ninguém do lado e um
-  quarto tinha a mais próxima a seis ou mais tiles.
-- **Ele usa a fração de ANDARES restantes, o livro usa a de AMEAÇA** — e a
-  diferença foi medida, não argumentada: a ameaça é concentrada no fim, então
-  a fração dela fica ~0,95 do andar 1 ao 5, justo onde o andar da injeção
-  precisava se separar. **Tem um limite estrutural:** o bot recusa luta que
-  custe mais que `fightMargin` do que ele tem, então custo acima de uma barra
-  só acontece em emboscada — e emboscada não é mais funda que o resto. Daí
-  para cima a exigência só fica rara, não mais profunda.
-- **E o que desperdiça a seringa hoje não é o gatilho, é o que vem depois.**
-  Com o sensor corrigido, 41 de 95 injeções ainda não dão um golpe — e 89 dos
-  turnos perdidos são o herói **andando embora** da criatura em que acabou de
-  injetar. Ele precifica o tile de uma criatura colada pela mordida cheia
-  dela, então qualquer coisa quieta a uma dúzia de passos fica mais barata
-  que a briga na cara dele. É o B26 visto pelo outro lado, e nenhum ajuste do
-  `RAGE_AT` alcança isso.
+- **Injeta a adrenalina** quando a fúria transforma uma luta que ele RECUSA
+  numa que ele aceita. Pergunta de sim ou não, sem fração nenhuma: precifica a
+  mesma criatura duas vezes — como ele está e como ele estaria — e gasta o item
+  quando a segunda leitura passa na barra em que a primeira falhou.
+- **Só criatura ADJACENTE**, porque o contador da fúria cai a cada turno que
+  passa, andar incluído (`rules.md` §5): injetar contra algo que ainda precisa
+  ser alcançado gasta o item na caminhada.
+- **O que isso substituiu era autocontraditório.** A regra antiga disparava
+  quando o corpo a corpo custava MAIS que uma fração do hp efetivo — que é o
+  mesmo teste que o portão usa para RECUSAR essa luta. Medido: em 30 de 84
+  injeções o portão recusava toda criatura adjacente com a fúria já ligada. O
+  item era gasto exatamente onde o bot ia embora.
+- **E custou a escada de ganância.** O limiar antigo era multiplicado pela
+  ganância e pela fração de andares restantes, então o andar da injeção subia
+  com a avareza (4,3 a 5,4 pelas faixas). Uma condição não tem limiar para
+  dobrar. Foi troca escolhida: item nunca desperdiçado no lugar de um item cujo
+  momento carregava um traço.
 - **Nunca começa luta** cujo custo esperado passe de `fightMargin` do hp
   efetivo (hp + armadura). Uma criatura que já persegue paga só a
   caminhada — o duelo dela acontece de qualquer jeito — **e paga metade

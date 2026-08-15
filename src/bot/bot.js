@@ -29,12 +29,12 @@ import {
   effectiveHp, expectedDamage, rageMultiplier, weaponDamage, weaponMinDamage,
 } from '../sim/combat.js';
 import {
-  expectedHpFor, MAP_SIZE, MONSTER_SKIP_CHANCE, READ_TURNS, VISIBLE_DIST,
+  expectedHpFor, MAP_SIZE, MONSTER_SKIP_CHANCE, RAGE_TURNS, READ_TURNS,
+  VISIBLE_DIST,
 } from '../sim/balance.js';
 import {
   CHEST_VALUE_HP, CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_CHEST_COUNT,
-  DEFAULT_MONSTER_COUNT, DEFAULT_HERO, GOAL_STICKINESS, LOOT_VALUE, RAGE_AT,
-  READ_AT,
+  DEFAULT_MONSTER_COUNT, DEFAULT_HERO, GOAL_STICKINESS, LOOT_VALUE, READ_AT,
 } from './config.js';
 import {
   actionToward, believedWalkable, dijkstra, flood, frontiers, key, routeTo,
@@ -561,31 +561,42 @@ function stillValid(goal, belief, field) {
 // Manhattan rather than a real path, and it errs the safe way: a path is
 // never shorter than the straight-line count, so anything called "close
 // enough to arrive" is at worst early, never late.
-// WHAT IS WITHIN ARM'S REACH RIGHT NOW, in hp — the sum of the duels the
-// hero could be trading blows in on his very next turn.
+// DOES THE SYRINGE TURN A FIGHT HE REFUSES INTO ONE HE TAKES? (B27)
 //
-// ADJACENT, not merely awake, and the difference was the syringe's whole
-// defect. `raging` counts down on every turn that PASSES (src/sim/step.js),
-// walking included, so a turn spent closing distance is a turn of the item
-// burnt. The old test summed every creature inside its chase radius, which
-// let the hero inject at creatures across the room: measured over 150 runs,
-// 40% of injections had nobody adjacent, a quarter had the nearest creature
-// six or more tiles away, and 42% of syringes produced NOT ONE raging blow.
-// Only 31% of raging turns landed a blow at all.
+// A CONDITION, NOT A THRESHOLD, and that is the whole fix. The old rule fired
+// when the melee in front of him cost MORE than a share of what he has — which
+// is the same test the fight gate uses to REFUSE that melee. So the item was
+// spent exactly where the bot then walked away: measured over 150 runs, in 30
+// of 84 injections the gate refused every adjacent creature with the rage
+// already running, and 35 injections landed no blow at all.
 //
-// So this is not a threshold that was too low, it was the wrong quantity —
-// "a fight is coming" instead of "a fight is here". There is no board state
-// where raging at empty air is right, which is what makes the fix a
-// definition and not a tuning.
-function meleeCost(belief, bravery = 1) {
+// Rage doubles the damage die's top, which roughly halves `duelCost` — so
+// there is a band of fights unaffordable sober and affordable enraged. That
+// band IS the item's purpose, and asking for it directly needs no number:
+// price the same creature twice, once as he is and once as he would be, and
+// spend the syringe when the second reading clears the bar the first failed.
+//
+// ADJACENT ONLY, the rule that replaced `awakeCost` and stays: `raging` counts
+// down on every turn that PASSES (src/sim/step.js), walking included, so
+// injecting at anything he still has to reach spends the item on the walk.
+//
+// It deletes `RAGE_AT`, and with it the greed ladder that number bought — how
+// deep the injection sat was a function of the threshold, and a condition has
+// no threshold to bend. That loss is real and was the owner's call.
+function rageWouldFlip(belief, hero) {
   const [px, py] = belief.player.pos;
-  let total = 0;
+  // The bar reads the same either way — `effectiveHp` is hp plus armour and
+  // rage touches neither. Only the DUEL moves.
+  const bar = hero.fightMargin * effectiveHp(belief.player);
+  const enraged = { ...belief.player, raging: RAGE_TURNS };
+
   for (const m of belief.monsters.values()) {
     if (m.dead) continue;
     if (Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py) !== 1) continue;
-    total += duelCost(belief.player, m, bravery).hpLost;
+    if (duelCost(belief.player, m, hero.bravery).hpLost <= bar) continue;
+    if (duelCost(enraged, m, hero.bravery).hpLost <= bar) return true;
   }
-  return total;
+  return false;
 }
 
 function safeToStandStill(belief) {
@@ -695,37 +706,12 @@ export function makeBot(options = {}) {
       return 'read';
     }
 
-    // THE SYRINGE, and the same sentence as the book with the context term
-    // swapped: what is in my face right now, instead of what the descent
-    // still owes.
-    //
-    //     cost of what is within reach  >=  effective hp * RAGE_AT * greed
-    //
-    // Priced in HP, using `duelCost` — the bot's own currency for a fight,
-    // already net of the hero's weapon. Raw threat mass would have been the
-    // obvious quantity and the wrong one: its units are hp × damage, so a
-    // fixed floor terrifying on floor 1 is routine on floor 9, where the mass
-    // is twenty times larger. A share of what the hero HAS is scale-free.
-    //
-    // ADJACENT ONLY (`meleeCost`, and its note carries the measurement). The
-    // rage clock runs on turns, not on blows, so injecting at anything the
-    // hero still has to walk to spends the item on the walk. There is no
-    // board where raging at empty air is right — this is the one gate in the
-    // bot that is a definition rather than a threshold.
-    //
-    // Uncapped for the reason the book is: at high greed the demand passes
-    // everything the hero has, and unmeetable is what "saves it for a real
-    // fight" means.
-    // `floorsAhead`, NOT `threatAhead`, and the difference was measured
-    // rather than argued: threat is back-loaded, so its share is still ~0.95
-    // on floors 1 to 5 — precisely where this hero's injection floor was
-    // stuck. Swapping in the flat share of floors left is what lets greed
-    // mean "later in the run" instead of only "a bigger brawl", since a big
-    // brawl happens shallow often enough on its own.
+    // THE SYRINGE (B27). Not a share of anything — a question with a yes or a
+    // no: does raging turn a fight he is refusing into one he would take?
+    // `rageWouldFlip` above carries the reasoning and the measurement.
     if (belief.player.inventory.some((i) => i.kind === 'syringe')
       && !belief.player.raging
-      && meleeCost(belief, hero.bravery) >= effectiveHp(belief.player)
-        * RAGE_AT * hero.sideAppetite * (settings.floorsAhead ?? 1)) {
+      && rageWouldFlip(belief, hero)) {
       return 'rage';
     }
 
