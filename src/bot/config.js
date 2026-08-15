@@ -114,37 +114,35 @@ export const DEFAULT_HERO = {
   // whole route is priced in multiples of a step. `stepCost` sets walking
   // against fighting and looting; this sets safe against short.
   //
-  // 8.3 AND IT IS MEASURED, not derived, and that is a loss worth naming.
-  // It used to be `MEAN_BITE / stepCost` (15.9), whose virtue was that nobody
-  // chose it. With the uncertainty term in, that centre sits past the top of
-  // the curve — swept at n=150 the six bands read 3.97 / 4.14 / 3.99 / 3.60 /
-  // 3.13 / 2.80 mean floors, so the old centre had four of its own bands
-  // beating it. B24 fixed exactly this for `DANGER_PERSISTENCE`, and the rule
-  // it left is the one followed here: the centre must be a good place, and
-  // moving the dial must be a deliberate trade.
+  // 9.6, MEASURED, and re-measured once the uncertainty term moved onto the
+  // goal. Not derived, and that is a loss worth naming: it used to be
+  // `MEAN_BITE / stepCost`, whose virtue was that nobody chose it.
   //
-  // HOW IT WAS ACTUALLY CHOSEN, because two attempts missed first. A rule
-  // written before the sweep said "the highest band whose lead clears one
-  // standard error; ties go to the lowest" — the top three tie, so it pointed
-  // at 3.2. That was then overridden by hand to 13.4, reasoning that the
-  // centre should leave the interesting trade above it. The TRIPWIRES refused
-  // both: at 13.4 `nothing gets deep` fired (no run reached the halfway turn)
-  // and the shamble ran at 8%. At 8.3 the whole board reads as it did before
-  // this dial existed. Neither the rule nor the override picked this; the
-  // wires did, and that is the project's arbiter working as designed.
+  // The curve RISES AND THEN FLATTENS — swept at n=150 the six bands read
+  // 4.05 / 4.12 / 4.10 / 4.35 / 4.33 / 4.31 mean floors, so the plateau starts
+  // at the fourth band and everything below it is worse. `DANGER_PERSISTENCE`
+  // had exactly this shape in B24, and the rule it left is the one applied
+  // here: put the centre INSIDE the plateau, so the default is a good place
+  // and going DOWN is the deliberate choice.
   //
-  // AND THE BIG RESULT THIS DIAL SEEMED TO BUY WAS THE BUG. With uncertainty
-  // priced per tile, the bands read deaths 0.98 down to 0.40 against depth
-  // 4.14 down to 2.80, and that was reported as the first dial here to move
-  // survival. It was not: the per-tile form charged a compounding surcharge
-  // on every step, so high caution simply made the hero barely move — he died
-  // less because he went nowhere. With uncertainty moved onto the GOAL, where
-  // it belongs, deaths read 1.00 flat across all six bands and depth shows no
-  // trend. Caution is back to being a dial that does not measurably separate.
+  // 8.3 sat on the knee, just under it. Moving to the plateau's start turned
+  // OFF `wins too rare` — one run in 150 now finishes, against none before —
+  // at the cost of opening deaths going 0.227 to 0.253, nowhere near its own
+  // threshold of a half.
   //
-  // The centre stayed at 8.3 through that correction and has NOT been re-swept
-  // for the goal-priced form. It is inherited, not chosen.
-  caution: 8.3,
+  // BE HONEST ABOUT THAT CLEAR: the wire's condition is "not one run in the
+  // sample is cleared", so a single completed run flips it. One run is not a
+  // result. What IS a result is the plateau — three bands at ~4.3 against
+  // three at ~4.1, consistent in direction, about 1.7 sigma.
+  //
+  // AND THE DIAL SELLS NOTHING. Deaths read 1.00 flat across all six bands.
+  // Moving the centre up gained depth and cost no lives, which means this is
+  // not a trade the player makes — it is a setting that was wrong and is now
+  // less wrong. The big survival spread this dial once showed (0.98 to 0.40)
+  // was the per-tile uncertainty bug, not the dial. Whether something that
+  // separates this little deserves one of three bands on the panel is an open
+  // question for the owner, and it is asked in docs/project/rota-e-valor.md.
+  caution: 9.6,
 
   // What one step is worth in hp. This is the exchange rate between goal 3
   // and the other two: raising it makes near goals win harder and empties

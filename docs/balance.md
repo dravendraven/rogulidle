@@ -112,7 +112,7 @@ the split is an exact no-op.
 `caution` is how many steps one turn of unpleasantness is worth —
 dimensionless, so the dial IS the ratio between hurry and danger. It prices
 two things per turn in the same unit: what can HIT the hero, and how much more
-of the map a tile opens than where he stands. **8.3, and MEASURED rather than
+of the map a tile opens than where he stands. **9.6, and MEASURED rather than
 derived** — it was `MEAN_BITE / stepCost` until the uncertainty term went in
 and put that centre past the top of the curve. It is the first dial here to
 move survival: deaths per run go 0.98 to 0.40 across its bands, against depth
