@@ -1844,9 +1844,9 @@ test('raging without a syringe passes no turn at all', () => {
 // tripwires. "The syringe is never spent outside a fight" is either true of
 // every injection or the trigger is broken; there is no share of it to
 // watch, and a wire measuring it would read zero injections on the base
-// hero, who owns no syringe. The trigger asks whether rage would flip an
-// ADJACENT duel from refused to accepted, so an injection with nobody in
-// reach is impossible by construction — this is what makes that stay true.
+// hero, who owns no syringe. The trigger asks whether rage turns an ADJACENT
+// duel from a death into a survival, so an injection with nobody in reach is
+// impossible by construction — this is what makes that stay true.
 test('vito never injects with no creature beside him', () => {
   const vito = HEROES.vito;
   let injections = 0;

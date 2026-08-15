@@ -139,18 +139,20 @@ six bands. A first guess, swept at 0.9 and 0.8.
 **The warrior's syringe has no number of its own**, and that is the point.
 `RAGE_AT` used to be one, pointed at the same bar the fight gate refuses on, so
 the item was spent where the bot then walked away. It was deleted rather than
-retuned. What triggers the injection now is a CONDITION — would rage flip this
-adjacent duel from refused to accepted — and greed enters as a reserve price on
-the flip, written against the bar the hero already carries: the sober duel must
-cost at least `fightMargin × effectiveHp × sideAppetite`. No new constant, and
-the low half of the dial is inert because the flip already floors it.
+retuned. What triggers the injection now is a CONDITION about survival, not
+expense — the adjacent duel kills him sober, and enraged it does not. Both
+readings are taken against the whole of `effectiveHp`.
 
-The TURN the syringe costs is priced the same way, out of parts that already
-exist: injecting hands the adjacent creature one free blow, so the enraged
-reading carries `(1 - MONSTER_SKIP_CHANCE) × expectedDamage(monster.xp)` — one
-turn's worth, the same arithmetic `duelCost` charges its own turns with —
-against the same bar. It costs the top of greed's range, because "affordable
-enraged" caps the rescue at one bar; that trade and its numbers are in
+The TURN the syringe costs is priced out of parts that already exist: injecting
+hands the adjacent creature one free blow, so the enraged reading carries
+`(1 - MONSTER_SKIP_CHANCE) × expectedDamage(monster.xp)` — one turn's worth, the
+same arithmetic `duelCost` charges its own turns with.
+
+Greed says how CERTAIN the death has to be: the sober duel must cost at least
+`effectiveHp × sideAppetite`. No new constant. The low half of the dial is inert
+because "it kills me" already demands one whole `effectiveHp`, and the top asks
+for more than the item can do — rage halves the duel, so the deaths it can undo
+cost at most about two lives. Both ends, and what they buy, are in
 `docs/bot.md`.
 
 ## Tiers

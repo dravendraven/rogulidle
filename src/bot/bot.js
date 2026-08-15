@@ -561,82 +561,73 @@ function stillValid(goal, belief, field) {
 // Manhattan rather than a real path, and it errs the safe way: a path is
 // never shorter than the straight-line count, so anything called "close
 // enough to arrive" is at worst early, never late.
-// DOES THE SYRINGE TURN A FIGHT HE REFUSES INTO ONE HE TAKES? (B27)
+// DOES THE SYRINGE SAVE HIS LIFE, RIGHT HERE? (B30)
 //
-// A CONDITION, NOT A THRESHOLD, and that is the whole fix. The old rule fired
-// when the melee in front of him cost MORE than a share of what he has — which
-// is the same test the fight gate uses to REFUSE that melee. So the item was
-// spent exactly where the bot then walked away: measured over 150 runs, in 30
-// of 84 injections the gate refused every adjacent creature with the rage
-// already running, and 35 injections landed no blow at all.
+// SURVIVAL, NOT EFFICIENCY, and the difference is the whole rule. Every
+// earlier version asked whether rage made the fight in front of him CHEAPER —
+// `RAGE_AT` (B27) against a share of his hp, then the flip against the fight
+// gate's own bar (B28, B29). Cheap is not what the item is for. It has one use
+// per descent and the only thing worth one is not dying, so both readings are
+// taken against the whole of what he has:
 //
-// Rage doubles the damage die's top, which roughly halves `duelCost` — so
-// there is a band of fights unaffordable sober and affordable enraged. That
-// band IS the item's purpose, and asking for it directly needs no number:
-// price the same creature twice, once as he is and once as he would be, and
-// spend the syringe when the second reading clears the bar the first failed.
+//     sober:    the duel kills me
+//     enraged:  one free blow + the duel leaves me standing
 //
 // ADJACENT ONLY, the rule that replaced `awakeCost` and stays: `raging` counts
 // down on every turn that PASSES (src/sim/step.js), walking included, so
 // injecting at anything he still has to reach spends the item on the walk.
 //
-// It deletes `RAGE_AT`, and with it the greed ladder that number bought — how
-// deep the injection sat was a function of the threshold, and a condition has
-// no threshold to bend. That loss is real and was the owner's call.
-// AND GREED IS THE RESERVE PRICE ON THE FLIP. The condition says the item is
-// never WASTED; greed says whether this particular flip is worth spending it
-// on. The demand is written against the bar the hero already carries, so no
-// new constant appears:
-//
-//     the sober duel must cost at least  fightBar × greed
-//
-// A miser waits for a fight worth nearly two bars sober; a spendthrift takes
-// the first flip going. It restores the ladder `RAGE_AT` used to buy — the
-// injection floor rose with avarice — without the defect that killed it: the
-// old number pointed at the same bar the fight gate refuses on, so the item
-// was spent where the bot then walked away. Here the gate's own verdict is the
-// trigger and greed only says how big a rescue is worth one.
-//
-// THE LOW HALF OF THE DIAL IS INERT, and that is a property rather than a
-// flaw. The flip already requires the sober duel to exceed one bar, so any
-// demand below one bar is satisfied before it is asked. A spendthrift cannot
-// be more spendthrift than "spend whenever it would help" — that IS the floor.
-//
-// AND THE TURN THE ITEM COSTS IS PRICED ON THE SIDE THAT SPENDS IT (B29).
+// THE TURN THE ITEM COSTS IS PRICED ON THE SIDE THAT SPENDS IT (B29, kept).
 // Injecting is an action: the hero does not swing that turn and the creature
 // beside him does, so the manoeuvre opens with one free blow that `duelCost`
-// never sees — it prices a duel from the first swing onward. Measured over 120
-// runs, 22 of 63 injections were the hero's LAST act: median 1 hp, no armour,
-// no blow ever landed. The plan was right about the FIGHT and wrong about the
-// TURN.
+// never sees — it prices a duel from the first swing onward. Measured before
+// it was charged, 22 of 63 injections were the hero's LAST act: median 1 hp,
+// no armour, no blow ever landed. `(1 - MONSTER_SKIP_CHANCE) × expectedDamage`
+// is the same arithmetic `duelCost` charges each of its own turns with.
 //
-// So the enraged reading carries that blow, against the same bar:
+// GREED IS HOW CERTAIN THE DEATH HAS TO BE. The bot never KNOWS it is about to
+// die; it has an estimate built on a guessed roster hp, and the demand says
+// how far past the line that estimate must sit before the item is spent:
 //
-//     one free blow + the enraged duel  ≤  fightBar
+//     the sober duel must cost at least  effectiveHp × greed
 //
-// No new number: `(1 - MONSTER_SKIP_CHANCE) × expectedDamage` is the same
-// arithmetic `duelCost` prices each of its own turns with. And what it deletes
-// is exactly the trade that never paid — rage roughly halves the turns, so a
-// two-turn sober duel becomes a one-turn enraged one, saving one blow and
-// costing one. The syringe is worth a turn only when it saves more than one.
-function rageWouldFlip(belief, hero) {
+// A cautious hero spends on the first fight that could kill him, however
+// shallow. A bold one holds out for a death that is barely survivable even
+// enraged, and accepts dying with the syringe unused as the price of that.
+//
+// AND THAT IS WHY THERE IS NO "SAVE IT FOR FLOOR 7" TERM, though it was asked
+// for and the intuition behind it is sound. Holding the item against a bigger
+// moment later prices a future the hero may not have: if the estimate says he
+// dies HERE, there is no later, and spending shallow is correct precisely
+// because the trigger is now death rather than expense. The behaviour the
+// intuition wanted still appears, as a consequence instead of a term — a hero
+// who demands near-certain death spends late, because near-certain deaths are
+// deep. What would genuinely justify hoarding is the opposite of what it
+// assumes: deeper creatures hit harder, so rage is LESS likely to flip a
+// deep death into a survival than a shallow one.
+//
+// THE LOW HALF OF THE DIAL IS INERT, and it is the cautious hero's own
+// description. "The duel kills me" already demands one whole effectiveHp, so
+// any greed below 1 is satisfied before it is asked. Nobody can be more
+// cautious than spending the first time it saves a life — that IS the floor.
+function rageWouldSave(belief, hero) {
   const [px, py] = belief.player.pos;
-  // The bar reads the same either way — `effectiveHp` is hp plus armour and
-  // rage touches neither. Only the DUEL moves.
-  const bar = hero.fightMargin * effectiveHp(belief.player);
-  const demand = bar * hero.sideAppetite;
+  // Everything is measured against the whole of what he has: `effectiveHp` is
+  // hp plus armour, and rage touches neither. Only the DUEL moves.
+  const life = effectiveHp(belief.player);
+  const demand = life * hero.sideAppetite;
   const enraged = { ...belief.player, raging: RAGE_TURNS };
 
   for (const m of belief.monsters.values()) {
     if (m.dead) continue;
     if (Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py) !== 1) continue;
     const sober = duelCost(belief.player, m, hero.bravery).hpLost;
-    if (sober <= bar) continue;              // he would take it anyway
-    if (sober < demand) continue;            // too small a rescue to spend on
+    if (sober < life) continue;              // he lives through it anyway
+    if (sober < demand) continue;            // not a certain enough death yet
     // What the turn spent on the syringe costs: one blow from the thing that
     // is already beside him.
     const injection = (1 - MONSTER_SKIP_CHANCE) * expectedDamage(m.xp, 0);
-    if (duelCost(enraged, m, hero.bravery).hpLost + injection <= bar) return true;
+    if (duelCost(enraged, m, hero.bravery).hpLost + injection < life) return true;
   }
   return false;
 }
@@ -748,12 +739,12 @@ export function makeBot(options = {}) {
       return 'read';
     }
 
-    // THE SYRINGE (B27). Not a share of anything — a question with a yes or a
-    // no: does raging turn a fight he is refusing into one he would take?
-    // `rageWouldFlip` above carries the reasoning and the measurement.
+    // THE SYRINGE (B30). Not a share of anything — a question with a yes or a
+    // no: does raging turn a death into a survival? `rageWouldSave` above
+    // carries the reasoning and the measurement.
     if (belief.player.inventory.some((i) => i.kind === 'syringe')
       && !belief.player.raging
-      && rageWouldFlip(belief, hero)) {
+      && rageWouldSave(belief, hero)) {
       return 'rage';
     }
 

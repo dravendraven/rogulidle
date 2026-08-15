@@ -44,49 +44,49 @@ frases:
 - **Profundidade não é monótona nisso**, e o pico interior da Ganância já
   existia antes do livro (M47) — as duas coisas se somam na mesma leitura e
   não dá para separá-las por esta tabela.
-- **Injeta a adrenalina** quando a fúria transforma uma luta que ele RECUSA
-  numa que ele aceita. Pergunta de sim ou não, sem fração nenhuma: precifica a
-  mesma criatura duas vezes — como ele está e como ele estaria — e gasta o item
-  quando a segunda leitura passa na barra em que a primeira falhou.
+- **Injeta a adrenalina** quando a fúria transforma uma MORTE numa
+  sobrevivência. Pergunta de sim ou não, sem fração nenhuma: precifica a mesma
+  criatura duas vezes — como ele está e como ele estaria — e as duas leituras
+  são feitas contra tudo o que ele tem, não contra uma fração. Sóbrio o duelo o
+  mata; enfurecido, somado ao golpe do turno da injeção, ele fica de pé.
 - **Só criatura ADJACENTE**, porque o contador da fúria cai a cada turno que
   passa, andar incluído (`rules.md` §5): injetar contra algo que ainda precisa
   ser alcançado gasta o item na caminhada.
-- **O que isso substituiu era autocontraditório.** A regra antiga disparava
-  quando o corpo a corpo custava MAIS que uma fração do hp efetivo — que é o
-  mesmo teste que o portão usa para RECUSAR essa luta. Medido: em 30 de 84
-  injeções o portão recusava toda criatura adjacente com a fúria já ligada. O
-  item era gasto exatamente onde o bot ia embora.
-- **E a ganância voltou como preço de reserva, não como limiar.** A condição
-  diz que o item nunca é desperdiçado; a ganância diz se ESTA luta vale gastá-lo.
-  A exigência é escrita contra a barra que o herói já carrega — o duelo sóbrio
-  precisa custar pelo menos `barra × ganância` — então nenhum número novo
-  aparece. Um avarento espera um resgate de quase duas barras; um perdulário
-  aceita o primeiro que aparecer.
-- **A metade de baixo do dial não faz nada, e isso é a regra, não defeito.** A
-  condição já exige que o duelo sóbrio passe de uma barra, então qualquer
-  exigência abaixo de uma barra está satisfeita antes de ser feita. Ninguém pode
-  ser mais perdulário que "gasta sempre que ajudaria" — esse É o piso.
-- **A escada que isso comprou é outra, e vale dizer qual.** O `RAGE_AT` antigo
-  movia o ANDAR da injeção; o preço de reserva move a QUANTIDADE, com o andar
-  mediano parado em 4.
+- **O que isso substituiu media a coisa errada.** As três versões anteriores
+  perguntavam se a fúria deixava a luta mais BARATA — primeiro contra uma fração
+  do hp (`RAGE_AT`, disparando na mesma barra em que o portão recusa a luta:
+  medido, em 30 de 84 injeções o portão recusava toda criatura adjacente com a
+  fúria já ligada), depois contra a barra do portão. Barato não é para o que
+  serve um uso por descida. O único uso que vale um é não morrer.
 - **O turno que o item custa é cobrado de quem o gasta.** Injetar é uma ação: o
   herói não golpeia nesse turno e a criatura ao lado golpeia, então a manobra
   abre com um golpe de graça que o `duelCost` não enxerga — ele precifica o
-  duelo do primeiro golpe em diante. Medido: 22 de 63 injeções eram o último ato
-  do herói, com 1 de hp mediano, sem armadura e sem golpe nenhum. A leitura
-  enfurecida agora carrega esse golpe contra a mesma barra, e o que isso apaga é
-  o negócio que nunca pagou — a fúria corta os turnos pela metade, então um duelo
-  sóbrio de dois turnos vira um enfurecido de um, poupando um golpe e custando
-  um. O item só vale um turno quando poupa mais de um.
-- **E isso encurtou o alcance útil do dial de ganância**, o que é honesto dizer:
-  "pagável enfurecido" limita o resgate a uma barra, então o custo sóbrio que a
-  virada consegue salvar mora entre uma e cerca de duas barras — cobrar o golpe
-  da injeção come o topo dessa faixa. Pelas seis bandas as injeções passaram a
-  23, 30, 34, 20, 5 e 0: acima de `1.16` o avarento praticamente não usa mais a
-  seringa. Em troca ela deixou de ser desperdiçada — 1,05 golpe por injeção
-  virou 1,39, e a fração de turnos de fúria que viram golpe ficou plana em ~51%
-  em vez de subir com a avareza, porque o desperdício que a ganância removia o
-  preço do turno já removeu.
+  duelo do primeiro golpe em diante. Medido antes de cobrar: 22 de 63 injeções
+  eram o último ato do herói, com 1 de hp mediano, sem armadura e sem golpe
+  nenhum.
+- **A ganância diz o quão CERTA a morte precisa ser.** O bot nunca sabe que vai
+  morrer — ele estima, em cima de um hp de criatura que é chute. A exigência diz
+  o quanto essa estimativa precisa passar da linha: o duelo sóbrio tem que
+  custar pelo menos `hp efetivo × ganância`. Cauteloso gasta na primeira luta
+  que pode matá-lo, por mais raso que seja o andar; arrojado espera uma morte
+  que a fúria mal desfaz, e aceita morrer com a seringa no bolso.
+- **A metade de baixo do dial não faz nada, e é a descrição do próprio
+  cauteloso.** "O duelo me mata" já exige um hp efetivo inteiro, então qualquer
+  ganância abaixo de 1 está satisfeita antes de ser perguntada. Ninguém pode ser
+  mais cauteloso que "gasta na primeira vez que salva a vida" — esse É o piso.
+- **Não existe termo de "guardar para o andar 7"**, ainda que a intuição por
+  trás dele seja boa. Guardar precifica um futuro que o herói pode não ter: se a
+  estimativa diz que ele morre AQUI, não existe depois. O comportamento que a
+  intuição queria aparece assim mesmo, como consequência e não como termo — quem
+  exige morte quase certa gasta tarde, porque morte quase certa é coisa de andar
+  fundo.
+- **O topo do dial pede o que o item não faz.** A fúria dobra o topo do dado,
+  ou seja, corta o duelo pela metade: uma morte que ela desfaz custa no máximo
+  cerca de duas vidas sóbrias. Exigir 1.8 vidas deixa uma fresta e 2.0 seria
+  vazio por construção. Medido em 120 seeds por banda, as injeções vão 15, 12,
+  15, 6, 2, 0 — a metade de baixo é ruído de runs que divergem, e na banda mais
+  avarenta o herói morre com a seringa guardada. Isso é o extremo do traço ou
+  uma banda morta, e é o dono quem julga.
 - **Nunca começa luta** cujo custo esperado passe de `fightMargin` do hp
   efetivo (hp + armadura). Uma criatura que já persegue paga só a
   caminhada — o duelo dela acontece de qualquer jeito — **e paga metade

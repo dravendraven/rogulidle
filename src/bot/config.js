@@ -362,12 +362,12 @@ export const LOOT_VALUE = true;
 export const READ_AT = 0.8;
 
 
-// ***** when the warrior injects: NO NUMBER AT ALL (B27) ***** //
+// ***** when the warrior injects: NO NUMBER AT ALL (B27, B30) ***** //
 //
 // `RAGE_AT` used to live here — the share of everything he has that the fight
 // in front of him had to be expected to cost. It is gone, and what replaced it
 // is a CONDITION rather than a smaller threshold: inject when raging turns a
-// fight the gate refuses into one it accepts (`rageWouldFlip`, src/bot/bot.js).
+// death into a survival (`rageWouldSave`, src/bot/bot.js).
 //
 // The old number could not be tuned out of its problem, because the problem
 // was that it pointed at the same bar the fight gate uses to REFUSE a fight.
@@ -375,8 +375,8 @@ export const READ_AT = 0.8;
 // spent precisely where the bot then walked away. Measured: 30 of 84
 // injections had every adjacent creature refused with the rage already on.
 //
-// The cost, and it is real: that threshold was multiplied by greed and by the
-// share of floors left, so the injection floor rose with avarice — median 4.3
-// to 5.4 across the bands. A condition has nothing to bend, so the ladder is
-// gone. The owner chose an item that is never wasted over an item whose timing
-// carried a trait.
+// What replaced it first (B28) was still an EXPENSE test — rage making the
+// melee cheaper — and that is not what one use per descent is for. The rule
+// now reads both duels against the whole of what he has: it kills me sober, it
+// does not kill me enraged. `sideAppetite` is the only dial in it and it means
+// how CERTAIN the death has to be, which is why no number lives here.
