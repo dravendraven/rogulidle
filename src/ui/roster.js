@@ -190,13 +190,11 @@ export function buildRoster(container, { onPick, onRestart, onPreview } = {}) {
     chips.set(hero.name, chip);
   }
 
-  // Why the four faces are dark. Under the row rather than in a tooltip: the
-  // whole point of showing a locked cast is telling a spectator what there is
-  // to play for, and a reason nobody hovers over says nothing.
-  const locked = document.createElement('div');
-  locked.className = 'roster-locked';
-  locked.hidden = true;
-  container.append(row, locked, pending);
+  // The standalone lock line used to sit here, under the row. It went: the
+  // card's own blurb slot already says why the cast is shut whenever a
+  // locked face is being read, and the line repeated it under the ordinary
+  // hero where nothing was being asked. One fact, one place.
+  container.append(row, pending);
 
   const restart = document.createElement('button');
   restart.type = 'button';
@@ -259,12 +257,6 @@ export function buildRoster(container, { onPick, onRestart, onPreview } = {}) {
     const shutHero = !allowed(showing);
     blurb.textContent = shutHero ? `🔒 ${heroLockReason()}` : hero.blurb;
     blurb.classList.toggle('locked', shutHero);
-
-    // Said once, never twice. The standalone line explains the dark faces
-    // while the card is on an open hero; when the card itself is showing a
-    // locked one, the blurb above already said it.
-    locked.hidden = open || shutHero;
-    locked.textContent = (open || shutHero) ? '' : `🔒 ${heroLockReason()}`;
 
     // Nothing is queued and nothing can be restarted while browsing: there
     // is no pick behind either button, so offering them would promise a

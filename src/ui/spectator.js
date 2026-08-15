@@ -26,7 +26,9 @@ import { resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
 import { SHOP_ITEMS, pickDefaultPurchase } from './shop.js';
 import { buildDialPanel, resolvedDefaults } from './dials.js';
 import { buildRoster, clearChosenHero, getChosenHero } from './roster.js';
-import { buildHighscorePanel, recordRun, getHighscores } from './highscores.js';
+import {
+  buildHighscorePanel, getHighscores, recordRun, resetHighscores,
+} from './highscores.js';
 import { loadDialOverrides } from './dial-overrides.js';
 import { eventsEnabled, makeEventLayer } from './events.js';
 import { playRun } from './run.js';
@@ -704,21 +706,30 @@ function wireControls() {
   // the plain hero) right up to the moment the Butcher falls again, when it
   // would silently re-select itself.
   //
-  // NOT the highscores and NOT the Lab's notches. A score is a record of
-  // what happened rather than something held, and the notches are settings.
-  // Neither is progress, so neither is the button's business.
+  // The highscores go too — owner's call, and the consistent one: the board
+  // is the record of what those coins and those achievements were worth, so
+  // wiping the earnings and keeping the table would leave rows nothing on
+  // the page can account for any more.
+  //
+  // NOT the Lab's notches, which are the one store the button leaves alone.
+  // They are not earned, they are DEALT: the bot's personality is rolled once
+  // on a first visit and kept so that "mine is the greedy one" stays true
+  // (src/ui/dials.js). Clearing them would hand back a different bot, which
+  // is not what starting over means.
   el.resetSession.addEventListener('click', () => {
-    if (!confirm('Reset your coin balance, held items, lifetime total, achievements and hero? This cannot be undone.')) return;
+    if (!confirm('Reset your coin balance, held items, lifetime total, achievements, hero and highscores? This cannot be undone.')) return;
     resetScore();
     resetOnDeath();
     resetAchievements();
     clearChosenHero();
+    resetHighscores();
 
     // Both displays are redrawn here rather than left to the next run: the
     // gate re-shuts the instant the receipts go (`resetAchievements` clears
     // the verified cache), and a rail still showing an open cast would be
     // lying until the run on screen happened to end.
     renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements());
+    if (session.showHighscores) session.showHighscores(getHighscores());
     // The run being watched keeps its hero — it is deterministic from seed
     // AND hero, so swapping mid-run would make it something no seed
     // reproduces. Only what comes NEXT goes back to the plain hero.
