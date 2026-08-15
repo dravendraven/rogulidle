@@ -191,6 +191,19 @@ async function playFrames(frames, trace, tallyText) {
 
     await sleep(turnMs() * (fought(frame, frames[i - 1]) ? COMBAT_STRETCH : 1));
   }
+
+  // M50 — and the bar goes when the floor's playback does.
+  //
+  // It was drawn from the frame on screen, so the LAST frame of a floor the
+  // hero lost is one where the Butcher is alive and awake — the bar's own
+  // condition — and nothing draws another frame afterwards. It sat over the
+  // summary and over the shop, at z-index 3 against their `auto`, looking
+  // exactly like a panel that had frozen.
+  //
+  // Here rather than at the start of the next floor: what is between two
+  // floors is the summary and the shop, and that is precisely where it must
+  // already be gone.
+  if (el.bossBar) el.bossBar.hidden = true;
 }
 
 const legacyTallyText = () =>
@@ -247,7 +260,15 @@ async function showCoinPopup(coins, bought) {
   let waited = 0;
   let flipped = false;
   while (waited < until) {
-    await waitWhilePaused();
+    // Pausing freezes the timer, which is the point — but it must not
+    // freeze the BUTTON. `waitWhilePaused` alone parks the loop inside
+    // itself, so a click set `skipped` and nothing ever read it again: the
+    // shop stayed open with a dead skip and a stalled bar until the player
+    // happened to press play. A pause is a request to stop the clock, not
+    // to stop taking input.
+    while (session.paused && !skipped) await sleep(80);
+    if (skipped) break;
+
     await sleep(80);
     waited += 80;
     if (bought && !flipped && waited >= flipAt) {
