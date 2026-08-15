@@ -33,6 +33,7 @@ import {
 import { loadDialOverrides } from './dial-overrides.js';
 import { eventsEnabled, makeEventLayer } from './events.js';
 import { playRun } from './run.js';
+import { sleep } from './clock.js';
 
 const MAX_TURNS = 900;       // per floor
 const BASE_DELAY = 110;      // ms per turn at 1x
@@ -127,8 +128,6 @@ function grab() {
     el[id] = document.getElementById(id);
   }
 }
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function waitWhilePaused() {
   while (session.paused) await sleep(80);

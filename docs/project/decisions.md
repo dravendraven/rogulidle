@@ -1565,3 +1565,71 @@ dagger 10, axe 16) left purchasing power flat — 4.10 against 4.12 shields per
 run — while distinct per-floor payouts went from 6 values to 10 and distinct
 run balances from 19 to 35. The point of the change was resolution, and that
 is the number that moved.
+
+## U13 — the game was not running while you were away, and one line of the loop was why
+
+An idle game that stops when you look away is not idle. It did stop: every
+delay in `src/ui/spectator.js` came from one `sleep()` built on `setTimeout`,
+and a browser clamps `setTimeout` in a hidden tab.
+
+### Measured with both sources in the same page at the same time
+
+`tools/timer-probe.html` runs the same 110ms interval two ways in one page and
+counts only the ticks that land while the tab is hidden:
+
+| hidden for | source | ticks per second (asked: 9.09) | worst gap |
+|---|---|---|---|
+| 2 min | `setTimeout` | 1.11 | 1.0s |
+| 2 min | `setInterval` inside a Worker | 9.09 | 0.1s |
+| **24 min** | `setTimeout` | **0.22** | **60.0s** |
+| **24 min** | `setInterval` inside a Worker | **9.09** | 0.2s |
+
+**Both of Chrome's tiers were seen, and the second one is the real one.** The
+first five minutes hidden cost one call per second; after that the page drops
+to one call per **minute** — the 60.0s worst gap is that, measured, not quoted
+from documentation. 319 ticks in 24 minutes is about 300 from the first tier
+and 19 from the second: the game would have been playing a turn a minute.
+
+The worker held 9.09/s for the whole 24 minutes, 13105 ticks, worst gap two
+tenths of a second. **And the page was never frozen** — the probe watches for
+the Page Lifecycle `freeze` event and saw none in 24 minutes hidden, which is
+what makes the decision below safe rather than merely cheap.
+
+**The clamp is on timers, not on the page.** A worker's `postMessage` is a
+message task, so a worker can keep time and the page merely answers it. That
+is the whole of `src/ui/clock.js`.
+
+### Why the clock, and not the loops
+
+Frames, the shop's thirty seconds, the summary card, the coin popup and the
+pause loop are all paced by that one `sleep()`, and all of them were slowed by
+the same factor — the shop's bar was taking six minutes to cross. Replacing
+the primitive fixed every one of them without touching a single loop, and
+without a new dial anywhere.
+
+### Catch-up was considered and NOT built
+
+A worker does not survive the browser *freezing* the page (Chrome's
+Memory/Energy Saver, a phone backgrounding the browser). The complete answer
+to that is for the game to notice the wall-clock time it lost and fast-forward
+through it, which is what other idle games do.
+
+It was left out because the freeze did not happen: 24 minutes hidden, no
+`freeze` event, the worker never missed a beat. And it is not cheap. A run is
+258ms of simulation plus 62ms of replay and buys about 40 seconds of playback
+— 0.8% of a core, so running at full speed while hidden is nearly free, but
+*catching up* an hour away means about 30 seconds of blocking work the moment
+you come back, and a cap on that is a new parameter existing only to protect
+another parameter.
+
+**What would reopen it:** the probe reporting a `freeze`, which is the case
+this machine did not produce. A phone, or a laptop on battery with Chrome's
+Energy Saver on, is where to look — not a desktop that has already answered.
+
+### What is not fixed
+
+`run-check.html` still paces itself with its own `setTimeout` (line 85), so
+`CLAUDE.md`'s "keep the tab visible while it runs" is still true for the
+tripwires. Same one-line fix available; not taken here because it would make
+that instruction stale in a doc this change had no other reason to touch.
+
