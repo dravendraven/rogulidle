@@ -17,6 +17,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | | `STRENGTH_GROWTH` | 1.1452 | that ceiling multiplies by this per floor |
 | how much that threat varies | `TIER_FLOOR_PER_LEVEL` / `_CAP` | 0.08 / 0.5 | the band's minimum tier rises with depth, as a share of the floor's own ceiling |
 | | `TIER_SLACK_PER_LEVEL` / `_CAP` | 0.08 / 0.5 | whole table rows the drawn slot may sit above the ceiling (0 shallow, 1 from floor 8) |
+| | `tierFloorStart` / `tierSlackStart` / `outOfDepthChanceStart` / `spreadStart` | 0 / 0 / 0 / 0 | where each rate family STARTS, so a curve re-anchored part way down the dungeon continues instead of restarting at zero. 0 is the shipped game — with one anchor there was never anything to continue from. Model fields only, no constant: they exist for `model.floors` (see `map-design.md`) and make all six growth families the same shape, a starting value and a rate |
 | | `EARLY_TIER_CUT` | 1 | whole rows trimmed off floor 1's ceiling, floor 1 only |
 | | `OUT_OF_DEPTH_CHANCE_PER_LEVEL` / `_CAP` | 0.02 / 0.15 | the rare top-of-table reskin; zero on floor 1, capped well under certainty |
 | | `FLOOR_SPREAD_PER_LEVEL` / `_CAP` | 0.09 / 0.9 | one shared roll widening the whole floor's count with depth |

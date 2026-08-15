@@ -335,7 +335,44 @@ Draw the two lines to state the intent, solve the dials for pressure, then
 watched run wins. The failure mode to recognise is the moment someone argues a
 line should be higher because the line should be higher.
 
-## Two shapes now, and the second one is drawn rather than found
+## The curve comes in pieces
+
+**One curve anchored at floor 1 was the only shape this game could have.**
+Every per-floor number — how many creatures, how strong, how wide the band
+— was a formula counting floors down from the first, so the whole descent
+was one gesture and the only way to change its middle was to change its
+start.
+
+`model.floors` is a list of ANCHORS: `[{ from: 1, …dials }, { from: 4,
+…dials }]`. A floor is drawn by the last anchor at or above it, counting
+steps from that anchor's own floor. **A model with no `floors` is one
+anchor at floor 1**, which is the shipped game and every
+`dial-overrides.json` written before this existed — that is why it is an
+optional field and not a new argument.
+
+**What it is FOR is not mainly the curves.** Of the model's thirty-odd
+fields only six are growth; the rest are flat per-floor values —
+`dugPercentage`, `mapSize`, `hubEvery`, `clusterSize`, `chestMix`. For
+those, an anchor at floor 4 simply means "from here the value is different",
+and that is the immediately useful half: floors 1–3 small and tight, 4–7
+open, 8–10 hubs.
+
+**Two rules about what a second anchor inherits**, both chosen rather than
+fallen into:
+
+- **The run-wide four are never per-segment** — `levels`, `vaultLevel`,
+  `vaultChestItems`, `vaultBoss`. A segment cannot hold a different answer
+  and mean anything by it: `vaultLevel` already names a floor.
+- **`earlyTierCut` resets to 0.** It is the tutorial discount, and it
+  belongs to the start of the GAME, not the start of every stretch.
+
+**Re-anchoring is continuous, except for the creature count.** Give a new
+anchor the values the old curve produced at that floor and the floors below
+it come out identical — verified for strength, tier floor, tier slack, the
+rare tail and the spread. The COUNT drifts by up to one creature, because it
+is a whole number: the anchor stores the rounded 5, and five times the
+growth is not what four times the growth five floors down was. Worth knowing
+before reading a difference as a defect.
 
 **The section below is still true of the Digger, and it stopped being the
 whole story.** `HUB_EVERY` says which floors are dug by the other generator

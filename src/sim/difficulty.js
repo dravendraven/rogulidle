@@ -112,38 +112,46 @@ export function saturatedAt(model = {}, levels = 10) {
 }
 
 // How wide this floor's shared count roll is.
-export function floorSpread(level, model = {}) {
+export function floorSpread(step, model = {}) {
   const perLevel = model.spreadPerLevel ?? FLOOR_SPREAD_PER_LEVEL;
   const cap = model.spreadCap ?? FLOOR_SPREAD_CAP;
-  return Math.max(0, Math.min(cap, perLevel * Math.max(0, level)));
+  const start = model.spreadStart ?? 0;
+  return Math.max(0, Math.min(cap, start + perLevel * Math.max(0, step)));
 }
 
 // Chance of the rare out-of-depth reskin. Zero on floor 1 by construction.
-export function outOfDepthChanceAt(level, model = {}) {
+export function outOfDepthChanceAt(step, model = {}) {
   const perLevel = model.outOfDepthChancePerLevel ?? OUT_OF_DEPTH_CHANCE_PER_LEVEL;
   const cap = model.outOfDepthChanceCap ?? OUT_OF_DEPTH_CHANCE_CAP;
-  return Math.max(0, Math.min(cap, perLevel * Math.max(0, level)));
+  const start = model.outOfDepthChanceStart ?? 0;
+  return Math.max(0, Math.min(cap, start + perLevel * Math.max(0, step)));
 }
 
 // The tier band's lower clamp: what SHARE of the floor's own ceiling index
 // the minimum tier climbs to. A share keeps floor <= ceiling by
 // construction at every depth.
-export function tierFloorShare(level, model = {}) {
+export function tierFloorShare(step, model = {}) {
   const perLevel = model.tierFloorPerLevel ?? TIER_FLOOR_PER_LEVEL;
   const cap = model.tierFloorCap ?? TIER_FLOOR_CAP;
-  return Math.max(0, Math.min(cap, perLevel * Math.max(0, level)));
+  const start = model.tierFloorStart ?? 0;
+  return Math.max(0, Math.min(cap, start + perLevel * Math.max(0, step)));
 }
 
 // The tier band's upper clamp, in WHOLE TABLE ROWS relative to the floor's
 // ceiling index: negative on floor 1 (the early cut), 0 through the middle,
 // +1 from floor 8. One signed number where three share families used to be
 // — two of them were literally the same expression with different constants.
-export function tierSlack(level, model = {}) {
+export function tierSlack(step, model = {}) {
   const perLevel = model.tierSlackPerLevel ?? TIER_SLACK_PER_LEVEL;
   const cap = model.tierSlackCap ?? TIER_SLACK_CAP;
+  const start = model.tierSlackStart ?? 0;
   const earlyCut = model.earlyTierCut ?? EARLY_TIER_CUT;
-  const above = Math.floor(Math.min(cap, perLevel * Math.max(0, level)) * 2);
-  return above - (level === 0 ? earlyCut : 0);
+  const above = Math.floor(Math.min(cap, start + perLevel * Math.max(0, step)) * 2);
+  // The tutorial discount lands on the FIRST FLOOR OF THE SEGMENT — floor 1
+  // when there is only one, which is the shipped game. A segment started
+  // deeper opens on 0 (see SEGMENT_RESETS), so it does not hand out a second
+  // tutorial half way down.
+  return above - (step === 0 ? earlyCut : 0);
 }
 
 // Creature count on a floor, `step` floors below the first. At least one
@@ -216,6 +224,18 @@ export const DEFAULT_MODEL = {
   tierSlackPerLevel: TIER_SLACK_PER_LEVEL,
   tierSlackCap: TIER_SLACK_CAP,
   earlyTierCut: EARLY_TIER_CUT,
+  // WHERE EACH RATE FAMILY STARTS, so a curve re-anchored part way down the
+  // dungeon continues instead of restarting at zero. 0 on the first segment
+  // is the shipped game — the four families always counted from nothing,
+  // because there was only ever one anchor to count from.
+  //
+  // This makes all six growth families the same shape: a starting VALUE and
+  // a rate. `monstersBase`/`monsterGrowth` was already that pair; these four
+  // were the rate alone with the start left implicit.
+  tierFloorStart: 0,
+  tierSlackStart: 0,
+  outOfDepthChanceStart: 0,
+  spreadStart: 0,
   chestGuardRadius: CHEST_GUARD_RADIUS,
   dropChance: MONSTER_DROP_CHANCE,
   weaponScarcity: WEAPON_SCARCITY,
@@ -259,8 +279,65 @@ export const DEFAULT_MODEL = {
 
 // Turns a model into the `floorPlan(level)` function the dungeon wants.
 // Level is 1-based here, matching dungeon.js rather than floorParams.
+// FIELDS THAT BELONG TO THE RUN, not to a floor. A segment cannot hold a
+// different answer for these and mean anything by it: `levels` is how long
+// the descent is, `vaultLevel` already NAMES a floor, and the two vault
+// contents only exist on that floor. Read from the model's root whichever
+// segment is active.
+const RUN_WIDE = ['levels', 'vaultLevel', 'vaultChestItems', 'vaultBoss'];
+
+// …and fields a NEW segment does not inherit. `earlyTierCut` is the
+// tutorial discount: it belongs to the start of the game, not to the start
+// of every stretch, so a segment begun half way down opens without one.
+const SEGMENT_RESETS = { earlyTierCut: 0 };
+
+// The curve, in pieces. `model.floors` is a list of anchors —
+// `[{ from: 1, ...dials }, { from: 4, ...dials }]` — and a floor is drawn by
+// whichever anchor is the last one at or above it, with its own dials and
+// its own step count.
+//
+// A MODEL WITH NO `floors` IS ONE SEGMENT FROM FLOOR 1, which is the shipped
+// game and every dial-overrides.json written before this existed. That is
+// why the shape is an optional field rather than a new argument: nothing
+// that already works has to learn anything.
+export function segmentsOf(model = {}) {
+  const list = Array.isArray(model.floors) && model.floors.length
+    ? model.floors
+    : [{ from: 1 }];
+  return list
+    .map((seg, i) => ({
+      ...DEFAULT_MODEL,
+      ...model,
+      // A segment that is not the first drops what belongs to the start of
+      // the GAME rather than to the start of a stretch — unless it names the
+      // field itself, since an explicit value always wins over a reset.
+      ...(i === 0 ? {} : SEGMENT_RESETS),
+      ...seg,
+      from: Math.max(1, seg.from ?? 1),
+    }))
+    .sort((a, b) => a.from - b.from);
+}
+
+// Which anchor draws `level`, and how many floors past its own start that
+// is. The step is what every growth formula counts in — floor 1 of a
+// segment is step 0, exactly as floor 1 of the dungeon always was.
+export function segmentAt(level, segments) {
+  let active = segments[0];
+  for (const seg of segments) if (seg.from <= level) active = seg;
+  return { seg: active, step: Math.max(0, level - active.from) };
+}
+
 export function makeFloorPlan(model = {}) {
-  const m = { ...DEFAULT_MODEL, ...model };
+  const root = { ...DEFAULT_MODEL, ...model };
+  const segments = segmentsOf(model);
+  // Everything below asks for the floor's own segment; the run-wide four
+  // come off the root regardless.
+  const at = (level) => {
+    const { seg, step } = segmentAt(level, segments);
+    const m = { ...seg };
+    for (const key of RUN_WIDE) m[key] = root[key];
+    return { m, step };
+  };
 
   // HOW MUCH OF THE RUN'S THREAT IS STILL IN FRONT OF THIS FLOOR, as a share
   // of the whole descent — 1 on floor 1, and falling. One number, computed
@@ -272,13 +349,16 @@ export function makeFloorPlan(model = {}) {
   // number somebody picked. The mass is heavily back-loaded, so this stays
   // near 1 for the first half of the descent and then falls away — which is
   // the honest shape of the danger, not a defect in the measure.
-  const plainPlan = (level) => ({
-    monsters: monstersAt(m.monstersBase, m.monsterGrowth, Math.max(0, level - 1)),
-    difficultyScale: floorStrength(level - 1, m),
-    tierFloorShare: tierFloorShare(level - 1, m),
-    tierSlack: tierSlack(level - 1, m),
-  });
-  const levels = m.levels ?? 10;
+  const plainPlan = (level) => {
+    const { m, step } = at(level);
+    return {
+      monsters: monstersAt(m.monstersBase, m.monsterGrowth, step),
+      difficultyScale: floorStrength(step, m),
+      tierFloorShare: tierFloorShare(step, m),
+      tierSlack: tierSlack(step, m),
+    };
+  };
+  const levels = root.levels ?? 10;
   const masses = [];
   for (let i = 1; i <= levels; i++) masses.push(massOfPlan(plainPlan(i)));
   const total = masses.reduce((a, b) => a + b, 0) || 1;
@@ -297,18 +377,20 @@ export function makeFloorPlan(model = {}) {
   // wants the threat; one saving it for "later in the run" wants the floors.
   const floorsAheadOf = (level) => (levels - level + 1) / levels;
 
-  return (level) => ({
+  return (level) => {
+    const { m, step } = at(level);
+    return {
     level,
     threatAhead: aheadOf(level),
     floorsAhead: floorsAheadOf(level),
-    monsters: monstersAt(m.monstersBase, m.monsterGrowth, Math.max(0, level - 1)),
-    monsterSpread: floorSpread(level - 1, m),
+    monsters: monstersAt(m.monstersBase, m.monsterGrowth, step),
+    monsterSpread: floorSpread(step, m),
     chests: m.chests,
-    difficultyScale: floorStrength(level - 1, m),
+    difficultyScale: floorStrength(step, m),
     clusterSize: m.clusterSize,
-    tierFloorShare: tierFloorShare(level - 1, m),
-    tierSlack: tierSlack(level - 1, m),
-    outOfDepthChance: outOfDepthChanceAt(level - 1, m),
+    tierFloorShare: tierFloorShare(step, m),
+    tierSlack: tierSlack(step, m),
+    outOfDepthChance: outOfDepthChanceAt(step, m),
     chestGuardRadius: m.chestGuardRadius,
     dropChance: m.dropChance,
     weaponScarcity: m.weaponScarcity,
@@ -332,7 +414,8 @@ export function makeFloorPlan(model = {}) {
     vaultLevel: m.vaultLevel,
     vaultChestItems: m.vaultChestItems,
     vaultBoss: m.vaultBoss,
-  });
+    };
+  };
 }
 
 // For the single-floor spectator, which still thinks in a 0..1 slider.
