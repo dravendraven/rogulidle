@@ -76,6 +76,20 @@ function read() {
   }
 }
 
+// Back to NEVER CHOSE, which is not the same as choosing the plain hero:
+// the key is removed rather than set to '', so the next load falls through
+// to `dial-overrides.json`'s default exactly as a fresh browser would. The
+// reset button is the only caller — a stale pick surviving a reset would
+// re-select itself the moment the gate is earned again, which is the last
+// thing the word "reset" should mean.
+export function clearChosenHero() {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    // As below.
+  }
+}
+
 export function setChosenHero(name) {
   try {
     localStorage.setItem(KEY, name);
