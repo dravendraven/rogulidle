@@ -502,19 +502,29 @@ main {
    the same way a chosen chip highlights itself. */
 .highscore-table tr.selected { background: #EAE3CE; border-radius: 4px; }
 
-.history { display: flex; flex-wrap: wrap; gap: .3rem; }
+/* Wraps, never overflows: the column's width is the hard limit and a second
+   line is what gives instead. `min-width: 0` is what makes that true rather
+   than merely likely — a flex item defaults to refusing to shrink below its
+   content, and the chips grew a second glyph. */
+.history { display: flex; flex-wrap: wrap; gap: .25rem; min-width: 0; }
+
+/* Tightened when the killer's glyph joined the skull (gap, padding and the
+   glyph itself), so two icons cost about what one used to. That is what
+   keeps twelve runs on one line at the width this page is watched at, and
+   on two rather than three when the column is narrow. */
 .history-chip {
   display: flex;
   align-items: center;
-  gap: .15rem;
+  gap: .1rem;
   background: #EAE3CE;
   border-radius: 4px;
-  padding: .1rem .35rem;
+  padding: .1rem .25rem;
   font-size: 11px;
   font-weight: bold;
   color: var(--dim);
+  white-space: nowrap;
 }
-.history-chip svg { width: 12px; height: 12px; }
+.history-chip svg { width: 11px; height: 11px; }
 .history-chip.cleared { color: var(--accent); }
 
 footer {
