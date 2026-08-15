@@ -80,13 +80,18 @@ frases:
   intuição queria aparece assim mesmo, como consequência e não como termo — quem
   exige morte quase certa gasta tarde, porque morte quase certa é coisa de andar
   fundo.
-- **O topo do dial pede o que o item não faz.** A fúria dobra o topo do dado,
-  ou seja, corta o duelo pela metade: uma morte que ela desfaz custa no máximo
-  cerca de duas vidas sóbrias. Exigir 1.8 vidas deixa uma fresta e 2.0 seria
-  vazio por construção. Medido em 120 seeds por banda, as injeções vão 15, 12,
-  15, 6, 2, 0 — a metade de baixo é ruído de runs que divergem, e na banda mais
-  avarenta o herói morre com a seringa guardada. Isso é o extremo do traço ou
-  uma banda morta, e é o dono quem julga.
+- **O topo do dial pede quase o que o item não faz.** A fúria multiplica o topo
+  do dado, ou seja, divide o duelo pelo mesmo fator: a morte que ela desfaz
+  custa no máximo essas tantas vidas sóbrias, e a exigência da ganância vai até
+  1.8 delas. Medido em 200 seeds por banda, as injeções vão 44, 46, 49, 34, 18,
+  2 — a metade de baixo é ruído de runs que divergem, e a banda mais avarenta
+  ainda é quase o herói morrendo com a seringa guardada. Antes de B32, com a
+  fúria mais fraca e mais longa, essa mesma linha era 21, 24, 28, 17, 4, **0**.
+- **A perda que sobrou é o turno da injeção**, e ela piorou com a fúria mais
+  forte: 26 de 75 injeções (35%) são o herói morrendo no próprio turno em que
+  gasta o item, contra 13 de 49 (27%) antes. O golpe de graça É cobrado
+  (B29), mas pela MÉDIA — e ele agora injeta com 2 a 3 de vida efetiva, onde
+  média não decide nada e a rolagem decide tudo.
 - **Nunca começa luta** cujo custo esperado passe de `fightMargin` do hp
   efetivo (hp + armadura). Uma criatura que já persegue paga só a
   caminhada — o duelo dela acontece de qualquer jeito — **e paga metade

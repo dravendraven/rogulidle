@@ -1500,3 +1500,68 @@ right one — so the centre sits where the arithmetic puts it and the two
 bands below it are better. Either the expected-value calculation is missing
 a term the hero actually experiences, or walking is under-priced in the same
 comparison. Open, and not to be closed by nudging the constant.
+
+## U6g — what the shop's items are worth, measured, and what left `rules.md`
+
+`rules.md` §9 carried a judgment: the shop economy is knowingly unbalanced,
+the shield is the rational purchase, the second weapon a bad deal. Owner
+ruling: `rules.md` states rules, never what is better or worse. The claim
+came out of the doc — and was measured before being written down here,
+because the half of it that could be checked turned out to be wrong.
+
+### How it was measured
+
+Paired A/B through `src/ui/run.js`'s `playRun` — the page's own assembly, so
+nothing about dials, hero or the pinned descent is reimplemented. Baseline
+hero, shipped dials, the item handed over as `startingItems`. Every arm gets
+the SAME seeds, and the whole thing ran twice on independent seed blocks
+(400 runs each, 800 pooled). Arms are priced at parity under the current
+prices — potion 1, shield 2, dagger 10, axe 16.
+
+| arm (cost) | dies by traversal 3 | mean depth | reached floor 5 | chests | coins earned |
+|---|---|---|---|---|---|
+| empty (control) | 25.6% | 4.07 | 14.9% | 18.3 | 7.56 |
+| 1 shield (2) | 16.8% | 4.33 | 17.6% | 19.6 | 8.27 |
+| 2 potions (2) | 11.9% | 4.48 | 18.7% | 20.5 | 8.74 |
+| 2 shields (4) | 11.5% | 4.61 | 21.1% | 21.2 | 9.33 |
+| 4 potions (4) | 7.3% | 4.57 | 19.4% | 21.1 | 8.87 |
+| 16 potions (16) | 1.0% | 4.80 | 21.3% | 22.3 | 9.67 |
+| **1 axe (16)** | **1.0%** | **6.38** | **54.1%** | **30.5** | **17.4** |
+
+### The first weapon is not the second weapon
+
+**The axe is the strongest thing the shop sells, by a margin nothing else in
+the table approaches** — against sixteen potions at the same price it is 1.6
+floors deeper (~12 sigma), reaches floor 5 two and a half times as often, and
+earns 2.3× the coin, which buys the next weapon. The removed claim was true
+of the SECOND weapon, whose per-point return does diminish, and false of the
+first, which is the one a run actually buys.
+
+**Potions buy the opening and nothing else.** 16.8% → 11.9% at two coins
+(2.8 sigma) and 11.5% → 7.3% at four (2.9 sigma); at sixteen coins both they
+and the axe floor opening deaths at 1.0%. What separates them after that is
+that potions carry no damage, so the hero survives the opening and stalls in
+the middle at the same depth as a shield.
+
+**Armour catches the potion up from four coins on** — 4.61 against 4.57 in
+depth, 9.33 against 8.87 in coin. Both differences sit near 1.5 sigma:
+suggestive, not established, and not worth a price change on their own.
+
+### Two caveats that keep this from being a shopping list
+
+**The A/B hands the item over for free.** The axe costs 16 and only about
+13% of runs ever reach that balance, so "the best purchase" is not "the
+purchase that happens" — the shape of the payout decides which of these rows
+a viewer ever sees.
+
+**M32 no longer exists.** `rules.md` pointed at it as the structural fix for
+the stacking asymmetry; there is no such item in `backlog.md` any more, so
+the pointer was dead and did not survive the edit.
+
+### Recorded from the same run pool
+
+Doubling `COIN_RATE` with the shop's prices (10 → 20; potion 1, shield 2,
+dagger 10, axe 16) left purchasing power flat — 4.10 against 4.12 shields per
+run — while distinct per-floor payouts went from 6 values to 10 and distinct
+run balances from 19 to 35. The point of the change was resolution, and that
+is the number that moved.
