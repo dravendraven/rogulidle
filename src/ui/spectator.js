@@ -121,7 +121,7 @@ function grab() {
     'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
     'coins', 'coinPopup', 'damage', 'debugInfo', 'app', 'lab', 'dials',
     'shop', 'shopBalance', 'shopItems', 'shopSkip', 'shopTimerBar',
-    'achievements', 'roster', 'highscores', 'mapDials', 'bossBar',
+    'achievements', 'roster', 'highscores', 'mapDials', 'simDials', 'dialButtons', 'bossBar',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -759,7 +759,8 @@ function wireLab(overrides, devMode) {
         // dungeon every run happens in; sharing one column made the two
         // read as a single long form. Only reachable in dev mode, so
         // outside it this mount stays empty and hidden.
-        mounts: { Andar: el.mapDials },
+        mounts: { Andar: el.mapDials, 'Simulação': el.simDials },
+        buttonsMount: el.dialButtons,
       });
     }
   };
@@ -771,7 +772,9 @@ function wireLab(overrides, devMode) {
   // would read as something that failed to load.
   const show = (on) => {
     el.dials.hidden = !on;
+    el.dialButtons.hidden = !on;
     el.mapDials.hidden = !on || !el.mapDials.children.length;
+    el.simDials.hidden = !on || !el.simDials.children.length;
     el.app.classList.toggle('lab-open', on);
     el.lab.textContent = on ? '🧪 lab on' : '🧪 lab';
   };

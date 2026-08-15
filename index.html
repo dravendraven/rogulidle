@@ -31,6 +31,11 @@
            on the page must not hide with them. -->
       <div id="roster" class="roster"></div>
       <div class="dials" id="dials" hidden></div>
+      <!-- The panel's buttons, OUTSIDE the scrolling drawer above. `.dials`
+           caps at 70vh and scrolls, so buttons inside it sat below thirty
+           rows of sliders — and "reiniciar" is the control you press after
+           every single edit. -->
+      <div class="dial-buttons-bar" id="dialButtons" hidden></div>
     </div>
 
     <div class="middle">
@@ -117,6 +122,12 @@
          reading as one long form when they shared a column. Populated by
          dials.js through its `mounts`; stays empty outside ?dev=1, which is
          why it is hidden until something lands in it. -->
+    <!-- THE WATCHING, not the dungeon: which floor the run starts on. Above
+         the map's panel because it is a different question — everything in
+         that one describes what a floor IS, this decides which you are
+         shown. -->
+    <aside id="simDials" class="panel map-dials" hidden></aside>
+
     <aside id="mapDials" class="panel map-dials" hidden></aside>
 
     <aside id="highscores" class="panel highscores"></aside>

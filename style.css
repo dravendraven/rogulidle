@@ -978,3 +978,13 @@ footer {
    instead of as a form that stopped responding. */
 .dial.readonly { opacity: .55; }
 .dial.readonly .dial-title { cursor: default; }
+
+/* The panel's buttons, outside the drawer that scrolls. Same top rule the
+   drawer uses, so the two read as one object split by a fold rather than as
+   two panels. */
+.dial-buttons-bar {
+  padding-top: .2rem;
+  border-top: 1px solid var(--line);
+  margin-top: .2rem;
+}
+.dial-buttons-bar[hidden] { display: none; }

@@ -431,6 +431,33 @@ export const SECTIONS = [
   // change the floor's shape met the monster table first and had to scroll
   // past all of it. The four names below are the four questions the panel
   // actually answers.
+  // THE CURVE'S ANCHORS, at the top of the dials they govern rather than
+  // inside one of them. They steer which floor every model row below is
+  // describing — Criaturas, Loot AND Andar, which is why they sit above all
+  // three instead of in the map's panel where the idea started.
+  //
+  // `kind: 'curve'` marks them as panel state: read() skips them, the save
+  // button skips them, and nothing downstream ever sees them.
+  ['A curva', [
+    ['', [
+      {
+        kind: 'curve', key: 'editFloor', label: 'andar que os dials abaixo descrevem',
+        title: 'Andar', step: 1, range: [1, 10],
+        says: (v) => (v.curve.isAnchor
+          ? `os dials abaixo descrevem o andar ${v.curve.editFloor} e você pode movê-los`
+          : `os dials abaixo mostram o que a curva produz no andar `
+            + `${v.curve.editFloor} — cinza, porque quem manda aqui é uma âncora acima`),
+      },
+      {
+        kind: 'curve', key: 'isAnchor', label: 'começar uma curva nova neste andar',
+        title: 'Âncora aqui', type: 'switch',
+        says: [
+          'este andar segue a curva de cima',
+          'daqui para baixo a curva é a que estes dials definem',
+        ],
+      },
+    ]],
+  ]],
   ['Criaturas', [
     ['quantas criaturas', [
       {
@@ -586,34 +613,11 @@ export const SECTIONS = [
       },
     ]],
   ]],
-  ['Andar', [
-    // THE CURVE'S ANCHORS. These two are not dials — they steer which floor
-    // every OTHER model dial is describing, in this section and in Criaturas
-    // and Loot above. `kind: 'curve'` marks them as panel state: read() skips
-    // them, and nothing downstream ever sees them.
-    ['qual andar você está desenhando', [
-      {
-        kind: 'curve', key: 'editFloor', label: 'andar que os dials abaixo descrevem',
-        title: 'Andar', step: 1, range: [1, 10],
-        says: (v) => (v.curve.isAnchor
-          ? `os dials descrevem o andar ${v.curve.editFloor} e você pode movê-los`
-          : `os dials mostram o que a curva produz no andar ${v.curve.editFloor} — `
-            + 'cinza, porque quem manda aqui é uma âncora acima'),
-      },
-      {
-        kind: 'curve', key: 'isAnchor', label: 'começar uma curva nova neste andar',
-        title: 'Âncora aqui', type: 'switch',
-        says: [
-          'este andar segue a curva de cima',
-          'daqui para baixo a curva é a que estes dials definem',
-        ],
-      },
-    ]],
-    // FIRST, because it is the one control here you use while looking at
-    // the others: every dial below describes a floor, and this is what puts
-    // the floor you care about on screen without sitting through the ones
-    // above it.
-    ['testar um andar', [
+  // NOT a dial of the dungeon — a dial of the WATCHING. Everything in Andar
+  // below describes what a floor is; this decides which one you are shown.
+  // They were in one section and the two questions read as one.
+  ['Simulação', [
+    ['', [
       {
         kind: 'run', key: 'startFloor', label: 'começar a descida neste andar',
         title: 'Começar no andar', step: 1, range: [1, 10],
@@ -623,6 +627,8 @@ export const SECTIONS = [
             + 'de mãos vazias, então isso mostra a FORMA do andar, não o custo'),
       },
     ]],
+  ]],
+  ['Andar', [
     // The map's own SHAPE — how much dungeon there is and how far the exit
     // sits. Everything in the group below decides what gets PLACED on that
     // shape; nothing there changes the rooms themselves.
@@ -862,7 +868,7 @@ function precisionOf(step) {
 // dial-overrides.json download; see that button's own handler for why a
 // download is the honest stopping point on a static site.
 export function buildDialPanel(container, {
-  onRestart, overrides = {}, dev = false, mounts = null,
+  onRestart, overrides = {}, dev = false, mounts = null, buttonsMount = null,
 } = {}) {
   container.innerHTML = '';
   const inputs = [];
@@ -1224,13 +1230,19 @@ export function buildDialPanel(container, {
     anchors.set(1, { ...resolvedDefaults(overrides).model });
   }
 
+  // OUTSIDE the drawer when the page offers somewhere. `.dials` scrolls at
+  // 70vh, so buttons appended into it sat below thirty rows of sliders and
+  // you had to scroll the whole form to reach "reiniciar" — the one control
+  // you press after every edit.
+  const buttonBar = buttonsMount || container;
+  if (buttonsMount) buttonsMount.innerHTML = '';
   const buttons = document.createElement('div');
   buttons.className = 'dial-buttons';
   const restart = document.createElement('button');
   restart.type = 'button';
   restart.textContent = '↻ reiniciar com estes valores';
   buttons.append(restart);
-  container.append(buttons);
+  buttonBar.append(buttons);
 
   // NO "padrões" BUTTON. It restored the calibrated centre, and there is no
   // centre to go back to any more — every dial opens on this visitor's own
@@ -1342,7 +1354,7 @@ export function buildDialPanel(container, {
 
     const note = document.createElement('div');
     note.className = 'dial-savenote';
-    container.append(note);
+    buttonBar.append(note);
 
     save.addEventListener('click', () => {
       // Starts from what was already shipped (`overrides`), not from an
