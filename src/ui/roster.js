@@ -76,6 +76,20 @@ function read() {
   }
 }
 
+// Back to NEVER CHOSE, which is not the same as choosing the plain hero:
+// the key is removed rather than set to '', so the next load falls through
+// to `dial-overrides.json`'s default exactly as a fresh browser would. The
+// reset button is the only caller — a stale pick surviving a reset would
+// re-select itself the moment the gate is earned again, which is the last
+// thing the word "reset" should mean.
+export function clearChosenHero() {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    // As below.
+  }
+}
+
 export function setChosenHero(name) {
   try {
     localStorage.setItem(KEY, name);
@@ -91,7 +105,13 @@ export function setChosenHero(name) {
 // a second copy that could drift from it.
 export const ORDER = ['base', 'vito', 'pawa', 'papazito', 'ricardo'];
 
-export function buildRoster(container, { onPick, onRestart } = {}) {
+export function buildRoster(container, { onPick, onRestart, onPreview } = {}) {
+  // WHO THE CARD IS SHOWING, when that is not who plays next. Only ever a
+  // locked hero: picking an open one clears it. It survives across runs on
+  // purpose — a spectator reading about a hero should not have the card
+  // yanked away because a run ended — and the lock line under it is what
+  // stops that reading as "this is who is playing".
+  let preview = null;
   container.innerHTML = '';
 
   const heading = document.createElement('h2');
@@ -141,9 +161,23 @@ export function buildRoster(container, { onPick, onRestart } = {}) {
     chip.innerHTML = tileSvg(hero.emoji) || '';
 
     chip.addEventListener('click', () => {
-      // A shut gate is enforced here as well as on the button's `disabled`
-      // flag: the flag is a rendering, this is the rule.
-      if (!allowed(hero.name)) return;
+      // A SHUT GATE NOW BROWSES INSTEAD OF REFUSING. Clicking a locked hero
+      // opens his card — face, name — and the blurb slot says why he cannot
+      // be had yet. Nothing is stored and nothing is queued, so the gate is
+      // exactly as shut as it was; what changed is that a spectator can read
+      // what is behind it, which is the entire reason a locked cast is shown
+      // rather than hidden.
+      //
+      // Enforced HERE and not only on `disabled`: the flag is a rendering,
+      // this is the rule, and the rule is now "you may look".
+      if (!allowed(hero.name)) {
+        preview = hero.name;
+        if (onPreview) onPreview();
+        return;
+      }
+      // Picking for real ends the browsing — the card has to go back to
+      // answering "who plays next" the moment that question has an answer.
+      preview = null;
       // `base` is stored as '' so the value is exactly what the run option
       // takes, and so the falsy default and an explicit "the plain hero" are
       // the same string everywhere downstream.
@@ -185,26 +219,58 @@ export function buildRoster(container, { onPick, onRestart } = {}) {
     // during the run being watched, and `show` is called again as the next
     // one is built — so the cast opens by itself, with no reload.
     const open = heroesUnlocked();
+    // The gate opening ends any browsing: what was a locked face is now a
+    // real choice, and leaving the card in preview would show a hero the
+    // player could have picked but has not.
+    if (open) preview = null;
+
+    // The card shows the PREVIEW when there is one, otherwise who plays
+    // next. `showing` is the hero on the card; `next` is still the one the
+    // run will use, and the two only differ while browsing a locked hero.
+    const showing = preview || next;
+    const browsing = Boolean(preview);
+
     for (const [key, chip] of chips) {
       const shut = !allowed(key);
-      chip.disabled = shut;
+      // NOT `disabled` any more — a locked chip is clickable, it just
+      // cannot be chosen. Disabling it would take the click that opens the
+      // card, which is the whole change.
       chip.classList.toggle('locked', shut);
       chip.title = shut
         ? `${HEROES[key].name} — 🔒 ${heroLockReason()}`
         : `${HEROES[key].name}, ${HEROES[key].title}`;
+      // `playing` and `queued` follow the RUN, never the card. That is what
+      // keeps the ordinary hero lit while a locked face is being read: he
+      // is still the one playing, and the lit chip is the only thing on
+      // screen that says so.
       chip.classList.toggle('playing', key === now && !waiting);
       chip.classList.toggle('queued', key === next && waiting);
+      chip.classList.toggle('reading', browsing && key === showing);
     }
-    locked.hidden = open;
-    locked.textContent = open ? '' : `🔒 ${heroLockReason()}`;
 
-    const hero = HEROES[next] || HEROES.base;
+    const hero = HEROES[showing] || HEROES.base;
     face.innerHTML = tileSvg(hero.emoji) || '';
     name.textContent = `${hero.name}, ${hero.title}`;
-    blurb.textContent = hero.blurb;
 
-    pending.hidden = !waiting;
-    pending.textContent = waiting ? '⏭ entra na próxima run' : '';
-    restart.hidden = !waiting;
+    // THE BLURB SLOT CARRIES THE LOCK. A locked hero's card says why he
+    // cannot be had instead of what he does — the reason belongs where the
+    // eye already is, and describing a hero the player cannot use reads as
+    // an offer.
+    const shutHero = !allowed(showing);
+    blurb.textContent = shutHero ? `🔒 ${heroLockReason()}` : hero.blurb;
+    blurb.classList.toggle('locked', shutHero);
+
+    // Said once, never twice. The standalone line explains the dark faces
+    // while the card is on an open hero; when the card itself is showing a
+    // locked one, the blurb above already said it.
+    locked.hidden = open || shutHero;
+    locked.textContent = (open || shutHero) ? '' : `🔒 ${heroLockReason()}`;
+
+    // Nothing is queued and nothing can be restarted while browsing: there
+    // is no pick behind either button, so offering them would promise a
+    // change that will not happen.
+    pending.hidden = !waiting || browsing;
+    pending.textContent = (waiting && !browsing) ? '⏭ entra na próxima run' : '';
+    restart.hidden = !waiting || browsing;
   };
 }

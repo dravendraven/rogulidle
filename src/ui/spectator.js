@@ -17,14 +17,15 @@ import {
   applyDepth, renderDebugInfo, carriedSvg, renderBossBar,
 } from './render.js';
 import {
-  ACHIEVEMENTS, earn, earnedBy, getAchievements, verifyAchievements,
+  ACHIEVEMENTS, earn, earnedBy, getAchievements, resetAchievements,
+  verifyAchievements,
 } from './achievements.js';
 import { tileSvg } from './tiles.js';
 import { award, resetScore } from './score.js';
 import { resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
 import { SHOP_ITEMS, pickDefaultPurchase } from './shop.js';
 import { buildDialPanel, resolvedDefaults } from './dials.js';
-import { buildRoster, getChosenHero } from './roster.js';
+import { buildRoster, clearChosenHero, getChosenHero } from './roster.js';
 import { buildHighscorePanel, recordRun, getHighscores } from './highscores.js';
 import { loadDialOverrides } from './dial-overrides.js';
 import { eventsEnabled, makeEventLayer } from './events.js';
@@ -689,14 +690,39 @@ function wireControls() {
     el.speed.textContent = session.speed + '×';
   });
 
-  // General reset, not tied to any one display: wipes both localStorage
-  // stores this page keeps (score.js's lifetime record, wallet.js's coin
-  // balance and held items). The next run picks up an empty wallet the
-  // same way a fresh visitor would.
+  // General reset: everything this page has EARNED goes, so what is left is
+  // a fresh visitor. That is score.js's lifetime record, wallet.js's coins
+  // and held items, the achievements, and the hero pick they unlocked.
+  //
+  // THE ACHIEVEMENTS ARE IN IT BECAUSE THEY NOW UNLOCK SOMETHING. A reset
+  // that left the cast open would leave the player holding a key to a door
+  // the reset just claimed to have shut, and "reset" would mean two
+  // different things on the same button.
+  //
+  // The hero pick goes with them and not instead of them: it is downstream:
+  // a stored `pawa` outlives a reset harmlessly (the shut gate reads it as
+  // the plain hero) right up to the moment the Butcher falls again, when it
+  // would silently re-select itself.
+  //
+  // NOT the highscores and NOT the Lab's notches. A score is a record of
+  // what happened rather than something held, and the notches are settings.
+  // Neither is progress, so neither is the button's business.
   el.resetSession.addEventListener('click', () => {
-    if (!confirm('Reset your coin balance, held items, and lifetime total? This cannot be undone.')) return;
+    if (!confirm('Reset your coin balance, held items, lifetime total, achievements and hero? This cannot be undone.')) return;
     resetScore();
     resetOnDeath();
+    resetAchievements();
+    clearChosenHero();
+
+    // Both displays are redrawn here rather than left to the next run: the
+    // gate re-shuts the instant the receipts go (`resetAchievements` clears
+    // the verified cache), and a rail still showing an open cast would be
+    // lying until the run on screen happened to end.
+    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements());
+    // The run being watched keeps its hero — it is deterministic from seed
+    // AND hero, so swapping mid-run would make it something no seed
+    // reproduces. Only what comes NEXT goes back to the plain hero.
+    if (session.roster) session.roster(session.heroName, 'base');
   });
 }
 
@@ -794,6 +820,11 @@ export async function start() {
       // swapping mid-run would make the thing being watched something no
       // seed reproduces. roster.js has already persisted it by now.
       onPick: (value) => session.roster(session.heroName, heroByName(value).name),
+      // Browsing a locked hero repaints the card with the SAME two names —
+      // who plays and who plays next are both unchanged, which is the point.
+      // The roster keeps the preview itself; this only asks it to redraw.
+      onPreview: () => session.roster(session.heroName, getChosenHero() === null
+        ? session.shippedDials.run.who : getChosenHero()),
       onRestart: () => { session.restart = true; },
     });
     const chosen = getChosenHero();

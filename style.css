@@ -134,17 +134,34 @@ main {
 /* Shut, not absent. Dimmer than the ordinary unpicked chip and flatly
    unresponsive — no hover lift, no pointer — so the difference between "not
    chosen" and "not available" is legible without reading the line below. */
+/* Shut, not absent — and no longer unresponsive. A locked face can be
+   clicked to READ it: the card opens and the blurb slot says why he cannot
+   be had. So the cursor is a pointer and the hover lifts a little, because
+   the click does something now; what it does not do is choose him. */
 .roster-chip.locked {
   opacity: .18;
   filter: grayscale(1);
-  cursor: not-allowed;
+  cursor: pointer;
 }
-.roster-chip.locked:hover { opacity: .18; filter: grayscale(1); }
+.roster-chip.locked:hover { opacity: .32; filter: grayscale(.7); }
+
+/* Which locked face the card is currently reading. Deliberately NOT the
+   `playing` treatment: the ordinary hero keeps that, because he is the one
+   actually descending, and two lit chips would say two heroes are in play. */
+.roster-chip.locked.reading { opacity: .5; filter: grayscale(.4); }
 
 .roster-locked {
   font-size: 10px;
   color: var(--dim);
   margin-top: .35rem;
+}
+
+/* The lock in the blurb's own slot. Dimmer than a blurb so the card reads as
+   an announcement rather than a description — the height is fixed in
+   `.roster-card-blurb`, so swapping the text moves nothing under it. */
+.roster-card-blurb.locked {
+  color: var(--dim);
+  font-style: italic;
 }
 
 .roster-chip.playing {
@@ -932,12 +949,17 @@ footer {
   text-align: center;
 }
 
+/* The pink is the PIG'S OWN — #F4ABBA is the face fill of the 🐷 sprite in
+   src/ui/tiles.js, lifted rather than picked, so the name and the glyph on
+   the board are literally the same colour and stay that way if the sprite is
+   ever swapped. The shadow stays black: the pale pink needs it to hold up
+   over the lit floor of the deep levels. */
 .boss-bar-name {
   font-size: .8rem;
   font-weight: bold;
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: #fff;
+  color: #f4abba;
   text-shadow: 0 1px 3px rgba(0, 0, 0, .9);
   margin-bottom: .25rem;
 }
