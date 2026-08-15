@@ -262,12 +262,18 @@ export const ITEM_TABLE = [
 export const READ_TURNS = 5;
 
 // How many turns the syringe lasts, and by how much it lifts the TOP of the
-// damage die. Doubling rather than adding: a flat bonus is enormous on a
+// damage die. Multiplying rather than adding: a flat bonus is enormous on a
 // bare hero and irrelevant on an armed one, while a multiplier means the
 // same thing at floor 1 and floor 9. It does not touch the die's floor —
 // `dmgMin` stays where it is, so the swing widens rather than shifting.
-export const RAGE_TURNS = 5;
-export const RAGE_MULT = 2;
+//
+// SHORTER AND HARDER (B32), the owner's call against the arithmetic, which
+// said the window was the binding constraint and not the damage: the creature
+// the hero injects against holds a median 12 hp, so at the old reading he
+// needed about 4.8 turns of a 5-turn window and 39% of windows expired with
+// the fight unresolved. What is measured under this reading is in the commit.
+export const RAGE_TURNS = 3;
+export const RAGE_MULT = 2.5;
 
 // GUESS — the minimum MONSTER_TABLE index a killed creature must reach
 // before `axe` is even in its drop pool. A FILTER, not a tilt: below this

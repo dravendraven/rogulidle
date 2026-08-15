@@ -123,7 +123,7 @@ export function assumedHp(monster, bravery = 1) {
 export function duelCost(player, monster, bravery = 1) {
   // `rageMultiplier` and not a flag read here: the estimate and the roll are
   // one rule (src/sim/combat.js), and a second copy of the test is how the
-  // bot would spend five turns underrating its own damage.
+  // bot would spend the whole rage underrating its own damage.
   const mine = expectedDamage(player.xp, weaponDamage(player), weaponMinDamage(player),
     rageMultiplier(player));
   // Monsters carry nothing that fights (their drop is not inventory), so

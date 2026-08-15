@@ -172,7 +172,7 @@ export const HEROES = {
     name: 'vito',
     title: 'o guerreiro',
     emoji: '🦸‍♂️',
-    blurb: 'Começa armado, quando todo mundo começa de mãos vazias. Uma vez por descida, dobra o próprio dano por cinco turnos.',
+    blurb: 'Começa armado, quando todo mundo começa de mãos vazias. Uma vez por descida, bate duas vezes e meia mais forte por três turnos.',
     persona: { kit: ['dagger', 'adrenaline'] },
     bot: {},
   },

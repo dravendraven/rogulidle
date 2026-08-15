@@ -76,7 +76,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | `ITEM_TABLE.book` | 📜 | the scholar's, and the only item with no stat at all — what it does is the `read` action (rules.md §5) |
 | `READ_TURNS` | 5 | turns a read costs, standing still, with the creatures acting in every one |
 | `ITEM_TABLE.adrenaline` | 💉 | the warrior's, and stat-less for the same reason the book is — what it does is the `rage` action |
-| `RAGE_TURNS` / `RAGE_MULT` | 5 / 2 | attacking turns the syringe lasts, and what it multiplies the damage die's TOP by. A multiplier, not a bonus: it means the same to a bare hero and an armed one |
+| `RAGE_TURNS` / `RAGE_MULT` | 3 / 2.5 | attacking turns the syringe lasts, and what it multiplies the damage die's TOP by. A multiplier, not a bonus: it means the same to a bare hero and an armed one. Shorter and harder since B32 |
 | `ITEM_TABLE.axe.dmgMin` | 1 | the axe raises the damage die's FLOOR, not just its top — worth twice a point of `dmg` (rules.md §4) |
 
 ## The bot's numbers — `src/bot/config.js`, not this file's business
