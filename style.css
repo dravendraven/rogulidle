@@ -971,3 +971,10 @@ footer {
 }
 
 .boss-bar-hp svg { display: block; width: 14px; height: 14px; }
+
+/* A dial the panel is SHOWING rather than offering. On a floor that is not
+   an anchor every model row holds what the curve produces there, read-only —
+   dimmed as a block so the column reads as a statement about that floor
+   instead of as a form that stopped responding. */
+.dial.readonly { opacity: .55; }
+.dial.readonly .dial-title { cursor: default; }

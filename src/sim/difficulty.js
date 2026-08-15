@@ -327,6 +327,42 @@ export function segmentAt(level, segments) {
   return { seg: active, step: Math.max(0, level - active.from) };
 }
 
+// WHAT AN ANCHOR STARTED AT `floor` WOULD HAVE TO HOLD to continue the curve
+// that already runs through it — the dial values, not the plan's output.
+//
+// This is what the Lab shows on a floor that is not an anchor (greyed out,
+// the numbers the current curve produces there) and what it stores the
+// moment you make one. It lives here rather than in the panel because
+// recovering a starting value from a plan is not possible from outside:
+// `tierSlack` leaves as whole table ROWS, and the share it came from cannot
+// be read back off it.
+//
+// EXACT for the five that carry a real number. The creature count drifts by
+// up to one, because it is a whole number — see docs/map-design.md.
+export function anchorAt(model = {}, floor = 1) {
+  const segments = segmentsOf(model);
+  const { seg, step } = segmentAt(floor, segments);
+  const inherited = { ...seg };
+  delete inherited.from;
+  for (const key of RUN_WIDE) delete inherited[key];
+
+  return {
+    ...inherited,
+    ...(floor > 1 ? SEGMENT_RESETS : {}),
+    // The six growth families, re-based on this floor.
+    monstersBase: monstersAt(seg.monstersBase, seg.monsterGrowth, step),
+    strength: floorStrength(step, seg),
+    tierFloorStart: tierFloorShare(step, seg),
+    // NOT the plan's `tierSlack`, which is rows and has the tutorial cut
+    // already taken off it. The share is what a segment carries.
+    tierSlackStart: Math.max(0, Math.min(
+      seg.tierSlackCap, (seg.tierSlackStart ?? 0) + seg.tierSlackPerLevel * step,
+    )),
+    outOfDepthChanceStart: outOfDepthChanceAt(step, seg),
+    spreadStart: floorSpread(step, seg),
+  };
+}
+
 export function makeFloorPlan(model = {}) {
   const root = { ...DEFAULT_MODEL, ...model };
   const segments = segmentsOf(model);

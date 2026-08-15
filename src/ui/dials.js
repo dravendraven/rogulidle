@@ -8,7 +8,8 @@
 // starts, which is the same door a sweep already used.
 
 import {
-  DEFAULT_MODEL, floorSpread, floorStrength, monstersAt, saturatedAt, tierFloorShare,
+  anchorAt, DEFAULT_MODEL, floorSpread, floorStrength, monstersAt, saturatedAt,
+  tierFloorShare,
 } from '../sim/difficulty.js';
 import { MONSTER_TABLE } from '../sim/balance.js';
 import { VAULT_MARGIN } from '../sim/vault.js';
@@ -586,6 +587,28 @@ export const SECTIONS = [
     ]],
   ]],
   ['Andar', [
+    // THE CURVE'S ANCHORS. These two are not dials — they steer which floor
+    // every OTHER model dial is describing, in this section and in Criaturas
+    // and Loot above. `kind: 'curve'` marks them as panel state: read() skips
+    // them, and nothing downstream ever sees them.
+    ['qual andar você está desenhando', [
+      {
+        kind: 'curve', key: 'editFloor', label: 'andar que os dials abaixo descrevem',
+        title: 'Andar', step: 1, range: [1, 10],
+        says: (v) => (v.curve.isAnchor
+          ? `os dials descrevem o andar ${v.curve.editFloor} e você pode movê-los`
+          : `os dials mostram o que a curva produz no andar ${v.curve.editFloor} — `
+            + 'cinza, porque quem manda aqui é uma âncora acima'),
+      },
+      {
+        kind: 'curve', key: 'isAnchor', label: 'começar uma curva nova neste andar',
+        title: 'Âncora aqui', type: 'switch',
+        says: [
+          'este andar segue a curva de cima',
+          'daqui para baixo a curva é a que estes dials definem',
+        ],
+      },
+    ]],
     // FIRST, because it is the one control here you use while looking at
     // the others: every dial below describes a floor, and this is what puts
     // the floor you care about on screen without sitting through the ones
@@ -776,6 +799,7 @@ export const SECTIONS = [
 const BOT_DEFAULTS = {
   persistence: DANGER_PERSISTENCE, crowdPenalty: CROWD_PENALTY, stickiness: GOAL_STICKINESS,
 };
+const CURVE_DEFAULTS = { editFloor: 1, isAnchor: true };
 const RUN_DEFAULTS = {
   turnBudget: TURN_BUDGET, theReturn: RETURN_ENABLED, who: '', startFloor: 1,
 };
@@ -786,6 +810,7 @@ const RUN_DEFAULTS = {
 // so "shipped" always means what a fresh visitor actually gets today, not
 // what the source code says in isolation.
 function defaultOf(kind, key, overrides = {}) {
+  if (kind === 'curve') return CURVE_DEFAULTS[key];
   const shipped = kind === 'model' ? DEFAULT_MODEL[key]
     : kind === 'hero' ? DEFAULT_HERO[key]
     : kind === 'bot' ? BOT_DEFAULTS[key]
@@ -809,6 +834,8 @@ export function resolvedDefaults(overrides = {}) {
   for (const [, groups] of SECTIONS) {
     for (const [, list] of groups) {
       for (const { kind, key } of list) {
+        // Panel state, not a value the run has any use for.
+        if (kind === 'curve') continue;
         out[kind][key] = defaultOf(kind, key, overrides);
       }
     }
@@ -1085,6 +1112,118 @@ export function buildDialPanel(container, {
     }
   }
 
+  // ***** the curve's anchors *****
+  //
+  // A model dial no longer holds one number for the whole descent — it holds
+  // one per ANCHOR, and the panel shows one anchor at a time. Floor 1 is
+  // always an anchor and cannot stop being one: a curve has to start
+  // somewhere.
+  //
+  // A floor that is NOT an anchor still shows every dial, greyed, holding
+  // what the active curve produces there. That is the answer to "what is
+  // floor 5 actually like", which this panel could not give before — the
+  // numbers were all statements about floor 1.
+  const modelRows = inputs.filter((i) => i.kind === 'model');
+  const floorRow = inputs.find((i) => i.kind === 'curve' && i.key === 'editFloor');
+  const anchorRow = inputs.find((i) => i.kind === 'curve' && i.key === 'isAnchor');
+
+  // What a row is currently worth, in the shape the model wants. Same three
+  // cases read() has, kept beside it rather than shared because read() walks
+  // every kind and this one is asked about a single row.
+  const valueOfRow = (row) => {
+    if (row.isSwitch) return row.input.checked ? row.onOff.on : row.onOff.off;
+    if (row.bands) {
+      return row.bands[Math.max(0, Math.min(row.bands.length - 1, Number(row.input.value)))];
+    }
+    const n = Number(row.input.value);
+    return Number.isFinite(n) ? Math.max(row.min, n) : row.def;
+  };
+
+  const anchors = new Map();
+  const curveModel = () => {
+    const floors = [...anchors.keys()].sort((a, b) => a - b)
+      .map((from) => ({ from, ...anchors.get(from) }));
+    // The first anchor is ALSO the model's root, because that is what a
+    // model without `floors` has always meant and what every
+    // dial-overrides.json written before this carried.
+    return { ...anchors.get(1), floors };
+  };
+
+  if (floorRow && anchorRow) {
+    // Seeded from what ships. `floors` in dial-overrides.json is honoured if
+    // it is there; a file without one is a single anchor at floor 1, which
+    // is every file that exists today.
+    const shipped = resolvedDefaults(overrides).model;
+    const shippedFloors = (overrides.model && overrides.model.floors) || [];
+    anchors.set(1, { ...shipped });
+    for (const seg of shippedFloors) {
+      const from = Math.max(1, Math.round(seg.from ?? 1));
+      anchors.set(from, { ...(from === 1 ? shipped : anchorAt({ ...shipped, floors: shippedFloors }, from)), ...seg });
+      delete anchors.get(from).from;
+    }
+
+    const paintRow = (row, value, editable) => {
+      if (row.isSwitch) row.input.checked = value === row.onOff.on;
+      else if (row.bands) row.input.value = String(bandIndexOf(row.bands, Number(value)));
+      else row.input.value = String(value);
+      row.input.disabled = !editable;
+      if (row.valueOut) {
+        row.valueOut.textContent = row.isSwitch
+          ? (row.input.checked ? 'ligado' : 'desligado')
+          : Number(row.input.value).toFixed(precisionOf(row.step));
+      }
+      // Greyed the same way disabled inputs are, so a whole column of
+      // read-only numbers reads as "this is what it IS" rather than as a
+      // form that stopped responding.
+      row.input.closest('.dial').classList.toggle('readonly', !editable);
+    };
+
+    const applyFloor = (floor) => {
+      const isAnchor = anchors.has(floor);
+      const values = isAnchor ? anchors.get(floor) : anchorAt(curveModel(), floor);
+      for (const row of modelRows) paintRow(row, values[row.key], isAnchor);
+      anchorRow.input.checked = isAnchor;
+      // Floor 1 anchors by definition, so its switch is on and unusable.
+      anchorRow.input.disabled = floor <= 1;
+      anchorRow.input.closest('.dial').classList.toggle('readonly', floor <= 1);
+    };
+
+    floorRow.input.addEventListener('input', () => {
+      applyFloor(Number(floorRow.input.value));
+      refreshLive();
+    });
+
+    anchorRow.input.addEventListener('input', () => {
+      const floor = Number(floorRow.input.value);
+      if (floor <= 1) { anchorRow.input.checked = true; return; }
+      // Ticking SEEDS the anchor with what the curve already produces here,
+      // so the act of anchoring changes as little as it can — every number
+      // that moves after this is one you moved.
+      if (anchorRow.input.checked) anchors.set(floor, anchorAt(curveModel(), floor));
+      else anchors.delete(floor);
+      applyFloor(floor);
+      refreshLive();
+    });
+
+    // A model dial writes into the anchor on screen. Registered AFTER the
+    // row's own listener, which is why it repaints: that one already ran
+    // refreshLive() against the anchor as it was a moment ago.
+    for (const row of modelRows) {
+      row.input.addEventListener('input', () => {
+        const floor = Number(floorRow.input.value);
+        if (!anchors.has(floor)) return;
+        anchors.get(floor)[row.key] = valueOfRow(row);
+        refreshLive();
+      });
+    }
+
+    applyFloor(1);
+  } else {
+    // No curve controls drawn — outside dev mode the map section does not
+    // exist. One anchor, straight off what ships.
+    anchors.set(1, { ...resolvedDefaults(overrides).model });
+  }
+
   const buttons = document.createElement('div');
   buttons.className = 'dial-buttons';
   const restart = document.createElement('button');
@@ -1119,6 +1258,12 @@ export function buildDialPanel(container, {
     for (const {
       kind, key, input, def, min, isSwitch, onOff, bands,
     } of inputs) {
+      // Panel state — which floor is on screen, and whether it anchors.
+      // Never a value the run receives.
+      if (kind === 'curve') continue;
+      // A model dial belongs to the ANCHOR being edited, not to one flat
+      // model. `anchors` below owns them; this loop only reads the rest.
+      if (kind === 'model') continue;
       if (isSwitch) {
         out[kind][key] = input.checked ? onOff.on : onOff.off;
         continue;
@@ -1133,6 +1278,11 @@ export function buildDialPanel(container, {
       const value = Number(input.value);
       out[kind][key] = Number.isFinite(value) ? Math.max(min, value) : def;
     }
+    // The model, in pieces. The first anchor is the model's root — that is
+    // what makeFloorPlan treats as "the segment from floor 1" and what a
+    // dial-overrides.json without `floors` has always been — and every
+    // anchor, including that one, is repeated in the list.
+    out.model = curveModel();
     return out;
   };
 
@@ -1142,9 +1292,22 @@ export function buildDialPanel(container, {
   //
   // A line that throws must not take the panel down with it: it is
   // commentary, not the value.
+  // What the live lines are told. Deliberately NOT what read() gives the
+  // run: on a floor that is not an anchor the dials show the curve's output
+  // there, and a sentence under them has to describe that, not floor 1.
+  const formValues = () => {
+    const out = read();
+    const floor = floorRow ? Number(floorRow.input.value) : 1;
+    out.curve = { editFloor: floor, isAnchor: anchors.has(floor) };
+    out.model = anchors.has(floor)
+      ? { ...anchors.get(floor) }
+      : anchorAt(curveModel(), floor);
+    return out;
+  };
+
   const refreshLive = () => {
     if (!notes.length && !effects.length) return;
-    const values = read();
+    const values = formValues();
     for (const paint of effects) {
       try {
         paint(values);
@@ -1190,6 +1353,13 @@ export function buildDialPanel(container, {
       for (const {
         kind, key, input, min, isSwitch, onOff, bands,
       } of inputs) {
+        // Panel state, never a shipped value.
+        if (kind === 'curve') continue;
+        // A model dial belongs to an ANCHOR, and only one anchor is on
+        // screen — writing the visible row into a flat `model` would ship
+        // whichever floor happened to be selected as if it were floor 1.
+        // The whole curve goes below instead.
+        if (kind === 'model') continue;
         if (!input.classList.contains('changed')) continue;
         if (isSwitch) {
           merged[kind] = merged[kind] || {};
@@ -1209,6 +1379,16 @@ export function buildDialPanel(container, {
         merged[kind] = merged[kind] || {};
         merged[kind][key] = Math.max(min, value);
       }
+
+      // THE CURVE, whole. Every anchor's full set of values rather than a
+      // diff: an anchor is only meaningful complete, and a file that carried
+      // half of one would inherit the rest from code defaults that may have
+      // moved since. The first anchor doubles as the model's root, which is
+      // what a file without `floors` has always been.
+      const floors = curveModel().floors;
+      merged.model = { ...(anchors.get(1) || {}) };
+      if (floors.length > 1) merged.model.floors = floors;
+      else delete merged.model.floors;
 
       const blob = new Blob([JSON.stringify(merged, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
