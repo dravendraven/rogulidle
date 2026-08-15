@@ -601,6 +601,24 @@ function stillValid(goal, belief, field) {
 // flaw. The flip already requires the sober duel to exceed one bar, so any
 // demand below one bar is satisfied before it is asked. A spendthrift cannot
 // be more spendthrift than "spend whenever it would help" — that IS the floor.
+//
+// AND THE TURN THE ITEM COSTS IS PRICED ON THE SIDE THAT SPENDS IT (B29).
+// Injecting is an action: the hero does not swing that turn and the creature
+// beside him does, so the manoeuvre opens with one free blow that `duelCost`
+// never sees — it prices a duel from the first swing onward. Measured over 120
+// runs, 22 of 63 injections were the hero's LAST act: median 1 hp, no armour,
+// no blow ever landed. The plan was right about the FIGHT and wrong about the
+// TURN.
+//
+// So the enraged reading carries that blow, against the same bar:
+//
+//     one free blow + the enraged duel  ≤  fightBar
+//
+// No new number: `(1 - MONSTER_SKIP_CHANCE) × expectedDamage` is the same
+// arithmetic `duelCost` prices each of its own turns with. And what it deletes
+// is exactly the trade that never paid — rage roughly halves the turns, so a
+// two-turn sober duel becomes a one-turn enraged one, saving one blow and
+// costing one. The syringe is worth a turn only when it saves more than one.
 function rageWouldFlip(belief, hero) {
   const [px, py] = belief.player.pos;
   // The bar reads the same either way — `effectiveHp` is hp plus armour and
@@ -615,7 +633,10 @@ function rageWouldFlip(belief, hero) {
     const sober = duelCost(belief.player, m, hero.bravery).hpLost;
     if (sober <= bar) continue;              // he would take it anyway
     if (sober < demand) continue;            // too small a rescue to spend on
-    if (duelCost(enraged, m, hero.bravery).hpLost <= bar) return true;
+    // What the turn spent on the syringe costs: one blow from the thing that
+    // is already beside him.
+    const injection = (1 - MONSTER_SKIP_CHANCE) * expectedDamage(m.xp, 0);
+    if (duelCost(enraged, m, hero.bravery).hpLost + injection <= bar) return true;
   }
   return false;
 }

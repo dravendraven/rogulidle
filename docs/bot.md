@@ -67,10 +67,26 @@ frases:
   exigência abaixo de uma barra está satisfeita antes de ser feita. Ninguém pode
   ser mais perdulário que "gasta sempre que ajudaria" — esse É o piso.
 - **A escada que isso comprou é outra, e vale dizer qual.** O `RAGE_AT` antigo
-  movia o ANDAR da injeção (4,3 a 5,4 pelas faixas); o preço de reserva move a
-  QUANTIDADE — 63 a 28 injeções pelas faixas, com o andar mediano parado em 4.
-  Em troca, a fração de turnos de fúria que viram golpe sobe de 47% para 58%:
-  segurado para lutas maiores, o item é menos desperdiçado.
+  movia o ANDAR da injeção; o preço de reserva move a QUANTIDADE, com o andar
+  mediano parado em 4.
+- **O turno que o item custa é cobrado de quem o gasta.** Injetar é uma ação: o
+  herói não golpeia nesse turno e a criatura ao lado golpeia, então a manobra
+  abre com um golpe de graça que o `duelCost` não enxerga — ele precifica o
+  duelo do primeiro golpe em diante. Medido: 22 de 63 injeções eram o último ato
+  do herói, com 1 de hp mediano, sem armadura e sem golpe nenhum. A leitura
+  enfurecida agora carrega esse golpe contra a mesma barra, e o que isso apaga é
+  o negócio que nunca pagou — a fúria corta os turnos pela metade, então um duelo
+  sóbrio de dois turnos vira um enfurecido de um, poupando um golpe e custando
+  um. O item só vale um turno quando poupa mais de um.
+- **E isso encurtou o alcance útil do dial de ganância**, o que é honesto dizer:
+  "pagável enfurecido" limita o resgate a uma barra, então o custo sóbrio que a
+  virada consegue salvar mora entre uma e cerca de duas barras — cobrar o golpe
+  da injeção come o topo dessa faixa. Pelas seis bandas as injeções passaram a
+  23, 30, 34, 20, 5 e 0: acima de `1.16` o avarento praticamente não usa mais a
+  seringa. Em troca ela deixou de ser desperdiçada — 1,05 golpe por injeção
+  virou 1,39, e a fração de turnos de fúria que viram golpe ficou plana em ~51%
+  em vez de subir com a avareza, porque o desperdício que a ganância removia o
+  preço do turno já removeu.
 - **Nunca começa luta** cujo custo esperado passe de `fightMargin` do hp
   efetivo (hp + armadura). Uma criatura que já persegue paga só a
   caminhada — o duelo dela acontece de qualquer jeito — **e paga metade

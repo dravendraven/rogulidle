@@ -143,7 +143,14 @@ retuned. What triggers the injection now is a CONDITION — would rage flip this
 adjacent duel from refused to accepted — and greed enters as a reserve price on
 the flip, written against the bar the hero already carries: the sober duel must
 cost at least `fightMargin × effectiveHp × sideAppetite`. No new constant, and
-the low half of the dial is inert because the flip already floors it. See
+the low half of the dial is inert because the flip already floors it.
+
+The TURN the syringe costs is priced the same way, out of parts that already
+exist: injecting hands the adjacent creature one free blow, so the enraged
+reading carries `(1 - MONSTER_SKIP_CHANCE) × expectedDamage(monster.xp)` — one
+turn's worth, the same arithmetic `duelCost` charges its own turns with —
+against the same bar. It costs the top of greed's range, because "affordable
+enraged" caps the rescue at one bar; that trade and its numbers are in
 `docs/bot.md`.
 
 ## Tiers
