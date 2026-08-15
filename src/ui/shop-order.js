@@ -41,22 +41,18 @@ export function buildShopOrder(container, { onChange } = {}) {
   heading.textContent = 'Loja';
   section.append(heading);
 
-  // Said out loud because the timing is the one thing a player cannot see:
-  // the shop is between runs, so a change made now lands at the end of the
-  // run on screen rather than "sometime later".
+  // Four words, because the list under it is already the explanation. The
+  // long version named the timing too ("vale já para a loja no fim desta
+  // run") and read as a paragraph over a control that needs none — owner's
+  // call, and the same one M48 made about the dials' own captions.
   const caption = document.createElement('div');
   caption.className = 'shop-order-caption';
-  caption.textContent = 'em que ordem as moedas são gastas se ninguém clicar — '
-    + 'vale já para a loja no fim desta run';
+  caption.textContent = 'compra sozinha nesta ordem';
   section.append(caption);
 
   const list = document.createElement('div');
   list.className = 'shop-order-list';
   section.append(list);
-
-  const effect = document.createElement('div');
-  effect.className = 'dial-effect';
-  section.append(effect);
 
   let order = getShopOrder();
 
@@ -117,19 +113,14 @@ export function buildShopOrder(container, { onChange } = {}) {
       row.append(rank, icon, label, price, up, down);
       list.append(row);
     });
-
-    // One live line, the same shape every dial carries: what this setting is
-    // doing NOW, not what it could do. The two ends are the whole of it — the
-    // top is what the balance is saved for, the bottom is where the change
-    // goes — and both prices are read off the table rather than written here,
-    // so the sentence follows a price change on its own.
-    const first = entryOf(order[0]);
-    const last = entryOf(order[order.length - 1]);
-    effect.textContent = (first && last)
-      ? `gasta primeiro em ${first.item.name} · ${first.price}🪙, e desce a lista `
-        + `até o troco virar ${last.item.name} · ${last.price}🪙`
-      : '';
   }
+
+  // NO LIVE LINE HERE, deliberately, and it is the one place in this panel
+  // where that is right. A dial's sentence exists because a number cannot
+  // show its own consequence — "0.26" does not say "boar". This control has
+  // no such gap: the list IS the order, top to bottom, with the price on
+  // every row. A sentence restating the first and last rows was the panel
+  // reading itself back out loud (owner's call).
 
   draw();
 }
