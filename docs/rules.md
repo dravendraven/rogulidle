@@ -505,11 +505,29 @@ relógio acaba, ou no instante em que o saldo não paga nem o item mais
 barato.
 
 **Ninguém precisa estar assistindo, e por isso a loja compra sozinha.**
-Rogulidle joga sozinho: se nada for clicado antes do tempo da tela acabar, a
-compra padrão é sorteada **entre o que o saldo alcança, com peso proporcional
-ao preço**. Não é o mais barato — isso faria toda run comprar escudo para
-sempre. O sorteio passa pelo rng do projeto e deriva do seed da sessão, então
-o mesmo `?seed=` reproduz também a loja.
+Rogulidle joga sozinho: se nada for clicado antes de o tempo da tela acabar,
+o saldo é **gasto até o fim seguindo uma ordem de prioridade** — compra-se o
+primeiro item da ordem que o saldo ainda alcança, repetidamente, até ele não
+pagar nem o mais barato. Antes comprava um item só e descartava o resto, o
+que cobrava por não estar olhando: quem assistia tinha compra múltipla, quem
+não assistia levava um item.
+
+**A ordem é do jogador**, e vale só para a compra sem clique — quem está
+olhando continua comprando no botão. Quem nunca mexe nela recebe a ordem **do
+mais caro para o mais barato**, que não é valor escrito em lugar nenhum: é a
+tabela de preços lida de trás para frente. Item que a ordem não nomeia entra
+no fim dela, então a lista nunca deixa de cobrir a prateleira inteira.
+
+**Cara-primeiro é a ordem que menos infla o herói**, e é por isso que ela é a
+padrão: o troco só desce para o barato depois que o caro não cabe mais, então
+um saldo vira uma coisa boa e pouco resto em vez de uma pilha do mais barato.
+A ordem inversa é oferecida ao jogador de propósito — ela é o outro extremo, e
+qual das duas é melhor depende da run.
+
+**A loja deixou de sortear.** Não passa mais pelo rng: para quem nunca
+reordenou o mesmo `?seed=` continua reproduzindo a sessão inteira, porque a
+ordem padrão é a mesma para todo mundo. Quem reordenou diverge, exatamente
+como os dials do lab já fazem divergir.
 
 **A loja vende também um consumível, e ele é o item mais barato dela.** Ele
 não some no fim da run: entra na run seguinte como qualquer outra compra, e
@@ -520,7 +538,10 @@ seria descartada na porta.
 **A economia de itens da loja está sabidamente desequilibrada, e isso é
 deliberado.** Preço fixo com compra múltipla torna o escudo a compra racional
 e a segunda arma um mau negócio — armadura é linear e sem teto, arma tem
-retorno decrescente por ponto. O consumível não conserta isso: ele compra a
+retorno decrescente por ponto. **O gasto até o fim aumenta a aposta nisso**:
+o defeito antes aparecia em quem ficava clicando, e agora aparece em toda run
+que ninguém assistiu. A ordem padrão não o resolve, só não o persegue — ela
+gasta no caro primeiro, que é justamente a compra que rende menos por moeda. O consumível não conserta isso: ele compra a
 abertura, que é onde a run morre (§5), enquanto a armadura só rende depois de
 o herói viver o bastante para empilhá-la. Aceito por ora; o conserto é
 estrutural e está no M32, não numa mudança de preço.

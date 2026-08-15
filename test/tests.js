@@ -46,6 +46,9 @@ import {
   earnedBy, isEarned, verifyAchievements, HERO_GATE,
 } from '../src/ui/achievements.js';
 import { getChosenHero, setChosenHero } from '../src/ui/roster.js';
+import {
+  DEFAULT_ORDER, SHOP_ITEMS, getShopOrder, nextPurchase, setShopOrder,
+} from '../src/ui/shop.js';
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
 
 // ***** tiny test harness ***** //
@@ -3967,9 +3970,11 @@ test('an awake pursuer is fought rather than fled forever', () => {
 
 const ACH_KEY = 'rogulidle-achievements';
 const HERO_KEY = 'rogulidle-hero';
+const SHOP_ORDER_KEY = 'rogulidle-shop-order';
 
 function withStores(fn) {
-  const saved = [ACH_KEY, HERO_KEY].map((k) => [k, localStorage.getItem(k)]);
+  const saved = [ACH_KEY, HERO_KEY, SHOP_ORDER_KEY]
+    .map((k) => [k, localStorage.getItem(k)]);
   try {
     fn();
   } finally {
@@ -4060,6 +4065,129 @@ test('with the gate shut, a hero picked earlier reads as the base hero', () => {
     assertEq(getChosenHero(), '', 'the gate let an unearned hero through');
     assertEq(localStorage.getItem(HERO_KEY), 'vito',
       'the gate erased the pick instead of merely refusing it');
+  });
+});
+
+// ***** the shop's no-input purchase (rules.md §9) ***** //
+//
+// The RULE, not the screen: `nextPurchase` is a pure function of a balance
+// and an order, so everything below asks it what an order buys without a
+// timer, a click or a store. The drain itself is four lines of loop in
+// spectator.js and is spelled out again here — a test that walked it
+// through the UI would be testing the pacing.
+
+// What the timer does, in the one place a test can reach it: spend the
+// balance down the order until it reaches nothing.
+function drain(balance, order) {
+  const bought = [];
+  let left = balance;
+  // A cap, not a condition — the loop's real end is `nextPurchase` returning
+  // null. Derived from the balance rather than picked, because the honest
+  // ceiling IS "every coin went on the cheapest thing": a flat guard of 500
+  // fired on a balance of 1000 and read as a hang in the rule when it was
+  // only a hang in this helper.
+  const most = Math.floor(balance / cheapest()) + 1;
+  for (let guard = 0; guard < most; guard++) {
+    const entry = nextPurchase(left, order);
+    if (!entry) return { bought, left };
+    left -= entry.price;
+    bought.push(entry.item.name);
+  }
+  throw new Error('the drain did not terminate');
+}
+
+const cheapest = () => Math.min(...SHOP_ITEMS.map((e) => e.price));
+
+test('the default shop order is the price ladder read backwards', () => {
+  // DERIVED, never written down: a hand-kept list here would be a second
+  // copy of the prices in shop.js, free to drift the next time one moves.
+  const prices = DEFAULT_ORDER.map(
+    (name) => SHOP_ITEMS.find((e) => e.item.name === name).price,
+  );
+  for (let i = 1; i < prices.length; i++) {
+    assert(prices[i] <= prices[i - 1],
+      `the default order is not descending by price: ${DEFAULT_ORDER.join(' > ')}`);
+  }
+  assertEq(DEFAULT_ORDER.length, SHOP_ITEMS.length,
+    'the default order does not cover the whole shelf');
+});
+
+test('a drained balance never overspends and always terminates', () => {
+  // Every balance from nothing to well past the dearest item, so the two
+  // ends are covered as well as the middle: 0 buys nothing, and a balance
+  // that clears the axe several times over still stops.
+  const dearest = Math.max(...SHOP_ITEMS.map((e) => e.price));
+  for (let balance = 0; balance <= dearest * 3; balance++) {
+    const { bought, left } = drain(balance, DEFAULT_ORDER);
+    const spent = bought.reduce(
+      (sum, name) => sum + SHOP_ITEMS.find((e) => e.item.name === name).price, 0,
+    );
+    assertEq(spent, balance - left, `the basket at ${balance} does not add up`);
+    assert(left >= 0, `the shop overspent at ${balance}`);
+    assert(left < cheapest(),
+      `the shop stopped at ${balance} holding ${left}, which still buys something`);
+  }
+});
+
+test('the order decides what a balance buys, not the price alone', () => {
+  // The whole feature in one assertion: the same coins, two orders, two
+  // different loadouts. If this ever passes trivially the order has stopped
+  // being a choice (objectives.md — an option that changes nothing is not
+  // one).
+  const axe = SHOP_ITEMS.find((e) => e.item.name === 'axe');
+  const shield = SHOP_ITEMS.find((e) => e.item.name === 'shield');
+  const balance = axe.price;
+
+  const dear = drain(balance, ['axe', 'dagger', 'shield', 'health']);
+  const cheap = drain(balance, ['shield', 'health', 'dagger', 'axe']);
+
+  assert(dear.bought.includes('axe'), 'axe-first did not buy the axe it could afford');
+  assert(!cheap.bought.includes('axe'), 'shield-first bought the axe anyway');
+  assert(cheap.bought.filter((n) => n === 'shield').length
+    >= Math.floor(balance / shield.price) - 1,
+  'shield-first did not stack shields');
+});
+
+test('an order missing an item still reaches it, last', () => {
+  // What lets a fifth item join the shelf later without vanishing from every
+  // order stored before it existed.
+  //
+  // Asserted through the FALLTHROUGH rather than through a drain: an order
+  // naming only the axe still has to reach the dagger when the balance is
+  // one coin short of an axe. (A drain proves nothing here — declare the
+  // cheapest item first and every coin goes on it, which is the rule working,
+  // not the appended items being unreachable.)
+  const axe = SHOP_ITEMS.find((e) => e.item.name === 'axe');
+  const dagger = SHOP_ITEMS.find((e) => e.item.name === 'dagger');
+
+  assertEq(nextPurchase(axe.price, ['axe']).item.name, 'axe',
+    'the declared item did not lead');
+  assertEq(nextPurchase(axe.price - 1, ['axe']).item.name, 'dagger',
+    'a partial order could not fall through to an item it never named');
+
+  // And the whole shelf really is behind it, in the default order.
+  const { bought } = drain(axe.price + dagger.price, ['axe']);
+  assertEq(bought.join(','), 'axe,dagger', 'the fallthrough did not follow the price ladder');
+});
+
+test('a stored order survives a reload, and junk in it does not', () => {
+  withStores(() => {
+    setShopOrder(['shield', 'health', 'axe', 'dagger']);
+    assertEq(getShopOrder().join(','), 'shield,health,axe,dagger',
+      'the stored order did not come back');
+
+    // A name the shelf does not carry, and a duplicate — both dropped,
+    // and everything real still present exactly once.
+    setShopOrder(['sword', 'shield', 'shield', 'axe']);
+    const back = getShopOrder();
+    assert(!back.includes('sword'), 'an unknown item survived the store');
+    assertEq(new Set(back).size, back.length, 'the stored order holds a duplicate');
+    assertEq(back.length, SHOP_ITEMS.length, 'the stored order lost an item');
+    assertEq(back[0], 'shield', 'sanitising reordered what was actually asked for');
+
+    localStorage.setItem(SHOP_ORDER_KEY, 'not json at all');
+    assertEq(getShopOrder().join(','), DEFAULT_ORDER.join(','),
+      'a corrupt store did not fall back to the default order');
   });
 });
 

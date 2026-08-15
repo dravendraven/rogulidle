@@ -31,6 +31,12 @@
            on the page must not hide with them. -->
       <div id="roster" class="roster"></div>
       <div class="dials" id="dials" hidden></div>
+      <!-- THE SHOP'S ORDER, outside the drawer for the same reason the
+           buttons are: `.dials` scrolls at 70vh, and in dev mode it holds
+           thirty rows of map dials — a control buried under all of them is
+           one nobody finds. Not a dial (src/ui/shop-order.js), but it wears
+           the dials' own classes because it belongs to that panel. -->
+      <div class="dials-extra" id="shopOrder" hidden></div>
       <!-- The panel's buttons, OUTSIDE the scrolling drawer above. `.dials`
            caps at 70vh and scrolls, so buttons inside it sat below thirty
            rows of sliders — and "reiniciar" is the control you press after
