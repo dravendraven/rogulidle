@@ -10,9 +10,10 @@
 // something else, that is not a slowdown, it is the product failing quietly
 // and without a message. Measured with `tools/timer-probe.html`, which runs
 // both sources in one page and counts only the ticks that land while the tab
-// is hidden: `setTimeout` got 1.11 calls per second where 9.09 were asked
-// for, the same interval inside a Worker got all 9.09, worst gap a tenth of
-// a second.
+// is hidden: over 24 minutes hidden, `setTimeout` got 0.22 calls per second
+// where 9.09 were asked for, with a worst gap of a full minute; the same
+// interval inside a Worker got all 9.09 of them, worst gap two tenths of a
+// second.
 //
 // The clamp is on TIMERS. A worker's message is not a timer, so the worker
 // keeps time and the page only answers the phone. Nothing else changes: the

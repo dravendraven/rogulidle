@@ -1512,15 +1512,23 @@ and a browser clamps `setTimeout` in a hidden tab.
 `tools/timer-probe.html` runs the same 110ms interval two ways in one page and
 counts only the ticks that land while the tab is hidden:
 
-| source | ticks per second (asked: 9.09) | worst gap |
-|---|---|---|
-| `setTimeout` | 1.11 | 1.0s |
-| `setInterval` inside a Worker | 9.09 | 0.1s |
+| hidden for | source | ticks per second (asked: 9.09) | worst gap |
+|---|---|---|---|
+| 2 min | `setTimeout` | 1.11 | 1.0s |
+| 2 min | `setInterval` inside a Worker | 9.09 | 0.1s |
+| **24 min** | `setTimeout` | **0.22** | **60.0s** |
+| **24 min** | `setInterval` inside a Worker | **9.09** | 0.2s |
 
-Chrome's own documented behaviour is worse than what the probe had time to
-see: a page hidden for more than five minutes drops to one timer call per
-**minute**. The probe window was about two minutes, so the 1.11 above is the
-mild tier.
+**Both of Chrome's tiers were seen, and the second one is the real one.** The
+first five minutes hidden cost one call per second; after that the page drops
+to one call per **minute** — the 60.0s worst gap is that, measured, not quoted
+from documentation. 319 ticks in 24 minutes is about 300 from the first tier
+and 19 from the second: the game would have been playing a turn a minute.
+
+The worker held 9.09/s for the whole 24 minutes, 13105 ticks, worst gap two
+tenths of a second. **And the page was never frozen** — the probe watches for
+the Page Lifecycle `freeze` event and saw none in 24 minutes hidden, which is
+what makes the decision below safe rather than merely cheap.
 
 **The clamp is on timers, not on the page.** A worker's `postMessage` is a
 message task, so a worker can keep time and the page merely answers it. That
@@ -1541,14 +1549,17 @@ Memory/Energy Saver, a phone backgrounding the browser). The complete answer
 to that is for the game to notice the wall-clock time it lost and fast-forward
 through it, which is what other idle games do.
 
-It was left out because it costs more than it is worth until something shows
-the freeze actually happens here. A run is 258ms of simulation plus 62ms of
-replay and buys about 40 seconds of playback — 0.8% of a core, so running at
-full speed while hidden is nearly free, but *catching up* an hour away means
-about 30 seconds of blocking work the moment you come back, and a cap on that
-is a new parameter existing only to protect another parameter. The probe
-reports a `freeze` event if it ever sees one; if it does, that is when this
-gets built.
+It was left out because the freeze did not happen: 24 minutes hidden, no
+`freeze` event, the worker never missed a beat. And it is not cheap. A run is
+258ms of simulation plus 62ms of replay and buys about 40 seconds of playback
+— 0.8% of a core, so running at full speed while hidden is nearly free, but
+*catching up* an hour away means about 30 seconds of blocking work the moment
+you come back, and a cap on that is a new parameter existing only to protect
+another parameter.
+
+**What would reopen it:** the probe reporting a `freeze`, which is the case
+this machine did not produce. A phone, or a laptop on battery with Chrome's
+Energy Saver on, is where to look — not a desktop that has already answered.
 
 ### What is not fixed
 
