@@ -22,12 +22,44 @@ the relevant entry BEFORE reintroducing anything that looks like a good idea.
 Design questions get answered from those docs or by asking the owner, never
 by inventing defaults.
 
-## One session
+## Sessions
 
-One main session does the work; when it runs out of context, a new one is
-opened. Sessions are never split by specialty and never run concurrently —
-the parallel-roles era produced more coordination machinery than work, and
-this file used to be mostly that machinery.
+**A session per FRONT OF WORK** — the map, the bot, the shop — not per task
+and not per day. A new one is opened when the subject changes or the old one
+runs out of context, never merely because a piece of work finished.
+
+Context is the expensive thing here, not the branch. A session that already
+knows what was tried and rejected reaches "the dials were never the problem"
+in one step; a fresh one re-runs the sweeps to get there. **Sessions are
+still never split by specialty** — the parallel-roles era produced more
+coordination machinery than work, and this file used to be mostly that
+machinery.
+
+**What crosses between sessions is the REPO, not the session.** Before a
+session ends, what it learned is in a file or it is lost: `decisions.md` for
+what was measured and rejected, the describing doc for what a thing now
+does, `docs/project/` for a study written before the code (`cautela.md`,
+`dcss-layouts.md`). That is what makes a fresh session cheap.
+
+### More than one at a time
+
+They do run concurrently now, whatever the paragraph above used to claim,
+and that is fine — with one rule, learned by breaking it:
+
+> **Every session works in its own worktree, and nobody works in the main
+> directory.** Before touching git, LOOK at which branch each worktree is
+> on. Do not assume.
+
+`git worktree add -b <name> .claude/worktrees/<name> origin/main` to start,
+`git worktree remove` plus `git branch -d` once it is merged. The directory
+is gitignored, so a worktree never shows up in anyone's `git status` — which
+is exactly why the assuming is dangerous.
+
+What breaking it looked like: a session created a branch in the MAIN
+directory while another was working there, moving the ground under it. And
+the main directory has since stopped being on `main` at all without anyone
+announcing it, so "the main directory is on main" is not a fact, it is a
+guess.
 
 Two habits replace the old protocol:
 
