@@ -162,7 +162,20 @@ export function playDungeon(seed, makePolicy, options = {}) {
   let earnedBefore = 0;
   let purchases = 0;
 
-  for (let traversal = 1; traversal <= depth; traversal++) {
+  // A LAB TOOL, and the default is the game. `startFloor` skips straight to
+  // a floor so it can be watched without sitting through the ones above it —
+  // the traversal counter simply starts there, and on a descent traversal N
+  // IS floor N (`floorOfTraversal`), so nothing else has to learn a new
+  // mapping.
+  //
+  // THE HERO ARRIVES EMPTY-HANDED, which is the honest consequence and not a
+  // defect: the gear it would have had was earned on the floors that were
+  // skipped, and inventing a plausible kit would be inventing the very thing
+  // a reading of that floor is supposed to measure. So this shows what a
+  // floor LOOKS like, and lies about what it costs.
+  const first = Math.max(1, Math.min(depth, Math.round(options.startFloor ?? 1)));
+
+  for (let traversal = first; traversal <= depth; traversal++) {
     const level = floorOfTraversal(traversal, floors);
     const plan = planFor(level);
     const counts = {
