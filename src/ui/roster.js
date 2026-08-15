@@ -45,6 +45,18 @@ export function heroLockReason() {
   return lockedReason(HERO_GATE);
 }
 
+// The whole line, in ONE place, because two call sites print it — the card's
+// blurb slot and the chip's tooltip — and a wording that differs between
+// them would read as two different rules.
+//
+// The word "bloqueado" is here and NOT in the achievement's own `locked`
+// sentence: that sentence is shared with the achievements strip
+// (src/ui/render.js), where the row is already visibly unearned and saying
+// "blocked" under it would be describing the row rather than the gate.
+function lockLine() {
+  return `🔒bloqueado - ${heroLockReason()}`;
+}
+
 // `base` is stored as '' — see setChosenHero's callers — so both spellings
 // of the ordinary hero pass the gate.
 function allowed(name) {
@@ -235,7 +247,7 @@ export function buildRoster(container, { onPick, onRestart, onPreview } = {}) {
       // card, which is the whole change.
       chip.classList.toggle('locked', shut);
       chip.title = shut
-        ? `${HEROES[key].name} — 🔒 ${heroLockReason()}`
+        ? `${HEROES[key].name} — ${lockLine()}`
         : `${HEROES[key].name}, ${HEROES[key].title}`;
       // `playing` and `queued` follow the RUN, never the card. That is what
       // keeps the ordinary hero lit while a locked face is being read: he
@@ -255,7 +267,7 @@ export function buildRoster(container, { onPick, onRestart, onPreview } = {}) {
     // eye already is, and describing a hero the player cannot use reads as
     // an offer.
     const shutHero = !allowed(showing);
-    blurb.textContent = shutHero ? `🔒 ${heroLockReason()}` : hero.blurb;
+    blurb.textContent = shutHero ? lockLine() : hero.blurb;
     blurb.classList.toggle('locked', shutHero);
 
     // Nothing is queued and nothing can be restarted while browsing: there
