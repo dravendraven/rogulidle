@@ -203,6 +203,17 @@ const MIN_OF = {
 // traversals cross them, not how deep it goes.
 const LAST = 9;
 
+// THE STRETCH THE ROW IS TALKING ABOUT. A sentence under a dial describes
+// the segment that dial belongs to, so its far end is the floor before the
+// next anchor — not floor 10 — and its step count is how many floors that
+// is, not nine. Every line here said "no andar 10" and counted nine steps,
+// which was true while there was only ever one anchor.
+function span(values) {
+  const from = values.curve ? values.curve.editFloor : 1;
+  const to = values.curve ? values.curve.until : LAST + 1;
+  return { from, to, steps: Math.max(0, to - from) };
+}
+
 // Which creature sits at a 0..1 position up the bestiary. What "strength
 // 0.26" means is unreadable; "o teto do andar 1 é o boar" is not.
 function creatureAt(share) {
@@ -218,32 +229,36 @@ const pct = (n) => `${Math.round(n * 100)}%`;
 // is worse than saying nothing.
 function countSays(values) {
   const m = values.model;
-  const from = values.curve.editFloor;
-  const deep = monstersAt(m.monstersBase, m.monsterGrowth, LAST - (from - 1));
-  return `${m.monstersBase} criaturas no andar ${from}, ${deep} no andar ${LAST + 1}`;
+  const { from, to, steps } = span(values);
+  if (!steps) return `${m.monstersBase} criaturas no andar ${from}`;
+  const deep = monstersAt(m.monstersBase, m.monsterGrowth, steps);
+  return `${m.monstersBase} criaturas no andar ${from}, ${deep} no andar ${to}`;
 }
 
 function spreadSays(values) {
-  const at = floorSpread(LAST, values.model);
+  const { to, steps } = span(values);
+  const at = floorSpread(steps, values.model);
   return at > 0
-    ? `no andar 10 a lotação varia ±${pct(at)} — cheio ou vazio`
+    ? `no andar ${to} a lotação varia ±${pct(at)} — cheio ou vazio`
     : 'todo andar tem exatamente a lotação da conta';
 }
 
 function ceilingSays(values) {
   const m = values.model;
-  const from = values.curve.editFloor;
+  const { from, to, steps } = span(values);
+  if (!steps) return `o teto do andar ${from} é o ${creatureAt(floorStrength(0, m))}`;
   return `o teto do andar ${from} é o ${creatureAt(floorStrength(0, m))}, `
-    + `o do ${LAST + 1} é o ${creatureAt(floorStrength(LAST - (from - 1), m))}`;
+    + `o do ${to} é o ${creatureAt(floorStrength(steps, m))}`;
 }
 
 function tierFloorSays(values) {
   const m = values.model;
-  const share = tierFloorShare(LAST, m);
-  const bottom = floorStrength(LAST, m) * share;
+  const { to, steps } = span(values);
+  const share = tierFloorShare(steps, m);
+  const bottom = floorStrength(steps, m) * share;
   return share > 0
-    ? `no andar 10 nada abaixo do ${creatureAt(bottom)} aparece`
-    : 'rato pode aparecer no andar 10';
+    ? `no andar ${to} nada abaixo do ${creatureAt(bottom)} aparece`
+    : `rato pode aparecer no andar ${to}`;
 }
 
 function earlyCutSays(values) {
@@ -334,16 +349,20 @@ function mapNote(values) {
 // it starts biting on — or says it never does. Every dial named "…máxima"
 // in this file is that shape, and a cap the slope cannot reach in ten
 // floors is inert, however alarming its number looks.
-function capNote(perLevelKey, capKey, levels = 10) {
+function capNote(perLevelKey, capKey, startKey) {
   return (values) => {
     const perLevel = values.model[perLevelKey];
     const cap = values.model[capKey];
-    if (!(perLevel > 0)) return 'inativo — a inclinação é 0';
-    const reach = perLevel * (levels - 1);
-    if (reach < cap) {
-      return `inativo — a inclinação só chega a ${reach.toFixed(2)} no andar ${levels}`;
+    const start = values.model[startKey] ?? 0;
+    const { from, to, steps } = span(values);
+    if (!(perLevel > 0)) {
+      return start >= cap ? `já no teto desde o andar ${from}` : 'inativo — a inclinação é 0';
     }
-    return `ativo do andar ${Math.ceil(cap / perLevel) + 1} em diante`;
+    const reach = start + perLevel * steps;
+    if (reach < cap) {
+      return `inativo — a inclinação só chega a ${reach.toFixed(2)} no andar ${to}`;
+    }
+    return `ativo do andar ${from + Math.ceil((cap - start) / perLevel)} em diante`;
   };
 }
 
@@ -473,7 +492,8 @@ export const SECTIONS = [
   ['Criaturas', [
     ['quantas criaturas', [
       {
-        kind: 'model', key: 'monstersBase', label: 'criaturas no andar 1',
+        kind: 'model', key: 'monstersBase',
+        label: (v) => `criaturas no andar ${v.curve.editFloor}`,
         title: (v) => `Quantidade: criaturas no andar ${v.curve.editFloor}`,
         step: 1, range: [1, 20],
         says: countSays,
@@ -500,12 +520,13 @@ export const SECTIONS = [
         kind: 'model', key: 'spreadCap', label: 'sorteio do andar: teto',
         title: 'Quantidade: variação máxima', step: 0.05, range: [0, 1],
         says: spreadSays,
-        note: capNote('spreadPerLevel', 'spreadCap'),
+        note: capNote('spreadPerLevel', 'spreadCap', 'spreadStart'),
       },
     ]],
     ['quão fortes', [
       {
-        kind: 'model', key: 'strength', label: 'teto da tabela no andar 1 (0..1)',
+        kind: 'model', key: 'strength',
+        label: (v) => `teto da tabela no andar ${v.curve.editFloor} (0..1)`,
         title: (v) => `Força: teto no andar ${v.curve.editFloor}`,
         step: 0.01, range: [0, 1],
         says: ceilingSays,
@@ -518,12 +539,17 @@ export const SECTIONS = [
         // the ramp hits the table's top row, every deeper floor has the SAME
         // ceiling and only the creature count still grows.
         note: (values) => {
-          // Ten FLOORS, always — the return switch changes how many
-          // traversals cross them, not how deep the dungeon goes.
-          const at = saturatedAt(values.model, 10);
-          return at
-            ? `satura no andar ${at} — do ${at} ao 10 o teto é sempre t-rex`
-            : 'não satura: o teto ainda sobe no andar 10';
+          // `saturatedAt` counts STEPS from the model's own base, so what it
+          // returns is an offset into this segment, not a floor of the
+          // dungeon. It was read as a floor while there was only one anchor
+          // and the two were the same number.
+          const { from, to, steps } = span(values);
+          const at = saturatedAt(values.model, steps + 1);
+          if (!at) return `não satura: o teto ainda sobe no andar ${to}`;
+          const floor = from + at - 1;
+          return floor >= to
+            ? `satura no andar ${floor}, o último deste trecho`
+            : `satura no andar ${floor} — do ${floor} ao ${to} o teto é sempre t-rex`;
         },
       },
     ]],
@@ -537,7 +563,7 @@ export const SECTIONS = [
         kind: 'model', key: 'tierFloorCap', label: 'piso do tier: teto (share)',
         title: 'Força: piso máximo', step: 0.05, range: [0, 1],
         says: tierFloorSays,
-        note: capNote('tierFloorPerLevel', 'tierFloorCap'),
+        note: capNote('tierFloorPerLevel', 'tierFloorCap', 'tierFloorStart'),
       },
       {
         kind: 'model', key: 'tierSlackPerLevel', label: 'folga acima do teto: por andar',
@@ -546,21 +572,23 @@ export const SECTIONS = [
         // under 0.5 at floor 10 rounds to zero rows and the dial does
         // nothing at all. That was true of the shipped value for a while.
         note: (values) => {
-          const rows = Math.floor(Math.min(
-            values.model.tierSlackCap, values.model.tierSlackPerLevel * 9,
-          ) * 2);
+          const { to, steps } = span(values);
+          const rows = Math.floor(Math.min(values.model.tierSlackCap,
+            (values.model.tierSlackStart ?? 0)
+            + values.model.tierSlackPerLevel * steps) * 2);
           return rows > 0
-            ? `chega a +${rows} linha${rows > 1 ? 's' : ''} no andar 10`
-            : 'inativo — não chega a +1 linha inteira em 10 andares';
+            ? `chega a +${rows} linha${rows > 1 ? 's' : ''} no andar ${to}`
+            : `inativo — não chega a +1 linha inteira até o andar ${to}`;
         },
       },
       {
         kind: 'model', key: 'tierSlackCap', label: 'folga acima do teto: máx (share)',
         title: 'Força: folga máxima', step: 0.05, range: [0, 1],
-        note: capNote('tierSlackPerLevel', 'tierSlackCap'),
+        note: capNote('tierSlackPerLevel', 'tierSlackCap', 'tierSlackStart'),
       },
       {
-        kind: 'model', key: 'earlyTierCut', label: 'corte do andar 1 (linhas da tabela)',
+        kind: 'model', key: 'earlyTierCut',
+        label: (v) => `corte do andar ${v.curve.editFloor} (linhas da tabela)`,
         title: (v) => `Força: desconto só do andar ${v.curve.editFloor}`,
         step: 1, range: [0, 3],
         says: earlyCutSays,
@@ -569,16 +597,17 @@ export const SECTIONS = [
         kind: 'model', key: 'outOfDepthChancePerLevel', label: 'cauda rara: chance por andar',
         title: 'Raro: chance por andar', step: 0.005, range: [0, 0.05],
         note: (values) => {
-          const at10 = Math.min(
-            values.model.outOfDepthChanceCap, values.model.outOfDepthChancePerLevel * 9,
-          );
-          return `${(at10 * 100).toFixed(1)}% no andar 10 — repinta 1 monstro, não adiciona`;
+          const { to, steps } = span(values);
+          const deep = Math.min(values.model.outOfDepthChanceCap,
+            (values.model.outOfDepthChanceStart ?? 0)
+            + values.model.outOfDepthChancePerLevel * steps);
+          return `${(deep * 100).toFixed(1)}% no andar ${to} — repinta 1 monstro, não adiciona`;
         },
       },
       {
         kind: 'model', key: 'outOfDepthChanceCap', label: 'cauda rara: teto',
         title: 'Raro: chance máxima', step: 0.01, range: [0, 0.3],
-        note: capNote('outOfDepthChancePerLevel', 'outOfDepthChanceCap'),
+        note: capNote('outOfDepthChancePerLevel', 'outOfDepthChanceCap', 'outOfDepthChanceStart'),
       },
     ]],
     ['quão agrupadas', [
@@ -1135,8 +1164,11 @@ export function buildDialPanel(container, {
         sectionEl.append(row);
         inputs.push({
           kind, key, input, def, min, valueOut, step, isSwitch, onOff, bands,
-          titleEl: typeof title === 'function' ? caption : null,
+          titleEl: (typeof title === 'function' || typeof label === 'function')
+            ? caption : null,
           titleOf: typeof title === 'function' ? title : null,
+          labelOf: typeof label === 'function' ? label : null,
+          key2: key,
         });
       }
     }
@@ -1153,7 +1185,16 @@ export function buildDialPanel(container, {
   // what the active curve produces there. That is the answer to "what is
   // floor 5 actually like", which this panel could not give before — the
   // numbers were all statements about floor 1.
-  const modelRows = inputs.filter((i) => i.kind === 'model');
+  // FIELDS THAT BELONG TO THE RUN, not to an anchor — difficulty.js's own
+  // list, kept in step by name. `anchorAt` strips them from a segment, so a
+  // row for one of them painted from the segment showed UNDEFINED: the
+  // Butcher's switch read "off" on every floor but the first, while the run
+  // it described had him. They always read and write the first anchor, and
+  // never grey out — a run-wide answer does not change with the floor you
+  // happen to be looking at.
+  const RUN_WIDE_KEYS = new Set(['levels', 'vaultLevel', 'vaultChestItems', 'vaultBoss']);
+  const modelRows = inputs.filter((i) => i.kind === 'model' && !RUN_WIDE_KEYS.has(i.key));
+  const runWideRows = inputs.filter((i) => i.kind === 'model' && RUN_WIDE_KEYS.has(i.key));
   const floorRow = inputs.find((i) => i.kind === 'curve' && i.key === 'editFloor');
   const anchorRow = inputs.find((i) => i.kind === 'curve' && i.key === 'isAnchor');
 
@@ -1212,6 +1253,9 @@ export function buildDialPanel(container, {
       const isAnchor = anchors.has(floor);
       const values = isAnchor ? anchors.get(floor) : anchorAt(curveModel(), floor);
       for (const row of modelRows) paintRow(row, values[row.key], isAnchor);
+      // Always the run's answer, always editable.
+      const root = anchors.get(1) || {};
+      for (const row of runWideRows) paintRow(row, root[row.key], true);
       anchorRow.input.checked = isAnchor;
       // Floor 1 anchors by definition, so its switch is on and unusable.
       anchorRow.input.disabled = floor <= 1;
@@ -1243,6 +1287,14 @@ export function buildDialPanel(container, {
         const floor = Number(floorRow.input.value);
         if (!anchors.has(floor)) return;
         anchors.get(floor)[row.key] = valueOfRow(row);
+        refreshLive();
+      });
+    }
+    // A run-wide row writes to the FIRST anchor whatever floor is on screen,
+    // because that is the one makeFloorPlan reads it off.
+    for (const row of runWideRows) {
+      row.input.addEventListener('input', () => {
+        anchors.get(1)[row.key] = valueOfRow(row);
         refreshLive();
       });
     }
@@ -1354,7 +1406,9 @@ export function buildDialPanel(container, {
     for (const row of inputs) {
       if (!row.titleEl) continue;
       try {
-        row.titleEl.textContent = row.titleOf(values);
+        if (row.titleOf) row.titleEl.textContent = row.titleOf(values);
+        if (row.labelOf) row.titleEl.title = `${row.labelOf(values)}
+${row.key2}`;
       } catch { /* commentary, not the value */ }
     }
     if (!notes.length && !effects.length) return;
