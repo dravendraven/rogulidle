@@ -103,6 +103,11 @@ value it sets wins over the code default, for EVERY visitor, whether or not
 they ever open the Lab (`src/ui/dial-overrides.js`). It starts as `{}` and
 ships no different from not existing at all.
 
+Its `model` may carry a `floors` list — the curve in pieces, one entry per
+ANCHOR, each written whole. A file without it is one anchor at floor 1,
+which is what every file before this was. `docs/map-design.md` has the shape
+and the two inheritance rules.
+
 **Dev mode**: `?dev=1` on `/index.html` — no button anywhere invites this —
 auto-opens the Lab and adds one more button, "💾 salvar como padrão", which
 downloads the CURRENT form as a new `dial-overrides.json`. A page cannot

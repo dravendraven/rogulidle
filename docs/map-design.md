@@ -366,6 +366,24 @@ fallen into:
 - **`earlyTierCut` resets to 0.** It is the tutorial discount, and it
   belongs to the start of the GAME, not the start of every stretch.
 
+**What it looks like in `dial-overrides.json`.** The first anchor is also the
+model's root — that is what a file without `floors` has always been — and it
+is repeated inside the list, so nothing has to know which entry is special:
+
+```json
+{ "model": {
+    "monstersBase": 5, "dugPercentage": 0.25,
+    "floors": [
+      { "from": 1, "monstersBase": 5, "dugPercentage": 0.25 },
+      { "from": 6, "monstersBase": 12, "dugPercentage": 0.32, "hubEvery": 1 }
+    ] } }
+```
+
+**Every anchor is written whole, never as a diff.** An anchor is only
+meaningful complete: a file carrying half of one would inherit the rest from
+code defaults, which move. That is also why the Lab's "salvar como padrão"
+emits the entire curve rather than the rows you touched.
+
 **Re-anchoring is continuous, except for the creature count.** Give a new
 anchor the values the old curve produced at that floor and the floors below
 it come out identical — verified for strength, tier floor, tier slack, the
