@@ -260,14 +260,11 @@ async function showCoinPopup(coins, bought) {
   let waited = 0;
   let flipped = false;
   while (waited < until) {
-    // Pausing freezes the timer, which is the point — but it must not
-    // freeze the BUTTON. `waitWhilePaused` alone parks the loop inside
-    // itself, so a click set `skipped` and nothing ever read it again: the
-    // shop stayed open with a dead skip and a stalled bar until the player
-    // happened to press play. A pause is a request to stop the clock, not
-    // to stop taking input.
-    while (session.paused && !skipped) await sleep(80);
-    if (skipped) break;
+    // Pausing freezes the timer, which is the point. There is nothing to
+    // skip here — the popup has no button, unlike the shop, which is where
+    // the `skipped` flag lives and why it must be read outside the pause
+    // loop rather than only inside it.
+    await waitWhilePaused();
 
     await sleep(80);
     waited += 80;
