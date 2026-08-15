@@ -53,6 +53,9 @@ export function playRun(seed, config, onFloorTrace = null) {
     });
   }, {
     maxTurns: dials.run && dials.run.turnBudget,
+    // The lab's "começar no andar" — a testing affordance, 1 in the game.
+    // dungeon.js clamps it and explains what it costs.
+    startFloor: dials.run && dials.run.startFloor,
     startingItems: config.startingItems || [],
     floorPlan: makeFloorPlan(dials.model),
     // Who is playing (src/ui/roster.js). Unset resolves to the shipped hero,

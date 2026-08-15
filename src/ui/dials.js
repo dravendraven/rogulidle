@@ -586,6 +586,20 @@ export const SECTIONS = [
     ]],
   ]],
   ['Andar', [
+    // FIRST, because it is the one control here you use while looking at
+    // the others: every dial below describes a floor, and this is what puts
+    // the floor you care about on screen without sitting through the ones
+    // above it.
+    ['testar um andar', [
+      {
+        kind: 'run', key: 'startFloor', label: 'começar a descida neste andar',
+        title: 'Começar no andar', step: 1, range: [1, 10],
+        says: (v) => (v.run.startFloor <= 1
+          ? 'a descida começa no andar 1, como no jogo'
+          : `pula direto para o andar ${v.run.startFloor} — e o herói chega `
+            + 'de mãos vazias, então isso mostra a FORMA do andar, não o custo'),
+      },
+    ]],
     // The map's own SHAPE — how much dungeon there is and how far the exit
     // sits. Everything in the group below decides what gets PLACED on that
     // shape; nothing there changes the rooms themselves.
@@ -762,7 +776,9 @@ export const SECTIONS = [
 const BOT_DEFAULTS = {
   persistence: DANGER_PERSISTENCE, crowdPenalty: CROWD_PENALTY, stickiness: GOAL_STICKINESS,
 };
-const RUN_DEFAULTS = { turnBudget: TURN_BUDGET, theReturn: RETURN_ENABLED, who: '' };
+const RUN_DEFAULTS = {
+  turnBudget: TURN_BUDGET, theReturn: RETURN_ENABLED, who: '', startFloor: 1,
+};
 
 
 // The shipped value of a dial: `overrides` (dial-overrides.json, loaded by
