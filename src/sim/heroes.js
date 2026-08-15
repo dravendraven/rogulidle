@@ -173,6 +173,11 @@ export const HEROES = {
   // third of floors and a cap of 2 is reached on roughly one floor in two
   // hundred, i.e. it stops doing anything at all. Recorded because a change
   // to either number can silently retire the other.
+  //
+  // Those two paragraphs are in OLD coin units. `COIN_RATE` doubled (10 → 20,
+  // 2026-08-15), so the price doubled with it to leave him where he was: 2
+  // here now means what 1 meant then. Read the numbers above as halves of
+  // this scale — "raise the price to 2" is "raise it to 4" today.
   pawa: {
     name: 'pawa',
     title: 'o engenheiro',
@@ -180,7 +185,7 @@ export const HEROES = {
     blurb: 'Todo andar que ele fecha, o troco já virou chapa de metal.',
     persona: {},
     bot: {},
-    stairs: { buy: 'shield', price: 1, maxPerFloor: 1 },
+    stairs: { buy: 'shield', price: 2, maxPerFloor: 1 },
   },
   // The only hero who is strong EARLY. The run starts empty-handed on purpose
   // and the opening is the hardest part of it (rules.md §5), so a dagger from

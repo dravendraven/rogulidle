@@ -16,10 +16,15 @@ import { drawWeighted } from '../sim/rng.js';
 
 const byName = (name) => ITEM_TABLE.find((item) => item.name === name);
 
+// Doubled with `COIN_RATE` (owner, 2026-08-15): the rate went 10 → 20 to
+// give the payout finer steps, and these follow it so what a run can
+// actually afford stays where it was. The RATIO between the three is
+// untouched — this is a change of unit, not of the ladder, and the
+// stacking defect below is exactly as unbalanced as it was.
 export const SHOP_ITEMS = [
-  { item: byName('shield'), price: 1 },
-  { item: byName('dagger'), price: 5 },
-  { item: byName('axe'), price: 8 },
+  { item: byName('shield'), price: 2 },
+  { item: byName('dagger'), price: 10 },
+  { item: byName('axe'), price: 16 },
 ];
 
 // The no-input default, applied when nothing is clicked before the shop

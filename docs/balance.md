@@ -52,7 +52,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | dial | value | one sentence |
 |---|---|---|
 | `TURN_BUDGET` | 1500 | turns one traversal may spend; running out ends the run — the only brake on the shamble |
-| `COIN_RATE` | 10 | what a completed traversal pays per unit of xp-per-turn; was hardcoded in the page until a hero had to spend coin mid-run |
+| `COIN_RATE` | 20 | what a completed traversal pays per unit of xp-per-turn; the payout is rounded, so this is also its RESOLUTION — at 10 almost every floor paid 1, 2 or 3. Doubled 2026-08-15 together with the shop's prices (shield 2 / dagger 10 / axe 16, `src/ui/shop.js`) and pawa's stairs price (2, `HEROES`), so purchasing power is unchanged and only the step size halved |
 | `startFloor` | 1 | LAB ONLY, and it has no constant — a run option the panel sets, so the floor you want to look at is on screen without watching the ones above it. The hero arrives EMPTY-HANDED, so it shows a floor's shape and lies about its cost: measured, ~39 turns on floor 4 against ~77 on floor 1, and it clears floor 4 7% of the time against 97% on floor 1 |
 | `RETURN_ENABLED` | false | whether the run the pages ask for includes the climb back out; off is a plain ten-traversal descent (rules.md §1) |
 

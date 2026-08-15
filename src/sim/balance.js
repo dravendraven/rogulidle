@@ -476,4 +476,11 @@ export const TURN_BUDGET = 1500;
 // It lived hardcoded in `src/ui/spectator.js` until a hero needed to spend
 // coin mid-run and the formula had to exist in one place both could call —
 // the value moved here with it rather than being copied.
-export const COIN_RATE = 10;
+//
+// 10 → 20 (owner, 2026-08-15). The payout is ROUNDED, so the rate is also
+// the resolution: at 10 nearly every floor paid 1, 2 or 3 and a thin floor
+// (0.04 xp/turn) paid nothing at all. Doubling it does not make the hero
+// richer — the shop's prices double in the same commit (src/ui/shop.js) and
+// so does the one hero who spends mid-run (src/sim/heroes.js's pawa) — it
+// buys HALF-COIN STEPS, so floors that used to price the same now differ.
+export const COIN_RATE = 20;
