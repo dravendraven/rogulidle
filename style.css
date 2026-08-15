@@ -932,12 +932,17 @@ footer {
   text-align: center;
 }
 
+/* The pink is the PIG'S OWN — #F4ABBA is the face fill of the 🐷 sprite in
+   src/ui/tiles.js, lifted rather than picked, so the name and the glyph on
+   the board are literally the same colour and stay that way if the sprite is
+   ever swapped. The shadow stays black: the pale pink needs it to hold up
+   over the lit floor of the deep levels. */
 .boss-bar-name {
   font-size: .8rem;
   font-weight: bold;
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: #fff;
+  color: #f4abba;
   text-shadow: 0 1px 3px rgba(0, 0, 0, .9);
   margin-bottom: .25rem;
 }
