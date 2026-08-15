@@ -794,6 +794,11 @@ export async function start() {
       // swapping mid-run would make the thing being watched something no
       // seed reproduces. roster.js has already persisted it by now.
       onPick: (value) => session.roster(session.heroName, heroByName(value).name),
+      // Browsing a locked hero repaints the card with the SAME two names —
+      // who plays and who plays next are both unchanged, which is the point.
+      // The roster keeps the preview itself; this only asks it to redraw.
+      onPreview: () => session.roster(session.heroName, getChosenHero() === null
+        ? session.shippedDials.run.who : getChosenHero()),
       onRestart: () => { session.restart = true; },
     });
     const chosen = getChosenHero();
