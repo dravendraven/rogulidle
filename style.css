@@ -150,12 +150,6 @@ main {
    actually descending, and two lit chips would say two heroes are in play. */
 .roster-chip.locked.reading { opacity: .5; filter: grayscale(.4); }
 
-.roster-locked {
-  font-size: 10px;
-  color: var(--dim);
-  margin-top: .35rem;
-}
-
 /* The lock in the blurb's own slot. Dimmer than a blurb so the card reads as
    an announcement rather than a description — the height is fixed in
    `.roster-card-blurb`, so swapping the text moves nothing under it. */
