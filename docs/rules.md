@@ -511,11 +511,19 @@ ao preço**. Não é o mais barato — isso faria toda run comprar escudo para
 sempre. O sorteio passa pelo rng do projeto e deriva do seed da sessão, então
 o mesmo `?seed=` reproduz também a loja.
 
+**A loja vende também um consumível, e ele é o item mais barato dela.** Ele
+não some no fim da run: entra na run seguinte como qualquer outra compra, e
+só é gasto quando o herói o usa. Existe para que o troco tenha onde ir — o
+saldo é ímpar com frequência, e sem um item de preço mínimo a moeda que sobra
+seria descartada na porta.
+
 **A economia de itens da loja está sabidamente desequilibrada, e isso é
 deliberado.** Preço fixo com compra múltipla torna o escudo a compra racional
 e a segunda arma um mau negócio — armadura é linear e sem teto, arma tem
-retorno decrescente por ponto. Aceito por ora; o conserto é estrutural e está
-no M32, não numa mudança de preço.
+retorno decrescente por ponto. O consumível não conserta isso: ele compra a
+abertura, que é onde a run morre (§5), enquanto a armadura só rende depois de
+o herói viver o bastante para empilhá-la. Aceito por ora; o conserto é
+estrutural e está no M32, não numa mudança de preço.
 
 ## 10. Onde este jogo se afasta do Rogule
 

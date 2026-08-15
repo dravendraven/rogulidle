@@ -1,9 +1,10 @@
-// U6e — docs/backlog.md. Three purchase options at run end, priced per
-// the fixed table (docs/project/candidates.md's old U6 has the
-// derivation: shield 1, dagger 5, axe 8). Flat prices, multi-buy allowed
-// — the stacking asymmetry between armour (linear, uncapped) and weapons
-// (sharply diminishing per point) is accepted on purpose here; fixing it
-// is out of scope for this item (filed as M32, blocked on the lab).
+// U6e — docs/backlog.md. The purchase options at run end, priced per the
+// fixed table (docs/project/candidates.md's old U6 has the derivation:
+// shield 1, dagger 5, axe 8, since doubled — see below). Flat prices,
+// multi-buy allowed — the stacking asymmetry between armour (linear,
+// uncapped) and weapons (sharply diminishing per point) is accepted on
+// purpose here; fixing it is out of scope for this item (filed as M32,
+// blocked on the lab).
 //
 // Item templates come straight from src/sim/balance.js's ITEM_TABLE
 // rather than being redefined here — src/sim/game.js's `startingItems`
@@ -21,7 +22,21 @@ const byName = (name) => ITEM_TABLE.find((item) => item.name === name);
 // actually afford stays where it was. The RATIO between the three is
 // untouched — this is a change of unit, not of the ladder, and the
 // stacking defect below is exactly as unbalanced as it was.
+// The potion is the CHANGE's item, added with the doubled scale: a run's
+// balance is odd about half the time, and at a cheapest price of 2 that odd
+// coin was thrown away at the door. At 1 it always buys something.
+//
+// It is also the only consumable on the shelf, and that is the point of
+// picking it rather than a cheaper shield — measured A/B against its own
+// price in shields, baseline hero, paired seeds: two potions beat one shield
+// on opening deaths by about 5 points (~2.8 sigma over 800 runs) and tied on
+// everything else; at four against two the two converge. The opening is the
+// run's bottleneck (rules.md §5), armour only pays once the hero lives long
+// enough to stack it, so the cheap slot buys the early floors and the shield
+// still buys the middle ones. Neither dominates, which is the shape the
+// ladder was missing.
 export const SHOP_ITEMS = [
+  { item: byName('health'), price: 1 },
   { item: byName('shield'), price: 2 },
   { item: byName('dagger'), price: 10 },
   { item: byName('axe'), price: 16 },
