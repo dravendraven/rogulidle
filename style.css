@@ -942,22 +942,16 @@ footer {
   margin-bottom: .25rem;
 }
 
-.boss-bar-track {
-  height: 9px;
-  border: 1px solid rgba(0, 0, 0, .55);
-  border-radius: 5px;
-  background: rgba(0, 0, 0, .5);
-  overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, .5);
+/* The same pips the hero's own bar uses (`hearts` in render.js), red rather
+   than green so the two are never read as one pool. Wrapping is allowed
+   because hp is a balance value and a boss with twenty would otherwise run
+   off the board. */
+.boss-bar-hp {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .7));
 }
 
-/* Width is the only thing the renderer sets. The transition is what makes a
-   blow read as a blow instead of a repaint — and it is short, because the
-   playback speed control goes to 8x and a slow bar would still be draining
-   two turns later. */
-.boss-bar-fill {
-  height: 100%;
-  width: 100%;
-  background: linear-gradient(180deg, #e2564a, #a3241a);
-  transition: width .18s linear;
-}
+.boss-bar-hp svg { display: block; width: 14px; height: 14px; }

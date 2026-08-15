@@ -228,9 +228,14 @@ export function carriedSvg(inventory) {
   return kept.length ? kept.map((item) => tileSvg(item.emoji) || '').join('') : '—';
 }
 
-function hearts(current, max, armour = 0) {
+// `filled` is a parameter rather than a second copy of this loop: the boss
+// bar wants the same pips in another colour, and the one thing that must not
+// drift between the two is what an empty pip looks like. Red for the enemy
+// so the two bars are never read as the same pool — green is the hero's, and
+// they can be on screen at once.
+function hearts(current, max, armour = 0, filled = '🟩') {
   let out = '';
-  for (let i = 0; i < max; i++) out += tileSvg(i < current ? '🟩' : '⬜') || '';
+  for (let i = 0; i < max; i++) out += tileSvg(i < current ? filled : '⬜') || '';
   for (let i = 0; i < armour; i++) out += tileSvg('🛡️') || '';
   return out;
 }
@@ -370,13 +375,21 @@ export function renderBossBar(element, state) {
     return;
   }
 
-  const share = boss.hpMax > 0 ? Math.max(0, Math.min(1, boss.hp / boss.hpMax)) : 0;
   const name = element.querySelector('.boss-bar-name');
-  const fill = element.querySelector('.boss-bar-fill');
-  // The name is written once per appearance, not per turn — it never
-  // changes and the bar redraws every frame.
-  const label = `${boss.name} ${boss.hp}/${boss.hpMax}`;
-  if (name.textContent !== label) name.textContent = label;
-  fill.style.width = `${(100 * share).toFixed(1)}%`;
+  const hp = element.querySelector('.boss-bar-hp');
+  // The name is written once per appearance, not per turn — it never changes
+  // and the bar redraws every frame. No numbers beside it: the pips ARE the
+  // count, and a figure that says the same thing twice is the one the eye
+  // stops reading.
+  if (name.textContent !== boss.name) name.textContent = boss.name;
+
+  // Rebuilt only when the count moves. The pips are inline SVG, so redrawing
+  // twelve of them every frame at 8x would be the most expensive thing on
+  // the page for no visible difference.
+  const shown = `${boss.hp}/${boss.hpMax}`;
+  if (hp.dataset.shown !== shown) {
+    hp.innerHTML = hearts(boss.hp, boss.hpMax, 0, '🟥');
+    hp.dataset.shown = shown;
+  }
   element.hidden = false;
 }
