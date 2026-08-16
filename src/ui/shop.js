@@ -13,7 +13,6 @@
 // what keeps a shop purchase indistinguishable from a chest find.
 
 import { ITEM_TABLE } from '../sim/balance.js';
-import { drawWeighted } from '../sim/rng.js';
 
 const byName = (name) => ITEM_TABLE.find((item) => item.name === name);
 
@@ -42,29 +41,93 @@ export const SHOP_ITEMS = [
   { item: byName('axe'), price: 16 },
 ];
 
-// The no-input default, applied when nothing is clicked before the shop
-// screen's own timer runs out — and per the item's own warning, that IS
-// what happens in most runs, not a fallback: Rogulidle plays itself,
-// nobody is guaranteed to be watching. "Cheapest affordable" would mean
-// every run buys shields forever, which the item explicitly warns
-// against. This weights by price among what's affordable instead, so the
-// pricier purchase wins more often without being deterministic — keeps
-// what's watched varying run to run rather than converging on one answer
-// either way once the balance clears the shield price.
+// ***** what the shop buys when nobody is watching *****
 //
-// `seed` — caller-supplied, derived the same way a run's own seed is
-// (hashSeeds(sessionSeed, runNumber)). This used to draw from
-// Math.random(), which was the one thing in src/ui/ that broke "?seed=
-// makes the whole session reproducible": the default purchase becomes
-// the next run's startingItems, so an unseeded draw meant the same
-// ?seed= produced a different loadout, and therefore a different run,
-// on replay — found in review, not by this file's own testing.
-// drawWeighted (src/sim/rng.js) rather than a hand-rolled weighted pick,
-// so this shares the one implementation of "pick weighted by X" instead
-// of carrying a second copy that could drift from it.
-export function pickDefaultPurchase(balance, seed) {
-  const affordable = SHOP_ITEMS.filter((entry) => entry.price <= balance);
-  if (affordable.length === 0) return null;
-  const state = { rng: { shop: seed } };
-  return drawWeighted(state, 'shop', affordable.map((entry) => [entry, entry.price]));
+// The no-input path is not a fallback: Rogulidle plays itself, so most runs
+// end with nobody at the keyboard and this IS the shop. What it used to do
+// was draw ONE item weighted by price, out of the run's own seed. Two things
+// were wrong with that, and neither was the randomness:
+//
+//   - it spent one item and threw the rest away, so a viewer who stayed got
+//     multi-buy and a viewer who left got a single purchase — the game
+//     punished not watching, which is the opposite of what it is for;
+//   - a weighted draw is nobody's decision. The player had no way to say
+//     "save for the axe" or "stack shields", and a shop that decides for you
+//     is not a choice in the sense objectives.md means.
+//
+// So the balance is now SPENT DOWN a declared order: the first item the
+// balance still reaches, over and over, until it reaches nothing. Owner's
+// call on both halves (2026-08-15) — drain rather than one item, and
+// "most expensive affordable first" as what everyone gets by default.
+//
+// THE DEFAULT ORDER IS DERIVED, NOT DECLARED: the price ladder read
+// backwards. That is deliberate — a hand-written list here would be a
+// second copy of the prices above, free to drift from them the next time
+// one moves, and it would need a row in docs/balance.md of its own. This
+// way the only value is the price, which already has one.
+//
+// Expensive-first is also the least inflationary drain there is: the change
+// only falls through to the cheap items at the end, so a balance buys one
+// good thing and a little rather than a pile of shields.
+export const DEFAULT_ORDER = SHOP_ITEMS
+  .slice()
+  .sort((a, b) => b.price - a.price)
+  .map((entry) => entry.item.name);
+
+const ORDER_KEY = 'rogulidle-shop-order';
+
+// Unknown names dropped, duplicates dropped, MISSING ones appended in the
+// default order. That last half is what lets a fifth item join the shelf
+// later without vanishing from every stored order that predates it — the
+// same reasoning dials.js's `rolledNotches` uses when it writes back an
+// incomplete roll instead of rerolling the lot.
+//
+// Also the reason `nextPurchase` runs it on whatever it is handed: a caller
+// passing a stale or partial list still gets every item considered, just at
+// the end of the list rather than nowhere.
+function sanitiseOrder(names) {
+  const known = new Set(SHOP_ITEMS.map((entry) => entry.item.name));
+  const out = [];
+  for (const name of Array.isArray(names) ? names : []) {
+    if (known.has(name) && !out.includes(name)) out.push(name);
+  }
+  for (const name of DEFAULT_ORDER) if (!out.includes(name)) out.push(name);
+  return out;
+}
+
+// localStorage only, the same rule score.js, wallet.js and roster.js state:
+// `step()` takes no storage access, so nothing here is read by the engine —
+// it only decides what the page hands it as the next run's startingItems.
+export function getShopOrder() {
+  try {
+    return sanitiseOrder(JSON.parse(localStorage.getItem(ORDER_KEY) || 'null'));
+  } catch {
+    // Private browsing, quota, corrupt JSON — the order simply stops being
+    // remembered rather than breaking the page.
+    return [...DEFAULT_ORDER];
+  }
+}
+
+export function setShopOrder(names) {
+  const order = sanitiseOrder(names);
+  try {
+    localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+  } catch {
+    // As above.
+  }
+  return order;
+}
+
+// ONE purchase, and the caller loops. The rule lives here; the pacing —
+// how long a drained coin stays on screen — belongs to whoever is drawing,
+// which is why this returns a single entry rather than the whole basket.
+//
+// It is also a pure function of its two arguments, so a test can ask it
+// what an order buys without touching localStorage or a clock.
+export function nextPurchase(balance, order) {
+  for (const name of sanitiseOrder(order)) {
+    const entry = SHOP_ITEMS.find((e) => e.item.name === name);
+    if (entry && entry.price <= balance) return entry;
+  }
+  return null;
 }

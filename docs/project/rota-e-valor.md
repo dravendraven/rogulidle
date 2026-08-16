@@ -660,6 +660,13 @@ fronteira** (`frontierOk` compara com `sideBar`). **Se um dia o escuro ganhar
 valor esperado** (dá: `chestCount − vistos` × valor médio do baú), a
 curiosidade volta a ter uma pergunta de verdade.
 
+> **A condição apareceu.** A sala trancada (`porta-e-chave.md`) é escuro que
+> certamente tem algo dentro e cujo tamanho se vê de fora — valor esperado,
+> não só preço. O verbete acima continua valendo palavra por palavra: ele diz
+> QUANDO a curiosidade volta, e essa hora chegou. Vale também a metade que
+> mata a coragem — ela foi recomendada de novo nesta conversa, por quem não
+> tinha lido isto, e o argumento dos "dois lados" a derrubou pela segunda vez.
+
 **Bloquear o tile da criatura em vez de precificá-lo** (sumidouro, como o
 santuário). Foi implementado e medido: recuo sobe 44%, profundidade e mortes
 iguais. Mas quebra o V5 — uma fronteira atrás de um guardião em corredor vira

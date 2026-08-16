@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<!--
+  Does THIS browser throttle the game loop when the tab is in the background?
+
+  Rogulidle paces itself with `setTimeout` (src/ui/spectator.js, `sleep`), and
+  browsers clamp `setTimeout` in a hidden page — one tick per second, and in
+  Chrome one tick per MINUTE after five minutes hidden. An idle game that is
+  supposed to keep playing while you work in another tab needs to know whether
+  that is really happening here, and whether the standard escape hatch (the
+  same timer, but ticking inside a Web Worker) escapes it.
+
+  This page answers both, in the browser the player actually uses. It is a
+  probe, not part of the game: nothing in src/ imports it.
+
+  HOW TO RUN IT
+    1. python tools/dev-server.py 8142   (any free port)
+    2. open http://localhost:8142/tools/timer-probe.html
+    3. switch to another tab, or minimise the window, for at least 6 minutes
+       — five is where Chrome's harshest throttling starts, so anything
+       shorter cannot see it
+    4. come back and read the verdict
+
+  Both timers ask for the same 110ms the game asks for (BASE_DELAY). A source
+  that is not throttled reports ~9 ticks per second while hidden; one that is
+  reports 1, or 0.017 (once a minute).
+-->
+<meta charset="utf-8">
+<title>timer probe</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; margin: 2rem; max-width: 46rem; }
+  h1 { font-size: 1.2rem; }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th, td { text-align: left; padding: .35rem .9rem .35rem 0; }
+  td.num { font-variant-numeric: tabular-nums; }
+  .verdict { font-size: 1.05rem; padding: .8rem 1rem; border-left: 4px solid #999; background: #f4f4f4; }
+  .bad { border-color: #c0392b; }
+  .good { border-color: #27ae60; }
+  .waiting { color: #666; }
+  code { background: #eee; padding: 0 .25rem; }
+</style>
+
+<h1>timer probe — background throttling</h1>
+
+<p>Hide this tab (switch tabs, or minimise the window) for at least <b>6 minutes</b>,
+then come back. Everything below counts only the time the page was hidden.</p>
+
+<div id="verdict" class="verdict waiting">still visible — nothing measured yet.</div>
+
+<table>
+  <tr><th>source</th><th>ticks while hidden</th><th>per second</th><th>worst gap</th></tr>
+  <tr><td><code>setTimeout</code> (what the game uses now)</td>
+      <td class="num" id="mainTicks">–</td><td class="num" id="mainRate">–</td><td class="num" id="mainGap">–</td></tr>
+  <tr><td><code>setInterval</code> inside a Web Worker</td>
+      <td class="num" id="workTicks">–</td><td class="num" id="workRate">–</td><td class="num" id="workGap">–</td></tr>
+</table>
+
+<p id="meta" class="waiting"></p>
+
+<script>
+// Both timers ask for the game's own per-turn delay.
+const DELAY = 110;
+// Ticks are only counted while document.hidden is true, so the visible time
+// before and after the test does not dilute the numbers.
+const stat = { main: blank(), worker: blank() };
+let hiddenMs = 0;         // total time spent hidden
+let hiddenSince = null;
+let froze = false;        // did the browser fire the Page Lifecycle 'freeze'?
+
+function blank() { return { ticks: 0, worstGap: 0, last: Date.now() }; }
+
+function record(s) {
+  const now = Date.now();
+  const gap = now - s.last;
+  s.last = now;
+  if (!document.hidden) return;      // only the hidden stretch counts
+  s.ticks++;
+  if (gap > s.worstGap) s.worstGap = gap;
+}
+
+// SOURCE 1 — a chained setTimeout, exactly what `sleep()` does in the game.
+(function tick() {
+  setTimeout(() => { record(stat.main); tick(); }, DELAY);
+})();
+
+// SOURCE 2 — the same interval, but living in a worker. The main thread is
+// woken by postMessage, which is a message task and not a timer task, so if
+// the clamp only reaches timers this keeps full speed.
+const workerSrc = `setInterval(() => postMessage(0), ${DELAY});`;
+const worker = new Worker(URL.createObjectURL(new Blob([workerSrc], { type: 'text/javascript' })));
+worker.onmessage = () => record(stat.worker);
+
+document.addEventListener('visibilitychange', () => {
+  const now = Date.now();
+  if (document.hidden) {
+    hiddenSince = now;
+    // A gap that STARTS while visible and ends while hidden is not the
+    // browser throttling anything, so neither timer should be blamed for it.
+    stat.main.last = stat.worker.last = now;
+  } else if (hiddenSince !== null) {
+    hiddenMs += now - hiddenSince;
+    hiddenSince = null;
+    show();
+  }
+});
+
+// If Chrome freezes the page outright, no timer of any kind survives it —
+// worth knowing, because that is the one case a worker cannot fix.
+document.addEventListener('freeze', () => { froze = true; });
+document.addEventListener('resume', () => { froze = true; });
+
+function show() {
+  const secs = hiddenMs / 1000;
+  const put = (id, v) => { document.getElementById(id).textContent = v; };
+  const rate = (s) => secs > 0 ? (s.ticks / secs).toFixed(2) : '–';
+  put('mainTicks', stat.main.ticks); put('mainRate', rate(stat.main));
+  put('mainGap', (stat.main.worstGap / 1000).toFixed(1) + 's');
+  put('workTicks', stat.worker.ticks); put('workRate', rate(stat.worker));
+  put('workGap', (stat.worker.worstGap / 1000).toFixed(1) + 's');
+
+  const full = 1000 / DELAY;          // ~9.1 ticks/s is "not throttled at all"
+  const ok = (s) => s.ticks / secs > full * 0.8;
+  const v = document.getElementById('verdict');
+  v.className = 'verdict';
+  if (secs < 60) {
+    v.classList.add('waiting');
+    v.textContent = `only ${secs.toFixed(0)}s hidden so far — hide the tab for 6 minutes to see Chrome's worst case.`;
+  } else if (ok(stat.main)) {
+    v.classList.add('good');
+    v.textContent = 'this browser does not throttle a hidden tab. The game already keeps full speed in the background here.';
+  } else if (ok(stat.worker)) {
+    v.classList.add('good');
+    v.textContent = 'setTimeout is throttled, the worker is not — moving the game clock into a worker fixes it.';
+  } else {
+    v.classList.add('bad');
+    v.textContent = 'both sources are throttled here — a worker clock is not enough, the game also has to catch up lost time on return.';
+  }
+  document.getElementById('meta').textContent =
+    `hidden for ${secs.toFixed(0)}s in total` + (froze ? ' · the browser FROZE the page at some point' : '');
+}
+</script>

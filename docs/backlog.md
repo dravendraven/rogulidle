@@ -49,6 +49,7 @@ was five identical risks in a row, which is what the vault answered.
 | R2 | The return repopulates: same map seed, new creature seed | READY |
 | R4 | Variance rises through the return (widen the band via the tail/spread dials) | after R2 |
 | U7 | The player chooses which hero to play — UI over the existing `hero` config; the mechanism is built and tested, the roster is not | READY |
+| U13 | The unattended shop spent one item, drawn by price, and threw the change away — so the game charged for not watching, and the player had no say in what it bought | DONE — the balance is spent DOWN a declared order (rules.md §9), dearest first by default, and the Lab's new "Loja" block is where the player reorders it. The default order is derived from the price table rather than written, so it has no value of its own |
 | B15 | Drinking reads the danger field before spending the turn | READY |
 | B26 | A route may not cross a live creature for one `stepCost` | DONE — the tile costs its duel; an adjacent pursuer lands at price 0 and the bot finishes brawls instead of leaving them |
 | C1 | How the bot prices the board: `sideAppetite` splits into risk appetite × greed, `cautela` prices exposure per turn, the dark stops being free, the frontier becomes a real candidate, the refuge gives the bot its first goal meaning "away", and a chest is valued by its room instead of alone. Eleven pieces, four already in — the design, the open debt, what was rejected and the build order are in `docs/project/rota-e-valor.md` | READY — start with the split, which ships as a no-op |

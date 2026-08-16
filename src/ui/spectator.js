@@ -23,7 +23,8 @@ import {
 import { tileSvg } from './tiles.js';
 import { award, resetScore } from './score.js';
 import { resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
-import { SHOP_ITEMS, pickDefaultPurchase } from './shop.js';
+import { SHOP_ITEMS, getShopOrder, nextPurchase } from './shop.js';
+import { buildShopOrder } from './shop-order.js';
 import { buildDialPanel, resolvedDefaults } from './dials.js';
 import { buildRoster, clearChosenHero, getChosenHero } from './roster.js';
 import {
@@ -32,6 +33,7 @@ import {
 import { loadDialOverrides } from './dial-overrides.js';
 import { eventsEnabled, makeEventLayer } from './events.js';
 import { playRun } from './run.js';
+import { sleep } from './clock.js';
 
 const MAX_TURNS = 900;       // per floor
 const BASE_DELAY = 110;      // ms per turn at 1x
@@ -120,14 +122,12 @@ function grab() {
     'run', 'tally', 'seed', 'summary', 'summaryTitle', 'summaryBody',
     'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
     'coins', 'coinPopup', 'damage', 'debugInfo', 'app', 'lab', 'dials',
-    'shop', 'shopBalance', 'shopItems', 'shopSkip', 'shopTimerBar',
+    'shop', 'shopBalance', 'shopItems', 'shopSkip', 'shopTimerBar', 'shopOrder',
     'achievements', 'roster', 'highscores', 'mapDials', 'simDials', 'dialButtons', 'bossBar',
   ]) {
     el[id] = document.getElementById(id);
   }
 }
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function waitWhilePaused() {
   while (session.paused) await sleep(80);
@@ -260,14 +260,11 @@ async function showCoinPopup(coins, bought) {
   let waited = 0;
   let flipped = false;
   while (waited < until) {
-    // Pausing freezes the timer, which is the point — but it must not
-    // freeze the BUTTON. `waitWhilePaused` alone parks the loop inside
-    // itself, so a click set `skipped` and nothing ever read it again: the
-    // shop stayed open with a dead skip and a stalled bar until the player
-    // happened to press play. A pause is a request to stop the clock, not
-    // to stop taking input.
-    while (session.paused && !skipped) await sleep(80);
-    if (skipped) break;
+    // Pausing freezes the timer, which is the point. There is nothing to
+    // skip here — the popup has no button, unlike the shop, which is where
+    // the `skipped` flag lives and why it must be read outside the pause
+    // loop rather than only inside it.
+    await waitWhilePaused();
 
     await sleep(80);
     waited += 80;
@@ -279,8 +276,15 @@ async function showCoinPopup(coins, bought) {
   el.coinPopup.classList.remove('shown');
 }
 
-function renderShopItems(balance) {
+// `order` marks ONE button: the item the timer would take if nobody clicks
+// (src/ui/shop.js). It is what makes the Lab's order attributable — the
+// setting acts thirty seconds later and only once, so without this the only
+// way to see what it does is to sit through a shop without touching it.
+// It follows the balance down as purchases are made, which is also the
+// clearest way to watch a drain happen.
+function renderShopItems(balance, order) {
   el.shopItems.innerHTML = '';
+  const next = nextPurchase(balance, order);
   for (const entry of SHOP_ITEMS) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -288,6 +292,8 @@ function renderShopItems(balance) {
     const affordable = entry.price <= balance;
     btn.disabled = !affordable;
     btn.classList.toggle('unaffordable', !affordable);
+    btn.classList.toggle('auto-next', entry === next);
+    if (entry === next) btn.title = 'a loja pega este sozinha se ninguém clicar';
     btn.innerHTML =
       `${tileSvg(entry.item.emoji) || ''}<span>${entry.item.name} · ${entry.price}🪙</span>`;
     el.shopItems.append(btn);
@@ -306,16 +312,20 @@ function renderShopItems(balance) {
 // Non-blocking like showCoinPopup. Multi-buy: a click buys and the panel
 // stays open with what the purchase left, closing only on skip, on the
 // timer, or when nothing is affordable any more. If nothing is clicked
-// before the timer runs out, pickDefaultPurchase applies — nobody is
-// guaranteed to be watching a spectator that never pauses for input.
-// SHOP_MS is long enough now that a present viewer has a real chance to
-// choose, and the reverse bar tells them how long that chance lasts.
-async function showShop(defaultSeed) {
+// before the timer runs out, the player's own order spends the balance down
+// (src/ui/shop.js) — nobody is guaranteed to be watching a spectator that
+// never pauses for input. SHOP_MS is long enough now that a present viewer
+// has a real chance to choose, and the reverse bar tells them how long that
+// chance lasts.
+async function showShop() {
   if (!el.shop) return;
   let balance = session.unbankedCoins;
   let purchases = 0;
   let skipped = false;
   let clicked;   // set by the listener, consumed by the loop below
+  // Read fresh on every visit, so moving a row in the Lab lands on the very
+  // next shop rather than waiting for a reload.
+  const order = getShopOrder();
 
   const onItemClick = (e) => {
     const btn = e.target.closest('button[data-item]');
@@ -333,7 +343,7 @@ async function showShop(defaultSeed) {
   const canAfford = () => SHOP_ITEMS.some((entry) => entry.price <= balance);
   const showBalance = () => {
     if (el.shopBalance) el.shopBalance.textContent = `balance: ${balance} 🪙`;
-    renderShopItems(balance);
+    renderShopItems(balance, order);
     session.unbankedCoins = balance;
     if (el.coins) el.coins.textContent = coinsText();
   };
@@ -368,16 +378,33 @@ async function showShop(defaultSeed) {
       continue;
     }
     if (waited >= until) {
-      // Timer out with nothing clicked. The no-input default applies once
-      // and then leaves — nobody is guaranteed to be watching a spectator
-      // that never pauses for input, and draining the whole balance item by
-      // item is not what "nobody chose" should mean.
-      const auto = purchases === 0 ? pickDefaultPurchase(balance, defaultSeed) : null;
-      if (auto) {
-        balance -= auto.price;
-        addHeldItem(auto.item);
-        purchases++;
-        showBalance();
+      // TIMER OUT WITH NOTHING CLICKED — which is most runs, so this is the
+      // shop rather than a fallback. The balance is spent DOWN the player's
+      // order until it can no longer pay for anything (src/ui/shop.js):
+      // whatever is left here is discarded, and a viewer who stayed would
+      // have had multi-buy, so stopping at one item only punished not
+      // watching.
+      //
+      // Still guarded on `purchases === 0`. Someone who bought two shields
+      // and stopped made a decision, and spending their change for them
+      // would overrule it — the skip button is there for exactly that, and
+      // so is the shop's own close when nothing is affordable.
+      if (purchases === 0) {
+        let auto = nextPurchase(balance, order);
+        while (auto) {
+          balance -= auto.price;
+          addHeldItem(auto.item);
+          purchases++;
+          showBalance();
+          // A beat between purchases so a drain is something you watch
+          // rather than something that already happened. Same length a
+          // damage signal gets and it rides `session.speed` the same way —
+          // reusing the pacing that exists rather than inventing a second
+          // notion of "long enough to read".
+          await waitWhilePaused();
+          await sleep(signalMs());
+          auto = nextPurchase(balance, order);
+        }
       }
       break;
     }
@@ -688,10 +715,13 @@ async function runDescentForever(sessionSeed) {
     // matches `roster.js`'s own ORDER and chip keys.
     tallyDescent(run, finalState, hero.name, { seed, config });
     await showDescentSummary(run, finalState);
-    // The default-purchase draw needs its own seed, same derivation as the
-    // run's own (hashSeeds(sessionSeed, runNumber)) — see shop.js's own
-    // comment for why this can't be Math.random().
-    await showShop(hashSeeds(sessionSeed, session.runNumber));
+    // No seed any more: the no-input purchase used to be a weighted draw and
+    // is now the player's declared order (src/ui/shop.js), so the shop is
+    // deterministic without one. `?seed=` still reproduces a whole session
+    // for anyone who never reordered — the default order is the same for
+    // everybody — and diverges for anyone who did, exactly as the Lab's
+    // dials already do.
+    await showShop();
   }
 }
 
@@ -787,6 +817,10 @@ function wireLab(overrides, devMode) {
         mounts: { Andar: el.mapDials, 'Simulação': el.simDials },
         buttonsMount: el.dialButtons,
       });
+      // Under the behaviour dials and outside their scrolling drawer — see
+      // src/ui/shop-order.js for why an order is not a dial. Built with
+      // them so it opens and closes with the Lab.
+      buildShopOrder(el.shopOrder);
     }
   };
 
@@ -797,6 +831,7 @@ function wireLab(overrides, devMode) {
   // would read as something that failed to load.
   const show = (on) => {
     el.dials.hidden = !on;
+    if (el.shopOrder) el.shopOrder.hidden = !on;
     el.dialButtons.hidden = !on;
     el.mapDials.hidden = !on || !el.mapDials.children.length;
     el.simDials.hidden = !on || !el.simDials.children.length;
