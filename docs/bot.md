@@ -44,54 +44,42 @@ frases:
 - **Profundidade não é monótona nisso**, e o pico interior da Ganância já
   existia antes do livro (M47) — as duas coisas se somam na mesma leitura e
   não dá para separá-las por esta tabela.
-- **Injeta a adrenalina** quando a fúria transforma uma MORTE numa
-  sobrevivência. Pergunta de sim ou não, sem fração nenhuma: precifica a mesma
-  criatura duas vezes — como ele está e como ele estaria — e as duas leituras
-  são feitas contra tudo o que ele tem, não contra uma fração. Sóbrio o duelo o
-  mata; enfurecido, somado ao golpe do turno da injeção, ele fica de pé.
-- **Só criatura ADJACENTE**, porque o contador da fúria cai a cada turno que
-  passa, andar incluído (`rules.md` §5): injetar contra algo que ainda precisa
-  ser alcançado gasta o item na caminhada.
-- **O que isso substituiu media a coisa errada.** As três versões anteriores
-  perguntavam se a fúria deixava a luta mais BARATA — primeiro contra uma fração
-  do hp (`RAGE_AT`, disparando na mesma barra em que o portão recusa a luta:
-  medido, em 30 de 84 injeções o portão recusava toda criatura adjacente com a
-  fúria já ligada), depois contra a barra do portão. Barato não é para o que
-  serve um uso por descida. O único uso que vale um é não morrer.
-- **O turno que o item custa é cobrado de quem o gasta.** Injetar é uma ação: o
-  herói não golpeia nesse turno e a criatura ao lado golpeia, então a manobra
-  abre com um golpe de graça que o `duelCost` não enxerga — ele precifica o
-  duelo do primeiro golpe em diante. Medido antes de cobrar: 22 de 63 injeções
-  eram o último ato do herói, com 1 de hp mediano, sem armadura e sem golpe
-  nenhum.
-- **A ganância diz o quão CERTA a morte precisa ser.** O bot nunca sabe que vai
-  morrer — ele estima, em cima de um hp de criatura que é chute. A exigência diz
-  o quanto essa estimativa precisa passar da linha: o duelo sóbrio tem que
-  custar pelo menos `hp efetivo × ganância`. Cauteloso gasta na primeira luta
-  que pode matá-lo, por mais raso que seja o andar; arrojado espera uma morte
-  que a fúria mal desfaz, e aceita morrer com a seringa no bolso.
-- **A metade de baixo do dial não faz nada, e é a descrição do próprio
-  cauteloso.** "O duelo me mata" já exige um hp efetivo inteiro, então qualquer
-  ganância abaixo de 1 está satisfeita antes de ser perguntada. Ninguém pode ser
-  mais cauteloso que "gasta na primeira vez que salva a vida" — esse É o piso.
+- **Injeta a adrenalina UM PASSO ANTES do corpo a corpo, nunca dentro dele.** A
+  criatura está a dois de distância e o encontro é certo — ou ele está andando
+  nela, ou ela está acordada e vindo. Pergunta de sim ou não, sem fração
+  nenhuma: precifica a mesma criatura duas vezes, como ele está e como ele
+  estaria, e gasta o item quando a segunda leitura passa na barra em que a
+  primeira falhou.
+- **Dois de distância, não mais**, porque o contador da fúria cai a cada turno
+  que passa, andar incluído (`rules.md` §5): injetar contra algo longe gasta o
+  item na caminhada. Dois é o mínimo que existe — custa exatamente um turno de
+  relógio e compra o turno inteiro da primeira troca de golpes.
+- **A regra antiga era ADJACENTE, e isso custava o item inteiro.** Medido contra
+  o chefe do vault: o herói chegava nele com 8 de vida efetiva, ficava três
+  turnos colado apanhando enquanto o portão de luta recusava o duelo, e só
+  injetava com 4 — contra um chefe de vida cheia. Com 8 ele ganha a corrida, com
+  4 ele não ganha. Um passo antes, a mediana da vida na injeção subiu de 4 para
+  8, e o chefe passou a cair em 20% das injeções contra 13%.
+- **E isso APAGOU um termo do código em vez de acrescentar um.** Enquanto a
+  regra era adjacente, o turno da injeção dava um golpe de graça à criatura, que
+  precisava ser cobrado (B29) e ainda assim matava o herói em 35% das injeções.
+  Um passo antes não há nada encostado nele: não existe golpe para cobrar, e
+  essa perda caiu para 6% — o resto são criaturas de dois passos que chegam e
+  batem no mesmo turno.
+- **A posição decidiu o teste junto.** "Esse duelo me MATA" só é verdade com a
+  vida baixa, e um passo antes da luta a vida está alta — o gatilho passava
+  batido pela janela de um turno e nunca mais tinha chance. Então o teste voltou
+  a ser o do portão: **eu recusaria essa luta sóbrio, e a aceitaria enfurecido**.
+  Quando injetar e o que perguntar eram uma decisão só.
+- **A ganância é o preço de reserva sobre essa virada**: o duelo sóbrio tem que
+  custar pelo menos `barra × ganância`, e a metade de baixo do dial é inerte
+  porque a virada já exige que ele passe de uma barra. Ninguém pode ser mais
+  perdulário que "gasta sempre que ajudaria" — esse É o piso.
 - **Não existe termo de "guardar para o andar 7"**, ainda que a intuição por
-  trás dele seja boa. Guardar precifica um futuro que o herói pode não ter: se a
-  estimativa diz que ele morre AQUI, não existe depois. O comportamento que a
-  intuição queria aparece assim mesmo, como consequência e não como termo — quem
-  exige morte quase certa gasta tarde, porque morte quase certa é coisa de andar
-  fundo.
-- **O topo do dial pede quase o que o item não faz.** A fúria multiplica o topo
-  do dado, ou seja, divide o duelo pelo mesmo fator: a morte que ela desfaz
-  custa no máximo essas tantas vidas sóbrias, e a exigência da ganância vai até
-  1.8 delas. Medido em 200 seeds por banda, as injeções vão 44, 46, 49, 34, 18,
-  2 — a metade de baixo é ruído de runs que divergem, e a banda mais avarenta
-  ainda é quase o herói morrendo com a seringa guardada. Antes de B32, com a
-  fúria mais fraca e mais longa, essa mesma linha era 21, 24, 28, 17, 4, **0**.
-- **A perda que sobrou é o turno da injeção**, e ela piorou com a fúria mais
-  forte: 26 de 75 injeções (35%) são o herói morrendo no próprio turno em que
-  gasta o item, contra 13 de 49 (27%) antes. O golpe de graça É cobrado
-  (B29), mas pela MÉDIA — e ele agora injeta com 2 a 3 de vida efetiva, onde
-  média não decide nada e a rolagem decide tudo.
+  trás dele seja boa. Guardar precifica um futuro que o herói pode não ter. E
+  medido, o item é de vault: com a ganância de fábrica, 80% das injeções
+  acontecem no andar 4, contra o chefe — que é a única luta desenhada para ser
+  mortal e vencível, exatamente a forma que o gatilho procura.
 - **Nunca começa luta** cujo custo esperado passe de `fightMargin` do hp
   efetivo (hp + armadura). Uma criatura que já persegue paga só a
   caminhada — o duelo dela acontece de qualquer jeito — **e paga metade
