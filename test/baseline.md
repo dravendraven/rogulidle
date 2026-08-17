@@ -5,6 +5,39 @@ What a measurement compares against. When a reading says "better" or
 against anything else is not comparable to one taken against this, however
 similar the two look.
 
+## THERE ARE TWO INSTRUMENTS NOW, AND THEIR NUMBERS DO NOT COMPARE
+
+Read this before quoting a number from either.
+
+| | plays | where |
+|---|---|---|
+| **the naked run** | independent runs, **empty hands every time** | `src/analysis/check.js` |
+| **the chain** | a SESSION — runs in a row, **with the shop between them** | `src/analysis/chain.js` |
+
+The naked run is the game with the shop switched OFF, and everything below
+in this file describes it. It stays the baseline.
+
+**The chain exists because that is not the game anyone plays.** Only the
+FIRST run of a session is ever really naked: every run after it starts
+holding whatever the shop bought with the coins the run before it earned —
+win or lose, since the shop opens after a death too (`docs/rules.md` §9). So
+the naked run is a **lower bound on a session**, not a description of one.
+
+Two consequences, and neither is optional:
+
+- **A depth from `check.js` and a depth from `chain.js` are two different
+  games.** Same engine, same bot, one shops and one does not. Putting them
+  in the same table is the error this section exists to prevent.
+- **The unit of sampling changes.** A chain is one sample, not `L` of them:
+  run `k` depends on how run `k-1` ended. `M` chains of length `L`, never
+  `M × L` runs.
+
+**Where they DO meet, on purpose:** run 1 of chain `m` uses seed
+`firstSeed + m` — the same seed `check.js` measures at index `m` — so the
+first run of every chain is paired with a naked run for free. That is the one
+legitimate paired comparison between the two, and `chain.js`'s `seedOf` says
+why it was worth giving up the page's own seed convention for it.
+
 ## The configuration IS the baseline
 
 Not the numbers below it. The numbers rot; this list is what has to be held
@@ -27,7 +60,11 @@ Three of those are load-bearing in a way that has bitten before:
 
 **Empty hands.** The shop item is a bonus paid AFTER a defeat, so a hero
 holding one is not the hero a first run gets. Measuring with a starting item
-moves every number and the owner had to correct this once already.
+moves every number and the owner had to correct this once already. **That is
+still the rule for everything in this file** — what changed is that the
+question "and what does the shop do to it" now has an instrument of its own
+instead of being answered by quietly arming the baseline. See the two
+instruments above.
 
 **`HEROES.base` must stay empty.** It is the only entry of the cast that is
 byte-identical to the game before personas existed. A sweep run as `pawa` or

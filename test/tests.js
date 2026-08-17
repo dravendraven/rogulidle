@@ -50,6 +50,8 @@ import {
   DEFAULT_ORDER, SHOP_ITEMS, getShopOrder, nextPurchase, setShopOrder,
 } from '../src/ui/shop.js';
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
+import { playOne } from '../src/analysis/check.js';
+import { balanceOf, playChain, seedOf, spend } from '../src/analysis/chain.js';
 
 // ***** tiny test harness ***** //
 
@@ -4189,6 +4191,124 @@ test('a stored order survives a reload, and junk in it does not', () => {
     assertEq(getShopOrder().join(','), DEFAULT_ORDER.join(','),
       'a corrupt store did not fall back to the default order');
   });
+});
+
+// ***** the chain — a session with the shop in it (src/analysis/chain.js) *****
+//
+// The second metrics module. Only the FIRST run of a session is ever naked;
+// every run after it starts holding what the shop bought with the coins the
+// run before it earned (rules.md §9). These check the three rules that turn
+// a pile of runs into a session, and nothing here reads a tripwire — a wire
+// is a threshold, and a threshold is not a rule.
+
+// An EASY dungeon, because two of the rules below only exist on a clear and
+// the shipped game clears roughly never. Not a tuning claim: a floor plan
+// with one weak creature per floor is a fixture, the same way a hand-built
+// state is elsewhere in this file.
+const EMPTY_DUNGEON = {
+  model: {
+    monstersBase: 1, monsterGrowth: 1, strength: 0.01, strengthGrowth: 1,
+    vaultLevel: 0, outOfDepthChanceCap: 0, tierFloorCap: 0, tierSlackCap: 0,
+  },
+};
+
+test('a traversal that killed the hero pays nothing', () => {
+  // The rule, on rows built by hand so it cannot depend on which seed dies
+  // where: two completed traversals pay, and `spent` comes off the top.
+  const balance = balanceOf({
+    levels: [
+      { outcome: 'ascended', coins: 5, spent: 0 },
+      { outcome: 'ascended', coins: 3, spent: 1 },
+      { outcome: 'died', coins: 9, spent: 0 },
+    ],
+  });
+  assertEq(balance, 7, 'the fatal traversal was paid for, or `spent` was not deducted');
+
+  // And a timeout is the same case as a death — rules.md §9 treats "not
+  // completed" as one thing, not two.
+  assertEq(balanceOf({ levels: [{ outcome: 'timeout', coins: 9, spent: 0 }] }), 0,
+    'running out of turns paid like a completed traversal');
+});
+
+test('the engine really does write coins onto the traversal that killed the hero', () => {
+  // WITHOUT THIS THE TEST ABOVE IS DECORATION. `dungeon.js` writes `.coins`
+  // on every row before it checks how the traversal ended, so summing the
+  // array raw pays for the death — the bug this filter exists for. If the
+  // engine ever starts zeroing that row, this fails and `balanceOf` can lose
+  // its filter instead of keeping a guard against something that stopped
+  // happening.
+  const run = playOne(500000);
+  assert(!run.cleared, 'the fixture seed stopped dying — pick another');
+  const last = run.levels[run.levels.length - 1];
+  assert(last.outcome !== 'ascended', 'the last traversal completed after all');
+  assert(last.coins > 0, 'the fatal traversal no longer carries coins of its own');
+});
+
+test('spend agrees with the drain the shop tests walk by hand', () => {
+  // `drain` above is a deliberate second copy of the rule, written so the
+  // shop's own tests do not lean on any one implementation of it. That makes
+  // it the free oracle for this one: two independent loops over the same
+  // pure `nextPurchase` have to buy the same things in the same order.
+  for (const balance of [0, 1, 2, 9, 16, 17, 33, 100]) {
+    const mine = spend(balance, DEFAULT_ORDER);
+    const theirs = drain(balance, DEFAULT_ORDER);
+    assertEq(mine.bought.map((i) => i.name).join(','), theirs.bought.join(','),
+      `the two drains disagree at a balance of ${balance}`);
+    assertEq(mine.left, theirs.left, `the change disagrees at a balance of ${balance}`);
+  }
+});
+
+test('an item the shop bought is a copy, not the table row itself', () => {
+  // The page stores the wallet as JSON, so a real run always gets fresh
+  // objects. A chain handing the same ITEM_TABLE row to twenty runs would be
+  // this module's own invention, and invisible until something wrote to one.
+  const { bought } = spend(2, DEFAULT_ORDER);
+  assert(bought.length > 0, 'the cheapest item stopped being affordable at 2');
+  for (const item of bought) {
+    assert(!ITEM_TABLE.includes(item), 'the shop handed out the table row itself');
+    const row = ITEM_TABLE.find((r) => r.name === item.name);
+    assertEq(JSON.stringify(item), JSON.stringify(row),
+      'the copy is not the item the table describes');
+  }
+});
+
+test('run 1 of a chain is the run the naked instrument measures', () => {
+  // The whole basis for ever comparing the two instruments: check.js plays
+  // `firstSeed + i`, so chain `i` has to OPEN on that exact seed. Break this
+  // and the paired half of every future comparison silently stops pairing.
+  assertEq(seedOf(500000, 1), 500000, 'run 1 did not use the chain seed itself');
+  assertEq(seedOf(500000, 2), hashSeeds(500000, 2), 'run 2 is not derived from the chain seed');
+  assert(seedOf(500000, 2) !== seedOf(500001, 2), 'two chains share a second run');
+});
+
+test('a death empties the pile, and the purchase made after it survives', () => {
+  // The order of the two rules at a run's end, which is not interchangeable
+  // (spectator.js): the death rule fires first, the shop opens after. So a
+  // run that died still spends what it earned, and what it buys arms the
+  // next run — while everything the dead run was carrying is gone.
+  const { runs } = playChain(500000, 4);
+  assert(runs.every((r) => !r.cleared), 'the fixture chain started clearing — see EMPTY_DUNGEON');
+
+  for (let i = 1; i < runs.length; i++) {
+    assertEq(runs[i].carried, runs[i - 1].bought.length,
+      `run ${i + 1} carried something the previous death should have taken`);
+    assertEq(runs[i].streak, 0, 'a death left a streak standing');
+  }
+
+  // And it is a real purchase being carried, not an empty list every time —
+  // otherwise the equality above holds for the wrong reason.
+  assert(runs.some((r) => r.carried > 0), 'no run in the chain was armed at all');
+});
+
+test('a clear keeps the pile, and the next purchase adds to it', () => {
+  const { runs } = playChain(7, 3, { dials: EMPTY_DUNGEON });
+  assert(runs.every((r) => r.cleared), 'the empty dungeon stopped being clearable');
+
+  for (let i = 1; i < runs.length; i++) {
+    assertEq(runs[i].carried, runs[i - 1].carried + runs[i - 1].bought.length,
+      `run ${i + 1} did not keep what run ${i} cleared with`);
+    assertEq(runs[i].streak, i, 'the streak did not count consecutive clears');
+  }
 });
 
 export function runAll() {
