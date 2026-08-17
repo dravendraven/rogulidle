@@ -19,7 +19,7 @@
 // bot, different game — one plays with the shop and one without.
 // `test/baseline.md` says which question belongs to which instrument.
 
-import { playOne } from './check.js';
+import { playOne, runWires } from './check.js';
 import { hashSeeds } from '../sim/rng.js';
 import { DEFAULT_ORDER, nextPurchase } from '../ui/shop.js';
 import { heroByName } from '../sim/heroes.js';
@@ -108,6 +108,10 @@ export function playChain(chainSeed, length, options = {}) {
   const hero = typeof options.hero === 'string'
     ? heroByName(options.hero)
     : options.hero;
+  // Kept so `chains` can hand them to the shared wires without replaying
+  // anything. `playChain` on its own throws them away, which is why the
+  // rows above carry the handful of fields a reader actually wants.
+  const plays = options.collect ?? null;
 
   let pile = [];
   let streak = 0;
@@ -116,6 +120,7 @@ export function playChain(chainSeed, length, options = {}) {
   for (let k = 1; k <= length; k++) {
     const seed = seedOf(chainSeed, k);
     const run = playOne(seed, dials, hero, pile);
+    if (plays) plays.push(run);
     const balance = balanceOf(run);
     const kept = run.cleared ? pile : [];
     const { bought, spent } = spend(balance, order);
@@ -146,4 +151,99 @@ export function playChain(chainSeed, length, options = {}) {
   }
 
   return { chainSeed, length, runs };
+}
+
+// The lengths of every unbroken run of clears in a chain, longest first. An
+// empty list means the chain never cleared once, which is the shipped game.
+function streaksOf(runs) {
+  const lengths = [];
+  let current = 0;
+  for (const row of runs) {
+    if (row.cleared) current++;
+    else if (current) { lengths.push(current); current = 0; }
+  }
+  if (current) lengths.push(current);
+  return lengths.sort((a, b) => b - a);
+}
+
+// THE WIRES, from `chains` sessions of `length` runs each.
+//
+// Six of them are `check.js`'s own, read off the same bars — this is the
+// naked game's properties applied to the game with the shop in it, and the
+// DIFFERENCE between the two readings is the comparison this instrument was
+// built for. Two more are the chain's own and could not exist on independent
+// runs.
+export function chains(options = {}) {
+  const count = options.chains ?? 8;
+  const length = options.length ?? 12;
+  const firstSeed = options.firstSeed ?? 500000;
+  const dials = options.dials;
+  const hero = typeof options.hero === 'string' ? heroByName(options.hero) : options.hero;
+
+  const plays = [];
+  const sessions = [];
+  let openedPaired = 0;
+
+  for (let m = 0; m < count; m++) {
+    const chainSeed = firstSeed + m;
+    const { runs } = playChain(chainSeed, length, { ...options, hero, collect: plays });
+    // THE PAIRING, checked rather than trusted. `check.js` plays
+    // `firstSeed + m`, so run 1 of chain m has to open on that seed with
+    // nothing in hand. It costs no runs to verify — it is a property of what
+    // the loop did, not a second measurement — and every future comparison
+    // between the two instruments rests on it.
+    const first = runs[0];
+    if (first && first.seed === chainSeed && first.carried === 0) openedPaired++;
+    sessions.push({ chainSeed, streaks: streaksOf(runs), pileMax: Math.max(...runs.map((r) => r.carried)) });
+  }
+
+  const { clears, wires } = runWires(plays);
+  const streakMax = Math.max(0, ...sessions.map((s) => s.streaks[0] ?? 0));
+  const pileMax = Math.max(0, ...sessions.map((s) => s.pileMax));
+  // Never below three, so a short chain cannot fire on what is ordinary
+  // noise: at length 4, "half the session" is two clears in a row, and two
+  // is not a snowball.
+  const runawayAt = Math.max(3, Math.ceil(length / 2));
+
+  const wire = (name, value, fires, condition) => ({
+    name, value: +value.toFixed(3), fires, condition,
+  });
+
+  return {
+    chains: count,
+    length,
+    firstSeed,
+    runs: plays.length,
+    // Same discipline as check.js states for itself: a reading quoted without
+    // these is a reading of a game nobody named.
+    shipped: Boolean(dials),
+    hero: hero ? hero.name : 'base',
+    clears,
+    tripwires: [
+      ...wires,
+
+      // "What persists compounds: bought with wins and spent to produce more
+      // wins, the same currency in both directions, accumulating until it
+      // trivialises." (objectives.md) — the failure that only a SESSION can
+      // show. `docs/project/candidates.md` names it and says the death reset
+      // is the only brake and nobody has checked it is strong enough. This
+      // is the check.
+      wire('the chain never breaks', streakMax,
+        streakMax >= runawayAt,
+        `fires when one unbroken run of clears takes half a session (>= ${runawayAt} of ${length})`),
+
+      // The pairing above. Not a measurement — a check that the loop did what
+      // `seedOf` promises, so it fires on a code change and never on a dial.
+      wire('the chain does not open paired', openedPaired / count,
+        openedPaired !== count,
+        'fires when any chain does not open on check.js own seed, empty-handed'),
+    ],
+    // NOT A WIRE, and the reasoning is worth keeping because it looks like
+    // one. The pile growing IS the rule (rules.md §9) — a wire on its size
+    // would fire on the game working. What makes a big pile a defect is what
+    // it does to the OUTCOME, and that already has a wire: `wins too common`.
+    // This is here to be looked at beside these, not steered.
+    pileMax,
+    streaks: sessions.map((s) => s.streaks),
+  };
 }

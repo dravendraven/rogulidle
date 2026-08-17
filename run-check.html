@@ -35,6 +35,11 @@
   .wire .value { min-width:7ch; text-align:right; color:var(--accent); }
   .wire .cond { color:var(--faint); font-size:11px; }
   .smallprint { color:var(--faint); font-size:10.5px; margin-top:1rem; max-width:72ch; }
+  h2 { font-size:.82rem; letter-spacing:.08em; text-transform:uppercase; color:var(--dim);
+       margin:2rem 0 .3rem; }
+  .warn { color:var(--faint); margin:0 0 .9rem; max-width:72ch; }
+  .warn strong { color:var(--text); }
+  .extra { color:var(--faint); font-size:11px; margin:.4rem 0 0; }
 </style>
 </head>
 <body>
@@ -46,6 +51,19 @@
   find. None of these is a quantity to push — the firing condition is printed
   next to each value, and every number comes from real runs of the real bot.
   Keep this tab visible while it runs, or the browser throttles it.
+</p>
+<p class="lede">
+  <strong style="color:var(--text)">Two instruments, and their numbers are not
+  interchangeable.</strong> Same engine, same bot — one plays with the shop and
+  one without, so a depth from the first is not a depth from the second.
+</p>
+
+<h2>1 · the naked run — the shop switched off</h2>
+<p class="warn">
+  Independent runs, <strong>empty hands every time</strong>. This is the
+  baseline (<code>test/baseline.md</code>) and a <strong>lower bound on a
+  session</strong> — not a description of one, because only the first run of a
+  real session is ever naked.
 </p>
 
 <fieldset>
@@ -60,9 +78,35 @@
 
 <div id="out"></div>
 
+<h2>2 · the chain — a session, with the shop in it</h2>
+<p class="warn">
+  Runs in a row, each starting with what the shop bought after the last one —
+  win or lose. Dying does not end a chain; dying is the reset inside it.
+  <strong>One chain is one sample, not one per run</strong>, so raise the
+  chains rather than the length for a steadier read.
+  <br><br>
+  The six shared wires are the <strong>same bars</strong> as above, read on a
+  different game — <strong>that difference is the comparison</strong>. The last
+  two exist only here: independent runs have no session to break.
+</p>
+
+<fieldset>
+  <legend>chain</legend>
+  <div class="row">
+    <div><label>chains (samples)</label><input id="chains" type="number" value="6" min="1"></div>
+    <div><label>length (runs per chain)</label><input id="length" type="number" value="10" min="1"></div>
+    <div><label>first seed</label><input id="chainSeed" type="number" value="500000"></div>
+  </div>
+  <p><button id="goChain">measure</button></p>
+  <div id="chainStatus">idle</div>
+</fieldset>
+
+<div id="chainOut"></div>
+
 <p class="smallprint">
-  Headless twin: <code>node tools/measure.mjs check tripwires '{"runs":24}'</code>
-  — the same function, the same numbers. Correctness lives in
+  Headless twins: <code>node tools/measure.mjs check tripwires '{"runs":24}'</code>
+  and <code>node tools/measure.mjs chain chains '{"chains":6,"length":10}'</code>
+  — the same functions, the same numbers. Correctness lives in
   <a href="/run-tests.html" style="color:var(--accent)">run-tests.html</a>;
   this page only answers "is this any good?".
 </p>
@@ -70,34 +114,19 @@
 </div>
 <script type="module">
   import { tripwires } from './src/analysis/check.js';
+  import { chains } from './src/analysis/chain.js';
   import { loadDialOverrides } from './src/ui/dial-overrides.js';
   import { resolvedDefaults } from './src/ui/dials.js';
 
-  // The wires run on the SHIPPED dials, the same ones index.html plays on.
+  // BOTH instruments run on the SHIPPED dials, the same ones index.html plays
+  // on. One reading the code defaults and one reading the shipped values would
+  // be two different games in one comparison — the whole point of the pair.
   const dials = resolvedDefaults(await loadDialOverrides());
 
   const el = (id) => document.getElementById(id);
 
-  el('go').addEventListener('click', async () => {
-    el('go').disabled = true;
-    el('status').textContent = 'running…';
-    el('out').innerHTML = '';
-    await new Promise((r) => setTimeout(r, 30));   // let the status paint
-
-    const t0 = performance.now();
-    let result;
-    try {
-      result = tripwires({ runs: +el('runs').value, firstSeed: +el('seed').value, dials });
-    } catch (error) {
-      el('status').textContent = 'failed: ' + error.message;
-      el('go').disabled = false;
-      throw error;
-    }
-    const secs = ((performance.now() - t0) / 1000).toFixed(1);
-    el('status').textContent =
-      `${result.runs} runs from seed ${result.firstSeed} — ${result.clears} cleared — ${secs}s`;
-
-    for (const wire of result.tripwires) {
+  function renderWires(where, wires) {
+    for (const wire of wires) {
       const div = document.createElement('div');
       div.className = 'wire ' + (wire.fires ? 'fired' : 'quiet');
       div.innerHTML = `
@@ -105,9 +134,67 @@
         <span class="name">${wire.name}</span>
         <span class="value">${wire.value}</span>
         <span class="cond">${wire.condition}</span>`;
-      el('out').appendChild(div);
+      el(where).appendChild(div);
     }
-    el('go').disabled = false;
+  }
+
+  // One button, one measurement: `run` does the work and returns the line to
+  // print beside it. Shared so the two instruments cannot drift apart in how
+  // they report — only in what they measure.
+  function wireButton(button, status, out, run) {
+    el(button).addEventListener('click', async () => {
+      el(button).disabled = true;
+      el(status).textContent = 'running…';
+      el(out).innerHTML = '';
+      await new Promise((r) => setTimeout(r, 30));   // let the status paint
+
+      const t0 = performance.now();
+      let printed;
+      try {
+        printed = run();
+      } catch (error) {
+        el(status).textContent = 'failed: ' + error.message;
+        el(button).disabled = false;
+        throw error;
+      }
+      const secs = ((performance.now() - t0) / 1000).toFixed(1);
+      el(status).textContent = `${printed.line} — ${secs}s`;
+      renderWires(out, printed.result.tripwires);
+      if (printed.extra) {
+        const p = document.createElement('p');
+        p.className = 'extra';
+        p.textContent = printed.extra;
+        el(out).appendChild(p);
+      }
+      el(button).disabled = false;
+    });
+  }
+
+  wireButton('go', 'status', 'out', () => {
+    const result = tripwires({ runs: +el('runs').value, firstSeed: +el('seed').value, dials });
+    return {
+      result,
+      line: `${result.runs} runs from seed ${result.firstSeed} — ${result.clears} cleared`,
+    };
+  });
+
+  wireButton('goChain', 'chainStatus', 'chainOut', () => {
+    const result = chains({
+      chains: +el('chains').value,
+      length: +el('length').value,
+      firstSeed: +el('chainSeed').value,
+      dials,
+    });
+    return {
+      result,
+      line: `${result.chains} chains x ${result.length} = ${result.runs} runs `
+        + `from seed ${result.firstSeed} — ${result.clears} cleared`,
+      // NOT wires, and printed apart from them for that reason. The pile
+      // growing is the RULE (rules.md §9); what makes it a defect is what it
+      // does to the outcome, which `wins too common` above already watches.
+      extra: `biggest pile carried: ${result.pileMax} items · `
+        + `win streaks per chain: ${result.streaks.map((s) => s.join('+') || '—').join(', ')}`,
+    };
   });
 </script>
 </body>

@@ -68,27 +68,24 @@ export function playOne(seed, dials, hero, startingItems = []) {
   });
 }
 
-// The tripwires, from `runs` seeded runs starting at `firstSeed`.
-//
-// Deterministic by construction: same arguments, same numbers, always —
-// which is what lets tools/measure.mjs use one of these as its selftest
-// anchor. Raise `runs` for a steadier read; the default runs in seconds.
-export function tripwires(options = {}) {
-  const runs = options.runs ?? 24;
-  const firstSeed = options.firstSeed ?? 500000;
-  // What the game actually ships on. See playOne.
-  const dials = options.dials;
-  // Which hero played it. Same discipline as `shipped` below: a reading of
-  // one hero and a reading of another are not the same game either.
-  //
-  // A NAME or the entry itself, because the two callers arrive differently:
-  // `tools/measure.mjs` takes JSON on a command line, where `"pawa"` is the
-  // only sane thing to type. `heroByName` is the one place either becomes a
-  // hero.
-  const hero = typeof options.hero === 'string'
-    ? heroByName(options.hero)
-    : options.hero;
+const wire = (name, value, fires, condition) => ({
+  name, value: +value.toFixed(3), fires, condition,
+});
 
+// EVERY WIRE THAT READS ONLY FINISHED RUNS, and the one place their bars are
+// written.
+//
+// Split out of `tripwires` when `chain.js` arrived. The chain plays a
+// different game (a session, with the shop in it) but it is judged against
+// the same properties of objectives.md — so a second copy of these bars
+// would be two numbers for one rule, free to drift the next time one moves.
+// One bar, two instruments feeding it, and a difference between the two
+// readings is then a difference in the GAME rather than in the thresholds.
+//
+// `plays` is a list of whatever `playOne` returned. The vault wire is not in
+// here because it reads GENERATION rather than play — see its own comment.
+export function runWires(plays) {
+  const runs = plays.length;
   let clears = 0;
   let opening = 0;       // runs over by traversal 3
   let timeouts = 0;      // runs whose last traversal ran out of turns
@@ -96,8 +93,7 @@ export function tripwires(options = {}) {
   let sideOpened = 0;
   let sideShut = 0;
 
-  for (let i = 0; i < runs; i++) {
-    const run = playOne(firstSeed + i, dials, hero);
+  for (const run of plays) {
     if (run.cleared) clears++;
     if (!run.cleared && run.depth <= 3) opening++;
     if (run.depth >= TRAVERSALS / 2) reachedTurn++;
@@ -118,46 +114,10 @@ export function tripwires(options = {}) {
     }
   }
 
-  // Did the authored room actually get built? Read off GENERATION rather
-  // than off the runs above, and that is the whole point: a run that dies
-  // on floor 2 never reaches the vault, so counting from play would measure
-  // how deep the bot got and call it a map property.
-  //
-  // The vault needs a 9x9 of untouched rock with a margin, and a single
-  // corridor tile crossing an empty region kills the window — so this is
-  // the one wire the MAP's shape can break on its own, without anything
-  // about creatures or the bot changing.
-  const shape = dials && dials.model ? makeFloorPlan(dials.model) : makeFloorPlan();
-  const vaultLevel = shape(1).vaultLevel;
-  let vaultBuilt = 0;
-  let vaultSeen = 0;
-  if (vaultLevel > 0) {
-    for (let i = 0; i < runs; i++) {
-      const floor = newGame(firstSeed + i, shape(vaultLevel));
-      if (!floor.vault) continue;
-      vaultBuilt++;
-      if (floor.vault.onSpine) vaultSeen++;
-    }
-  }
-
   const sideSeen = sideOpened + sideShut;
-  const wire = (name, value, fires, condition) => ({
-    name, value: +value.toFixed(3), fires, condition,
-  });
-
   return {
-    runs,
-    firstSeed,
-    // Said out loud in the result, so a reading can never be quoted without
-    // it: these wires describe either the shipped game or the code
-    // defaults, and the two are not the same game.
-    shipped: Boolean(dials),
-    // Said out loud for the same reason `shipped` is: these wires read one
-    // hero, and quoting a number without saying whose it was is how a
-    // reading gets compared against a different game.
-    hero: hero ? hero.name : 'base',
     clears,
-    tripwires: [
+    wires: [
       // "Most attempts must not end in the opening. When they do, the
       // sitting is a slot machine at the entrance." (objectives.md)
       wire('opening deaths', opening / runs, opening / runs > 0.5,
@@ -188,6 +148,71 @@ export function tripwires(options = {}) {
         sideSeen ? sideOpened / sideSeen : 0,
         sideSeen > 0 && (sideOpened === 0 || sideShut === 0),
         'fires when side chests are always opened, or never'),
+    ],
+  };
+}
+
+// The tripwires, from `runs` seeded runs starting at `firstSeed`.
+//
+// Deterministic by construction: same arguments, same numbers, always —
+// which is what lets tools/measure.mjs use one of these as its selftest
+// anchor. Raise `runs` for a steadier read; the default runs in seconds.
+export function tripwires(options = {}) {
+  const runs = options.runs ?? 24;
+  const firstSeed = options.firstSeed ?? 500000;
+  // What the game actually ships on. See playOne.
+  const dials = options.dials;
+  // Which hero played it. Same discipline as `shipped` below: a reading of
+  // one hero and a reading of another are not the same game either.
+  //
+  // A NAME or the entry itself, because the two callers arrive differently:
+  // `tools/measure.mjs` takes JSON on a command line, where `"pawa"` is the
+  // only sane thing to type. `heroByName` is the one place either becomes a
+  // hero.
+  const hero = typeof options.hero === 'string'
+    ? heroByName(options.hero)
+    : options.hero;
+
+  const plays = [];
+  for (let i = 0; i < runs; i++) plays.push(playOne(firstSeed + i, dials, hero));
+  const { clears, wires } = runWires(plays);
+
+  // Did the authored room actually get built? Read off GENERATION rather
+  // than off the runs above, and that is the whole point: a run that dies
+  // on floor 2 never reaches the vault, so counting from play would measure
+  // how deep the bot got and call it a map property.
+  //
+  // The vault needs a 9x9 of untouched rock with a margin, and a single
+  // corridor tile crossing an empty region kills the window — so this is
+  // the one wire the MAP's shape can break on its own, without anything
+  // about creatures or the bot changing.
+  const shape = dials && dials.model ? makeFloorPlan(dials.model) : makeFloorPlan();
+  const vaultLevel = shape(1).vaultLevel;
+  let vaultBuilt = 0;
+  let vaultSeen = 0;
+  if (vaultLevel > 0) {
+    for (let i = 0; i < runs; i++) {
+      const floor = newGame(firstSeed + i, shape(vaultLevel));
+      if (!floor.vault) continue;
+      vaultBuilt++;
+      if (floor.vault.onSpine) vaultSeen++;
+    }
+  }
+
+  return {
+    runs,
+    firstSeed,
+    // Said out loud in the result, so a reading can never be quoted without
+    // it: these wires describe either the shipped game or the code
+    // defaults, and the two are not the same game.
+    shipped: Boolean(dials),
+    // Said out loud for the same reason `shipped` is: these wires read one
+    // hero, and quoting a number without saying whose it was is how a
+    // reading gets compared against a different game.
+    hero: hero ? hero.name : 'base',
+    clears,
+    tripwires: [
+      ...wires,
 
       // The authored room is the answer to "floors 2 to 6 all cost the
       // same", and it is the one thing on the descent a dial cannot

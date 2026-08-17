@@ -219,6 +219,15 @@ async function shippedDials() {
   return resolvedDefaults(overrides);
 }
 
+// Every `module.export` that is a METRICS SURFACE, and so has to be handed
+// `dial-overrides.json` layered over the code constants rather than reading
+// the constants alone. See where it is used for what happens when one is
+// missing from here.
+const NEEDS_DIALS = new Set([
+  'check.tripwires',
+  'chain.chains',
+]);
+
 function moduleUrl(name) {
   const rel = name.includes('/') || name.endsWith('.js') ? name : `src/analysis/${name}.js`;
   return pathToFileURL(path.join(REPO, rel)).href;
@@ -352,9 +361,16 @@ async function main() {
     callArgs = Array.isArray(parsed) ? parsed : [parsed];
   }
 
-  // `check tripwires` describes the shipped game unless the caller says
+  // A metrics surface describes the SHIPPED game unless the caller says
   // otherwise, same as the page. An explicit `dials` in the JSON args wins.
-  if (name === 'check' && exportName === 'tripwires') {
+  //
+  // A LIST, not an `if`, because there are two instruments now and the `if`
+  // silently excluded the second one. Reading the code defaults instead of
+  // the shipped dials is not a small error: the backlog carried "opening
+  // deaths 0.667" as a live defect for weeks while the shipped game read
+  // 0.247 (I3). One line per instrument, and an instrument missing from here
+  // is obvious the first time its numbers look wrong.
+  if (NEEDS_DIALS.has(`${name}.${exportName}`)) {
     const given = callArgs[0] && typeof callArgs[0] === 'object' ? callArgs[0] : {};
     callArgs = [{ dials: await shippedDials(), ...given }];
   }
