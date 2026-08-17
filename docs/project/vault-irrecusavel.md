@@ -211,8 +211,22 @@ opções com fraquezas diferentes, que é o que `objectives.md` pede de uma
 escolha ("toda opção precisa de uma fraqueza real, e uma que apareça na
 tela"). Oferece **cinco bandas equivalentes e uma armadilha**. Quem mexe nele
 ou não muda nada, ou se sabota — e não tem como distinguir os dois casos
-olhando. Coragem e Cautela não se separaram do ruído com esta amostra, o que
-é consistente com o sweep de profundidade em `test/baseline.md`.
+olhando.
+
+**Uma varredura um-a-um confirma tudo por outro caminho** (50 sessões por
+célula, teto 30, mesmas seeds; ~1 h de CPU). Ganância mínima lê +6,62 (5,1σ)
+com 5 sessões censuradas, contra o +6,85 (7,4σ) do A/B pareado — dois
+desenhos, uma conclusão. E ela separa melhor o que os outros dois fazem:
+
+- **Coragem é inerte, e não apenas "não separada do ruído".** As SEIS bandas
+  caem entre 6,24 e 6,60 runs, nenhuma passando de 0,4σ do centro. Uma linha
+  reta, num dial que o painel apresenta como escolha.
+- **Cautela tem forma de U** — as duas pontas piores que o meio (7,36 e 7,26
+  contra 5,96–6,68), ambas lendo +1,1σ. Coerente com um dial que tem ótimo
+  interior, e NÃO estabelecido: nada passa 2σ com esta amostra.
+
+Ambos consistentes com o sweep de profundidade em `test/baseline.md`, que
+também não achou nada fora do centro nos três.
 
 Ressalva: o alvo aqui é a primeira rung, que cai em 5 runs medianas. Um alvo
 mais alto — limpar a run — pode separar configurações que este não separa, e
