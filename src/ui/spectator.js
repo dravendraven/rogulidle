@@ -22,7 +22,9 @@ import {
 } from './achievements.js';
 import { tileSvg } from './tiles.js';
 import { award, resetScore } from './score.js';
-import { resetOnDeath, getHeldItems, addHeldItem } from './wallet.js';
+import { resetOnDeath, getHeldItems, addHeldItem, setHeldItems } from './wallet.js';
+// Only for `?dev=1&hold=` below, which names items the way the shop does.
+import { ITEM_TABLE } from '../sim/balance.js';
 import { SHOP_ITEMS, getShopOrder, nextPurchase } from './shop.js';
 import { buildShopOrder } from './shop-order.js';
 import { buildDialPanel, resolvedDefaults } from './dials.js';
@@ -882,7 +884,38 @@ export async function start() {
   // rather than breaking the page.
   const overrides = await loadDialOverrides();
   session.shippedDials = resolvedDefaults(overrides);
-  wireLab(overrides, params.get('dev') === '1');
+  const devMode = params.get('dev') === '1';
+  wireLab(overrides, devMode);
+
+  // ?dev=1&hold=axe,shield,shield — HAND THE HERO A PILE AND WATCH IT PLAY.
+  //
+  // Why this exists: `src/analysis/chain.js` measures sessions with the shop
+  // in them, and it found piles of a dozen-odd items after a run of clears.
+  // The project's method is "watch the game" (CLAUDE.md), and there was no
+  // way to watch that — reaching a big pile by playing takes a streak of
+  // wins the game hands out roughly never, so the one state a snowball would
+  // actually show up in was the one state nobody could look at.
+  //
+  // It writes the ORDINARY wallet rather than adding a second channel, so
+  // what plays is a real loadout down the real path (`getHeldItems` below)
+  // and not a debug mode with its own rules. That also means it PERSISTS:
+  // it survives into the next run exactly like a purchase, and a death
+  // clears it exactly like a death. Load the page once without `hold` and
+  // the wallet is whatever the last run left, as always.
+  //
+  // Behind `?dev=1` for the same reason the save button is: nothing in the
+  // UI invites this, and the worst anyone who finds it can do is arm their
+  // own spectator.
+  const hold = devMode ? params.get('hold') : null;
+  if (hold !== null) {
+    // Unknown names are dropped rather than guessed at — a typo arming
+    // nothing is easier to notice than a typo arming something else.
+    const items = hold.split(',')
+      .map((name) => ITEM_TABLE.find((row) => row.name === name.trim()))
+      .filter(Boolean)
+      .map((row) => ({ ...row }));
+    setHeldItems(items);
+  }
 
   // The rail. Built after the overrides resolve, so the face it lights on
   // load is the hero the first run will actually use rather than a guess it

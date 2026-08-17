@@ -173,6 +173,15 @@ into); replacing the file with the download and pushing is what actually
 ships it. That push is the real security boundary — anyone who finds
 `?dev=1` can only change their own downloads folder.
 
+Dev mode also takes **`&hold=axe,shield,shield`** — it arms the hero with
+those items and lets you WATCH a loaded run. The chain instrument finds piles
+of a dozen-odd items after a streak of clears, and reaching one by playing
+takes a run of wins the game hands out roughly never, so the one state a
+snowball would show up in was the one state nobody could look at. It writes
+the ordinary wallet, so what plays is a real loadout down the real path — and
+it persists into the next run like a purchase and is cleared by a death like
+one.
+
 Ordinary lab edits (no `?dev=1`) still persist nothing; the shipped values
 stay in the code (or in `dial-overrides.json`, once one exists). A change
 worth keeping FOREVER is still a `balance.md` + code edit, same as ever —
