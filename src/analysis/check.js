@@ -1,4 +1,11 @@
-// "Is this any good?" in a handful of tripwires — the ONLY metrics module.
+// "Is this any good?" in a handful of tripwires.
+//
+// THE NAKED INSTRUMENT: independent runs, empty hands every time, which is
+// the game with the shop switched off. That is the baseline
+// (`test/baseline.md`) and a LOWER BOUND on a session rather than a picture
+// of one — only the first run of a real session is ever naked. The session,
+// shop included, is `chain.js`, and it reads six of the bars below through
+// `runWires` so there is one bar rather than two.
 //
 // A tripwire fires or it does not, and when it fires there is a defect to
 // find (docs/project/objectives.md, "A threshold is not a scoreboard").
@@ -68,7 +75,10 @@ export function playOne(seed, dials, hero, startingItems = []) {
   });
 }
 
-const wire = (name, value, fires, condition) => ({
+// The shape `run-check.html` renders and `--selftest` compares. Exported so
+// `chain.js` builds its own wires the same way — two spellings of this would
+// print two different roundings on one page.
+export const wire = (name, value, fires, condition) => ({
   name, value: +value.toFixed(3), fires, condition,
 });
 

@@ -44,6 +44,39 @@ That is what makes "fix what is wrong" actionable instead of a matter of taste.
 
 ## Measurement
 
+**The baseline measures a game nobody plays, and that is fine as long as it
+is named.** The naked instrument (`check.js`) starts every run empty-handed,
+but only the FIRST run of a session ever is: the shop opens after a death too,
+so every run after the first begins holding what the last one's coins bought
+(`rules.md` §9). So the naked reading is a **lower bound on a session**. The
+answer was NOT to arm the baseline — that moves every number and the owner
+had to correct it once already — but a second instrument, `chain.js`, with
+the same bars.
+
+**What the chain is FOR, and what it cannot answer.** It plays sessions, so it
+can see the one failure a pile of independent runs cannot: `objectives.md`'s
+"power that persists compounds... accumulating until it trivialises", which
+`candidates.md` calls the snowball and says the death reset is the only brake
+on, unchecked. It cannot say anything about a single run, it is not comparable
+to a naked reading, and **a chain is one sample, not one per run** — run `k`
+depends on how `k-1` ended, so `M × L` runs are `M` samples.
+
+**The wires were SHARED rather than copied, and that was the whole design
+decision.** Six bars live in `runWires` and both instruments read them, so a
+difference between the two readings is a difference in the GAME. Two
+independent copies of "more than half the runs die in the opening" would have
+been two numbers for one rule of `objectives.md`, free to drift.
+
+**A wire on the size of the pile was rejected.** The pile growing IS the rule,
+so a wire on it fires on the game working. What makes a big pile a defect is
+what it does to the outcome, and `wins too common` already watches that. The
+pile is printed beside the wires as a reading, not as one.
+
+**And the first thing the pair showed: two wires read differently.** At 200
+runs on the shipped dials, `opening deaths` and `wins too rare` do not agree
+between the two instruments — the naked game looks harsher than the played
+one. Numbers are deliberately not written here (they go stale); run both.
+
 **A modelled ruler prices the fight it imagines, not the one that happens.**
 `campaignCost` summed duels one at a time and so underpriced crowds;
 `curve.js` read 0.23 on a floor that killed four heroes of seven. Both were

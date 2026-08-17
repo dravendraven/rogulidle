@@ -19,7 +19,7 @@
 // bot, different game — one plays with the shop and one without.
 // `test/baseline.md` says which question belongs to which instrument.
 
-import { playOne, runWires } from './check.js';
+import { playOne, runWires, wire } from './check.js';
 import { hashSeeds } from '../sim/rng.js';
 import { DEFAULT_ORDER, nextPurchase } from '../ui/shop.js';
 import { heroByName } from '../sim/heroes.js';
@@ -194,7 +194,11 @@ export function chains(options = {}) {
     // between the two instruments rests on it.
     const first = runs[0];
     if (first && first.seed === chainSeed && first.carried === 0) openedPaired++;
-    sessions.push({ chainSeed, streaks: streaksOf(runs), pileMax: Math.max(...runs.map((r) => r.carried)) });
+    sessions.push({
+      chainSeed,
+      streaks: streaksOf(runs),
+      pileMax: Math.max(0, ...runs.map((r) => r.carried)),
+    });
   }
 
   const { clears, wires } = runWires(plays);
@@ -204,10 +208,6 @@ export function chains(options = {}) {
   // noise: at length 4, "half the session" is two clears in a row, and two
   // is not a snowball.
   const runawayAt = Math.max(3, Math.ceil(length / 2));
-
-  const wire = (name, value, fires, condition) => ({
-    name, value: +value.toFixed(3), fires, condition,
-  });
 
   return {
     chains: count,

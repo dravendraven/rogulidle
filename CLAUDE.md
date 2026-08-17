@@ -106,17 +106,41 @@ looks wrong, say so instead of quietly doing something else.
 looking — `docs/project/objectives.md` states the rule, `decisions.md` the
 history of what the alternative cost.
 
-`run-check.html` (or `node tools/measure.mjs check tripwires`) is the ONLY
-metrics surface: a handful of tripwires, each printing its own firing
-condition. A tripwire fires or it does not; when it fires there is a defect
-to find. Nothing is a quantity to push, and no measurement gets written
-down — a recorded number goes stale and gets compared against anyway.
+`run-check.html` (or `node tools/measure.mjs`) is the only metrics surface: a
+handful of tripwires, each printing its own firing condition. A tripwire
+fires or it does not; when it fires there is a defect to find. Nothing is a
+quantity to push, and no measurement gets written down — a recorded number
+goes stale and gets compared against anyway.
 
-Two measuring notes that were each learned the hard way:
+**It holds TWO instruments, and their numbers are not interchangeable.**
+Same engine, same bot; one plays with the shop and one without.
+
+| | plays | |
+|---|---|---|
+| `check tripwires` | independent runs, **empty hands every time** | the baseline |
+| `chain chains` | a SESSION — runs in a row, **the shop between them** | the game people play |
+
+Only the FIRST run of a session is ever naked: every run after it starts
+holding what the shop bought with the coins the run before it earned, win or
+lose (`rules.md` §9). So the naked run is a **lower bound on a session**, not
+a description of one — and a depth from one instrument does not belong in a
+table beside a depth from the other. `test/baseline.md` says which question is
+whose, and how the two are legitimately paired.
+
+Six of the wires are SHARED (`runWires` in `src/analysis/check.js`) so the
+bars live in one place; the difference between the two readings of the same
+bar is the comparison. **A chain is ONE sample, not one per run** — run `k`
+depends on how `k-1` ended.
+
+Three measuring notes, each learned the hard way:
 - **Do not explain a difference until it clears 2 sigma.** A proportion over
   a few hundred runs has a standard error of several points.
 - Dynamic `import()` caches modules per page load — always reload the page
   between an edit and a measurement.
+- A new metrics export must be added to `NEEDS_DIALS` in
+  `tools/measure.mjs`, or it silently measures the CODE DEFAULTS instead of
+  the shipped dials. That mistake once kept a non-existent defect in the
+  backlog for weeks.
 
 ## Running it
 `python tools/dev-server.py` (port 8141), then:
@@ -125,7 +149,8 @@ Two measuring notes that were each learned the hard way:
   The 🧪 Lab button opens the dial panel (`src/ui/dials.js`) beside it.
   `?events=off` silences the floating signals (`src/ui/events.js`, U10).
 - `/run-tests.html` — the rules (tests, not metrics).
-- `/run-check.html` — the tripwires. Keep the tab visible while it runs.
+- `/run-check.html` — the tripwires, both instruments, one section each.
+  Keep the tab visible while it runs.
 
 `run-lab.html` was removed — it duplicated the same dial panel `index.html`
 already opens behind the Lab button. Link to `/index.html` instead.
@@ -156,8 +181,12 @@ replacement for that.
 
 Headless: `node tools/measure.mjs --selftest` first (it proves the vendored
 ROT.js is faithful), then e.g. `node tools/measure.mjs check tripwires
-'{"runs":24}'`. Same functions the pages call, same numbers. Headless is for
-sweeps and regressions — it is not a licence to stop watching the game.
+'{"runs":24}'` or `node tools/measure.mjs chain chains
+'{"chains":8,"length":12}'`. Same functions the pages call, same numbers.
+The whole test suite runs here too — `node tools/measure.mjs test/tests.js
+runAll` — with six failures expected off the page, all `localStorage`.
+Headless is for sweeps and regressions — it is not a licence to stop
+watching the game.
 
 Opening files directly will not work; ES modules need `http://`.
 
