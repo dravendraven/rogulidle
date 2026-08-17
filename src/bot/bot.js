@@ -581,19 +581,38 @@ function stillValid(goal, belief, field) {
 // taken against the whole of what he has:
 //
 //     sober:    the duel kills me
-//     enraged:  one free blow + the duel leaves me standing
+//     enraged:  the duel leaves me standing
 //
-// ADJACENT ONLY, the rule that replaced `awakeCost` and stays: `raging` counts
-// down on every turn that PASSES (src/sim/step.js), walking included, so
-// injecting at anything he still has to reach spends the item on the walk.
+// ONE STEP FROM MELEE, NEVER INSIDE IT (B34) — the owner's rule, and every
+// number this session produced points at it. `raging` counts down on every
+// turn that PASSES (src/sim/step.js), walking included, so injecting at
+// something far away spends the item on the walk; that is why the rule used to
+// be ADJACENT ONLY. But adjacent means the fight has already started, and
+// measured against the vault boss the cost of that was the whole item:
 //
-// THE TURN THE ITEM COSTS IS PRICED ON THE SIDE THAT SPENDS IT (B29, kept).
-// Injecting is an action: the hero does not swing that turn and the creature
-// beside him does, so the manoeuvre opens with one free blow that `duelCost`
-// never sees — it prices a duel from the first swing onward. Measured before
-// it was charged, 22 of 63 injections were the hero's LAST act: median 1 hp,
-// no armour, no blow ever landed. `(1 - MONSTER_SKIP_CHANCE) × expectedDamage`
-// is the same arithmetic `duelCost` charges each of its own turns with.
+//     effective hp when he first stands beside the butcher     8
+//     effective hp when he injects                             4
+//     turns between the two                                    3
+//     butcher's hp when he injects                        12 of 12
+//
+// He spends three turns beside a creature the fight gate refuses, loses half
+// of himself being chased, lands nothing, and only then is the trigger
+// satisfied — because "the duel kills me" is a test on HIS hp falling, not on
+// the fight. At 8 hp he outlasts the butcher; at 4 he cannot. Ten of
+// seventy-five butchers fell.
+//
+// So the window is distance TWO: the melee starts next turn, and this turn is
+// the last one before it. It costs exactly one turn of rage clock, the
+// minimum, and it buys back the two things adjacency was throwing away — his
+// hp, and the free blow. THAT DELETES B29 rather than keeping it: nothing is
+// beside him on the turn he injects, so there is no free blow to charge, and
+// the 35% of injections that were the hero dying on that very turn cannot
+// happen. A term removed, not a term added.
+//
+// THE MELEE HAS TO BE CERTAIN, or the item is spent on a creature that wanders
+// off. Two ways it is: he is walking into it (it is his goal, one step out),
+// or it is awake and closing on him. Anything else at distance two is a
+// creature that may never arrive.
 //
 // GREED IS HOW CERTAIN THE DEATH HAS TO BE. The bot never KNOWS it is about to
 // die; it has an estimate built on a guessed roster hp, and the demand says
@@ -620,24 +639,36 @@ function stillValid(goal, belief, field) {
 // description. "The duel kills me" already demands one whole effectiveHp, so
 // any greed below 1 is satisfied before it is asked. Nobody can be more
 // cautious than spending the first time it saves a life — that IS the floor.
-function rageWouldSave(belief, hero) {
+function rageWouldSave(belief, hero, goalId) {
   const [px, py] = belief.player.pos;
   // Everything is measured against the whole of what he has: `effectiveHp` is
   // hp plus armour, and rage touches neither. Only the DUEL moves.
-  const life = effectiveHp(belief.player);
-  const demand = life * hero.sideAppetite;
+  const bar = hero.fightMargin * effectiveHp(belief.player);
+  const demand = bar * hero.sideAppetite;
   const enraged = { ...belief.player, raging: RAGE_TURNS };
 
   for (const m of belief.monsters.values()) {
     if (m.dead) continue;
-    if (Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py) !== 1) continue;
+    const away = Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py);
+    if (away < 2 || away > 3) continue;      // in melee, or too far to be sure
+    // `isAwakeAt` takes the count of steps between the tiles, which is what
+    // `away` already is.
+    const coming = isAwakeAt(m, away);
+    // AND THREE COUNTS TOO, WHEN IT IS COMING (B35). A gap between two things
+    // that are both walking closes by TWO a turn, so an odd one goes 5, 3, 1
+    // and the hero never observes a two at all: measured, 248 of 500 runs only
+    // ever met a refused fight already in melee, which is half the reason the
+    // item went unused. Three is that same last turn with the parity the other
+    // way round. It costs one turn of the rage clock — he stands still to
+    // inject, so the creature closes only one of the two — and that is the
+    // trade: two swinging turns of three instead of all three, against not
+    // spending the item at all.
+    if (away === 3 && !coming) continue;     // nothing is closing it in one turn
+    if (m.id !== goalId && !coming) continue;
     const sober = duelCost(belief.player, m, hero.bravery).hpLost;
-    if (sober < life) continue;              // he lives through it anyway
-    if (sober < demand) continue;            // not a certain enough death yet
-    // What the turn spent on the syringe costs: one blow from the thing that
-    // is already beside him.
-    const injection = (1 - MONSTER_SKIP_CHANCE) * expectedDamage(m.xp, 0);
-    if (duelCost(enraged, m, hero.bravery).hpLost + injection < life) return true;
+    if (sober <= bar) continue;              // he would take it anyway
+    if (sober < demand) continue;            // too small a rescue to spend on
+    if (duelCost(enraged, m, hero.bravery).hpLost <= bar) return true;
   }
   return false;
 }
@@ -747,15 +778,6 @@ export function makeBot(options = {}) {
       && belief.player.inventory.some((i) => i.kind === 'book')
       && safeToStandStill(belief)) {
       return 'read';
-    }
-
-    // THE SYRINGE (B30). Not a share of anything — a question with a yes or a
-    // no: does raging turn a death into a survival? `rageWouldSave` above
-    // carries the reasoning and the measurement.
-    if (belief.player.inventory.some((i) => i.kind === 'syringe')
-      && !belief.player.raging
-      && rageWouldSave(belief, hero)) {
-      return 'rage';
     }
 
     for (const id of belief.chests.keys()) chestsEverSeen.add(id);
@@ -1188,6 +1210,18 @@ export function makeBot(options = {}) {
       goal = null;
       return 'rest';
     }
+
+    // THE SYRINGE, and it is decided HERE, after the goal, because the rule is
+    // about a fight that has not started yet: inject on the turn BEFORE the
+    // melee, never inside it. `rageWouldSave` above carries the reasoning and
+    // the measurement; it needs the goal to know which fight he is walking
+    // into, which is why this is the last thing `decide` asks.
+    if (belief.player.inventory.some((i) => i.kind === 'syringe')
+      && !belief.player.raging
+      && rageWouldSave(belief, hero, goal.kind === 'monster' ? goal.id : null)) {
+      return 'rage';
+    }
+
     return actionToward(belief.player.pos, route[1]);
   };
 }

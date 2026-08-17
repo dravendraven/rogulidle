@@ -1846,13 +1846,18 @@ test('raging without a syringe passes no turn at all', () => {
 });
 
 // A RULE, not a metric — which is why it is here and not among the
-// tripwires. "The syringe is never spent outside a fight" is either true of
-// every injection or the trigger is broken; there is no share of it to
-// watch, and a wire measuring it would read zero injections on the base
-// hero, who owns no syringe. The trigger asks whether rage turns an ADJACENT
-// duel from a death into a survival, so an injection with nobody in reach is
-// impossible by construction — this is what makes that stay true.
-test('vito never injects with no creature beside him', () => {
+// tripwires. "The syringe is spent on the turn BEFORE the melee, never inside
+// it" is either true of every injection or the trigger is broken; there is no
+// share of it to watch, and a wire measuring it would read zero injections on
+// the base hero, who owns no syringe.
+//
+// This test used to assert the OPPOSITE — that something was always already
+// beside him — because the trigger used to demand adjacency. B34 moved the
+// window one step out, and the two halves of that (not in melee yet, in melee
+// next turn) are what this now pins. Getting it backwards is exactly the
+// regression worth catching: the whole value of the item measured was in
+// whether the rage started before the first blow or after it.
+test('vito injects one step from the melee, never inside it', () => {
   const vito = HEROES.vito;
   let injections = 0;
   for (let seed = 0; seed < 12; seed++) {
@@ -1867,9 +1872,14 @@ test('vito never injects with no creature beside him', () => {
         if (before.player.raging || !frames[i].state.player.raging) continue;
         injections++;
         const [px, py] = before.player.pos;
-        assert(before.monsters.some((m) => !m.dead
-          && Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py) === 1),
-        `injected on floor ${level.level} with nothing adjacent`);
+        const away = before.monsters.filter((m) => !m.dead)
+          .map((m) => Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py));
+        assert(!away.includes(1),
+          `injected on floor ${level.level} with a creature already beside him`);
+        // Two, or three when the thing is closing — a gap both of them are
+        // walking shuts by two a turn, so an odd one never shows a two (B35).
+        assert(away.includes(2) || away.includes(3),
+          `injected on floor ${level.level} with nothing about to reach him`);
       }
     }
   }
