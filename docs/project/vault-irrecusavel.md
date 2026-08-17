@@ -8,10 +8,16 @@ combinação razoável de dials a traz para o meio: ou fica em ~85%, ou a
 Ganância desce ao fundo e leva quase um andar de profundidade junto. A sala
 foi construída para ser "uma sala que a maioria recusa" — hoje é pedágio.
 
-Este arquivo é o mecanismo, medido termo a termo, e a alavanca que sobra.
-O §11 de `rota-e-valor.md` é leitura obrigatória antes: ele descreve o rateio
-do guardião e conserta a metade que faltava (a caminhada). Aqui está a
+Este arquivo é o mecanismo, medido termo a termo, e duas tentativas de
+consertá-lo que falharam de maneiras informativas. O §11 de
+`rota-e-valor.md` é leitura obrigatória antes: ele descreve o rateio do
+guardião e conserta a metade que faltava (a caminhada). Aqui está a
 consequência do outro lado, que aquele documento não afirma.
+
+**A conclusão, para quem só vai ler isto:** nenhum termo do portão está
+apertado, então mexer em qualquer um deles isoladamente consome toda a
+margem antes de mudar a decisão. Foi assim com o hp do porco e com a
+quantidade de baús, cada um do seu lado. A folga é o problema, não o número.
 
 ## O que cada dial faz com a entrada
 
@@ -111,12 +117,37 @@ O achado útil dessa medição é o zero: é a confirmação mais limpa de que
 precificada** — as duas únicas propriedades assim, e o truque de que a sala
 depende (`docs/balance.md`, e o comentário do `duelCost`).
 
-## A alavanca que sobra
+## A alavanca que sobrava, medida e insuficiente
 
-Pela conta acima, a única não testada é **a quantidade de baús do vault**:
-menos baús, maior o quinhão do duelo em cada um, e o guardião volta a pesar.
-É a alavanca que a amortização deixou em aberto, e é o inverso do reflexo
-natural — para a sala ficar mais assustadora, tira-se tesouro dela.
+A conta acima apontava **a quantidade de baús do vault**: menos baús, maior o
+quinhão do duelo em cada um, e o guardião voltaria a pesar. Medido, n=250
+pareado contra os 8 que shipam:
 
-Não medida. Leitura de código, e é a próxima coisa a rodar antes de mexer no
-porco de novo.
+```
+baús no vault      entra   mata   morre   prof         vs 8 baús
+8 (shipado)          86%    12%    50%   4,09±0,10     —
+6                    86%    10%    52%   4,06±0,10     1 par discordante (0,0σ)
+4                    86%    11%    51%   4,03±0,10     1 par discordante (0,0σ)
+2                    80%     9%    48%   4,02±0,09     12 a menos (3,1σ)
+```
+
+**Cortar o tesouro pela metade duas vezes não muda uma única run.** A
+hipótese como ALAVANCA está descartada, e o mecanismo está confirmado — as
+duas coisas ao mesmo tempo, que é o resultado mais útil possível.
+
+O mecanismo é real e a aritmética prevê o ponto exato: o guardião amortizado
+é 0,51 hp no centro com 8 baús, dobra para ~1,0 com 4 — ainda sob a barra de
+1,50 — e só passa dela com 2. É onde a entrada se move, e move pouco: 80%.
+
+**A conclusão é sobre a folga, não sobre o número.** Nenhum termo do portão
+está apertado: o guardião passa por três vezes, e a caminhada agora também é
+rateada (§11 de `rota-e-valor.md`). A sala não entra porque algum termo
+convence — entra porque nenhum termo resiste. Mexer em um deles isoladamente
+consome toda a margem antes de mudar a decisão, e foi isso que o hp 14 e a
+contagem de baús mostraram, cada um do seu lado.
+
+Quem for tentar de novo: a próxima coisa a olhar não é um termo do portão, é
+a BARRA — `CHEST_VALUE_HP × sideAppetite` — ou a decisão de o andar do vault
+não ter baú nenhum fora dele (`spawn.js` zera `chestCount`), que remove a
+alternativa contra a qual a sala deveria competir. Recusar a sala hoje não é
+escolher outro tesouro, é escolher nenhum.
