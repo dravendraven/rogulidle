@@ -232,10 +232,28 @@ export function chains(options = {}) {
 
   const streakMax = Math.max(0, ...sessions.map((s) => s.streaks[0] ?? 0));
   const pileMax = Math.max(0, ...sessions.map((s) => s.pileMax));
-  // Never below three, so a short chain cannot fire on what is ordinary
-  // noise: at length 4, "half the session" is two clears in a row, and two
-  // is not a snowball.
-  const runawayAt = Math.max(3, Math.ceil(length / 2));
+
+  // THE BAR IS DERIVED FROM THE SAMPLE, not written — the longest streak that
+  // the observed win rate could still explain by luck alone.
+  //
+  // If runs were independent draws at rate p, a streak of k somewhere in n
+  // runs has expectation about n·p^k. So the bar is the smallest k where that
+  // drops under 1%: below it, luck is a live explanation; at or above it, the
+  // wins are making the next win easier, which is the compounding
+  // `objectives.md` names. Never below 3, so a tiny sample cannot fire on two
+  // in a row.
+  //
+  // THE FIRST VERSION OF THIS BAR WAS `length / 2` AND IT WAS WRONG. A chain
+  // of 40 turned up a streak of 15 and the wire stayed quiet, because the bar
+  // had grown with the chain. Fifteen wins in a row is a snowball whether the
+  // session is 40 runs or 4000 — a bar that rises with the evidence gets less
+  // sensitive the more you measure, which is backwards for a tripwire.
+  const rate = plays.length ? clears / plays.length : 0;
+  const runawayAt = (() => {
+    if (rate <= 0 || rate >= 1) return 3;
+    for (let k = 3; k <= 60; k++) if (plays.length * rate ** k < 0.01) return k;
+    return 60;
+  })();
 
   return {
     chains: count,
@@ -258,7 +276,8 @@ export function chains(options = {}) {
       // is the check.
       wire('the chain never breaks', streakMax,
         streakMax >= runawayAt,
-        `fires when one unbroken run of clears takes half a session (>= ${runawayAt} of ${length})`),
+        `fires at a streak of ${runawayAt}+ clears, which luck at ${(rate * 100).toFixed(1)}% `
+        + 'per run would not produce in this many runs'),
 
       // The pairing above. Not a measurement — a check that the loop did what
       // `seedOf` promises, so it fires on a code change and never on a dial.
