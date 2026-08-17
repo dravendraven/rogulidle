@@ -129,10 +129,14 @@
     for (const wire of wires) {
       const div = document.createElement('div');
       div.className = 'wire ' + (wire.fires ? 'fired' : 'quiet');
+      // The +- is the CHAIN's error bar and only the chain's wires carry one:
+      // runs inside a chain are correlated, so the spread between chains is
+      // the honest error. Without it a difference against the naked reading
+      // cannot be judged against the 2-sigma rule.
       div.innerHTML = `
         <span class="state">${wire.fires ? 'FIRED' : 'quiet'}</span>
         <span class="name">${wire.name}</span>
-        <span class="value">${wire.value}</span>
+        <span class="value">${wire.value}${wire.se ? ` <span style="color:var(--faint)">±${wire.se}</span>` : ''}</span>
         <span class="cond">${wire.condition}</span>`;
       el(where).appendChild(div);
     }

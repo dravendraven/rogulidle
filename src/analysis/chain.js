@@ -181,12 +181,16 @@ export function chains(options = {}) {
   const hero = typeof options.hero === 'string' ? heroByName(options.hero) : options.hero;
 
   const plays = [];
+  const perChain = [];
   const sessions = [];
   let openedPaired = 0;
 
   for (let m = 0; m < count; m++) {
     const chainSeed = firstSeed + m;
-    const { runs } = playChain(chainSeed, length, { ...options, hero, collect: plays });
+    const mine = [];
+    const { runs } = playChain(chainSeed, length, { ...options, hero, collect: mine });
+    plays.push(...mine);
+    perChain.push(mine);
     // THE PAIRING, checked rather than trusted. `check.js` plays
     // `firstSeed + m`, so run 1 of chain m has to open on that seed with
     // nothing in hand. It costs no runs to verify — it is a property of what
@@ -202,6 +206,30 @@ export function chains(options = {}) {
   }
 
   const { clears, wires } = runWires(plays);
+
+  // THE ERROR BAR, and it has to be computed HERE rather than by whoever reads
+  // the number. Runs inside a chain are correlated — run k depends on how k-1
+  // ended — so `sqrt(p(1-p)/runs)` treats M x L runs as M x L independent
+  // samples and understates the error, by a factor that grows with how much
+  // the shop actually does. The honest error is between CHAINS: read the same
+  // wire once per chain and take the spread of those k readings.
+  //
+  // Printed on the shared wires only, since those are the ones ever compared
+  // against a naked reading. CLAUDE.md's "do not explain a difference until it
+  // clears 2 sigma" is unusable without it — and the first draft of this
+  // module's own comparison quoted 4.9 sigma off the wrong denominator.
+  const byChain = perChain.map((mine) => runWires(mine).wires);
+  const stderr = (xs) => {
+    if (xs.length < 2) return 0;
+    const mean = xs.reduce((a, b) => a + b, 0) / xs.length;
+    const variance = xs.reduce((a, x) => a + (x - mean) ** 2, 0) / (xs.length - 1);
+    return Math.sqrt(variance / xs.length);
+  };
+  const shared = wires.map((w, i) => ({
+    ...w,
+    se: +stderr(byChain.map((ws) => ws[i].value)).toFixed(3),
+  }));
+
   const streakMax = Math.max(0, ...sessions.map((s) => s.streaks[0] ?? 0));
   const pileMax = Math.max(0, ...sessions.map((s) => s.pileMax));
   // Never below three, so a short chain cannot fire on what is ordinary
@@ -220,7 +248,7 @@ export function chains(options = {}) {
     hero: hero ? hero.name : 'base',
     clears,
     tripwires: [
-      ...wires,
+      ...shared,
 
       // "What persists compounds: bought with wins and spent to produce more
       // wins, the same currency in both directions, accumulating until it
