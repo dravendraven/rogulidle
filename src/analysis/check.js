@@ -34,7 +34,17 @@ import { heroByName } from '../sim/heroes.js';
 // the engine persona and the bot overrides — so a reading names a hero
 // instead of assembling one out of two arguments that could disagree.
 // Absent (every caller today) is the shipped hero and changes nothing.
-function playOne(seed, dials, hero) {
+//
+// `startingItems` is what the previous run's shop bought, and it exists so
+// chain.js can measure the game WITH the shop in it. Empty hands is what
+// every wire below reads and what test/baseline.md pins as the baseline —
+// the two are separate instruments on purpose, and `chain.js` says why.
+//
+// It is passed through even when empty rather than spread in conditionally.
+// The point is that the chain and the tripwires travel the SAME path, so
+// "an empty list changes nothing" is a fact the wires can check instead of
+// a property of how this function was written.
+export function playOne(seed, dials, hero, startingItems = []) {
   const plan = dials && dials.model ? makeFloorPlan(dials.model) : undefined;
   return playDungeon(seed, (floor) => makeBot({
     monsterCount: floor.monsterCount,
@@ -49,6 +59,7 @@ function playOne(seed, dials, hero) {
   }), {
     ...(hero ? { hero } : {}),
     ...(plan ? { floorPlan: plan } : {}),
+    startingItems,
     ...(dials && dials.run ? { maxTurns: dials.run.turnBudget } : {}),
     // The return ships off, and the analysis modules already pin the plain
     // descent for the reason dungeon.js states — a full run would give each
