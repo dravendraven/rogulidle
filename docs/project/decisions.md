@@ -127,6 +127,26 @@ expectation about `n·p^k`, and the bar is the smallest `k` where that falls
 under 1%. It fires at both chain lengths tried — including the short one,
 whose streak the old bar had been hiding.
 
+**And WATCHING it named the mechanism, which no wire had.** `?dev=1&hold=`
+plays a pile the game cannot otherwise reach. On one seed, the same run with
+nothing dies on traversal 1 having taken eighteen blows; with the 72-item pile
+it clears all ten floors and **the hp bar never moves once**. Armour absorbs
+every blow, and the pile is big enough that it never runs out — thirty-four
+blows spread over ten floors against a bar dozens deep.
+
+**The runaway term is armour, and specifically that chests REFILL it.** The
+armour on the bar goes UP during the descent, not down: it is a consumed bar,
+but the floors hand out more of it than the creatures take off. So past some
+size the pile stops being a head start and becomes a closed loop — armour
+buys survival, survival buys floors, floors hand out armour. Weapons are not
+the term: damage only shortens fights the hero was already going to win.
+
+**That is the shape any fix has to break, and it says which fixes cannot
+work.** Nothing that scales the DAMAGE side touches it — a deadlier creature
+takes more armour off a bar that is refilling faster than it drains, and the
+bot simply refuses fights it prices as lethal (`decisions.md`, the Balrog
+note). What breaks it is a way to lose that armour does not answer.
+
 **The arithmetic any fix has to satisfy, so nobody re-derives it.** Let `r_k`
 be the chance a run fails after `k` consecutive clears. The pile escapes to
 infinity with positive probability exactly when `Σ r_k` CONVERGES. So the
