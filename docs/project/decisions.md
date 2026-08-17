@@ -63,6 +63,14 @@ Three reasons, and the third is the one that generalises past the vault:
   number looks punishing" has to be re-read at the scale the product is
   actually consumed at before it means anything.
 
+**And V6 is not the vault's open question — this one is closed, that one is
+not.** `docs/project/vault-irrecusavel.md` measured the other half in
+parallel: the bot enters the room on 86% of the floors that have it, so it is
+a toll rather than a choice, and no single dial moves that without wrecking
+the descent. "Hard" was the owner's answer here and it stands; "refusable" is
+a separate property `objectives.md` asks for ("every option needs a real
+weakness") and it is still missing. Do not read this entry as settling that.
+
 **The consequence for the snowball, which points the other way from what a
 first reading suggested.** The chain instrument found the runaway but it looked
 unreachable — most chains never clear once. At a day of idle play that

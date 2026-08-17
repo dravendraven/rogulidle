@@ -27,7 +27,9 @@ thing the item is for, and update the doc the change made stale
    **V6 is answered: the room stays hard, and nothing about it gets softened
    to buy reach.** Owner, 2026-08-17 — the reasoning is in `decisions.md`
    under "V6". Do not reopen it by reading a depth number and concluding the
-   vault is too expensive; that trade was made on purpose.
+   vault is too expensive; that trade was made on purpose. The line this item
+   used to carry — "the lever is the Butcher's `hp`" — is retracted: that
+   lever was measured and does not work (`docs/project/vault-irrecusavel.md`).
 4. Everything else below.
 
 **Item 2 above is closed as written, and I3 is why.** The 0.667 it quotes
