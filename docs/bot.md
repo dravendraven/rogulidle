@@ -50,10 +50,25 @@ frases:
   nenhuma: precifica a mesma criatura duas vezes, como ele está e como ele
   estaria, e gasta o item quando a segunda leitura passa na barra em que a
   primeira falhou.
-- **Dois de distância, não mais**, porque o contador da fúria cai a cada turno
-  que passa, andar incluído (`rules.md` §5): injetar contra algo longe gasta o
-  item na caminhada. Dois é o mínimo que existe — custa exatamente um turno de
-  relógio e compra o turno inteiro da primeira troca de golpes.
+- **Dois de distância — ou três, se a criatura estiver vindo.** O contador da
+  fúria cai a cada turno que passa, andar incluído (`rules.md` §5), então
+  injetar contra algo longe gasta o item na caminhada. Mas um vão entre duas
+  coisas que estão as duas andando fecha **de dois em dois** por turno, então um
+  vão ímpar vai 5, 3, 1 e a distância 2 nunca acontece. Medido: 248 de 500 runs
+  só encontravam a luta recusada **já no corpo a corpo** — metade do motivo de o
+  item ficar sem uso. Três é o mesmo último turno com a paridade ao contrário, e
+  custa um turno de relógio (ele fica parado para injetar, então a criatura fecha
+  só um dos dois).
+- **Isso sozinho igualou a seringa ao livro do erudito, sem mexer em número
+  nenhum.** Medido pelo A/B pareado — o mesmo herói, nas mesmas seeds, com e sem
+  o item no kit — a seringa vale `+0,152 ± 0,039` andar contra `+0,164 ± 0,028`
+  do livro, com o mesmo ganho por uso (`+0,55`) e uso em 27% das runs contra
+  30%. A diferença inteira que existia antes era este defeito de paridade, e não
+  a força da fúria: subir `RAGE_MULT` de 2,5 para 4 leva a seringa a `+0,330`, o
+  dobro do livro, e não é preciso.
+- **O teto que sobra não é gatilho.** 29% das runs nunca encontram uma luta que
+  o portão recuse — nessas o item não tem o que fazer, e nenhuma mudança em
+  quando injetar alcança isso.
 - **A regra antiga era ADJACENTE, e isso custava o item inteiro.** Medido contra
   o chefe do vault: o herói chegava nele com 8 de vida efetiva, ficava três
   turnos colado apanhando enquanto o portão de luta recusava o duelo, e só

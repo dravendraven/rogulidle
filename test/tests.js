@@ -1874,8 +1874,10 @@ test('vito injects one step from the melee, never inside it', () => {
           .map((m) => Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py));
         assert(!away.includes(1),
           `injected on floor ${level.level} with a creature already beside him`);
-        assert(away.includes(2),
-          `injected on floor ${level.level} with nothing one step away`);
+        // Two, or three when the thing is closing — a gap both of them are
+        // walking shuts by two a turn, so an odd one never shows a two (B35).
+        assert(away.includes(2) || away.includes(3),
+          `injected on floor ${level.level} with nothing about to reach him`);
       }
     }
   }
