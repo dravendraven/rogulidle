@@ -16,28 +16,38 @@ import { ITEM_TABLE } from '../sim/balance.js';
 
 const byName = (name) => ITEM_TABLE.find((item) => item.name === name);
 
-// Doubled with `COIN_RATE` (owner, 2026-08-15): the rate went 10 → 20 to
-// give the payout finer steps, and these follow it so what a run can
-// actually afford stays where it was. The RATIO between the three is
-// untouched — this is a change of unit, not of the ladder, and the
-// stacking defect below is exactly as unbalanced as it was.
-// The potion is the CHANGE's item, added with the doubled scale: a run's
-// balance is odd about half the time, and at a cheapest price of 2 that odd
-// coin was thrown away at the door. At 1 it always buys something.
+// THE PRICES, AND THE ONE RULER BEHIND THEM (owner, 2026-08-16): an item
+// costs what it is worth IN HP TO A HERO WITH EMPTY HANDS, over the opening
+// (floors 1-3). Not what it is worth to a hero who already owns three — the
+// price never falls for the second copy, and stacking is the player's
+// choice, deliberately. The shield anchors the scale: 3 hp for 2 coins.
 //
-// It is also the only consumable on the shelf, and that is the point of
-// picking it rather than a cheaper shield — measured A/B against its own
-// price in shields, baseline hero, paired seeds: two potions beat one shield
-// on opening deaths by about 5 points (~2.8 sigma over 800 runs) and tied on
-// everything else; at four against two the two converge. The opening is the
-// run's bottleneck (rules.md §5), armour only pays once the hero lives long
-// enough to stack it, so the cheap slot buys the early floors and the shield
-// still buys the middle ones. Neither dominates, which is the shape the
-// ladder was missing.
+// Measured with the model the bot already carries (`dropValue` / `duelCost`,
+// src/bot/bot.js — a weapon is priced as the duel it shortens, so no
+// exchange rate had to be invented), against the fights real runs actually
+// had: dagger 8.9 hp, axe 16.1 hp. That is 6 and 11 on the ruler, and the
+// dagger's old 10 was the worst deal on the shelf — 0.89 hp per coin where
+// the shield gave 1.50.
+//
+// The axe stays at 16 rather than dropping to 11 because a second ruler
+// disagrees and it answers the game's FIRST objective, the Butcher. At equal
+// budget the axe beats eight shields (44% of runs killing it against 37%),
+// and at 20 coins an axe basket beats every dagger basket measured. 16 is
+// where the two rulers meet, and it keeps the axe the run's rare event
+// rather than a routine purchase.
+//
+// The potion stays at 1 rather than rising to 2 for the same kind of reason
+// in the other direction: the hp ruler OVERRATES it. Sixteen of them move
+// the Butcher not at all (11.2% against 10.0% empty-handed), and adding four
+// to an axe makes that basket worse. Its job is the opening and the change —
+// a run's balance is odd about half the time, and without a 1-coin item that
+// coin is discarded at the door.
+//
+// Both rulers, the baskets and the sigmas are in decisions.md (U6g, U6h).
 export const SHOP_ITEMS = [
   { item: byName('health'), price: 1 },
   { item: byName('shield'), price: 2 },
-  { item: byName('dagger'), price: 10 },
+  { item: byName('dagger'), price: 6 },
   { item: byName('axe'), price: 16 },
 ];
 
