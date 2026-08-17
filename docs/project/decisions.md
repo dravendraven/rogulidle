@@ -77,6 +77,28 @@ runs on the shipped dials, `opening deaths` and `wins too rare` do not agree
 between the two instruments — the naked game looks harsher than the played
 one. Numbers are deliberately not written here (they go stale); run both.
 
+**The snowball is real, and it was the wire's own bar that hid it first.** The
+chain wire originally fired at "half the session", which GROWS WITH THE CHAIN:
+a 40-run chain produced fifteen clears in a row and the wire stayed quiet.
+Fifteen in a row is a runaway whether the session is 40 runs or 4000 — a bar
+that rises with the evidence gets less sensitive the more you measure, which is
+backwards for a tripwire. **A tripwire's bar must not be a function of sample
+size.** The bar is now derived from the sample instead: if runs were
+independent at the observed rate `p`, a streak of `k` in `n` runs has
+expectation about `n·p^k`, and the bar is the smallest `k` where that falls
+under 1%. It fires at both chain lengths tried — including the short one,
+whose streak the old bar had been hiding.
+
+**The arithmetic any fix has to satisfy, so nobody re-derives it.** Let `r_k`
+be the chance a run fails after `k` consecutive clears. The pile escapes to
+infinity with positive probability exactly when `Σ r_k` CONVERGES. So the
+invariant is not "cap the power" — power may grow without bound. It is that
+**the risk must not fall to zero fast enough to be summable**: `r_k ≥ ε` gives
+a geometric streak length, and `r_k ~ c/k` with `c > 1` gives a
+polynomial-tailed one (long streaks rare, never impossible), which is the
+shape `objectives.md` describes. Anything that leaves at least one way to die
+that the pile cannot buy off satisfies it.
+
 **A modelled ruler prices the fight it imagines, not the one that happens.**
 `campaignCost` summed duels one at a time and so underpriced crowds;
 `curve.js` read 0.23 on a floor that killed four heroes of seven. Both were

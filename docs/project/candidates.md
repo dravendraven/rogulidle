@@ -344,8 +344,24 @@ compounding outruns the reset, cycles become a runaway instead — win once,
 snowball, win always, which is the *other* named failure. The death reset is
 the only brake, and nobody has checked it is strong enough.
 
+> **CHECKED, AND IT IS NOT.** `src/analysis/chain.js` plays sessions with the
+> shop in them, and `the chain never breaks` fires on the shipped game at both
+> chain lengths tried. Long chains turned up **fifteen clears in a row** and a
+> pile of **72 items** — at a per-run win rate of a few percent, which luck
+> does not produce. The runaway named above is not a risk to watch for; it is
+> what happens. The paragraph above is left standing because the prediction
+> was right and the reasoning is still the reasoning.
+>
+> Two things it does NOT say. It does not say the ratchet is *reachable* — most
+> chains never clear once, so the sawtooth is a long flat line with a rare
+> spike, not a cycle anyone would feel. And it says nothing about what to do:
+> the fix is a design question for the owner, and the arithmetic of what any
+> fix has to satisfy is in `decisions.md` under Measurement.
+
 **Still judged by watching.** None of these is measured today, and the project
-has already paid once for treating a proxy as the thing.
+has already paid once for treating a proxy as the thing. **A pile can now be
+watched directly** — `?dev=1&hold=axe,shield,…` arms the hero and plays it, so
+"what does a 72-item run look like" is a thing to look at rather than infer.
 
 ### M8 · layout variety, the way DCSS picks a builder per level
 
