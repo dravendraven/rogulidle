@@ -42,6 +42,36 @@ a direct run skips most of the floor, something is wrong" does not reward being
 pushed; it fires or it does not, and when it fires there is a defect to find.
 That is what makes "fix what is wrong" actionable instead of a matter of taste.
 
+## V6 — the vault stays hard, and the reason generalises
+
+**Owner, 2026-08-17, answering the one backlog item that was never a task.**
+The measured cost is real: in the game people actually play, 72% of runs would
+reach floor 7 without the room and 40% do with it, and over half of all runs
+now end by floor 4. **The trade is accepted, deliberately, and the room does
+not get softened to buy reach back.**
+
+Three reasons, and the third is the one that generalises past the vault:
+
+- **The Butcher is a challenge to be BEATEN, not an obstacle to be balanced
+  around.** Its job is to be in the middle of the run and be hard.
+- **It is a progression gate, not just a fight.** The `butcher` achievement
+  unlocks choosing a hero (`HERO_GATE`, `src/ui/achievements.js`), so making
+  the fight cheaper cheapens the only key currently in the game.
+- **THIS IS AN IDLE GAME AND THE PLAYER LEAVES IT RUNNING FOR A DAY.
+  NOTHING SHOULD BE EASY.** A difficulty that reads as harsh over twenty runs
+  is the correct difficulty over a thousand. Any argument of the form "this
+  number looks punishing" has to be re-read at the scale the product is
+  actually consumed at before it means anything.
+
+**The consequence for the snowball, which points the other way from what a
+first reading suggested.** The chain instrument found the runaway but it looked
+unreachable — most chains never clear once. At a day of idle play that
+reasoning inverts: a session is on the order of a thousand runs, and a streak
+of fifteen turned up inside 480. **The snowball is not a rare edge case; it is
+something a player who leaves the tab open will see, more than once a day.**
+And the same owner rule condemns it: a stretch of runs that cannot lose is the
+easy thing this game is not supposed to contain.
+
 ## Measurement
 
 **The baseline measures a game nobody plays, and that is fine as long as it

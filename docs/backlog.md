@@ -24,12 +24,10 @@ thing the item is for, and update the doc the change made stale
    `docs/project/candidates.md` M43; results in `decisions.md` under M43,
    M44 and "the vault takes over its floor".
 
-   **What is left is V6, and it is a judgement, not a task.** The room costs
-   reach: floor 7 falls from 57.5% to 22.5% and floor 10 from 9.5% to 3.5%.
-   About 60% of runs are now over by floor 4. `objectives.md` judges a
-   sitting on how far attempts get, so this is the number to look at before
-   anything else here is tuned — and the lever is the Butcher's `hp`, which
-   is what `duelCost` reads and therefore what decides who enters.
+   **V6 is answered: the room stays hard, and nothing about it gets softened
+   to buy reach.** Owner, 2026-08-17 — the reasoning is in `decisions.md`
+   under "V6". Do not reopen it by reading a depth number and concluding the
+   vault is too expensive; that trade was made on purpose.
 4. Everything else below.
 
 **Item 2 above is closed as written, and I3 is why.** The 0.667 it quotes
@@ -43,7 +41,7 @@ was five identical risks in a row, which is what the vault answered.
 
 | id | what gets done | status |
 |---|---|---|
-| V6 | Decide whether the vault's cost to reach is the trade wanted: ~60% of runs now end by floor 4, and floor 7 falls from 57.5% to 22.5% | NEEDS THE OWNER, not a session |
+| V6 | Decide whether the vault's cost to reach is the trade wanted | ANSWERED by the owner — the room stays hard. `decisions.md`, "V6" |
 | I3 | The tripwires ran on the CODE DEFAULTS, not the shipped dials | DONE — `check.js` takes `dials`; both callers pass them |
 | R3 | The return has no chests | READY — today the return refills them |
 | R2 | The return repopulates: same map seed, new creature seed | READY |
