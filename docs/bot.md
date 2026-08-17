@@ -80,6 +80,18 @@ frases:
   medido, o item é de vault: com a ganância de fábrica, 80% das injeções
   acontecem no andar 4, contra o chefe — que é a única luta desenhada para ser
   mortal e vencível, exatamente a forma que o gatilho procura.
+- **E o que a seringa vale, medido do único jeito que responde isso:** o mesmo
+  Vito, nas mesmas seeds, com e sem a adrenalina no kit. A diferença pareada de
+  profundidade é `+0,072 ± 0,029` andar — 2,5 sigma, a primeira leitura do item
+  que passa da régua de dois. O que a mudou não foi o tamanho do efeito, que é o
+  mesmo de antes, e sim o RUÍDO: gastar antes da luta apagou as injeções que não
+  faziam nada, então o erro caiu de 0,041 para 0,029. Nos pares em que ele
+  injeta, o ganho médio é `+0,35` andar.
+- **Contra o chefe do vault ela ainda não decide a luta, e não é o gatilho.**
+  Ele age duas vezes por turno e o `duelCost` não precifica velocidade — de
+  propósito, é o truque da sala (`balance.md`). Somado ao hp que o bot chuta
+  para baixo, aquela luta é lida por cerca de metade do que custa, e nenhuma
+  mudança em QUANDO injetar alcança isso.
 - **Nunca começa luta** cujo custo esperado passe de `fightMargin` do hp
   efetivo (hp + armadura). Uma criatura que já persegue paga só a
   caminhada — o duelo dela acontece de qualquer jeito — **e paga metade
