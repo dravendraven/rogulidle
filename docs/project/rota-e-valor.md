@@ -516,6 +516,12 @@ sempre aberto", que é a metade do fio que dispara. Três mudanças seguidas
 empurraram esse fio para o mesmo lado (0,838 → 0,828 → 0,845 → 0,908). É o
 número a vigiar na próxima peça.
 
+**Por que ele anda sempre para o mesmo lado:** `docs/project/vault-irrecusavel.md`
+mede o outro efeito do mesmo rateio — o número de baús vira desconto no
+perigo, então mais recompensa deixa a sala mais SEGURA na conta do bot em vez
+de mais arriscada. No vault isso já saturou: o guardião passa a barra em todas
+as seis faixas de Coragem, e a entrada está em 86%.
+
 ---
 
 ## D. A dívida aberta: 0,6 de andar do avarento
