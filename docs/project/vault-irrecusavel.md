@@ -183,3 +183,37 @@ V6 cita "43,5% das runs que chegam entram"; nesta leitura 43,5% é a fração
 de TODAS as runs que o porco mata, e a entrada sobre quem chega é 84%. Pode
 ser coincidência de número. O "22% das lutas travadas são vencidas" do mesmo
 item reproduz aqui em cheio (23,0%).
+
+## Addendum 2 — o custo da Ganância baixa, medido no primeiro objetivo do jogador
+
+O documento acima mede a ENTRADA na sala. Isto mede o que a entrada custa em
+tempo de jogo, usando o alvo que o jogador realmente persegue primeiro: a
+conquista `butcher`, que é a única chave de progressão que existe hoje.
+
+O experimento: uma sessão começa do zero e roda até o primeiro porco morto;
+a espera é em quantas RUNS isso aconteceu. Pareado por seed de sessão, os
+dois braços vendo os mesmos dungeons na mesma ordem.
+
+**Ganância na banda mínima contra o centro, 120 cadeias pareadas:**
+espera 12,79 contra 5,94 runs, **delta pareado +6,85 ± 0,92 (7,4σ)**, e 12
+das 120 sessões NUNCA mataram o porco dentro do teto de 30 runs, contra zero
+no centro. É o mecanismo deste documento aparecendo no relógio do jogador:
+Ganância baixa não entra na sala, e quem não entra não destrava nada.
+
+**E as outras cinco bandas são indistinguíveis entre si.** Num A/B com os
+três dials SORTEADOS a cada cadeia contra o centro, o delta pareado é
++0,88 ± 0,62 (1,4σ) — não passa a barra de 2σ. A aritmética fecha: 6,85
+diluído por seis bandas dá 1,14, dentro do erro do que foi medido. O efeito
+inteiro da escolha aleatória é aquela uma banda.
+
+**A consequência de desenho, que é o que vale guardar.** O dial não oferece
+opções com fraquezas diferentes, que é o que `objectives.md` pede de uma
+escolha ("toda opção precisa de uma fraqueza real, e uma que apareça na
+tela"). Oferece **cinco bandas equivalentes e uma armadilha**. Quem mexe nele
+ou não muda nada, ou se sabota — e não tem como distinguir os dois casos
+olhando. Coragem e Cautela não se separaram do ruído com esta amostra, o que
+é consistente com o sweep de profundidade em `test/baseline.md`.
+
+Ressalva: o alvo aqui é a primeira rung, que cai em 5 runs medianas. Um alvo
+mais alto — limpar a run — pode separar configurações que este não separa, e
+trocar a condição de parada é a única mudança necessária para medir isso.
