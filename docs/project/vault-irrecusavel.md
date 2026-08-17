@@ -151,3 +151,35 @@ a BARRA — `CHEST_VALUE_HP × sideAppetite` — ou a decisão de o andar do vau
 não ter baú nenhum fora dele (`spawn.js` zera `chestCount`), que remove a
 alternativa contra a qual a sala deveria competir. Recusar a sala hoje não é
 escolher outro tesouro, é escolher nenhum.
+
+## Addendum — medido pelo outro lado, e é pior que 86%
+
+Instrumento da cadeia (`src/analysis/chain.js`), herói `base`, dials
+enviados, 200 runs em cada cenário. A definição aqui não é "pisou dentro":
+o bot decide ANTES da luta se sobrevive e **não tem verbo para sair de uma
+que começou** (`items.md`), então quem encara o porco resolve — mata ou
+morre. Enfrentou = matou + morreu para ele. O que sobra é quem nunca
+encostou nele.
+
+**Passou reto e sobreviveu: 1 run em 134 com a loja desligada, 2 em 162 com
+ela ligada.** Entre quem chega ao andar e sai vivo, a sala é obrigatória em
+~99%. Os 86% deste documento contam quem entra sobre quem chega, e a
+diferença é quase toda gente que morre no andar antes de resolver qualquer
+coisa. As duas leituras concordam sobre o mecanismo e discordam sobre o
+tamanho da folga: não há folga.
+
+**E o poder do herói não a torna recusável — torna-a mais atraente.** Com a
+loja ligada a taxa de vitória no duelo quase dobra (23% → 42% dos que
+enfrentam), e a fração dos que chegam e enfrentam SOBE (84% → 92%). Um herói
+mais forte não passa reto com mais frequência; ele entra mais.
+
+**O que isso fecha:** qualquer conserto pelo lado do PREÇO da sala está
+descartado por este documento (hp e baús, cada um do seu lado) e agora
+também pelo lado do poder do herói. O que resta é o que o parágrafo acima
+já apontava — a barra, ou a ausência de alternativa no andar.
+
+**Uma discrepância de rótulo para quem escreveu o backlog conferir.** O item
+V6 cita "43,5% das runs que chegam entram"; nesta leitura 43,5% é a fração
+de TODAS as runs que o porco mata, e a entrada sobre quem chega é 84%. Pode
+ser coincidência de número. O "22% das lutas travadas são vencidas" do mesmo
+item reproduz aqui em cheio (23,0%).
