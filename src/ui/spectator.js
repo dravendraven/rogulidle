@@ -120,7 +120,7 @@ let events = { show: () => {} };
 
 function grab() {
   for (const id of [
-    'grid', 'stage', 'hp', 'xpEarned', 'xpRate', 'steps', 'kills', 'inventory',
+    'grid', 'stage', 'hp', 'stamina', 'xpEarned', 'xpRate', 'steps', 'kills', 'inventory',
     'run', 'tally', 'seed', 'summary', 'summaryTitle', 'summaryBody',
     'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
     'coins', 'coinPopup', 'damage', 'debugInfo', 'app', 'lab', 'dials',

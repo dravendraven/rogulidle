@@ -9,6 +9,7 @@ const cp = String.fromCodePoint;
 const TILES = {
   [cp(0x2b1b)]: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><path fill=\"#31373D\" d=\"M36 32a4 4 0 0 1-4 4H4a4 4 0 0 1-4-4V4a4 4 0 0 1 4-4h28a4 4 0 0 1 4 4v28z\"/></svg>", // wall
   [cp(0x2b1c)]: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><path fill=\"#E6E7E8\" d=\"M36 32a4 4 0 0 1-4 4H4a4 4 0 0 1-4-4V4a4 4 0 0 1 4-4h28a4 4 0 0 1 4 4v28z\"/></svg>", // door
+  [cp(0x26a1)]: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><path fill=\"#FFAC33\" d=\"M20.5 2 6 21h8L10.5 34 30 14h-9L25.5 2z\"/></svg>", // estamina
   // Deep-floor walls and doors — src/ui/depth-theme.js. Same square as the
   // two above in a different colour, which is exactly what Twemoji ships.
   [cp(0x1f7eb)]: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><path fill=\"#C1694F\" d=\"M36 32a4 4 0 0 1-4 4H4a4 4 0 0 1-4-4V4a4 4 0 0 1 4-4h28a4 4 0 0 1 4 4v28z\"/></svg>", // wall, floors 5-8

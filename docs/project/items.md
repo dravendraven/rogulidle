@@ -22,10 +22,24 @@ here. It lives in this document because it is the currency half the attributes
 are priced in and the reason one of the items is possible at all. Once built it
 belongs in `docs/rules.md` like any other rule.*
 
-**The mechanism already exists with the wrong value.** Each floor already runs
-under a turn cap, and running out of it is already a loss condition — today it
-is a safety guard set so high it never fires. Turning it into a design
-constraint is a changed value plus bot work, not a new system.
+**BUILT, in its minimal form — 2026-08-18.** `TURN_BUDGET` was tightened
+from a safety guard that never fired to a real constraint, and the HUD shows
+it as a draining ten-pip bar named ESTAMINA (`docs/rules.md` §8,
+`docs/balance.md` for the value). The bot does not read it — owner decision:
+stamina is player information. Everything below about attributes, boots and
+the bow remains unbuilt design.
+
+**Future refinement, evaluated and parked: exhaustion as a penalty instead
+of a loss.** The owner's idea — running out stuns the hero for ~10 turns
+instead of ending the run, which would allow a much lower budget (100–120)
+and make stamina a resource to master rather than a wall. Evaluated against
+`objectives.md` before the minimal form shipped, and the minimal form won
+for now: the stun risks the SHAMBLE (a decided run dragging on, the named
+failure), and "a resource to master" has nobody to master it while the bot
+does not read stamina. The stun's real advantage is hope — exhausted far
+from danger is a scare, near danger is drama. Three questions block it:
+does stamina refill after the stun; does the stun repeat; do creatures act
+during it. Revisit if watching shows the hard wall reading as anticlimax.
 
 It also makes the bot's own step price stop being a fudge. The bot already
 prices a step; it prices it at nearly nothing because a step costs nearly

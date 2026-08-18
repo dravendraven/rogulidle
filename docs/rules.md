@@ -467,9 +467,10 @@ morder; agora tem nome e valor declarado, e apertá-lo é mudança de valor. O
 propósito é que tempo custe: desviar por uma sala lateral gasta um número
 contável no momento em que a decisão é tomada.
 
-**Estourar não avisa.** Hoje o orçamento é limiar sem barra visível — o herói
-não sente nada até acabar. Tornar isso legível é trabalho separado, e está
-declarado como pendência em vez de deixado implícito.
+**O orçamento aparece na tela como ESTAMINA.** Uma barra de dez marcas na
+UI, drenando ao longo da travessia — outra palavra para o mesmo número, não
+um recurso separado. **O bot não a lê**: estamina é informação do jogador,
+por decisão do dono; o bot continua decidindo sem saber quanto resta.
 
 ## 9. Entre runs
 

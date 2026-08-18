@@ -471,10 +471,15 @@ export const VAULT_CHEST_ITEMS = [
 // ***** time ***** //
 
 // How many turns one TRAVERSAL may spend. Running out ends the traversal
-// without completing, which ends the run (rules.md §8). The only brake on
-// the shamble. Entered loose (at the measured p99 of wandering runs);
-// tightening it is a value change with its own measurement.
-export const TURN_BUDGET = 1500;
+// without completing, which ends the run (rules.md §8). Two jobs now: still
+// the brake on the shamble, and since M-stamina it is the STAMINA the HUD
+// shows as a draining bar — the price of a detour, which map-design.md
+// named as the game's largest open gap ("refusing is never correct").
+// Was 1500, a safety guard that never fired (median traversal ~110 turns);
+// 180 is entered as a real constraint that clips the tail. The bot does
+// NOT read this — owner decision: stamina is player information, and the
+// bot managing it would need a new mechanism, not this value.
+export const TURN_BUDGET = 180;
 
 // ***** coin ***** //
 

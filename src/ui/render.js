@@ -5,7 +5,7 @@
 // what the bot REMEMBERS but cannot currently see, which is the whole point
 // of the fog decision being real — you can watch the map fill in.
 
-import { CLEAR_DIST, monsterEmoji, VISIBLE_DIST } from '../sim/balance.js';
+import { CLEAR_DIST, TURN_BUDGET, monsterEmoji, VISIBLE_DIST } from '../sim/balance.js';
 import { weaponDamage, weaponMinDamage } from '../sim/combat.js';
 import { distSq, posKey } from '../sim/mapgen.js';
 import { tileSvg } from './tiles.js';
@@ -244,6 +244,18 @@ export function renderHud(elements, state, session) {
   const player = state.player;
 
   elements.hp.innerHTML = hearts(player.hp, player.hpMax, player.armour);
+
+  // Stamina — the turn budget, drawn as a draining bar. Ten pips, each a
+  // tenth of TURN_BUDGET, so the bar reads the same on any budget. It
+  // DRAINS rather than fills because what it shows is what is LEFT of the
+  // traversal, and a full-at-the-end bar would read as the opposite. The
+  // bot never reads this number (owner decision, src/sim/balance.js) —
+  // this bar is the player's information, not the bot's.
+  if (elements.stamina) {
+    const left = Math.max(0, TURN_BUDGET - state.turn);
+    const pips = Math.ceil((left / TURN_BUDGET) * 10);
+    elements.stamina.innerHTML = hearts(pips, 10, 0, '⚡');
+  }
 
   // xpEarned carries across floors; state.turn resets to 0 at each one. The
   // rate is only meaningful over the whole run, so session.turnOffset (the
