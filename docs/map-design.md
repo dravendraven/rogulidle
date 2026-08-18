@@ -76,13 +76,19 @@ larger is the wanted behaviour *in the middle*, and wrong everywhere else.
 advance and therefore preparable. An exam with a draw in it is a draw, and the
 attribution the turn exists to provide goes with it.
 
-**2. Two routes to the hole, and choosing is mandatory.** Owner-defined,
-2026-08-18, sharpening the older "alternative routes, with no no-brainer":
-nearly every floor offers a SHORT, DENSE route and a LONG, SPARSE one, and
-reaching the hole means committing to one. Cautela is the driver — the long
-road spends stamina to save blood, the short road the reverse. **The built
-map is still the one-spine subset of this**; the target shape and why it
-answers the open gap are under "The owner's target shape" below.
+**2. Route OPTIONS, priced differently — not a fixed pair.** Owner-defined,
+2026-08-18, twice: first as "two routes always, choosing is mandatory", then
+refined the same day by watching the built form. Floors should offer routes
+with different price profiles — shorter and denser against longer and
+sparser — with Cautela as the driver: the long road spends stamina to save
+blood. **What watching corrected:** exactly-two-always made every seed look
+alike, and a fixed pair reads as ORDERING when the bot clears the floor
+anyway; choice also needs SKIPPING to be possible, which the greed/caution
+economy governs — topology can only offer it. The requirement is options
+varied per seed on maps open enough for alternatives, a theme per generator,
+drawn per floor (`dcss-layouts.md`'s catalogue conclusion, and the owner
+named Diablo as the reference). `decisions.md` M50 has the verdict. **The
+built map is still the one-spine subset.**
 
 **3. A tail of randomness, and the tail has a designed shape of its own.** A
 creature can come from above the floor's band. What changed is that the tail is
@@ -606,7 +612,17 @@ is no cost side". It is: **a cost exists and nothing weighs it.** Making the
 detour refusable needs the decision to carry the price, which is a bot change,
 not a map one — and tightening the budget further before that only buys deaths.
 
-## The owner's target shape — two spines and the bet belt (2026-08-18, unbuilt)
+## The owner's target shape — two spines and the bet belt (2026-08-18)
+
+> **The first concrete form of this — the ring — was built the same day,
+> watched, and refused**: too predictable between seeds, and a fixed pair of
+> routes reads as ordering when the bot clears the floor anyway.
+> `decisions.md` M50 has the verdict and the three learnings. The PHILOSOPHY
+> below stands (route options priced differently, bets off-route, stamina as
+> the long road's currency); the prescription "always a ring, always exactly
+> two" does not. The machinery built for it — second-route derivation, zone
+> classification, the walked-route trace, the route-mass split — is
+> generator-agnostic and stays.
 
 The owner's answer to the open gap above, recorded before any code. It is a
 TOPOLOGY change, not a pricing one — the choice moves from "price this room"

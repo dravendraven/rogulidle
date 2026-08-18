@@ -209,6 +209,43 @@ measured 0.6σ and was nothing. The floor-2-cheaper-than-floor-1 "defect" was
 the same mistake — sampling noise inside overlapping error bars, and M11
 proved the floors monotone in expectation.
 
+## M50 — the ring was built, watched, and refused — 2026-08-18
+
+The two-spine generator landed whole (ring layout, three-zone
+classification, route-mass split, walked-route trace; shipped OFF, the
+shipped game byte-identical) and the owner watched it the same day. Three
+findings, each worth more than the feature:
+
+**1. Authored geometry trades variety for legibility, and the ring paid too
+much.** Every seed looked alike — a circle is a circle. The hub had already
+shown the mild version of this; the ring is the strong version, because a
+cycle constrains the whole floor rather than one centre. **"Recognisable in
+thirty seconds" and "previsível entre seeds" are the two ends of one dial**,
+and a layout that is ALL structure sits at the wrong end.
+
+**2. Two exact routes measured as ordering, not as choice — and the owner
+named why.** The instrumented reading: long-route tile share ~55%, flat
+across the whole Cautela range. The bot CLEARS the floor, so "which route"
+is merely which half it sweeps first. **Route choice only exists where
+skipping is possible**, and skipping is governed by the greed/caution
+economy, not by topology. Topology can only OFFER the choice; whether
+there is one is decided in the bot's ledger. This closes the M50 bet
+("choice falls out of caution × dangerField for free") — it does not, and
+the reason is structural, not a dial.
+
+**3. What the requirement actually is, corrected by watching.** Not "two
+routes always": **route OPTIONS, varied per seed, on maps open enough that
+alternatives exist** — Diablo-like floors, a theme per generator (a crypt
+reads differently from a warren), drawn per floor the way the DCSS study
+(`dcss-layouts.md`) already concluded: a catalogue, not a parameterised
+single shape.
+
+**What survives the refusal:** the classification and trace machinery is
+generator-agnostic — `spine.js` derives a second route on ANY map that
+promises one, `routeVisits` counts on any map that has them, and the
+three-zone placement needs only the promise flag. The ring stays in the
+catalogue as one entry (`RING_EVERY`, off), not as the answer.
+
 ## Difficulty and the map
 
 **CV of a sum falls as 1/√n in the number of independent draws.** Creature
