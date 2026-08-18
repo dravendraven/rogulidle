@@ -459,16 +459,22 @@ variants, in this engine's terms. Reaching past floor 10 OF HELL is meant
 to be very hard already; the Balrog at 20 all but impossible until a long
 accumulation of rewards makes it thinkable. **Each boss conquered pays an
 unlock**, under the constraint `objectives.md` sets for every permanent
-reward: **a different way to lose, never a lower chance of losing.** The
-built `butcher` → hero-picker rung is the template.
+reward: power is allowed, but only SITUATIONAL power — a trade-off that
+pays off in combination with hero and choices, never a plain multiplier.
+The built `butcher` → hero-picker rung is the template.
 
-**The daily highscore pays a permanent SPECIAL ITEM, not power.** Owner
-decision, not to be implemented now: something in the syringe/book family —
-an item tied to a WAY of playing — or the right to equip such an item on a
-hero it does not belong to. Recorded so the reward never drifts into raw
-power: a per-day permanent power reward is the daily compounding channel
-`objectives.md` forbids ("losing a thousand times must never add up to
-winning").
+**The daily highscore pays a permanent SPECIAL ITEM — and power is
+allowed, raw power is not.** Owner decision, not to be implemented now:
+something in the syringe/book family — an item tied to a WAY of playing —
+or the right to equip such an item on a hero it does not belong to. The
+rule it must satisfy is `objectives.md`'s situational-power condition: the
+gain is real but sits behind the difficulty of maximising it — very
+effective or nearly useless depending on the hero, the other choices and
+the conditions. What stays forbidden is the plain multiplier, because a
+per-day permanent multiplier is the daily compounding channel
+("losing a thousand times must never add up to winning"). This is the same
+philosophy `docs/project/dials.md` states for the dials: bands equivalent
+in isolation, the combination is what matters.
 
 **The open question that would make hell the snowball's answer: does the
 pile die descending?** The shelved `game-loop.md` names the missing brake —

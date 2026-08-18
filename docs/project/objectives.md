@@ -162,6 +162,14 @@ earned again does not compound; one that can be earned twice is the circular
 case under another name. **A permanent unlock is safest when it buys a
 different way to lose rather than a lower chance of losing.**
 
+**Permanent power is allowed under one condition: it must be SITUATIONAL,
+never a plain multiplier.** Power that carries a trade-off and pays off only
+in combination — with the hero, with the other choices, with the conditions
+of the run — can be very effective or nearly useless depending on how it is
+deployed. The gain is real, but it sits behind a difficulty of MAXIMISING
+it: extracting the power is itself a problem the player has to solve, which
+is what separates it from a number that simply went up.
+
 **Free variety adds options on the axes that already exist. Unlocked variety
 adds an axis.** One more of something already there is diminishing; something
 that multiplies against everything already owned is not.
