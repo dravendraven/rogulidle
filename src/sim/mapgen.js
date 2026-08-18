@@ -13,7 +13,7 @@ import {
 } from './balance.js';
 
 // Tiles the player and monsters may walk on. FAITHFUL engine.cljs:321.
-import { hubLayout, markDoors } from './layout-hub.js';
+import { hubLayout } from './layout-hub.js';
 import { ringLayout } from './layout-ring.js';
 
 const WALKABLE = ['room', 'door', 'corridor'];
@@ -176,14 +176,30 @@ function rogueLayout(size, options) {
   const rogue = new ROT.Map.Rogue(size, size, {
     cellWidth: options.rogueCells ?? 3,
     cellHeight: options.rogueCells ?? 3,
+    // Owner, 2026-08-18: the shelter floor reads AMPLE — big rooms, wide
+    // halls — in contrast with the cave above it. Rooms near the cell
+    // ceiling instead of ROT's smaller default.
+    roomWidth: options.roomWidth ?? [6, 8],
+    roomHeight: options.roomHeight ?? [5, 7],
   });
   const dug = new Set();
   rogue.create((x, y, value) => {
     if (value === 0) dug.add(x + ',' + y);
   });
+  // Corridors two tiles wide, same owner note. ROT digs 1-wide; dilating
+  // every dug tile one step right and down widens halls and leaves rooms
+  // exactly as they were (their tiles are already dug — re-adding is a
+  // no-op). Clamped inside the border ring.
+  for (const key of [...dug]) {
+    const [x, y] = key.split(',').map(Number);
+    if (x + 1 <= size - 2) dug.add((x + 1) + ',' + y);
+    if (y + 1 <= size - 2) dug.add(x + ',' + (y + 1));
+  }
   // Rogue's rooms are plain {x, y, width, height} in a 2D cell array, and
-  // it reports no doors — markDoors reads them off the finished dig, the
-  // same way the hub does.
+  // it reports no doors. DELIBERATELY none are synthesised either: with the
+  // wide corridors above, markDoors turned every room edge the hall runs
+  // along into a strip of door tiles. Rooms opening straight into wide
+  // halls IS the ample identity this theme is for.
   const rooms = [];
   for (const row of rogue.rooms) {
     for (const r of row) {
@@ -196,7 +212,6 @@ function rogueLayout(size, options) {
       rooms.push(room);
     }
   }
-  markDoors(rooms, dug);
   return { dug, rooms };
 }
 
@@ -207,7 +222,10 @@ function rogueLayout(size, options) {
 // room enough for an anchor.
 function caveLayout(size) {
   const cave = new ROT.Map.Cellular(size, size);
-  cave.randomize(0.5);
+  // 0.45, not 0.5 — owner, 2026-08-18: the cave should read NARROW, tight
+  // passages rather than open caverns, in contrast with the built floors
+  // below it. Less initial floor survives the automaton as thinner veins.
+  cave.randomize(0.45);
   for (let i = 0; i < 4; i++) cave.create();
   // The border stays rock — spawn.js's scans and the wall ring assume it.
   for (let i = 0; i < size; i++) {
