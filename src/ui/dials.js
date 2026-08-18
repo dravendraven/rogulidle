@@ -697,6 +697,24 @@ export const SECTIONS = [
         },
       },
       {
+        // M50 — the two-route ring. Same slider-over-floors shape as
+        // hubEvery above, for the same reason; when both claim a floor the
+        // ring wins (difficulty.js layoutFor).
+        kind: 'model', key: 'ringEvery', label: 'andares em ANEL — duas rotas (0 = nunca)',
+        title: 'Andares com duas rotas', step: 1, range: [0, 10],
+        says: (v) => {
+          const every = v.model.ringEvery;
+          if (!every) return 'nenhum — nenhum andar tem duas rotas';
+          const floors = [];
+          for (let f = every; f <= LEVELS; f += every) floors.push(f);
+          if (!floors.length) return 'nenhum — a conta não alcança o andar 10';
+          const list = floors.length === 1
+            ? `o andar ${floors[0]}`
+            : `andares ${floors.slice(0, -1).join(', ')} e ${floors[floors.length - 1]}`;
+          return `${list} em anel: rota curta e densa ou longa e rala`;
+        },
+      },
+      {
         kind: 'model', key: 'hubBranches', label: 'salas no anel (só na forma central)',
         title: 'Quantos ramos', step: 1, range: [2, 8],
         says: (v) => (v.model.layout === 'hub'
