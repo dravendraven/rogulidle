@@ -112,7 +112,13 @@ Três coisas valem por construção, não por sorteio:
 - **Nada nela é sorteado**, nem onde ela fica: a busca é uma varredura
   determinística. Ela não gasta nenhum número do gerador.
 
-Quando não há espaço para ela no mapa, o andar simplesmente não tem vault.
+Quando não há rocha virgem para ela, o carimbo **desapropria**: escolhe o
+retângulo que engole menos chão andável, nunca um tile da rota obrigatória,
+e sela o anel em volta do corpo para continuar beco sem saída. Nos mapas do
+gerador padrão a varredura pura sempre acha rocha e a desapropriação nunca
+roda; ela existe para os temas densos do catálogo (grade, caverna, anel),
+onde o andar 4 estava saindo sem Butcher. Só num mapa sem nem lugar
+desapropriável o andar fica sem vault.
 O que fica dentro dela está em §3 e §5.
 
 ## 3. Criaturas

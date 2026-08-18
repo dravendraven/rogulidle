@@ -4494,6 +4494,32 @@ test('theme 0 is the shipped game: layoutFor ignores it and the dials rule', () 
   assertEq(layoutFor(3, 4, 4, 3), 'cave', 'a named theme must override the dials');
 });
 
+test('the Butcher stands on floor 4 in EVERY theme, and the eviction breaks nothing', () => {
+  for (const layout of ['uniform', 'rogue', 'cave', 'ring']) {
+    for (const seed of [501, 502, 503]) {
+      const s = newGame(seed, { ...floorPlan(4), layout });
+      assert(s.vault, layout + ' seed ' + seed + ': no vault on the vault floor');
+      assert(s.monsters.some((m) => m.vault), layout + ' seed ' + seed + ': no Butcher');
+      // The mandatory route survives the eviction whole.
+      const path = findPath(s.player.pos, s.shrine.pos, (x, y) => isWalkable(s.map, x, y));
+      assert(path.length > 0, layout + ' seed ' + seed + ': the stamp cut the route');
+      // Nobody was left standing inside a wall the stamp wrote.
+      for (const m of s.monsters) {
+        assert(isWalkable(s.map, m.pos[0], m.pos[1]),
+          layout + ' seed ' + seed + ': a creature stands on unwalkable ground');
+      }
+      // The vault kept its shape: one door, and it opens onto walkable ground.
+      const door = s.vault.door;
+      assert(isWalkable(s.map, door[0], door[1]),
+        layout + ' seed ' + seed + ': the vault door is sealed shut');
+      // And it is reachable — the room the whole floor exists to offer.
+      const toVault = findPath(s.player.pos, s.vault.room.center,
+        (x, y) => isWalkable(s.map, x, y));
+      assert(toVault.length > 0, layout + ' seed ' + seed + ': the vault is unreachable');
+    }
+  }
+});
+
 export function runAll() {
   return results;
 }

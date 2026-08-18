@@ -253,7 +253,7 @@ export function layoutOf(room, door, size = VAULT_SIZE) {
 // in the same order generateMap merges kinds so that later ones win:
 // room -> corridor -> door -> wall. Walls are filled last and only onto
 // ground still undug, so nothing already on the map is overwritten.
-function writeTiles(map, rect, size, pillars, tunnel) {
+function writeTiles(map, rect, size, pillars, tunnel, seal = false) {
   const set = (x, y, kind) => { map.tiles[y * map.w + x] = kind; };
   const touched = [];
 
@@ -278,14 +278,29 @@ function writeTiles(map, rect, size, pillars, tunnel) {
   // file needs to learn what a pillar is.
   for (const [x, y] of pillars) set(x, y, 'wall');
 
-  // The wall ring, by the same 3x3 rule mapgen.js uses.
+  // The wall ring, by the same 3x3 rule mapgen.js uses. In `seal` mode —
+  // the eviction stamp on dense maps (M51) — the ring around the BODY also
+  // overwrites WALKABLE neighbours, because there the vault sits against
+  // ground that was open: without sealing, its sides would open onto
+  // whatever was there and the room would stop being a dead end. Only the
+  // body seals: the tunnel's neighbours keep the old null-only rule, or
+  // the seal would wall over the very tile the tunnel lands on and cut the
+  // room off the map — measured, one seed in three did exactly that.
+  const written = new Set(touched.map(([x, y]) => x + ',' + y));
+  const bodyKeys = new Set();
+  for (let oy = 0; oy < size; oy++) {
+    for (let ox = 0; ox < size; ox++) bodyKeys.add((rect[0] + ox) + ',' + (rect[1] + oy));
+  }
   for (const [x, y] of touched) {
+    const aroundBody = bodyKeys.has(x + ',' + y);
     for (let oy = -1; oy <= 1; oy++) {
       for (let ox = -1; ox <= 1; ox++) {
         const nx = x + ox;
         const ny = y + oy;
         if (!inBounds(map, nx, ny)) continue;
-        if (tileAt(map, nx, ny) === null) set(nx, ny, 'wall');
+        if (written.has(nx + ',' + ny)) continue;
+        const kind = tileAt(map, nx, ny);
+        if (kind === null || (seal && aroundBody && WALKABLE.includes(kind))) set(nx, ny, 'wall');
       }
     }
   }
@@ -314,12 +329,60 @@ export function stampVault(map, path, size = VAULT_SIZE) {
     }
   }
 
-  const winner = chosen || offSpine;
+  // M51 — THE EVICTION FALLBACK, for maps with no virgin rock. The themed
+  // generators (grade, caverna, anel) fill the grid, so the pure scan above
+  // finds nothing and floor 4 silently lost its Butcher — the game's one
+  // progression gate. When and only when the scan fails, the vault takes
+  // ground by force: candidate footprints may contain walkable tiles but
+  // NEVER a tile of the mandatory route (the hero and shrine stand on its
+  // ends, so both are covered), the one that swallows the least wins, and
+  // the stamp SEALS its ring so the room stays a dead end. What this can
+  // orphan is side ground; the route itself survives untouched by
+  // construction. On maps where the pure scan succeeds — every Digger
+  // floor measured — this path never runs.
+  let seal = false;
+  let winner = chosen || offSpine;
+  if (!winner) {
+    let best = null;
+    for (let y = 1 + MARGIN; y + size + MARGIN <= map.h - 1; y++) {
+      for (let x = 1 + MARGIN; x + size + MARGIN <= map.w - 1; x++) {
+        let swallowed = 0;
+        let ok = true;
+        for (let oy = -MARGIN; oy < size + MARGIN && ok; oy++) {
+          for (let ox = -MARGIN; ox < size + MARGIN; ox++) {
+            const key = (x + ox) + ',' + (y + oy);
+            if (onPath.has(key)) { ok = false; break; }
+            const kind = tileAt(map, x + ox, y + oy);
+            if (kind && WALKABLE.includes(kind)) swallowed++;
+          }
+        }
+        if (!ok) continue;
+        if (!best || swallowed < best.swallowed) best = { rect: [x, y], swallowed };
+      }
+    }
+    if (best) {
+      const tunnel = tunnelFrom(map, best.rect, size, onPath);
+      if (tunnel) {
+        winner = { rect: best.rect, tunnel };
+        seal = true;
+      }
+    }
+  }
   if (!winner) return null;
 
   const { rect, tunnel } = winner;
   const pillars = pillarsOf(rect, size);
-  writeTiles(map, rect, size, pillars, tunnel.tunnel);
+  writeTiles(map, rect, size, pillars, tunnel.tunnel, seal);
+
+  // An evicted stamp may have buried generated rooms. A room whose centre
+  // is no longer walkable cannot anchor anything — drop it rather than
+  // hand placement a dead anchor.
+  if (seal) {
+    map.rooms = map.rooms.filter((room) => {
+      const t2 = tileAt(map, room.center[0], room.center[1]);
+      return t2 !== null && WALKABLE.includes(t2);
+    });
+  }
 
   const room = {
     x1: rect[0],

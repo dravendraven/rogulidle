@@ -16,7 +16,7 @@ import {
 import {
   draw, drawChance, drawInt, drawLogUniform, drawPick, drawWeighted,
 } from './rng.js';
-import { findPath, playerPassable, posKey, walkablePositions } from './mapgen.js';
+import { findPath, isWalkable, playerPassable, posKey, walkablePositions } from './mapgen.js';
 import { classifyRooms } from './spine.js';
 import { layoutOf, stampVault } from './vault.js';
 
@@ -396,6 +396,13 @@ export function populate(state, map, counts = {}) {
   if (vaultLevel > 0 && level === vaultLevel) {
     state.vault = stampVault(map, zones.path);
     if (state.vault) {
+      // M51 — an EVICTED stamp (dense themed maps) turns walkable ground
+      // into vault wall, and those tiles are already sitting in `free`.
+      // Purge what stopped being walkable, or a creature could be placed
+      // inside a wall. On the rock-only stamp this deletes nothing.
+      for (const [key, pos] of free) {
+        if (!isWalkable(map, pos[0], pos[1])) free.delete(key);
+      }
       zones = classifyRooms(map, playerPos, shrinePos);
       state.spine = { path: zones.path, sideRooms: zones.side.length,
         spineRooms: zones.spine.length };
