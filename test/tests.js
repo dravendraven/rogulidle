@@ -4520,6 +4520,30 @@ test('the Butcher stands on floor 4 in EVERY theme, and the eviction breaks noth
   }
 });
 
+test('a shipped floors curve reaches the visitor OUTSIDE dev mode', async () => {
+  // Page-only: the panel is DOM. Headless skips rather than failing — the
+  // run-tests.html pass is the one that counts here.
+  if (typeof document === 'undefined') return;
+  const { buildDialPanel } = await import('../src/ui/dials.js');
+  const overrides = {
+    model: {
+      floors: [
+        { from: 1, mapTheme: 3 },
+        { from: 4, mapTheme: 2 },
+      ],
+    },
+  };
+  const div = document.createElement('div');
+  const panel = buildDialPanel(div, { overrides, dev: false });
+  const model = panel.read().model;
+  assert(Array.isArray(model.floors) && model.floors.length >= 2,
+    'the visitor path dropped the floors list');
+  const at4 = model.floors.find((s) => s.from === 4);
+  assertEq(at4 && at4.mapTheme, 2, 'the floor-4 anchor lost its theme');
+  assertEq(model.floors.find((s) => s.from === 1).mapTheme, 3,
+    'the floor-1 anchor lost its theme');
+});
+
 export function runAll() {
   return results;
 }

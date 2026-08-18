@@ -1340,8 +1340,20 @@ export function buildDialPanel(container, {
     applyFloor(1);
   } else {
     // No curve controls drawn — outside dev mode the map section does not
-    // exist. One anchor, straight off what ships.
-    anchors.set(1, { ...resolvedDefaults(overrides).model });
+    // exist. The anchors still come from what SHIPS, the `floors` list
+    // included: dial-overrides.json is "for EVERY visitor" (CLAUDE.md), and
+    // this branch used to seed one bare anchor — which silently dropped the
+    // file's curve for everyone outside dev mode. Found the first time a
+    // floors list actually shipped: the visitor's floor 1 was not the cave
+    // the file asked for. Same seeding as the dev branch above.
+    const shipped = resolvedDefaults(overrides).model;
+    const shippedFloors = (overrides.model && overrides.model.floors) || [];
+    anchors.set(1, { ...shipped });
+    for (const seg of shippedFloors) {
+      const from = Math.max(1, Math.round(seg.from ?? 1));
+      anchors.set(from, { ...(from === 1 ? shipped : anchorAt({ ...shipped, floors: shippedFloors }, from)), ...seg });
+      delete anchors.get(from).from;
+    }
   }
 
   // OUTSIDE the drawer when the page offers somewhere. `.dials` scrolls at
