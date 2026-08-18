@@ -595,6 +595,57 @@ is no cost side". It is: **a cost exists and nothing weighs it.** Making the
 detour refusable needs the decision to carry the price, which is a bot change,
 not a map one — and tightening the budget further before that only buys deaths.
 
+## The owner's target shape — two spines and the bet belt (2026-08-18, unbuilt)
+
+The owner's answer to the open gap above, recorded before any code. It is a
+TOPOLOGY change, not a pricing one — the choice moves from "price this room"
+to "commit to a route".
+
+**1. Two routes to the hole, and choosing is mandatory.** Nearly every floor
+offers a SHORT, DENSE route and a LONG, SPARSE one. Reaching the hole means
+picking one; there is no third way. **Cautela is the driver**: high caution
+reads as the long road (fewer creatures per tile, more stamina spent), low
+caution as the short one (cheaper in turns, dearer in blood). The bot needs
+no new verb for this — `dangerField` already prices tiles by menace and
+caution already multiplies that price, so given the topology, route choice
+should FALL OUT of the machinery that exists. Whether it actually does is
+the first thing to measure.
+
+**2. The side bets stay, parallel to both routes.** The existing bargain,
+governed by Coragem and Ganância, unchanged in principle.
+
+**3. Reward concentrates in the bets; threat mass does not.** The
+reward/threat RATIO is always better off-route than on it — but the reward
+is deliberately NON-UNIFORM across side rooms: a great room and a trap room
+both exist, which is what makes it a bet ("risk and reward have to roll
+separately" is this, already built). The floor's best outcome is only
+reachable through side rooms; the optimum is accepting SOME and refusing
+others — never all, never none.
+
+**What this supersedes, explicitly:**
+
+- **"One mostly-linear mandatory path" (the bargain) becomes two.**
+- **Property 4 needs restating**: threat mass concentrates on the route
+  NETWORK against the sides, and between the two spines the short one is
+  the denser. "The fast route" stops naming one thing.
+- **The map must grow for any of this to mean anything** — on today's small
+  floors distance is trivial, so neither the stamina budget nor a route
+  choice has room to matter. Map size is the enabling condition, not a
+  detail.
+
+**Why this answers the open gap where tightening the budget did not.** The
+measured dead end above stands: a cost the deciding agent never reads
+cannot change a per-room decision, and the owner has ruled the bot does not
+read stamina. This shape routes the cost through a choice the bot ALREADY
+makes — route selection through priced tiles — so the budget differentiates
+OUTCOMES (the long road spends what the short road keeps) without the bot
+ever holding the number. Stamina becomes the currency of caution, hp the
+currency of haste.
+
+**The engine piece closest to this already exists**: `layout-hub.js` draws
+ring layouts, and a ring is two ways around by construction. M8 (layout
+variety) is the adjacent item.
+
 ## Two things to check whenever this area changes
 
 **The shallowest floors and `MIN_ROSTER_FOR_SIDE`.** Changing the creature
