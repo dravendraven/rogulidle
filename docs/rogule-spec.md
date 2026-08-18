@@ -519,7 +519,7 @@ uniforme:
 
 Ou seja, a memória do bot é confiável exatamente nas regiões que ele evita —
 o que é conveniente, e é a base da formalização da regra 1 em
-`docs/bot-strategy.md`.
+`docs/bot-strategy.md` (removido; a regra hoje vive em `docs/bot.md`).
 
 ### 12.3 Exploração passa a ser obrigatória
 
@@ -633,7 +633,7 @@ escudo não torna mais morcegos inofensivos.
 
 Com o teto, **HP vira recurso não-renovável**. Toda a estratégia do bot se
 reorganiza em volta disso: a ordem dos duelos deixa de ser otimização de
-margem e passa a determinar se a run termina. Ver `bot-strategy.md` §5.
+margem e passa a determinar se a run termina. Ver `docs/bot.md` (substituiu `bot-strategy.md`).
 
 ### 13.4 HP máximo cresce com as mortes (M6)
 
@@ -641,7 +641,7 @@ margem e passa a determinar se a run termina. Ver `bot-strategy.md` §5.
 início ao fim, e §13.2 tinha acabado de restaurar essa invariante depois do
 experimento de "armadura como HP extra" que a quebrava.
 
-**Reabrimos a invariante de propósito.** Medido (`docs/observed-ruler.md`):
+**Reabrimos a invariante de propósito.** Medido (`docs/observed-ruler.md`, removido na simplificação):
 o *buffer* (`hp efetivo ÷ golpe médio do andar`) **cai** ao longo da
 descida — o herói termina absorvendo uma fração dos golpes que absorvia no
 começo, enquanto o desafio sobe. Todo o programa de variância planejado

@@ -117,9 +117,11 @@ dimensionless, so the dial IS the ratio between hurry and danger. It prices
 two things per turn in the same unit: what can HIT the hero, and how much more
 of the map a tile opens than where he stands. **9.6, and MEASURED rather than
 derived** — it was `MEAN_BITE / stepCost` until the uncertainty term went in
-and put that centre past the top of the curve. It is the first dial here to
-move survival across its bands. It is a hero trait and NOT one of the three player bands — see
-`src/ui/dials.js` for why.
+and put that centre past the top of the curve. It moves depth across its bands (the plateau starts at the fourth
+band; everything below is worse) but **deaths read 1.00 flat** — the
+survival spread it once showed was a per-tile uncertainty bug, not the dial
+(`config.js` documents the correction). It is a hero trait and NOT one of
+the three player bands — see `src/ui/dials.js` for why.
 
 **It is no longer what a visitor plays.** Each one gets a band ROLLED per
 dial on their first session (`src/ui/dials.js`), kept from then on — so

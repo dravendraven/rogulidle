@@ -914,6 +914,15 @@ swapping who presses the button later does not change the mechanic underneath.
 `owner idea` · **UNSCHEDULED — spectator control, the territory already
 flagged as deferred until bot/map base is done. Recorded, not blocking.**
 
+> **THIS SECTION WAS WRITTEN AGAINST THE OLD BOT API.** Constants it names
+> (`DUEL_SAFETY_MARGIN`, `STEP_COST_IN_HP`, `TACTICAL_DEPTH`,
+> `UNKNOWN_MONSTER_ESTIMATE`, `DANGER_FALLOFF`) were removed or renamed in the
+> simplification. The ANALYSIS is still valid — what each hero should feel
+> like, why Ricardo’s original premise was wrong, why Pawa’s exploration hook
+> is dead. The CONSTANTS it maps those behaviours to are stale. Today’s
+> equivalents live in `src/bot/config.js` (`DEFAULT_HERO` and its fields:
+> `bravery`, `sideAppetite`, `caution`, `fightMargin`, `stepCost`).
+
 **Status changed at the premise level, not here.** `objectives.md` was
 rewritten around a premise in which the player chooses a hero, so U7 now has a
 **filed backlog item** carrying the premise, the three tests a choice has to
@@ -943,7 +952,8 @@ padrão," with "lookahead melhor." Checked against the code and the docs:
 not off. There is nothing to turn on.
 
 **"Melhor lookahead" means deeper `TACTICAL_DEPTH`, and depth 3 was built,
-measured, and is worse — on record, not a guess.** `bot-strategy.md` §4.4:
+measured, and is worse — on record, not a guess.** `bot-strategy.md` §4.4
+(file removed in the simplification; the finding survives in this paragraph):
 depth 1 wins 37/60 against 31/60 with the search off; depth 3 does not
 improve win rate and its hits-per-kill triples (2.76 to 11.01) — **it does
 not dodge, it hesitates**, absorbing weak hits against a monster instead of
