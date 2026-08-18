@@ -117,8 +117,12 @@ retângulo que engole menos chão andável, nunca um tile da rota obrigatória,
 e sela o anel em volta do corpo para continuar beco sem saída. Nos mapas do
 gerador padrão a varredura pura sempre acha rocha e a desapropriação nunca
 roda; ela existe para os temas densos do catálogo (grade, caverna, anel),
-onde o andar 4 estava saindo sem Butcher. Só num mapa sem nem lugar
-desapropriável o andar fica sem vault.
+onde o andar 4 estava saindo sem Butcher. Quando nem isso existe — uma rota
+comprida o bastante para cruzar todo retângulo possível — a desapropriação
+pode cortar a própria rota, desde que herói e buraco continuem ligados por
+outro caminho (verificado, e revertido se quebrar); só as duas pontas, onde
+eles estão de pé, são invioláveis. Só num mapa sem nada disso o andar fica
+sem vault.
 O que fica dentro dela está em §3 e §5.
 
 ## 3. Criaturas

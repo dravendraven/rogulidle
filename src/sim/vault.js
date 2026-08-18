@@ -23,7 +23,7 @@
 // — and then writes tiles into it, which is the one way it differs.
 
 import { VAULT_SIZE } from './balance.js';
-import { tileAt } from './mapgen.js';
+import { findPath, tileAt } from './mapgen.js';
 
 // Undug ground kept between the vault and everything else, so the stamp can
 // never fuse the vault onto a room that is already there. Not a dial: at 0
@@ -366,6 +366,57 @@ export function stampVault(map, path, size = VAULT_SIZE) {
         winner = { rect: best.rect, tunnel };
         seal = true;
       }
+    }
+  }
+
+  // STAGE TWO of the eviction — measured 1 rogue seed in 60: a route long
+  // enough to snake the whole grid leaves NO footprint that avoids it, and
+  // stage one gives up. On a map with loops the route is not sacred — it is
+  // just the shortest path, and cutting it is fine IF another way around
+  // exists. So: allow footprints over the route (never over its two ENDS,
+  // where the hero and the hole physically stand), stamp on a snapshot,
+  // verify hero→shrine connectivity survived, and revert if it did not.
+  // Deterministic — candidates in swallowed-then-grid order, no draw — and
+  // bounded to a couple dozen attempts.
+  if (!winner) {
+    const heroKey = path[0] ? path[0][0] + ',' + path[0][1] : null;
+    const endKey = path.length ? path[path.length - 1][0] + ',' + path[path.length - 1][1] : null;
+    const candidates = [];
+    for (let y = 1 + MARGIN; y + size + MARGIN <= map.h - 1; y++) {
+      for (let x = 1 + MARGIN; x + size + MARGIN <= map.w - 1; x++) {
+        let swallowed = 0;
+        let ok = true;
+        for (let oy = -MARGIN; oy < size + MARGIN && ok; oy++) {
+          for (let ox = -MARGIN; ox < size + MARGIN; ox++) {
+            const key = (x + ox) + ',' + (y + oy);
+            if (key === heroKey || key === endKey) { ok = false; break; }
+            const kind = tileAt(map, x + ox, y + oy);
+            if (kind && WALKABLE.includes(kind)) swallowed++;
+          }
+        }
+        if (ok) candidates.push({ rect: [x, y], swallowed });
+      }
+    }
+    candidates.sort((a, b) => a.swallowed - b.swallowed);
+    const passable = (x, y) => WALKABLE.includes(tileAt(map, x, y));
+    for (const cand of candidates.slice(0, 24)) {
+      const tunnel = tunnelFrom(map, cand.rect, size, onPath);
+      if (!tunnel) continue;
+      const saved = map.tiles.slice();
+      writeTiles(map, cand.rect, size, pillarsOf(cand.rect, size), tunnel.tunnel, true);
+      const survives = path.length
+        ? findPath(path[0], path[path.length - 1], passable).length > 0
+        : true;
+      if (survives) {
+        winner = { rect: cand.rect, tunnel };
+        seal = true;
+        // The tiles are already written; writeTiles below would write the
+        // same thing again, harmlessly — but restore first so the single
+        // write path stays the only one that counts.
+        map.tiles = saved;
+        break;
+      }
+      map.tiles = saved;
     }
   }
   if (!winner) return null;

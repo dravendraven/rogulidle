@@ -4496,7 +4496,10 @@ test('theme 0 is the shipped game: layoutFor ignores it and the dials rule', () 
 
 test('the Butcher stands on floor 4 in EVERY theme, and the eviction breaks nothing', () => {
   for (const layout of ['uniform', 'rogue', 'cave', 'ring']) {
-    for (const seed of [501, 502, 503]) {
+    // 510 is the measured stage-two seed: a 72-tile route left no
+    // footprint off it, so the vault CUTS the route and connectivity must
+    // survive by the map's own loops.
+    for (const seed of [501, 502, 503, 510]) {
       const s = newGame(seed, { ...floorPlan(4), layout });
       assert(s.vault, layout + ' seed ' + seed + ': no vault on the vault floor');
       assert(s.monsters.some((m) => m.vault), layout + ' seed ' + seed + ': no Butcher');
