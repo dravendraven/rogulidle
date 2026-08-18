@@ -9,7 +9,8 @@ import {
   ITEM_TABLE, MONSTER_COUNT,
   MONSTER_DIFFICULTY_SCALE, MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE,
   MONSTER_WEIGHTS, PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE,
-  SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE, VAULT_BOSS,
+  SHORT_ROUTE_MASS_SHARE, SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS,
+  SPINE_THREAT_SHARE, VAULT_BOSS,
   VAULT_BOSS_DROP, VAULT_CHEST_ITEMS, VAULT_LEVEL, WEAPON_AXE_MIN_TIER,
 } from './balance.js';
 import {
@@ -283,9 +284,15 @@ export function populate(state, map, counts = {}) {
     }
   }
 
+  // M50 — the ring layout AUTHORS the hero's room (and the shrine's,
+  // below): the longest pair on a cycle is diametric, which would delete
+  // the arc asymmetry the layout exists for. A layout that placed nobody
+  // falls through to the search.
+  const heroRoom = map.rooms.find((room) => room.role === 'hero');
   // Fewer than two reachable rooms — a degenerate map, kept working the
   // old way rather than left to place nothing.
-  const playerPos = bestPair ? bestPair.a.center : pickFree();
+  const playerPos = heroRoom ? heroRoom.center
+    : bestPair ? bestPair.a.center : pickFree();
   takeFree(playerPos);
   state.player = {
     pos: playerPos,
@@ -341,10 +348,14 @@ export function populate(state, map, counts = {}) {
   // or a `furthestLength` of 0).
   const distanceThreshold = furthestLength
     * (counts.shrineDistanceShare ?? SHRINE_DISTANCE_SHARE);
+  const authoredShrine = map.rooms.find((room) => room.role === 'shrine');
   const distantRooms = roomPaths.filter((entry) => entry.path.length >= distanceThreshold);
-  const shrineEntry = distantRooms.length
-    ? distantRooms[drawInt(state, 'spawn', 0, distantRooms.length - 1)]
-    : (roomPaths.length ? roomPaths[roomPaths.length - 1] : null);
+  // The authored room consumes no draw — a ring floor's shrine is a
+  // computed position, same as its hero.
+  const shrineEntry = authoredShrine ? { center: authoredShrine.center }
+    : distantRooms.length
+      ? distantRooms[drawInt(state, 'spawn', 0, distantRooms.length - 1)]
+      : (roomPaths.length ? roomPaths[roomPaths.length - 1] : null);
   const shrinePos = shrineEntry ? shrineEntry.center : playerPos;
   takeFree(shrinePos);
   // The way OUT of the floor. Drawn as a hole rather than the original's
@@ -531,13 +542,26 @@ export function populate(state, map, counts = {}) {
   // and 3, under the 70% the design calls for. A lone creature behind a
   // detour is not a gamble anyway; it is one fight in a side room.
   const sideTarget = monsterCount >= MIN_ROSTER_FOR_SIDE ? 1 - spineShare : 0;
-  let spineMass = 0;
-  let sideMass = 0;
 
-  const freeIn = (wantSide) => {
+  // M50 — the placement thinks in ZONES now: 'short', 'long', 'side'. On a
+  // map with no second route `zoneAt` never answers 'long', its target is
+  // zero, and the greedy below reproduces the old side-vs-spine split
+  // decision for decision. On a two-route map the route mass itself splits:
+  // the short road takes the denser share, which is what makes it the
+  // dangerous bargain and the long road the slow one.
+  const shortShare = counts.shortRouteMassShare ?? SHORT_ROUTE_MASS_SHARE;
+  const routeTarget = 1 - sideTarget;
+  const zoneTarget = {
+    side: sideTarget,
+    short: zones.twoRoutes ? routeTarget * shortShare : routeTarget,
+    long: zones.twoRoutes ? routeTarget * (1 - shortShare) : 0,
+  };
+  const zoneMass = { side: 0, short: 0, long: 0 };
+
+  const freeIn = (zone) => {
     const out = [];
     for (const pos of free.values()) {
-      if (zones.isSide(pos) === wantSide) out.push(pos);
+      if (zones.zoneAt(pos) === zone) out.push(pos);
     }
     return out;
   };
@@ -547,14 +571,14 @@ export function populate(state, map, counts = {}) {
   // spill across the spine/side line even when the walk passes through it.
   // `clusterSize` 1 never advances past the anchor itself, so it costs
   // nothing extra to have this run unconditionally.
-  const clusterAround = (anchor, wantSide, limit) => {
+  const clusterAround = (anchor, wantZone, limit) => {
     const order = [];
     const seen = new Set([posKey(anchor)]);
     const queue = [anchor];
     let head = 0;
     while (head < queue.length && order.length < limit) {
       const pos = queue[head++];
-      if (free.has(posKey(pos)) && zones.isSide(pos) === wantSide) order.push(pos);
+      if (free.has(posKey(pos)) && zones.zoneAt(pos) === wantZone) order.push(pos);
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const next = [pos[0] + dx, pos[1] + dy];
         const key = posKey(next);
@@ -587,9 +611,10 @@ export function populate(state, map, counts = {}) {
     // monster rather than shared across the whole floor.
     const dropTemplate = drawWeighted(state, 'spawn', weaponWeightsFor(template));
 
-    const side = zones.isSide(pos);
+    const zone = zones.zoneAt(pos);
+    const side = zone === 'side';
     const mass = template.hp * Math.max(0, template.xp - 1);
-    if (side) sideMass += mass; else spineMass += mass;
+    zoneMass[zone] += mass;
 
     state.monsters.push({
       id: nextId(state),
@@ -609,6 +634,10 @@ export function populate(state, map, counts = {}) {
       // to check the floor came out at the ratio that was asked for, and by
       // the bot to tell a mandatory fight from an optional one.
       side,
+      // M50 — which zone it landed in ('short' / 'long' / 'side'). A
+      // measurement channel, never observed: observe.js's whitelist does
+      // not carry it, so the bot cannot read it.
+      zone,
       drop: carries && dropTemplate ? makeItem(state, dropTemplate, pos) : null,
     });
   };
@@ -616,10 +645,43 @@ export function populate(state, map, counts = {}) {
   // Decided fresh every time it is asked — used both between clusters and,
   // as of M10, within one, so a cluster large enough to hold the whole
   // roster cannot single-handedly decide the floor's split.
-  const quotaWantsSide = () => {
-    const running = spineMass + sideMass;
-    return running > 0 ? (sideMass / running) < sideTarget : sideTarget >= 0.5;
+  const quotaZone = () => {
+    // On a one-route map this is the OLD boolean, verbatim — including its
+    // strict `<` and its `>= 0.5` empty-floor tie — so no shipped seed can
+    // come out differently because a third zone exists elsewhere.
+    if (!zones.twoRoutes) {
+      const running = zoneMass.side + zoneMass.short;
+      const wantSide = running > 0
+        ? (zoneMass.side / running) < sideTarget
+        : sideTarget >= 0.5;
+      return wantSide ? 'side' : 'short';
+    }
+    // Two routes: the zone furthest below its target share.
+    const running = zoneMass.side + zoneMass.short + zoneMass.long;
+    let best = null;
+    let bestDeficit = -Infinity;
+    for (const zone of ['side', 'short', 'long']) {
+      const share = running > 0 ? zoneMass[zone] / running : 0;
+      const deficit = zoneTarget[zone] - share;
+      if (deficit > bestDeficit) { bestDeficit = deficit; best = zone; }
+    }
+    return best;
   };
+
+  // M50 — the walked-route trace. The tile sets live on the STATE as plain
+  // key->1 objects so step.js can classify a move without re-deriving the
+  // routes every turn; `routeVisits` is the counter dungeon.js reports per
+  // level. Only on maps that really have two routes — legacy states carry
+  // neither field.
+  if (zones.twoRoutes) {
+    const routeTiles = { short: {}, long: {} };
+    for (const pos of walkablePositions(map)) {
+      const route = zones.routeOf(pos);
+      if (route) routeTiles[route][posKey(pos)] = 1;
+    }
+    state.routes = routeTiles;
+    state.player.routeVisits = { short: 0, long: 0 };
+  }
 
   state.monsters = [];
   while (state.monsters.length < monsterCount) {
@@ -628,18 +690,25 @@ export function populate(state, map, counts = {}) {
     // Decided once per CLUSTER-START, not per monster — at clusterSize 1
     // this is the same thing, since a cluster of one member is exactly one
     // monster.
-    const wantSide = quotaWantsSide();
+    const wantZone = quotaZone();
 
-    // Fall back to the other zone rather than dropping the cluster: a map
-    // with no side rooms must still receive its full roster.
-    let pool = freeIn(wantSide);
-    let actualSide = wantSide;
-    if (!pool.length) { pool = freeIn(!wantSide); actualSide = !wantSide; }
+    // Fall back to the other zones rather than dropping the cluster: a map
+    // with no side rooms must still receive its full roster. The fallback
+    // order is fixed, not re-derived, so an empty pool costs no draw and
+    // legacy floors walk the same two-zone sequence they always did.
+    const fallback = { side: ['short', 'long'], short: ['side', 'long'], long: ['short', 'side'] };
+    let pool = freeIn(wantZone);
+    let actualZone = wantZone;
+    for (const zone of fallback[wantZone]) {
+      if (pool.length) break;
+      pool = freeIn(zone);
+      actualZone = zone;
+    }
     if (!pool.length) break;
 
     const anchor = pool[drawInt(state, 'spawn', 0, pool.length - 1)];
     const remaining = monsterCount - state.monsters.length;
-    const positions = clusterAround(anchor, actualSide, Math.min(clusterSize, remaining));
+    const positions = clusterAround(anchor, actualZone, Math.min(clusterSize, remaining));
     // The anchor is always free and in its own zone, so this can only be
     // empty if `remaining` is 0 — guarded by the while condition above.
 
@@ -674,7 +743,7 @@ export function populate(state, map, counts = {}) {
     // `quotaWantsSide` above, just re-run per member instead of once.
     let placedInThisCluster = 0;
     for (const pos of positions) {
-      if (placedInThisCluster > 0 && quotaWantsSide() !== actualSide) break;
+      if (placedInThisCluster > 0 && quotaZone() !== actualZone) break;
       placeOne(pos, template);
       placedInThisCluster++;
     }

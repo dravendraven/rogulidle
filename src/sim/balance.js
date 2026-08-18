@@ -90,6 +90,23 @@ export const HUB_EVERY = 0;
 export const HUB_BRANCHES = 4;
 export const HUB_RINGS = 1;
 
+// M50 — the ring layout (src/sim/layout-ring.js): rooms in a CYCLE, so the
+// floor has two routes to the hole and choosing one is mandatory. The
+// generator half of docs/map-design.md's "The owner's target shape".
+// RING_EVERY works exactly like HUB_EVERY and 0 is OFF — which is the
+// shipped game: the layout exists behind this dial, unjudged.
+export const RING_EVERY = 0;
+// GUESS — rooms on the ring, and how many inward spur rooms (the side
+// bets) hang off it. Room size is solved down from ROOM_WIDTH/HEIGHT the
+// same way the hub does it.
+export const RING_ROOMS = 8;
+export const RING_SPURS = 3;
+// GUESS — of the mass placed ON the routes, the short route's share. A new
+// parameter because no existing one could carry it: SPINE_THREAT_SHARE
+// divides route-vs-side and nothing divided route-vs-route — the axis did
+// not exist before the second route did. Only read on two-route maps.
+export const SHORT_ROUTE_MASS_SHARE = 0.7;
+
 // GUESS — how much of the grid the digger hollows out. Lower means fewer,
 // more separate rooms — the map design needs a MANDATORY path to exist, and
 // at ROT's default 0.2 there are usually several equivalent ways through.

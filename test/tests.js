@@ -4321,6 +4321,115 @@ test('a clear keeps the pile, and the next purchase adds to it', () => {
   }
 });
 
+// ===== M50 — the second spine: the ring layout and the route trace =====
+
+// A floor plan asking for the ring. Built on a real plan so difficulty,
+// scarcities and everything else stay the shipped values — only the layout
+// and its own numbers change. The vault is switched off: it stamps over
+// the ring's geometry and these tests are about the geometry.
+const ringPlan = (over = {}) => ({
+  ...floorPlan(2),
+  layout: 'ring', ringRooms: 8, ringSpurs: 3, vaultLevel: 0,
+  ...over,
+});
+
+test('a ring floor has two routes, and they only share the end rooms', () => {
+  const state = newGame(1111, ringPlan());
+  const zones = classifyRooms(state.map, state.player.pos, state.shrine.pos);
+  assert(state.map.twoRoutes === true, 'the ring did not promise two routes');
+  assert(zones.twoRoutes, 'classification found no second route');
+  assert(zones.longPath.length > 0, 'the long path is empty');
+
+  // Disjoint outside the two end rooms: no shared tile that is not inside
+  // the hero's or the shrine's own room.
+  const heroRoom = zones.roomOf(state.player.pos);
+  const shrineRoom = zones.roomOf(state.shrine.pos);
+  const inEnds = ([x, y]) => (
+    (x >= heroRoom.x1 && x <= heroRoom.x2 && y >= heroRoom.y1 && y <= heroRoom.y2)
+    || (x >= shrineRoom.x1 && x <= shrineRoom.x2 && y >= shrineRoom.y1 && y <= shrineRoom.y2));
+  const shortKeys = new Set(zones.path.filter((p) => !inEnds(p)).map(([x, y]) => x + ',' + y));
+  const shared = zones.longPath.filter((p) => !inEnds(p))
+    .filter(([x, y]) => shortKeys.has(x + ',' + y));
+  assertEq(shared.length, 0, 'the two routes share interior tiles: ' + JSON.stringify(shared));
+});
+
+test('the long route is genuinely longer than the short one', () => {
+  const state = newGame(1111, ringPlan());
+  const zones = classifyRooms(state.map, state.player.pos, state.shrine.pos);
+  assert(zones.longPath.length > zones.path.length,
+    `long ${zones.longPath.length} is not longer than short ${zones.path.length}`);
+});
+
+test('the ring authors the hero and the hole, and spawn honours both', () => {
+  const state = newGame(1111, ringPlan());
+  const heroRoom = state.map.rooms.find((r) => r.role === 'hero');
+  const shrineRoom = state.map.rooms.find((r) => r.role === 'shrine');
+  assert(heroRoom && shrineRoom, 'the ring did not mark its end rooms');
+  assertEq(state.player.pos.join(','), heroRoom.center.join(','), 'hero not in the authored room');
+  assertEq(state.shrine.pos.join(','), shrineRoom.center.join(','), 'hole not in the authored room');
+});
+
+test('spur rooms are side ground — on neither route', () => {
+  const state = newGame(1111, ringPlan());
+  const zones = classifyRooms(state.map, state.player.pos, state.shrine.pos);
+  const spurs = state.map.rooms.filter((r) => r.arc === 'spur');
+  assert(spurs.length > 0, 'the ring placed no spurs at all');
+  for (const spur of spurs) {
+    assert(zones.isSide(spur.center), 'a spur room came out on a route');
+  }
+});
+
+test('the short route takes the denser mass share', () => {
+  // A roster big enough for the split to be visible, cluster 1 so every
+  // creature draws its own zone.
+  const state = newGame(1111, ringPlan({ monsters: 14, clusterSize: 1 }));
+  const mass = { short: 0, long: 0, side: 0 };
+  for (const m of state.monsters) {
+    if (m.vault || !m.zone) continue;
+    mass[m.zone] += m.hpMax * Math.max(0, m.xp - 1);
+  }
+  assert(mass.long > 0, 'nothing was placed on the long route');
+  assert(mass.short > mass.long,
+    `short ${mass.short} not denser than long ${mass.long}`);
+});
+
+test('a ring floor is deterministic — same seed, same map, same roster', () => {
+  const a = newGame(2222, ringPlan());
+  const b = newGame(2222, ringPlan());
+  assertEq(JSON.stringify(a.map.tiles), JSON.stringify(b.map.tiles), 'maps differ');
+  assertEq(JSON.stringify(a.monsters), JSON.stringify(b.monsters), 'rosters differ');
+});
+
+test('a digger floor is untouched: no second route, no route trace', () => {
+  const state = newGame(1111, floorPlan(2));
+  const zones = classifyRooms(state.map, state.player.pos, state.shrine.pos);
+  assert(!state.map.twoRoutes, 'a digger map promised two routes');
+  assert(!zones.twoRoutes, 'classification invented a second route');
+  assertEq(zones.longPath.length, 0, 'a digger map got a long path');
+  assert(!state.routes, 'a digger state carries route tiles');
+  assert(!state.player.routeVisits, 'a digger hero counts route visits');
+});
+
+test('walking a route tile is counted, and the counter rides the level row', () => {
+  const state = newGame(1111, ringPlan());
+  assert(state.routes && state.player.routeVisits, 'the trace fields are missing');
+
+  // Step onto any adjacent walkable ROUTE tile and expect the counter to
+  // move. The hero room is on the short route, so its own tiles count.
+  const [px, py] = state.player.pos;
+  const dirs = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] };
+  let moved = null;
+  for (const [action, [dx, dy]] of Object.entries(dirs)) {
+    const key = (px + dx) + ',' + (py + dy);
+    if (state.routes.short[key] || state.routes.long[key]) { moved = action; break; }
+  }
+  assert(moved, 'no adjacent route tile to step onto');
+  const before = state.player.routeVisits.short + state.player.routeVisits.long;
+  const { state: after } = step(state, moved);
+  const total = after.player.routeVisits.short + after.player.routeVisits.long;
+  assertEq(total, before + 1, 'the move onto a route tile was not counted');
+});
+
 export function runAll() {
   return results;
 }

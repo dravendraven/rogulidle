@@ -14,6 +14,7 @@ import {
 
 // Tiles the player and monsters may walk on. FAITHFUL engine.cljs:321.
 import { hubLayout } from './layout-hub.js';
+import { ringLayout } from './layout-ring.js';
 
 const WALKABLE = ['room', 'door', 'corridor'];
 
@@ -146,10 +147,12 @@ export function generateMap(mapSeed, size = MAP_SIZE, options = {}) {
   // asked for — a floor is not optional, so that falls back to the Digger
   // rather than failing. The dial can ask for something that does not fit;
   // the game still has to start.
-  const hub = options.layout === 'hub'
+  const authored = options.layout === 'hub'
     ? hubLayout(size, options, () => ROT.RNG.getUniform())
-    : null;
-  const { dug, rooms } = hub ?? diggerLayout(size, options);
+    : options.layout === 'ring'
+      ? ringLayout(size, options, () => ROT.RNG.getUniform())
+      : null;
+  const { dug, rooms } = authored ?? diggerLayout(size, options);
 
   // Classify every position, in the same order the original merges them so
   // that later kinds win over earlier ones (generator.cljs:204):
@@ -210,7 +213,13 @@ export function generateMap(mapSeed, size = MAP_SIZE, options = {}) {
     tiles[y * size + x] = value;
   }
 
-  return { w: size, h: size, tiles, rooms };
+  const map = { w: size, h: size, tiles, rooms };
+  // M50 — the ring layout PROMISES a second hero-to-hole route, and this
+  // flag is how spine.js knows to go looking for it. Derived maps (Digger,
+  // hub) never set it: a loop the Digger happens to dig is an accident,
+  // not a design, and classifying it would change the shipped game.
+  if (authored && authored.twoRoutes) map.twoRoutes = true;
+  return map;
 }
 
 // Every walkable position, sorted, so that placement is reproducible.

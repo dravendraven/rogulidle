@@ -73,6 +73,17 @@ alvo do mapa.
 são salas laterais, opcionais. A divisão é o eixo de desenho do mapa — risco
 obrigatório contra risco escolhido.
 
+**Existe um layout de DUAS rotas, e ele sai desligado.** Atrás de um dial
+próprio (`RING_EVERY`, como o do hub), um andar pode ser gerado como anel:
+duas rotas disjuntas ligam o herói ao buraco — uma curta e mais densa em
+ameaça, uma longa e mais rala — e chegar exige escolher uma. As salas
+laterais viram becos pendurados para dentro do anel. Nesses andares o motor
+conta em qual rota o herói pisou (`routeVisits`, na linha do andar), o bot
+não recebe rótulo nenhum de rota, e herói e buraco são posicionados pelo
+próprio layout, a um terço de volta um do outro — não pelo par mais
+distante, que apagaria a assimetria. O desenho por trás está em
+`docs/map-design.md`.
+
 **Herói e buraco nascem em salas distantes entre si**, e o buraco fica numa
 sala distante, não na mais distante possível.
 

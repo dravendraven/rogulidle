@@ -315,6 +315,10 @@ export function playDungeon(seed, makePolicy, options = {}) {
       armour: player.armour,
       xp: player.xp,
       gear: player.inventory.filter((i) => i.dmg || i.armour).length,
+      // M50 — which route the hero walked, when the floor had two. Absent
+      // on one-route floors rather than zeroed, so a reader can tell "no
+      // choice existed" from "chose neither".
+      ...(player.routeVisits ? { routeVisits: player.routeVisits } : {}),
       arrivedWith,
       roster,
       chests,

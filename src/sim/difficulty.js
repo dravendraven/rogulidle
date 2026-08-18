@@ -13,6 +13,7 @@
 import {
   CHEST_GUARD_RADIUS, CHEST_LOOT_CHANCE, CORRIDOR_MIN, corridorRange, EARLY_TIER_CUT,
   FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL, MAP_DUG_PERCENTAGE, MAP_SIZE,
+  RING_EVERY, RING_ROOMS, RING_SPURS, SHORT_ROUTE_MASS_SHARE,
   HUB_BRANCHES, HUB_EVERY, HUB_RINGS,
   ROOM_BIAS, ROOM_HEIGHT, ROOM_SCALE, ROOM_WIDTH, roomRange,
   MONSTER_DROP_CHANCE, MONSTER_TABLE,
@@ -160,7 +161,8 @@ export function tierSlack(step, model = {}) {
 // sees. Every Nth floor is a hub and the rest are ROT's accretion; 0 is
 // never. One place, so `floorParams` and `makeFloorPlan` cannot disagree
 // about which floors are which, and the one place a third layout is added.
-export function layoutFor(floor, every = HUB_EVERY) {
+export function layoutFor(floor, every = HUB_EVERY, ringEvery = RING_EVERY) {
+  if (ringEvery > 0 && floor % ringEvery === 0) return 'ring';
   return every > 0 && floor % every === 0 ? 'hub' : 'digger';
 }
 
@@ -193,6 +195,9 @@ export function floorParams(level) {
     layout: layoutFor(level + 1),
     hubBranches: HUB_BRANCHES,
     hubRings: HUB_RINGS,
+    ringRooms: RING_ROOMS,
+    ringSpurs: RING_SPURS,
+    shortRouteMassShare: SHORT_ROUTE_MASS_SHARE,
     roomWidth: roomRange(ROOM_WIDTH),
     roomHeight: roomRange(ROOM_HEIGHT),
     shrineDistanceShare: SHRINE_DISTANCE_SHARE,
@@ -271,6 +276,10 @@ export const DEFAULT_MODEL = {
   hubEvery: HUB_EVERY,
   hubBranches: HUB_BRANCHES,
   hubRings: HUB_RINGS,
+  ringEvery: RING_EVERY,
+  ringRooms: RING_ROOMS,
+  ringSpurs: RING_SPURS,
+  shortRouteMassShare: SHORT_ROUTE_MASS_SHARE,
   shrineDistanceShare: SHRINE_DISTANCE_SHARE,
   vaultLevel: VAULT_LEVEL,
   vaultChestItems: undefined,
@@ -441,9 +450,12 @@ export function makeFloorPlan(model = {}) {
     roomBias: m.roomBias,
     corridorLength: corridorRange(m.corridorMin),
     mapSize: m.mapSize,
-    layout: layoutFor(level, m.hubEvery),
+    layout: layoutFor(level, m.hubEvery, m.ringEvery),
     hubBranches: m.hubBranches,
     hubRings: m.hubRings,
+    ringRooms: m.ringRooms,
+    ringSpurs: m.ringSpurs,
+    shortRouteMassShare: m.shortRouteMassShare,
     roomWidth: roomRange(ROOM_WIDTH, m.roomScale),
     roomHeight: roomRange(ROOM_HEIGHT, m.roomScale),
     shrineDistanceShare: m.shrineDistanceShare,

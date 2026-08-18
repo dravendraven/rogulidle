@@ -55,6 +55,8 @@ export function newGame(seed, counts = {}) {
     layout: counts.layout,
     hubBranches: counts.hubBranches,
     hubRings: counts.hubRings,
+    ringRooms: counts.ringRooms,
+    ringSpurs: counts.ringSpurs,
   });
   populate(state, state.map, counts);
 

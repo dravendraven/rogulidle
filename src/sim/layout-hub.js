@@ -30,18 +30,18 @@
 // Undug ground kept between two rooms, so a corridor is what joins them
 // rather than a shared wall. Not a dial: at 0 rooms fuse and the ring stops
 // being a ring.
-const GAP = 2;
+export const GAP = 2;
 
 // Truncating centre, matching mapgen.js's `roomCenter` — ROT's own
 // getCenter() rounds instead and lands on a different tile for odd spans.
-function centreOf(room) {
+export function centreOf(room) {
   return [
     Math.trunc((room.x1 + room.x2) / 2),
     Math.trunc((room.y1 + room.y2) / 2),
   ];
 }
 
-function overlaps(a, b, gap = GAP) {
+export function overlaps(a, b, gap = GAP) {
   return !(a.x2 + gap < b.x1 || b.x2 + gap < a.x1
     || a.y2 + gap < b.y1 || b.y2 + gap < a.y1);
 }
@@ -49,7 +49,7 @@ function overlaps(a, b, gap = GAP) {
 // A room of `w` × `h` centred on (cx, cy), pushed inside the map's border.
 // The border row and column are never dug — the wall ring needs somewhere
 // to live, and spawn.js's scans assume it.
-function roomAt(cx, cy, w, h, size) {
+export function roomAt(cx, cy, w, h, size) {
   const x1 = Math.max(1, Math.min(size - 2 - (w - 1), Math.round(cx - (w - 1) / 2)));
   const y1 = Math.max(1, Math.min(size - 2 - (h - 1), Math.round(cy - (h - 1) / 2)));
   return { x1, y1, x2: x1 + w - 1, y2: y1 + h - 1, doors: [] };
@@ -59,7 +59,7 @@ function roomAt(cx, cy, w, h, size) {
 // other way round. Both legs are dug whole — a corridor that crosses a room
 // simply merges with it, which is why connectivity does not depend on the
 // order rooms were placed.
-function digL(from, to, horizontalFirst, dug) {
+export function digL(from, to, horizontalFirst, dug) {
   const [ax, ay] = from;
   const [bx, by] = to;
   const step = (a, b) => (a < b ? 1 : -1);
@@ -76,7 +76,7 @@ function digL(from, to, horizontalFirst, dug) {
 // touches becomes that room's door. Read from the finished dig rather than
 // recorded while digging, so a corridor that clips a room it was not aimed
 // at still gets a doorway instead of a hole in the wall.
-function markDoors(rooms, dug) {
+export function markDoors(rooms, dug) {
   const inRoom = (r, x, y) => x >= r.x1 && x <= r.x2 && y >= r.y1 && y <= r.y2;
   for (const key of dug) {
     const [x, y] = key.split(',').map(Number);

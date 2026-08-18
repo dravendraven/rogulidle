@@ -37,20 +37,50 @@ export function classifyRooms(map, playerPos, shrinePos) {
   // Every tile the mandatory route touches, rooms and corridors alike.
   const onPath = new Set(path.map(([x, y]) => x + ',' + y));
 
-  const spine = [];
-  const side = [];
-  for (const room of map.rooms) {
-    const crossed = path.some(([x, y]) => inRoom(room, x, y));
-    (crossed ? spine : side).push(room);
-  }
-
   const roomOf = (pos) => {
     for (const room of map.rooms) if (inRoom(room, pos[0], pos[1])) return room;
     return null;
   };
 
-  // A position is SIDE ground when it sits in a room the route never enters.
-  // Corridors are never side: they are either on the route or they are the
+  // M50 — the SECOND route, derived only when the layout promised one
+  // (`map.twoRoutes`, set by the ring layout and nobody else). Block every
+  // tile of the first route that sits outside the two end rooms, and run
+  // A* again: what it finds is the other way around the ring. Derivation
+  // rather than annotation keeps this a reading of the finished map, same
+  // discipline as the rest of this file — and gating it on the promise
+  // keeps a loop the Digger happens to dig from reclassifying the shipped
+  // game by accident.
+  const heroRoom = roomOf(playerPos);
+  const shrineRoom = roomOf(shrinePos);
+  let longPath = [];
+  if (map.twoRoutes && path.length) {
+    const blocked = new Set();
+    for (const [x, y] of path) {
+      const inEnd = (heroRoom && inRoom(heroRoom, x, y))
+        || (shrineRoom && inRoom(shrineRoom, x, y));
+      if (!inEnd) blocked.add(x + ',' + y);
+    }
+    const detourPassable = (x, y) => passable(x, y) && !blocked.has(x + ',' + y);
+    longPath = findPath(playerPos, shrinePos, detourPassable);
+  }
+  const onLong = new Set(longPath.map(([x, y]) => x + ',' + y));
+  const twoRoutes = longPath.length > 0;
+
+  const spine = [];
+  const side = [];
+  const shortSet = new Set();
+  const longSet = new Set();
+  for (const room of map.rooms) {
+    const crossedShort = path.some(([x, y]) => inRoom(room, x, y));
+    const crossedLong = !crossedShort
+      && longPath.some(([x, y]) => inRoom(room, x, y));
+    if (crossedShort) shortSet.add(room);
+    if (crossedLong) longSet.add(room);
+    (crossedShort || crossedLong ? spine : side).push(room);
+  }
+
+  // A position is SIDE ground when it sits in a room NO route enters.
+  // Corridors are never side: they are either on a route or they are the
   // way to a side room, and in both cases the danger there is unavoidable
   // for anyone who commits to the detour.
   const sideSet = new Set(side);
@@ -59,7 +89,32 @@ export function classifyRooms(map, playerPos, shrinePos) {
     return room !== null && sideSet.has(room);
   };
 
-  return { spine, side, path, onPath, roomOf, isSide };
+  // Which ROUTE a position belongs to: 'short', 'long', or null for side
+  // ground and off-route corridors. End rooms are crossed by both routes
+  // and read as 'short' — they are where the choice is made, not part of
+  // either bet.
+  const routeOf = (pos) => {
+    const room = roomOf(pos);
+    if (room) {
+      if (shortSet.has(room)) return 'short';
+      if (longSet.has(room)) return 'long';
+      return null;
+    }
+    const key = pos[0] + ',' + pos[1];
+    if (onPath.has(key)) return 'short';
+    if (onLong.has(key)) return 'long';
+    return null;
+  };
+
+  // The ZONE placement thinks in. Three values, and on a map with no
+  // second route it degrades to exactly the old two: side stays side, and
+  // everything that is not side is 'short' — the mandatory ground.
+  const zoneAt = (pos) => (isSide(pos) ? 'side' : (routeOf(pos) ?? 'short'));
+
+  return {
+    spine, side, path, onPath, roomOf, isSide,
+    longPath, onLong, routeOf, zoneAt, twoRoutes,
+  };
 }
 
 // Share of a floor's threat mass that sits on the spine — the number the

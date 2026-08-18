@@ -72,12 +72,19 @@ function cloneState(state) {
     // to be listed here explicitly — this function is an allow-list, and a
     // field left out silently vanishes one step into the run.
     persona: state.persona,
+    // M50 — the route-tile sets. Shared by reference like `map`, and for
+    // the same reason: written once at spawn, never after.
+    routes: state.routes,
     rng: { ...state.rng },
     player: {
       ...state.player,
       pos: state.player.pos.slice(),
       inventory: state.player.inventory.map((i) => ({ ...i })),
       kills: state.player.kills.slice(),
+      // …but the VISIT COUNTER is per-state: shared, a step would write
+      // its increment backwards into the state it was given.
+      ...(state.player.routeVisits
+        ? { routeVisits: { ...state.player.routeVisits } } : {}),
     },
     monsters: state.monsters.map((m) => ({
       ...m, pos: m.pos.slice(), drop: copyItem(m.drop),
@@ -276,6 +283,14 @@ function resolvePlayerAction(state, action) {
 
   if (isWalkable(state.map, target[0], target[1])) {
     state.player.pos = target;
+    // M50 — the walked-route trace, on maps that carry one. Which route the
+    // hero ACTUALLY walked is the measurement the whole two-spine design
+    // hangs on, and counting at the move is the only place it is cheap.
+    if (state.routes && state.player.routeVisits) {
+      const key = target[0] + ',' + target[1];
+      if (state.routes.short[key]) state.player.routeVisits.short++;
+      else if (state.routes.long[key]) state.player.routeVisits.long++;
+    }
     return true;
   }
   return false;
