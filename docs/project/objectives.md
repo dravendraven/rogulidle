@@ -86,14 +86,60 @@ and then watched to find out whether it was right.
 
 ## What a loss owes
 
-**Nothing.** Reward attaches to something achieved, never to failure.
+**Nothing that crosses.** The game is played in bounded contests — a stretch
+of attempts that ends and settles, the way a match is made of rounds. Inside
+one contest every attempt may pay, loss or win, and a win pays more: what a
+losing attempt earns exists to feed the attempts after it in the SAME
+contest, the way a lost round can still buy a bonus for the next round.
+**What a loss earns dies with the contest.** Only winning the contest pays
+the reward that persists beyond it.
 
-The tempting wrong conclusion is that a lost attempt must therefore feel
-worthless. **What an attempt grades and what it rewards are separate axes.** A
-loss can resolve at different heights, be close or not close, and cost
-something — none of which requires paying for it. Where weight is wanted on a
-loss it comes from the stake having been chosen, or from what the loss costs.
-Never from what it pays.
+Two failure directions guard this rule, one on each side. A loss that pays
+nothing at all makes most attempts worthless — and most attempts are losses.
+A loss whose pay crosses the boundary is the compounding named below wearing
+a kinder face: **losing a thousand times must never add up to winning.**
+
+## What difficulty is
+
+**Waiting is not difficulty.** Pressing a button and being absent for two
+days is a wait, whatever it unlocks. Difficulty needs decisions.
+
+Difficulty is a chain of decisions where the best one depends on conditions
+that are partly readable and never fully predictable — where one small
+decision among hundreds can turn out to decide the long outcome, and one
+small error along the chain can cost the contest. The skill being exercised
+is making the fewest errors possible while still risking new moves.
+
+- **The scarcer the margin, the harder the game.** Less room for error, and
+  errors harder to recover from, is what raises difficulty — irreversibility
+  is the sharpest form of it.
+- **A large error must weigh far more than a small one** — closer to
+  exponential than linear. When every error costs the same, no single
+  decision carries tension.
+
+## The reward cycles
+
+**A game with only easy challenges is not fun — there is no sense of
+achievement, because the brain values what is scarce.** Rewards too easy to
+reach hold no one. What holds is cycles nested in cycles:
+
+- **Long** objectives — hard and slow, the point of everything else.
+- **Medium** objectives — completed, they pay in NEW WAYS to reach the long
+  one, making it nearer and more tangible.
+- **Short** objectives — frequent, renewing, individually cheap, and still
+  consequential: errors in their decision chains reach upward and bend the
+  whole trajectory toward the long objective.
+
+An idle game holds two situations, and the cycles land differently in each:
+
+- **The player is present** — a session. They drive the short cycle:
+  frequent, decision-rich, low stakes each, visibly feeding the medium cycle.
+- **The player is absent** — the game runs alone, which is by nature low
+  effort, so **the medium and long cycles must not be reachable by absence
+  alone.** What absence does carry is the choice made before leaving — the
+  heaviest decision in the game, because it decides the outcome of hours.
+  Choosing well against conditions that vary has to beat choosing lazily by
+  a wide margin, or the choice was a preference.
 
 ## What progression is for
 

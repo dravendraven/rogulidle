@@ -52,6 +52,37 @@ choose the day. "Buy another, or attempt today?" is the day's real decision.
 
 ---
 
+## How the day's runs reach the challenge — owner philosophy, nothing built
+
+The runs are the SHORT cycle and the challenge is the MEDIUM one
+(`objectives.md`, "the reward cycles"), and the link between them is the
+RESULTS, not only the coin: **the day's challenge is influenced by the sum
+or average of every run that day, loss or win** — a win contributing more.
+
+The model is a Formula 1 driver: countless small, fast decisions chasing a
+marginal improvement per lap, where getting ahead requires many laps without
+errors or with only small ones — and where one large error, or a short chain
+of small ones, costs almost everything. **Large errors weigh
+disproportionately, closer to exponential than linear.**
+
+Three consequences for this loop, none designed yet:
+
+- **Every run pays something toward the day.** A lost run is a lost round,
+  not a void — it still feeds the rounds after it, inside the same day.
+- **What a run pays dies at the boundary.** The day (or the contest that
+  bounds it) settles; only the challenge's own outcome pays what crosses —
+  the tier. This is `objectives.md`'s "what a loss owes" applied here, and
+  it is also **the brake the snowball is missing**: today the shop pile
+  carries run to run with no boundary that ever settles it, which is exactly
+  the compounding `decisions.md` measured. A bounded contest gives the pile
+  a place to die that is not only the death reset.
+- **The AFK game must move slower than the played one.** Absence drives only
+  the short cycle, and the pre-AFK choice is the heaviest decision in the
+  game — it has to be possible to choose it WELL, against conditions that
+  vary, or it is a preference.
+
+---
+
 ## The challenge
 
 | state | attempt | is the nerf visible? |
