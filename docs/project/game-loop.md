@@ -1,5 +1,14 @@
 # Game loop
 
+> **SHELVED — 2026-08-18, owner decision. The inferno metagame won.**
+> The medium and long reward cycles (`objectives.md`) live INSIDE the
+> dungeon — hell, its barrier bosses, the Balrog at floor 20 — not in this
+> document's tree/nerf/tier structure. `candidates.md` U11 is the living
+> design; this file stays as REFERENCE ONLY. The timescale analysis, the
+> economy rules and the failure modes named here remain worth reading
+> before designing hell's equivalents, but **nothing here is a build
+> target any more.**
+
 **The player picks a hero, a bot plays it, and one challenge per day decides
 whether the run of days advances.**
 

@@ -387,8 +387,11 @@ out of the same digger are visually monotonous.
 
 ### U11 · O inferno — a branch at floor 10, and one seed the whole world shares
 
-`owner idea` · **UNSCHEDULED** · recorded whole; the four parts cost wildly
-different amounts and only one of them is expensive
+`owner idea` · **UNSCHEDULED — and CHOSEN as the metagame, 2026-08-18.**
+The tree/nerf/tier structure in `docs/project/game-loop.md` is shelved as
+reference; the medium and long reward cycles (`objectives.md`) live here.
+Recorded whole; the parts cost wildly different amounts and only one of
+them is expensive.
 
 At floor 10 the hero may meet an entity offering two portals. One goes back:
 pocket the coins, descend again stronger. The other goes down — twenty more
@@ -446,6 +449,41 @@ the cap above matters: it fixes N for everyone.
 exactly like the thing that was refused. It is not: hell is a BRANCH off the
 ordinary loop. The main descent stays ungated and endless, and the dated seed
 governs one optional door inside it.
+
+#### The interior of hell, and what the scoreboard pays — owner, 2026-08-18
+
+**Hell is not a smooth gradient — it has barrier bosses.** The way the
+Butcher makes floor 4 a wall in the ordinary descent, hell has bosses at
+certain floors that raise the difficulty sharply past them — Butcher
+variants, in this engine's terms. Reaching past floor 10 OF HELL is meant
+to be very hard already; the Balrog at 20 all but impossible until a long
+accumulation of rewards makes it thinkable. **Each boss conquered pays an
+unlock**, under the constraint `objectives.md` sets for every permanent
+reward: **a different way to lose, never a lower chance of losing.** The
+built `butcher` → hero-picker rung is the template.
+
+**The daily highscore pays a permanent SPECIAL ITEM, not power.** Owner
+decision, not to be implemented now: something in the syringe/book family —
+an item tied to a WAY of playing — or the right to equip such an item on a
+hero it does not belong to. Recorded so the reward never drifts into raw
+power: a per-day permanent power reward is the daily compounding channel
+`objectives.md` forbids ("losing a thousand times must never add up to
+winning").
+
+**The open question that would make hell the snowball's answer: does the
+pile die descending?** The shelved `game-loop.md` names the missing brake —
+the shop pile carries run to run with no boundary that ever settles it.
+Hell IS that boundary if descending is where the accumulation is spent:
+farm on floors 1–10, gamble the pile against hell. Whether the spend is
+literal (the portal consumes items) or economic (hell's difficulty burns
+them) is undesigned and is the first design question when this is built.
+
+**Numbers stay undesigned on purpose** — boss count, spacing, the curve of
+floors 11–30, the descent cap. One pointer suffices: `model.floors`
+(`docs/map-design.md`) is the engine piece already built for a curve in
+pieces, one entry per anchor. Hell's curve is that mechanism handed a
+second model — exactly CLAUDE.md's "a harder dungeon tier is a model
+handed to `makeFloorPlan`", already a hard rule.
 
 #### Hell is unlocked, and both keys already exist
 
