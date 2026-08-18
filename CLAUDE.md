@@ -1,6 +1,6 @@
 # Rogulidle
 
-A faithful copy of Rogule that plays itself. The player does nothing but
+A roguelike that plays itself, derived from Rogule. The player does nothing but
 watch a bot clear the dungeon, run after run, with no daily gate — the next
 run starts the moment the last one ends.
 
@@ -143,7 +143,7 @@ Three measuring notes, each learned the hard way:
   backlog for weeks.
 
 ## Running it
-`python tools/dev-server.py` (port 8141), then:
+`python tools/dev-server.py` (port 8139), then:
 
 - `/index.html` — watch the bot play. `?seed=anything` reproduces a session.
   The 🧪 Lab button opens the dial panel (`src/ui/dials.js`) beside it.
@@ -157,8 +157,8 @@ already opens behind the Lab button. Link to `/index.html` instead.
 
 `index.html` reads `dial-overrides.json` (repo root) before its first run: a
 value it sets wins over the code default, for EVERY visitor, whether or not
-they ever open the Lab (`src/ui/dial-overrides.js`). It starts as `{}` and
-ships no different from not existing at all.
+they ever open the Lab (`src/ui/dial-overrides.js`). It ships with model overrides that ARE the tuned game — a visitor
+without it plays the code defaults, which are not the same thing.
 
 Its `model` may carry a `floors` list — the curve in pieces, one entry per
 ANCHOR, each written whole. A file without it is one anchor at floor 1,

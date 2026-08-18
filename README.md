@@ -1,6 +1,6 @@
 # Rogulidle
 
-A faithful copy of [Rogule](https://rogule.com) that plays itself. There is
+A roguelike that plays itself, derived from [Rogule](https://rogule.com). There is
 nothing to press: a bot clears the dungeon while you watch, and the next run
 starts the moment the last one ends.
 
