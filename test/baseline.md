@@ -101,6 +101,14 @@ fire-or-not surface. The sweep is for questions of the form "does this dial
 do anything", which the tripwires cannot answer and which kept being
 re-derived by hand.
 
+> **THE SWEEP ABOVE MEASURES RESULT, AND RESULT IS THE WRONG CRITERION FOR A
+> DIAL.** It cannot tell an inert dial from a situational one — both read
+> flat. `docs/project/dials.md` has the owner's guidance (isolated, the bands
+> should be EQUIVALENT in effectiveness; what must change is behaviour) and a
+> behaviour metric per dial. Read it before concluding that a dial does
+> nothing. A session concluded exactly that about two of the three, and was
+> wrong on both.
+
 ## Reading the output
 
 **The `delta pareado` column is the answer. The two means beside it are
