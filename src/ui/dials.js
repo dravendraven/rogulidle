@@ -697,6 +697,26 @@ export const SECTIONS = [
         },
       },
       {
+        // M51 — the thematic catalogue. One slider over the shelf, so
+        // testing an identity is dragging to it and restarting; the names
+        // live in MAP_THEME_LAYOUTS (balance.js) and this row must match
+        // its order. Any value but 0 overrides hubEvery/ringEvery whole.
+        kind: 'model', key: 'mapTheme', label: 'tema do mapa (0 = padrão)',
+        title: 'Tema do mapa', step: 1, range: [0, 6],
+        says: (v) => {
+          const names = [
+            'padrão — os dials de forma abaixo decidem',
+            'cripta — salas regulares e corredores curtos, ordenado',
+            'grade — salas em grade 3×3 ligadas às vizinhas, com loops',
+            'caverna — aberto e orgânico, sem salas de verdade',
+            'anel — o ciclo de duas rotas',
+            'central — sala do meio e braços',
+            'sorteio — um tema por andar, do seed',
+          ];
+          return names[Math.round(v.model.mapTheme ?? 0)] ?? 'padrão';
+        },
+      },
+      {
         // M50 — the two-route ring. Same slider-over-floors shape as
         // hubEvery above, for the same reason; when both claim a floor the
         // ring wins (difficulty.js layoutFor).

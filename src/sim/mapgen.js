@@ -13,7 +13,7 @@ import {
 } from './balance.js';
 
 // Tiles the player and monsters may walk on. FAITHFUL engine.cljs:321.
-import { hubLayout } from './layout-hub.js';
+import { hubLayout, markDoors } from './layout-hub.js';
 import { ringLayout } from './layout-ring.js';
 
 const WALKABLE = ['room', 'door', 'corridor'];
@@ -125,6 +125,148 @@ function diggerLayout(size, options) {
   return { dug, rooms };
 }
 
+// ===== The thematic catalogue — M51 =====
+//
+// The DCSS conclusion (docs/project/dcss-layouts.md), finally applied: not
+// one parameterised generator but a SHELF of shapes, each with an identity
+// a viewer can name. The owner's verdict on the ring (decisions.md M50) is
+// why: variety BETWEEN seeds is worth more than structure within one.
+//
+// These three use ROT's own generators, which draw from ROT's global RNG —
+// which is why they live HERE, in the one file allowed to touch it, and
+// not beside layout-hub.js and layout-ring.js, which take a stream.
+
+// Shared: ROT's room objects (Digger and Uniform use the same class) into
+// our plain rects.
+function rotRooms(generator) {
+  return generator.getRooms().map((r) => {
+    const room = {
+      x1: r.getLeft(),
+      y1: r.getTop(),
+      x2: r.getRight(),
+      y2: r.getBottom(),
+      doors: [],
+    };
+    r.getDoors((x, y) => room.doors.push([x, y]));
+    room.center = roomCenter(room);
+    return room;
+  });
+}
+
+// CRIPTA — ROT's Uniform: rooms of even size spread over the whole grid,
+// each connected by short corridors. Reads as built space — orderly,
+// denser in rooms than the warren, with natural loops between neighbours.
+function uniformLayout(size, options) {
+  const uniform = new ROT.Map.Uniform(size, size, {
+    roomWidth: options.roomWidth ?? ROOM_WIDTH,
+    roomHeight: options.roomHeight ?? ROOM_HEIGHT,
+    roomDugPercentage: options.dugPercentage ?? MAP_DUG_PERCENTAGE,
+  });
+  const dug = new Set();
+  uniform.create((x, y, value) => {
+    if (value === 0) dug.add(x + ',' + y);
+  });
+  return { dug, rooms: rotRooms(uniform) };
+}
+
+// GRADE — ROT's Rogue: the original Rogue's 3x3 sectors, one room each,
+// connected to grid neighbours. Loops by construction, so several real
+// ways across — the closest shape to a Diablo floor the shelf has.
+function rogueLayout(size, options) {
+  const rogue = new ROT.Map.Rogue(size, size, {
+    cellWidth: options.rogueCells ?? 3,
+    cellHeight: options.rogueCells ?? 3,
+  });
+  const dug = new Set();
+  rogue.create((x, y, value) => {
+    if (value === 0) dug.add(x + ',' + y);
+  });
+  // Rogue's rooms are plain {x, y, width, height} in a 2D cell array, and
+  // it reports no doors — markDoors reads them off the finished dig, the
+  // same way the hub does.
+  const rooms = [];
+  for (const row of rogue.rooms) {
+    for (const r of row) {
+      if (!r || r.width <= 0 || r.height <= 0) continue;
+      const room = {
+        x1: r.x, y1: r.y, x2: r.x + r.width - 1, y2: r.y + r.height - 1,
+        doors: [],
+      };
+      room.center = roomCenter(room);
+      rooms.push(room);
+    }
+  }
+  markDoors(rooms, dug);
+  return { dug, rooms };
+}
+
+// CAVERNA — ROT's Cellular automaton: organic open space, the "mais
+// aberto" of the shelf. No rooms exist, so a handful of PSEUDO-ROOMS are
+// synthesised from open pockets — everything downstream (hero placement,
+// spine classification) anchors on rooms, and a 3x3 patch of open floor is
+// room enough for an anchor.
+function caveLayout(size) {
+  const cave = new ROT.Map.Cellular(size, size);
+  cave.randomize(0.5);
+  for (let i = 0; i < 4; i++) cave.create();
+  // The border stays rock — spawn.js's scans and the wall ring assume it.
+  for (let i = 0; i < size; i++) {
+    cave.set(i, 0, 0); cave.set(i, size - 1, 0);
+    cave.set(0, i, 0); cave.set(size - 1, i, 0);
+  }
+  // Join the disconnected pockets, then read the result.
+  const dug = new Set();
+  try {
+    cave.connect((x, y, value) => {
+      if (value === 1) dug.add(x + ',' + y);
+    }, 1);
+  } catch {
+    // connect() throws on a map with nothing to connect — a degenerate
+    // roll. Signal "no floor" and let the Digger take it.
+    return null;
+  }
+
+  // Pseudo-rooms: cut the grid into sectors; in each one with enough open
+  // ground, anchor a 3x3 room on the most central open tile that fits one.
+  const SECTOR = 8;
+  const rooms = [];
+  for (let sy = 0; sy < size; sy += SECTOR) {
+    for (let sx = 0; sx < size; sx += SECTOR) {
+      const open = [];
+      for (let y = sy; y < Math.min(sy + SECTOR, size); y++) {
+        for (let x = sx; x < Math.min(sx + SECTOR, size); x++) {
+          if (dug.has(x + ',' + y)) open.push([x, y]);
+        }
+      }
+      if (open.length < 10) continue;
+      const cx = sx + SECTOR / 2;
+      const cy = sy + SECTOR / 2;
+      const fits3 = ([x, y]) => {
+        for (let ox = -1; ox <= 1; ox++) {
+          for (let oy = -1; oy <= 1; oy++) {
+            if (!dug.has((x + ox) + ',' + (y + oy))) return false;
+          }
+        }
+        return true;
+      };
+      const byCentre = open.slice().sort((a, b) => (
+        (a[0] - cx) ** 2 + (a[1] - cy) ** 2) - ((b[0] - cx) ** 2 + (b[1] - cy) ** 2));
+      const anchor = byCentre.find(fits3) ?? byCentre[0];
+      const r = fits3(anchor) ? 1 : 0;
+      const room = {
+        x1: anchor[0] - r, y1: anchor[1] - r,
+        x2: anchor[0] + r, y2: anchor[1] + r,
+        doors: [],
+      };
+      room.center = roomCenter(room);
+      rooms.push(room);
+    }
+  }
+  // Too few anchors is a floor nothing can be placed on sensibly.
+  if (rooms.length < 3) return null;
+  return { dug, rooms };
+}
+
 // Generates the dungeon. `mapSeed` is an int derived from the run seed.
 //
 // TWO LAYOUTS, one classification. `options.layout` picks which shape gets
@@ -147,11 +289,27 @@ export function generateMap(mapSeed, size = MAP_SIZE, options = {}) {
   // asked for — a floor is not optional, so that falls back to the Digger
   // rather than failing. The dial can ask for something that does not fit;
   // the game still has to start.
-  const authored = options.layout === 'hub'
+  // M51 — 'sorteio' resolves to a concrete shape HERE, from the map's own
+  // stream after setSeed, so the same floor of the same run always draws
+  // the same theme. Only sorteio consumes the draw: a fixed layout keeps
+  // the stream — and therefore every shipped map — byte-identical.
+  let layout = options.layout;
+  if (layout === 'sorteio') {
+    const shelf = ['digger', 'uniform', 'rogue', 'cave', 'ring'];
+    layout = shelf[Math.floor(ROT.RNG.getUniform() * shelf.length)];
+  }
+
+  const authored = layout === 'hub'
     ? hubLayout(size, options, () => ROT.RNG.getUniform())
-    : options.layout === 'ring'
+    : layout === 'ring'
       ? ringLayout(size, options, () => ROT.RNG.getUniform())
-      : null;
+      : layout === 'uniform'
+        ? uniformLayout(size, options)
+        : layout === 'rogue'
+          ? rogueLayout(size, options)
+          : layout === 'cave'
+            ? caveLayout(size)
+            : null;
   const { dug, rooms } = authored ?? diggerLayout(size, options);
 
   // Classify every position, in the same order the original merges them so

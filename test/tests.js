@@ -19,7 +19,7 @@ import {
   weaponDamage, weaponMinDamage, armourValue, effectiveHp, expectedDamage,
 } from '../src/sim/combat.js';
 import {
-  findPath, generateMap, playerPassable, posKey, tileAt,
+  findPath, generateMap, isWalkable, playerPassable, posKey, tileAt,
 } from '../src/sim/mapgen.js';
 import { drawLogUniform, drawWeighted, hashSeeds, makeRng } from '../src/sim/rng.js';
 import { classifyRooms, spineShare } from '../src/sim/spine.js';
@@ -29,8 +29,8 @@ import {
   floorOfTraversal, floorPlan, playDungeon, LEVELS, TRAVERSALS,
 } from '../src/sim/dungeon.js';
 import {
-  expectedFloorMass, floorParams, floorStrength, makeFloorPlan, monstersAt,
-  outOfDepthChanceAt, saturatedAt, threatMass,
+  expectedFloorMass, floorParams, floorStrength, layoutFor, makeFloorPlan,
+  monstersAt, outOfDepthChanceAt, saturatedAt, threatMass,
   CLUSTER_SIZE, MONSTERS_BASE, MONSTER_GROWTH,
   MONSTER_STRENGTH, POTION_SCARCITY, WEAPON_SCARCITY,
 } from '../src/sim/difficulty.js';
@@ -4428,6 +4428,70 @@ test('walking a route tile is counted, and the counter rides the level row', () 
   const { state: after } = step(state, moved);
   const total = after.player.routeVisits.short + after.player.routeVisits.long;
   assertEq(total, before + 1, 'the move onto a route tile was not counted');
+});
+
+// ===== M51 — the thematic catalogue =====
+
+// Every theme must produce a floor the game can actually run: rooms to
+// anchor on, a hero, a hole, and a walkable path between them. One shared
+// checker, so a new theme is one test line.
+function assertPlayableTheme(layout, seed = 3131) {
+  const state = newGame(seed, { ...floorPlan(2), layout, vaultLevel: 0 });
+  assert(state.map.rooms.length >= 2, layout + ': fewer than two rooms');
+  const path = findPath(state.player.pos, state.shrine.pos, (x, y) => isWalkable(state.map, x, y));
+  assert(path.length > 0, layout + ': no path from hero to hole');
+  assert(state.monsters.length > 0, layout + ': an empty floor');
+  return state;
+}
+
+test('cripta (uniform), grade (rogue) and caverna (cave) all play', () => {
+  assertPlayableTheme('uniform');
+  assertPlayableTheme('rogue');
+  assertPlayableTheme('cave');
+});
+
+test('every theme is deterministic — same seed, same tiles', () => {
+  for (const layout of ['uniform', 'rogue', 'cave', 'sorteio']) {
+    const a = newGame(4747, { ...floorPlan(2), layout, vaultLevel: 0 });
+    const b = newGame(4747, { ...floorPlan(2), layout, vaultLevel: 0 });
+    assertEq(JSON.stringify(a.map.tiles), JSON.stringify(b.map.tiles),
+      layout + ' differs between identical seeds');
+  }
+});
+
+test('the cave keeps its border rock, and its pseudo-rooms are walkable anchors', () => {
+  const state = assertPlayableTheme('cave');
+  const size = state.map.w;
+  for (let i = 0; i < size; i++) {
+    assert(!isWalkable(state.map, i, 0) && !isWalkable(state.map, i, size - 1),
+      'cave dug through the top/bottom border');
+    assert(!isWalkable(state.map, 0, i) && !isWalkable(state.map, size - 1, i),
+      'cave dug through the side border');
+  }
+  for (const room of state.map.rooms) {
+    assert(isWalkable(state.map, room.center[0], room.center[1]),
+      'a pseudo-room centre is not walkable');
+  }
+});
+
+test('sorteio draws different themes across floors of one run', () => {
+  // Ten floors of one seed: the shelf has five entries, so ten draws
+  // giving a single repeated layout would be a broken draw, not bad luck
+  // (p = 5 * (1/5)^10). Fingerprint each floor by its tile string.
+  const prints = new Set();
+  for (let level = 1; level <= 10; level++) {
+    const s = newGame(hashSeeds(6161, level), { ...floorPlan(level), layout: 'sorteio', vaultLevel: 0 });
+    prints.add(JSON.stringify(s.map.tiles).length + ':' + s.map.rooms.length);
+  }
+  assert(prints.size > 1, 'ten sorteio floors all came out identical');
+});
+
+test('theme 0 is the shipped game: layoutFor ignores it and the dials rule', () => {
+  assertEq(layoutFor(3, 0, 0, 0), 'digger', 'theme 0 changed the default');
+  assertEq(layoutFor(4, 4, 0, 0), 'hub', 'theme 0 broke hubEvery');
+  assertEq(layoutFor(4, 0, 4, 0), 'ring', 'theme 0 broke ringEvery');
+  assertEq(layoutFor(3, 0, 0, 1), 'uniform', 'theme 1 is not the cripta');
+  assertEq(layoutFor(3, 4, 4, 3), 'cave', 'a named theme must override the dials');
 });
 
 export function runAll() {

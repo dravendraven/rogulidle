@@ -107,6 +107,24 @@ export const RING_SPURS = 3;
 // not exist before the second route did. Only read on two-route maps.
 export const SHORT_ROUTE_MASS_SHARE = 0.7;
 
+// M51 — the map THEME: which shape family draws the floor, as an index
+// into MAP_THEME_LAYOUTS. 0 is "padrão" — the hubEvery/ringEvery dials
+// decide, which with both at 0 is the shipped Digger game. The last entry
+// is 'sorteio': a theme drawn per floor from the map's own stream. The
+// catalogue exists to TEST identities before the final map design is
+// chosen (decisions.md M50 is why variety won over structure); nothing
+// ships at any value but 0 without the owner watching it first.
+export const MAP_THEME = 0;
+export const MAP_THEME_LAYOUTS = [
+  null,        // 0 padrão — hubEvery/ringEvery decide (shipped: Digger)
+  'uniform',   // 1 cripta — salas regulares, corredores curtos, ordenado
+  'rogue',     // 2 grade — 3×3 salas ligadas às vizinhas, loops de verdade
+  'cave',      // 3 caverna — autômato celular, aberto e orgânico
+  'ring',      // 4 anel — o ciclo de duas rotas do M50
+  'hub',       // 5 central — sala do meio e braços
+  'sorteio',   // 6 sorteio — um tema por andar, do stream do mapa
+];
+
 // GUESS — how much of the grid the digger hollows out. Lower means fewer,
 // more separate rooms — the map design needs a MANDATORY path to exist, and
 // at ROT's default 0.2 there are usually several equivalent ways through.

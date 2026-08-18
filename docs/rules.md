@@ -73,6 +73,14 @@ alvo do mapa.
 são salas laterais, opcionais. A divisão é o eixo de desenho do mapa — risco
 obrigatório contra risco escolhido.
 
+**Existe um CATÁLOGO de temas de mapa, e ele sai desligado.** Atrás de um
+dial (`MAP_THEME`), um andar pode ser desenhado como cripta (salas
+regulares e ordenadas), grade (salas 3×3 ligadas às vizinhas, com loops),
+caverna (autômato celular, aberto e orgânico), anel, central — ou
+"sorteio", um tema por andar tirado do próprio stream do mapa. No zero, os
+dials de forma de sempre decidem, que é o jogo enviado. O catálogo existe
+para testar identidades no Lab antes de o desenho final ser escolhido.
+
 **Existe um layout de DUAS rotas, e ele sai desligado.** Atrás de um dial
 próprio (`RING_EVERY`, como o do hub), um andar pode ser gerado como anel:
 duas rotas disjuntas ligam o herói ao buraco — uma curta e mais densa em

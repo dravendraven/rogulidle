@@ -13,7 +13,8 @@
 import {
   CHEST_GUARD_RADIUS, CHEST_LOOT_CHANCE, CORRIDOR_MIN, corridorRange, EARLY_TIER_CUT,
   FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL, MAP_DUG_PERCENTAGE, MAP_SIZE,
-  RING_EVERY, RING_ROOMS, RING_SPURS, SHORT_ROUTE_MASS_SHARE,
+  MAP_THEME, MAP_THEME_LAYOUTS, RING_EVERY, RING_ROOMS, RING_SPURS,
+  SHORT_ROUTE_MASS_SHARE,
   HUB_BRANCHES, HUB_EVERY, HUB_RINGS,
   ROOM_BIAS, ROOM_HEIGHT, ROOM_SCALE, ROOM_WIDTH, roomRange,
   MONSTER_DROP_CHANCE, MONSTER_TABLE,
@@ -161,7 +162,13 @@ export function tierSlack(step, model = {}) {
 // sees. Every Nth floor is a hub and the rest are ROT's accretion; 0 is
 // never. One place, so `floorParams` and `makeFloorPlan` cannot disagree
 // about which floors are which, and the one place a third layout is added.
-export function layoutFor(floor, every = HUB_EVERY, ringEvery = RING_EVERY) {
+export function layoutFor(floor, every = HUB_EVERY, ringEvery = RING_EVERY,
+  theme = MAP_THEME) {
+  // M51 — a named theme overrides the per-layout dials whole: the theme
+  // dial exists to test ONE identity across every floor (or 'sorteio',
+  // resolved per floor inside generateMap). At 0 the old dials rule.
+  const themed = MAP_THEME_LAYOUTS[Math.round(theme ?? 0)] ?? null;
+  if (themed) return themed;
   if (ringEvery > 0 && floor % ringEvery === 0) return 'ring';
   return every > 0 && floor % every === 0 ? 'hub' : 'digger';
 }
@@ -279,6 +286,7 @@ export const DEFAULT_MODEL = {
   ringEvery: RING_EVERY,
   ringRooms: RING_ROOMS,
   ringSpurs: RING_SPURS,
+  mapTheme: MAP_THEME,
   shortRouteMassShare: SHORT_ROUTE_MASS_SHARE,
   shrineDistanceShare: SHRINE_DISTANCE_SHARE,
   vaultLevel: VAULT_LEVEL,
@@ -450,7 +458,7 @@ export function makeFloorPlan(model = {}) {
     roomBias: m.roomBias,
     corridorLength: corridorRange(m.corridorMin),
     mapSize: m.mapSize,
-    layout: layoutFor(level, m.hubEvery, m.ringEvery),
+    layout: layoutFor(level, m.hubEvery, m.ringEvery, m.mapTheme),
     hubBranches: m.hubBranches,
     hubRings: m.hubRings,
     ringRooms: m.ringRooms,
