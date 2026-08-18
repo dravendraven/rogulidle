@@ -118,8 +118,7 @@ two things per turn in the same unit: what can HIT the hero, and how much more
 of the map a tile opens than where he stands. **9.6, and MEASURED rather than
 derived** — it was `MEAN_BITE / stepCost` until the uncertainty term went in
 and put that centre past the top of the curve. It is the first dial here to
-move survival: deaths per run go 0.98 to 0.40 across its bands, against depth
-4.14 to 2.80. It is a hero trait and NOT one of the four bands — see
+move survival across its bands. It is a hero trait and NOT one of the three player bands — see
 `src/ui/dials.js` for why.
 
 **It is no longer what a visitor plays.** Each one gets a band ROLLED per

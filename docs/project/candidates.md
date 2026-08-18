@@ -30,7 +30,7 @@ parked. No new item, just a measurement nobody has taken.
 
 ### M43 · the vault and the Butcher — a fixed room on floor 4
 
-`owner idea` · **BEING BUILT** — the design record; the task list is in
+`owner idea` · **BUILT** — the design record; the task list is in
 `docs/backlog.md`
 
 A fixed-layout room, always on floor 4, always a dead end off the mandatory

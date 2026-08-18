@@ -38,7 +38,7 @@ machinery.
 **What crosses between sessions is the REPO, not the session.** Before a
 session ends, what it learned is in a file or it is lost: `decisions.md` for
 what was measured and rejected, the describing doc for what a thing now
-does, `docs/project/` for a study written before the code (`cautela.md`,
+does, `docs/project/` for a study written before the code (e.g.
 `dcss-layouts.md`). That is what makes a fresh session cheap.
 
 ### More than one at a time

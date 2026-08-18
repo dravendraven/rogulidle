@@ -4,18 +4,6 @@ A faithful copy of [Rogule](https://rogule.com) that plays itself. There is
 nothing to press: a bot clears the dungeon while you watch, and the next run
 starts the moment the last one ends.
 
-## Status
-
-**P2 — watchable.** Runs play out on screen, one after another. The thing
-playing them is still a placeholder that wanders at random; the real bot is
-P3.
-
-- [x] **P0** rules spec, reverse-engineered from the original
-- [x] **P1** deterministic headless engine + fog-of-war belief model
-- [x] **P2** renderer, replay player, continuous run loop
-- [ ] **P3** the bot
-- [ ] **P4** batch tuning
-
 ## Running it
 
 ```
@@ -24,27 +12,36 @@ python tools/dev-server.py
 
 Then open <http://localhost:8141/index.html> to watch,
 <http://localhost:8141/run-tests.html> to check the rules, or
-<http://localhost:8141/run-check.html> to check whether the map and bot
-are any good.
+<http://localhost:8141/run-check.html> for the metrics tripwires (both
+instruments — naked runs and chained sessions with the shop).
+
 Opening the HTML files directly will not work — ES modules need `http://`.
 
-In the spectator, **🔎 debug** paints the danger map the bot believes in and
-marks what it is heading for — worth turning on whenever it does something
-that looks stupid.
+Headless: `node tools/measure.mjs --selftest` first, then e.g.
+`node tools/measure.mjs check tripwires '{"runs":24}'`.
 
-Add `?seed=anything` to make a whole session reproducible.
+## What it has
 
-Dimmed tiles on screen are what the bot *remembers* rather than what it can
-currently see — monsters shown there may already have moved.
+A ten-floor dungeon with fog of war, a bot that fights and loots its way
+down, a shop between runs, a vault on floor 4 with a mini-boss (the
+Butcher), an achievement that unlocks on the first kill, and a dial panel
+where the visitor's rolled settings shape how the bot plays.
+
+`?seed=anything` on the URL reproduces a session. `?dev=1` opens the lab
+panel with dial overrides.
 
 ## Layout
 
 ```
-docs/rogule-spec.md    the rules of Rogule, and where ours diverge (§13)
-docs/bot-strategy.md   what the bot is trying to do, and why
-docs/balance.md        every tunable number, in one place
-src/sim/               the engine — pure, seeded, no DOM
-test/tests.js          the rules, checked against the spec
+docs/project/objectives.md   what the product has to be
+docs/rules.md                what the game does (rules, never values)
+docs/bot.md                  the bot's objectives and pursuit
+docs/balance.md              every tuning value, in one table
+docs/rogule-spec.md          provenance — the original Rogule, reverse-engineered
+src/sim/                     the engine — pure, seeded, no DOM
+src/bot/                     the bot — reads observations, never game state
+src/ui/                      renderer, spectator, dial panel
+test/tests.js                the rules, checked against the spec
 ```
 
 The engine is deterministic: a seed plus a list of actions is a complete

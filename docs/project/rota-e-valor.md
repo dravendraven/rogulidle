@@ -168,7 +168,7 @@ dura que o bot tem sobre o mapa. Tirar isso faz ele contornar estátuas.
 não um defeito.
 
 **E ela NÃO está no painel do jogador**, apesar de ter sido desenhada como
-dial. O painel já tinha o `persistence` chamado Cautela, e pôr os dois lado a
+dial. O painel tinha o `persistence` chamado Cautela (hoje `persistence` é constante decidida, fora do painel), e pôr os dois lado a
 lado é dois dials sobre uma decisão só — persistence é a FORMA do decaimento
 do perigo, caution a MAGNITUDE, e ambos movem a mesma coisa visível: quão
 perto o herói aceita passar. É o padrão do M47.
