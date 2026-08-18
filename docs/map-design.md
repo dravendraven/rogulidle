@@ -76,9 +76,13 @@ larger is the wanted behaviour *in the middle*, and wrong everywhere else.
 advance and therefore preparable. An exam with a draw in it is a draw, and the
 attribution the turn exists to provide goes with it.
 
-**2. Alternative routes, with no no-brainer.** Real choices weighing loot
-against the creatures in the way — neither a corridor nor a maze. This is the
-bargain below, and its open half is "What is still open".
+**2. Two routes to the hole, and choosing is mandatory.** Owner-defined,
+2026-08-18, sharpening the older "alternative routes, with no no-brainer":
+nearly every floor offers a SHORT, DENSE route and a LONG, SPARSE one, and
+reaching the hole means committing to one. Cautela is the driver — the long
+road spends stamina to save blood, the short road the reverse. **The built
+map is still the one-spine subset of this**; the target shape and why it
+answers the open gap are under "The owner's target shape" below.
 
 **3. A tail of randomness, and the tail has a designed shape of its own.** A
 creature can come from above the floor's band. What changed is that the tail is
@@ -92,10 +96,14 @@ first. `X6` owns a separate and still-live question — why the built tail does
 not do even what it was asked for: an absolute spread contained by a
 proportional clamp.
 
-**4. Most of the threat on the fast route.** If a direct run to the portal can
-skip most of the floor, the mandatory path is not mandatory. The intended
-shape: a direct run wakes well over half the floor, and only a modest fraction
-is left standing afterwards.
+**4. Most of the threat on the route network — and reward concentrated off
+it.** If a direct run to the portal can skip most of the floor, the mandatory
+path is not mandatory: a direct run wakes well over half the floor. Under the
+two-route shape this splits in two: threat MASS concentrates on the routes
+against the sides (and between the two spines, the short one is the denser),
+while the reward/threat RATIO is always better off-route — but non-uniformly,
+so a side room is a bet, not a bonus. The floor's best outcome is only
+reachable through side rooms; the optimum is accepting SOME.
 
 **Placed is not woken, and property 4 is about woken.** `SPINE_THREAT_SHARE`
 controls where threat mass is *placed* at generation. What a direct run
@@ -109,13 +117,16 @@ instrument, and no dial of its own on purpose.
 
 ## The bargain
 
-A floor should offer **one mostly-linear mandatory path holding most of the
-threat**, plus **side rooms that can be skipped** — fewer but nastier
-creatures, better chests. Take the safe road, or gamble for gear you will want
-three floors down.
+A floor should offer **a mandatory route choice** — short and dense against
+long and sparse — plus **side rooms that can be skipped**: fewer but nastier
+creatures, better chests, and a non-uniform ratio between the two, so some
+bets are great and some are traps. Commit to a road, then gamble for gear you
+will want three floors down — or do not.
 
-That is the whole design. Everything below is how it is arranged and what went
-wrong on the way.
+That is the whole design. **What is BUILT today is the one-spine subset**:
+one mostly-linear mandatory path holding most of the threat, side rooms
+beside it. Everything below is how that subset is arranged and what went
+wrong on the way; the full shape is "The owner's target shape" below.
 
 ## The return
 
@@ -622,16 +633,12 @@ separately" is this, already built). The floor's best outcome is only
 reachable through side rooms; the optimum is accepting SOME and refusing
 others — never all, never none.
 
-**What this supersedes, explicitly:**
-
-- **"One mostly-linear mandatory path" (the bargain) becomes two.**
-- **Property 4 needs restating**: threat mass concentrates on the route
-  NETWORK against the sides, and between the two spines the short one is
-  the denser. "The fast route" stops naming one thing.
-- **The map must grow for any of this to mean anything** — on today's small
-  floors distance is trivial, so neither the stamina budget nor a route
-  choice has room to matter. Map size is the enabling condition, not a
-  detail.
+**Properties 2 and 4 and "The bargain" above already state this shape as
+the design** — this section is the record of where it came from and why.
+One enabling condition bears repeating: **the map must grow.** On today's
+small floors distance is trivial, so neither the stamina budget nor a route
+choice has room to matter. Map size is the enabling condition, not a
+detail.
 
 **Why this answers the open gap where tightening the budget did not.** The
 measured dead end above stands: a cost the deciding agent never reads
