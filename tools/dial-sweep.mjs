@@ -47,7 +47,7 @@ const { playDungeon, LEVELS } = await import(url('src/sim/dungeon.js'));
 const { makeFloorPlan, DEFAULT_MODEL } = await import(url('src/sim/difficulty.js'));
 const { makeBot } = await import(url('src/bot/bot.js'));
 const { hashSeeds } = await import(url('src/sim/rng.js'));
-const { DEFAULT_HERO, DANGER_PERSISTENCE, biasBands } = await import(url('src/bot/config.js'));
+const { DEFAULT_HERO, biasBands } = await import(url('src/bot/config.js'));
 
 // `dial-overrides.json` layered over the code defaults IS the shipped game
 // (CLAUDE.md), so a sweep that read the code alone would be measuring a
@@ -55,7 +55,7 @@ const { DEFAULT_HERO, DANGER_PERSISTENCE, biasBands } = await import(url('src/bo
 const overrides = JSON.parse(fs.readFileSync(path.join(REPO, 'dial-overrides.json'), 'utf8'));
 const plan = makeFloorPlan({ ...DEFAULT_MODEL, ...(overrides.model || {}) });
 const HERO = { ...DEFAULT_HERO, ...(overrides.hero || {}) };
-const BOT = { persistence: (overrides.bot && overrides.bot.persistence) ?? DANGER_PERSISTENCE };
+const BOT = { ...(overrides.bot || {}) };
 
 const RUNS = Number(process.argv[2] || 250);
 const ONLY = (process.argv[3] || '').toLowerCase();
@@ -107,14 +107,29 @@ function pairedDelta(cellA, ref) {
 const pc = (n) => `${(100 * n).toFixed(0)}%`;
 const BANDS = ['muito baixo', 'baixo', 'médio-baixo', 'médio-alto', 'alto', 'muito alto'];
 
+// THE THREE THE PANEL ACTUALLY OFFERS, and getting this list wrong is the
+// most expensive mistake this file can make: a sweep of a parameter the
+// player cannot reach reads like a finding about a choice and is not one.
+// It happened — this file swept `fightMargin` and `persistence` for a while
+// after BOTH were taken off the panel, and `test/baseline.md` carried the
+// same stale names, so a whole session concluded about dials nobody has.
+// Check `src/ui/dials.js` for its `kind: 'hero'` rows before trusting this.
+//
+//   Coragem  -> `bravery`      bends the ESTIMATE of a creature's health
+//   Ganancia -> `sideAppetite` what a chest is worth
+//   Cautela  -> `caution`      what a turn near danger costs, in steps
+//
+// `fightMargin` and `persistence` are DECIDED CONSTANTS now, on purpose:
+// two dials pulling on one quantity is the confusion M47 untangled, and
+// this project has paid for it twice.
 const DIALS = [
-  ['Coragem  (fightMargin)', HERO.fightMargin, (v) => [{ ...HERO, fightMargin: v }, BOT]],
+  ['Coragem  (bravery)', HERO.bravery, (v) => [{ ...HERO, bravery: v }, BOT]],
   ['Ganância (sideAppetite)', HERO.sideAppetite, (v) => [{ ...HERO, sideAppetite: v }, BOT]],
-  ['Cautela  (persistence)', BOT.persistence, (v) => [HERO, { persistence: v }]],
+  ['Cautela  (caution)', HERO.caution, (v) => [{ ...HERO, caution: v }, BOT]],
 ];
 
 console.log(`${RUNS} runs por célula, herói base, mesmas seeds, mãos vazias`);
-console.log(`centro: coragem ${HERO.fightMargin}  ganância ${HERO.sideAppetite}  cautela ${BOT.persistence}\n`);
+console.log(`centro: coragem ${HERO.bravery}  ganância ${HERO.sideAppetite}  cautela ${HERO.caution}\n`);
 
 const ref = cell(HERO, BOT);
 console.log(`CENTRO   prof ${ref.mean.toFixed(2)}   7+ ${pc(ref.deep7)}   `

@@ -47,14 +47,28 @@ fixed for two readings to mean the same thing.
 |---|---|---|
 | hero | `HEROES.base` — the empty persona | `src/sim/heroes.js` |
 | starting items | **none** | `startingItems: []` |
-| Coragem | `DEFAULT_HERO.fightMargin` | `src/bot/config.js` |
+| Coragem | `DEFAULT_HERO.bravery` | `src/bot/config.js` |
 | Ganância | `DEFAULT_HERO.sideAppetite` | `src/bot/config.js` |
-| Cautela | `DANGER_PERSISTENCE` | `src/bot/config.js` |
+| Cautela | `DEFAULT_HERO.caution` | `src/bot/config.js` |
 | floor model | `DEFAULT_MODEL` + `dial-overrides.json` | repo root |
 | seeds | `hashSeeds(20260814, 1..n)`, the same set in every cell | |
 
 Values are deliberately not restated here — `docs/balance.md` owns them and
 a copy is a copy that goes stale. Read them from the code.
+
+**THOSE THREE NAMES WERE WRONG HERE UNTIL 2026-08-17, AND IT COST A SESSION.**
+This file listed Coragem as `fightMargin` and Cautela as `DANGER_PERSISTENCE`.
+Both were taken OFF the panel when M47/C1 split them — courage moved to
+`bravery`, which bends the estimate instead of the bar, and `persistence`
+became a decided constant inside the quantity `caution` multiplies, because
+two dials pulling on one number is a confusion this project has paid for
+twice. `tools/dial-sweep.mjs` carried the same stale names.
+
+A session swept the stale ones and reported findings about "the player's
+dials" that were findings about constants nobody can reach. **The three the
+panel offers are the `kind: 'hero'` rows in `src/ui/dials.js`, and that file
+is the source of truth for which they are.** When a dial is renamed or
+retired, this row and `dial-sweep.mjs` change in the same commit.
 
 Three of those are load-bearing in a way that has bitten before:
 
@@ -102,6 +116,13 @@ outcomes, and telling the two apart is most of what this file is for.
 
 ## Snapshot — 2026-08-14, at commit `c838763`
 
+> **THIS SNAPSHOT IS OF THE OLD PARAMETERS.** Its "Coragem" is `fightMargin`
+> and its "Cautela" is `persistence` — the two that later came off the panel.
+> The numbers are still a true record of what those constants do; they are
+> NOT a record of what the player's dials do, and the band shapes below must
+> not be quoted as the panel's behaviour. Re-run `dial-sweep.mjs`, which now
+> sweeps `bravery` and `caution`, for that.
+
 Kept because the owner asked for a baseline to compare against, against
 CLAUDE.md's usual rule that no measurement gets written down. It is a
 DATED SNAPSHOT, not a target: if a reading disagrees with it, re-run the
@@ -137,7 +158,15 @@ is what the six named settings actually offer the player:
   centre: 3.50 / 3.82 / 4.42 / 4.71 / 4.66 / 4.64. Rises, then flat from
   0.588 up. Going down costs 1.2 floors; going up does nothing.
 
-## Known defect this sweep exposed
+## Known defect this sweep exposed — AND IT IS NOT IN THE PRODUCT
+
+> **Re-read 2026-08-17: this defect is real arithmetic and reaches no
+> player.** `persistence` is a decided constant off the panel, so nobody is
+> ever offered these bands — they existed only because this file's own sweep
+> generated them from a stale name. Confirmed still true of the maths today:
+> at 1.26 a tile five steps from a creature prices 11.18 against 6.66 for one
+> beside it. Worth keeping written down because anything that puts
+> `persistence` back on a panel has to solve it first.
 
 Cautela's top two bands are **incoherent, not merely inert**. The value is
 the exponent in `menace = bite × persistence^distance`, and the centre of
