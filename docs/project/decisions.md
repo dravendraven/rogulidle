@@ -1783,3 +1783,107 @@ Energy Saver on, is where to look — not a desktop that has already answered.
 tripwires. Same one-line fix available; not taken here because it would make
 that instruction stale in a doc this change had no other reason to touch.
 
+
+## U6h — the shop priced against the Butcher, and the session's real economy
+
+U6g priced the shelf in hp for an empty-handed hero. This is what happened
+when the same question was asked of the game's FIRST objective — killing the
+vault's occupant — and then of a whole session rather than a single run. One
+price moved (dagger 10 → 6); two claims of U6g's did not survive.
+
+### Reading the Butcher
+
+Same paired A/B (`playRun`, baseline hero, shipped dials, identical seeds).
+"Engaged" is blows exchanged, read off the floor's own combat log via
+`replayGame` — not "reached the floor" and not "opened a chest in the room".
+
+Single items, 600 runs each:
+
+| kit | engaged | killed / engaged | killed / all runs |
+|---|---|---|---|
+| 1 axe | 86.0% | **51.2%** | 44.0% |
+| 1 dagger | 75.3% | 23.7% | 17.8% |
+| 1 shield | 65.8% | 17.0% | 11.2% |
+| 1 potion | 63.0% | 17.2% | 10.8% |
+| empty | 56.5% | 17.7% | 10.0% |
+
+**The duel is binary.** Across 1,741 engagements in these arms, the number of
+runs that traded blows with it and then reached floor 5 alive without killing
+it was ZERO. Enter and you win or the run ends there — which is what a
+speed-2 creature means: retreat returns no distance.
+
+**Conditioning on "engaged" imports a selection effect, and it is large.**
+Sixteen potions score WORSE conditionally (13.2%) than an empty-handed hero
+(17.7%) because they carry weak heroes to a fight the empty-handed hero only
+reaches when the floor already armed him. Compare arms on killed/all-runs;
+use the conditional rate to read mechanism, never to rank kits.
+
+Equal budgets, 700 runs each — the shop question rather than the item
+question:
+
+| 16 coins | killed / all | | 20 coins | killed / all |
+|---|---|---|---|---|
+| 1 axe | **43.7%** | | 1 axe + 2 shields | **56.6%** |
+| 2 daggers + 2 shields | 42.0% | | 2 daggers + 4 shields | 53.9% |
+| 1 dagger + 5 shields | 42.1% | | 10 shields | 50.1% |
+| 8 shields | 37.0% | | 3 daggers + 1 shield | 45.4% |
+| 2 daggers + 4 potions | 31.4% | | 1 axe + 4 potions | 42.7% |
+
+**One weapon is the threshold; the third is waste.** `1 dagger + 5 shields`
+ties `2 daggers + 2 shields`, and at 20 coins swapping 3 shields for a third
+dagger costs 8.5 points. Armour has INCREASING returns for this fight (one
+shield moves it 1.2 points, eight move it 27) because the duel is long;
+weapons have sharply decreasing ones. They cross at about one weapon.
+
+**The axe survives every basket.** It ties the mixed baskets at 16 (0.6
+sigma) and wins at 20 (11 points over three daggers, 4.2 sigma). A price of 6
+on the dagger therefore does not retire it — which was the test that would
+have argued for 8.
+
+### The potion is used; healing is what does not convert
+
+Purchased potions are drunk, measured by difference against a no-potion arm
+over the same seeds: 96%, 98% and 97% of them at 1, 2 and 4 potions, falling
+to 68% at 16 (five die in the bag). Every drink lands the full heal — 3.0 hp
+per drink, no waste on a full bar.
+
+So the earlier suspicion that the bot hoards them is WRONG. Sixteen potions
+deliver about 48 hp of healing across a run and buy half a floor (4.33 → 4.89,
+2.5 sigma) and nothing at all against the Butcher. **After the opening, hp is
+not the binding constraint — damage is.** Healing returns the hero to the
+same fight he cannot win. This is why the hp ruler overrates the potion, and
+why its price stays at 1 rather than rising to the shield's 2.
+
+### The session's economy is nothing like a single run's
+
+Everything above hands the kit over for free at floor 1. Simulating what the
+page actually does — run after run, the shop draining down `DEFAULT_ORDER`,
+the purchase becoming the next run's `startingItems`, the carry lost on death
+— gives a different game. 24 sessions × 30 runs:
+
+| per shop visit | dagger 10 | dagger 6 |
+|---|---|---|
+| potions | 0.52 | 0.48 |
+| shields | **2.25** | **0.71** |
+| daggers | 0.22 | **0.89** |
+| axes | 0.82 | 0.85 |
+| items | 3.81 | 2.93 |
+| mean balance | 20.4 | 20.8 |
+| mean depth | 6.55 | 6.63 |
+
+**Mean balance is about 20 coins, not the ~8.7 an isolated run earns**, and
+mean depth 6.6 rather than 4.3. The loop compounds: buy, go deeper, earn
+more, buy more. **The axe is bought in about 85% of visits at either price** —
+it is routine, not the rare event an isolated-run reading suggests. Any
+future claim about what the shop can afford has to be measured this way or it
+is measuring a game nobody plays.
+
+**What the dagger's new price actually changes is the basket, not the
+outcome:** shields fall from 2.25 to 0.71 a visit and daggers rise from 0.22
+to 0.89, with depth unmoved (6.55 → 6.63, inside the noise). The shop now
+assembles weapon-plus-armour on its own, which is the basket that tied the
+axe against the Butcher.
+
+**Nothing here was watched.** It also assumes the shipped `DEFAULT_ORDER`;
+a player who reorders the shelf in the Lab has a different economy from the
+one measured.
