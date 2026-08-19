@@ -81,8 +81,8 @@ caverna (autômato celular, aberto e orgânico), anel, central — ou
 dials de forma de sempre decidem, que é o jogo enviado. O catálogo existe
 para testar identidades no Lab antes de o desenho final ser escolhido.
 
-**Existe um layout de DUAS rotas, e ele sai desligado.** Atrás de um dial
-próprio (`RING_EVERY`, como o do hub), um andar pode ser gerado como anel:
+**Existe um layout de DUAS rotas, e ele sai desligado.** Como um dos temas
+do catálogo acima (o «anel»), um andar pode ser gerado assim:
 duas rotas disjuntas ligam o herói ao buraco — uma curta e mais densa em
 ameaça, uma longa e mais rala — e chegar exige escolher uma. As salas
 laterais viram becos pendurados para dentro do anel. Nesses andares o motor

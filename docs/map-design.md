@@ -369,7 +369,7 @@ optional field and not a new argument.
 
 **What it is FOR is not mainly the curves.** Of the model's thirty-odd
 fields only six are growth; the rest are flat per-floor values —
-`dugPercentage`, `mapSize`, `hubEvery`, `clusterSize`, `chestMix`. For
+`dugPercentage`, `mapSize`, `mapTheme`, `clusterSize`, `chestMix`. For
 those, an anchor at floor 4 simply means "from here the value is different",
 and that is the immediately useful half: floors 1–3 small and tight, 4–7
 open, 8–10 hubs.
@@ -392,7 +392,7 @@ is repeated inside the list, so nothing has to know which entry is special:
     "monstersBase": 5, "dugPercentage": 0.25,
     "floors": [
       { "from": 1, "monstersBase": 5, "dugPercentage": 0.25 },
-      { "from": 6, "monstersBase": 12, "dugPercentage": 0.32, "hubEvery": 1 }
+      { "from": 6, "monstersBase": 12, "dugPercentage": 0.32, "mapTheme": 5 }
     ] } }
 ```
 
@@ -410,13 +410,15 @@ growth is not what four times the growth five floors down was. Worth knowing
 before reading a difference as a defect.
 
 **The section below is still true of the Digger, and it stopped being the
-whole story.** `HUB_EVERY` says which floors are dug by the other generator
-— every Nth, 0 for none — so the shape is a property of the FLOOR rather
-than of the run. That is deliberate and it is the DCSS shape: there, a level
-draws a layout from a shelf, and a branch is recognisable because its floors
-are not all the same algorithm. `layoutFor()` in `difficulty.js` is the one
-place that decides, so a third layout is a case there and a file beside
-`layout-hub.js`.
+whole story.** `mapTheme` says which generator digs a floor — per ANCHOR,
+so the shape is a property of the FLOOR rather than of the run. That is
+deliberate and it is the DCSS shape: there, a level draws a layout from a
+shelf, and a branch is recognisable because its floors are not all the same
+algorithm. `layoutFor()` in `difficulty.js` is the one place that decides,
+so a new layout is a case there and a file beside `layout-hub.js`. (The
+modulo dials that once did this — `HUB_EVERY`, `RING_EVERY` — were deleted
+when the theme became the one selector; an anchor expresses any mapping a
+modulo could.)
 
 The reason a second one exists is a finding, not a preference. ROT's Digger
 **accretes**: it glues a feature onto the wall of a feature it already dug,

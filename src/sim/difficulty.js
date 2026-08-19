@@ -13,9 +13,9 @@
 import {
   CHEST_GUARD_RADIUS, CHEST_LOOT_CHANCE, CORRIDOR_MIN, corridorRange, EARLY_TIER_CUT,
   FLOOR_SPREAD_CAP, FLOOR_SPREAD_PER_LEVEL, MAP_DUG_PERCENTAGE, MAP_SIZE,
-  MAP_THEME, MAP_THEME_LAYOUTS, RING_EVERY, RING_ROOMS, RING_SPURS,
+  MAP_THEME, MAP_THEME_LAYOUTS, RING_ROOMS, RING_SPURS,
   SHORT_ROUTE_MASS_SHARE,
-  HUB_BRANCHES, HUB_EVERY, HUB_RINGS,
+  HUB_BRANCHES, HUB_RINGS,
   ROOM_BIAS, ROOM_HEIGHT, ROOM_SCALE, ROOM_WIDTH, roomRange,
   MONSTER_DROP_CHANCE, MONSTER_TABLE,
   OUT_OF_DEPTH_CHANCE_CAP, OUT_OF_DEPTH_CHANCE_PER_LEVEL,
@@ -162,15 +162,14 @@ export function tierSlack(step, model = {}) {
 // sees. Every Nth floor is a hub and the rest are ROT's accretion; 0 is
 // never. One place, so `floorParams` and `makeFloorPlan` cannot disagree
 // about which floors are which, and the one place a third layout is added.
-export function layoutFor(floor, every = HUB_EVERY, ringEvery = RING_EVERY,
-  theme = MAP_THEME) {
-  // M51 — a named theme overrides the per-layout dials whole: the theme
-  // dial exists to test ONE identity across every floor (or 'sorteio',
-  // resolved per floor inside generateMap). At 0 the old dials rule.
-  const themed = MAP_THEME_LAYOUTS[Math.round(theme ?? 0)] ?? null;
-  if (themed) return themed;
-  if (ringEvery > 0 && floor % ringEvery === 0) return 'ring';
-  return every > 0 && floor % every === 0 ? 'hub' : 'digger';
+export function layoutFor(floor, theme = MAP_THEME) {
+  // M51 — the theme IS the selector now. The hubEvery/ringEvery modulo
+  // dials this function once arbitrated between were deleted: which floors
+  // get which shape is `mapTheme` per anchor (`model.floors`), which
+  // expresses any mapping a modulo could and every one it could not.
+  // `floor` stays in the signature for the day a theme wants to vary by
+  // floor on its own; nothing reads it today.
+  return MAP_THEME_LAYOUTS[Math.round(theme ?? 0)] ?? 'digger';
 }
 
 export function monstersAt(base, growth, step) {
@@ -279,14 +278,13 @@ export const DEFAULT_MODEL = {
   // together, because those two argue about area and this one divides it.
   mapSize: MAP_SIZE,
   roomScale: ROOM_SCALE,
-  // Which generator draws the floor, and the hub's own two numbers.
-  hubEvery: HUB_EVERY,
+  // Which generator draws the floor (the theme), and each authored
+  // layout's own numbers.
+  mapTheme: MAP_THEME,
   hubBranches: HUB_BRANCHES,
   hubRings: HUB_RINGS,
-  ringEvery: RING_EVERY,
   ringRooms: RING_ROOMS,
   ringSpurs: RING_SPURS,
-  mapTheme: MAP_THEME,
   shortRouteMassShare: SHORT_ROUTE_MASS_SHARE,
   shrineDistanceShare: SHRINE_DISTANCE_SHARE,
   vaultLevel: VAULT_LEVEL,
@@ -458,7 +456,7 @@ export function makeFloorPlan(model = {}) {
     roomBias: m.roomBias,
     corridorLength: corridorRange(m.corridorMin),
     mapSize: m.mapSize,
-    layout: layoutFor(level, m.hubEvery, m.ringEvery, m.mapTheme),
+    layout: layoutFor(level, m.mapTheme),
     hubBranches: m.hubBranches,
     hubRings: m.hubRings,
     ringRooms: m.ringRooms,

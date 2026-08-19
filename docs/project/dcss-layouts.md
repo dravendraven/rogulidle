@@ -165,7 +165,7 @@ ganham gerador próprio ou padrões especiais, em vez de serem os mesmos
 andares com criaturas piores.
 
 Duas peças para isso já existem e não foram construídas pensando nele:
-`HUB_EVERY` escolhe QUAIS andares usam outro gerador, e `model.floors`
+`mapTheme` por âncora escolhe QUAIS andares usam outro gerador, e `model.floors`
 permite que os andares fundos tenham a sua própria curva. O que falta é a
 terceira forma — e a leitura acima diz que ela deve ser **rara e
 reconhecível**, não uma variação da que já existe.

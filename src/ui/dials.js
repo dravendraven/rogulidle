@@ -678,34 +678,19 @@ export const SECTIONS = [
     // shape; nothing there changes the rooms themselves.
     ['forma do mapa', [
       {
-        // A SLIDER OVER FLOORS, not a switch over the run. Which floors get
-        // which shape is the question the owner actually asked, and a
-        // switch could only answer "all or none". The live line names the
-        // floors so the modulo never has to be done in anyone's head.
-        kind: 'model', key: 'hubEvery', label: 'de quantos em quantos andares (0 = nunca)',
-        title: 'Andares com sala central', step: 1, range: [0, 10],
-        says: (v) => {
-          const every = v.model.hubEvery;
-          if (!every) return 'nenhum — todo andar é do gerador antigo';
-          const floors = [];
-          for (let f = every; f <= LEVELS; f += every) floors.push(f);
-          if (!floors.length) return 'nenhum — a conta não alcança o andar 10';
-          const list = floors.length === 1
-            ? `o andar ${floors[0]}`
-            : `andares ${floors.slice(0, -1).join(', ')} e ${floors[floors.length - 1]}`;
-          return `${list} com sala central; o resto do gerador antigo`;
-        },
-      },
-      {
-        // M51 — the thematic catalogue. One slider over the shelf, so
-        // testing an identity is dragging to it and restarting; the names
-        // live in MAP_THEME_LAYOUTS (balance.js) and this row must match
-        // its order. Any value but 0 overrides hubEvery/ringEvery whole.
+        // M51 — the thematic catalogue, and THE ONE layout selector: the
+        // hubEvery/ringEvery modulo rows that used to sit beside it were
+        // deleted (owner: "os dials do gerador estão mega confusos").
+        // Testing an identity is dragging to it and restarting; per-FLOOR
+        // themes are the curve's job — an anchor carries its own mapTheme
+        // (model.floors), which is how the narrative arc file works. The
+        // names live in MAP_THEME_LAYOUTS (balance.js) and this row must
+        // match its order.
         kind: 'model', key: 'mapTheme', label: 'tema do mapa (0 = padrão)',
         title: 'Tema do mapa', step: 1, range: [0, 6],
         says: (v) => {
           const names = [
-            'padrão — os dials de forma abaixo decidem',
+            'padrão — o gerador clássico, o jogo de sempre',
             'cripta — salas regulares e corredores curtos, ordenado',
             'grade — salas em grade 3×3 ligadas às vizinhas, com loops',
             'caverna — aberto e orgânico, sem salas de verdade',
@@ -717,35 +702,20 @@ export const SECTIONS = [
         },
       },
       {
-        // M50 — the two-route ring. Same slider-over-floors shape as
-        // hubEvery above, for the same reason; when both claim a floor the
-        // ring wins (difficulty.js layoutFor).
-        kind: 'model', key: 'ringEvery', label: 'andares em ANEL — duas rotas (0 = nunca)',
-        title: 'Andares com duas rotas', step: 1, range: [0, 10],
-        says: (v) => {
-          const every = v.model.ringEvery;
-          if (!every) return 'nenhum — nenhum andar tem duas rotas';
-          const floors = [];
-          for (let f = every; f <= LEVELS; f += every) floors.push(f);
-          if (!floors.length) return 'nenhum — a conta não alcança o andar 10';
-          const list = floors.length === 1
-            ? `o andar ${floors[0]}`
-            : `andares ${floors.slice(0, -1).join(', ')} e ${floors[floors.length - 1]}`;
-          return `${list} em anel: rota curta e densa ou longa e rala`;
-        },
-      },
-      {
-        kind: 'model', key: 'hubBranches', label: 'salas no anel (só na forma central)',
+        kind: 'model', key: 'hubBranches', label: 'salas no anel (só no tema central)',
         title: 'Quantos ramos', step: 1, range: [2, 8],
-        says: (v) => (v.model.layout === 'hub'
+        // Reads the THEME, not a `model.layout` that never existed — the
+        // old check compared against a key no model carries, so this line
+        // said "inativo" even on a hub floor.
+        says: (v) => (Math.round(v.model.mapTheme ?? 0) === 5
           ? `${v.model.hubBranches} caminhos saindo da sala inicial`
-          : 'inativo — a forma do andar não é a central'),
+          : 'inativo — o tema do mapa não é o central'),
       },
       {
-        kind: 'model', key: 'hubRings', label: 'anéis de salas (só na forma central)',
+        kind: 'model', key: 'hubRings', label: 'anéis de salas (só no tema central)',
         title: 'Quantos anéis', step: 1, range: [1, 2],
         says: (v) => {
-          if (v.model.layout !== 'hub') return 'inativo — a forma do andar não é a central';
+          if (Math.round(v.model.mapTheme ?? 0) !== 5) return 'inativo — o tema do mapa não é o central';
           const total = 1 + v.model.hubBranches * v.model.hubRings;
           return v.model.hubRings > 1
             ? `${total} salas, e o anel de fora força salas menores`

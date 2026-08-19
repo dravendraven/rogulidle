@@ -244,7 +244,7 @@ single shape.
 generator-agnostic — `spine.js` derives a second route on ANY map that
 promises one, `routeVisits` counts on any map that has them, and the
 three-zone placement needs only the promise flag. The ring stays in the
-catalogue as one entry (`RING_EVERY`, off), not as the answer.
+catalogue as one entry (the «anel» theme), not as the answer.
 
 ## Difficulty and the map
 

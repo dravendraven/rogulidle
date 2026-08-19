@@ -4486,12 +4486,17 @@ test('sorteio draws different themes across floors of one run', () => {
   assert(prints.size > 1, 'ten sorteio floors all came out identical');
 });
 
-test('theme 0 is the shipped game: layoutFor ignores it and the dials rule', () => {
-  assertEq(layoutFor(3, 0, 0, 0), 'digger', 'theme 0 changed the default');
-  assertEq(layoutFor(4, 4, 0, 0), 'hub', 'theme 0 broke hubEvery');
-  assertEq(layoutFor(4, 0, 4, 0), 'ring', 'theme 0 broke ringEvery');
-  assertEq(layoutFor(3, 0, 0, 1), 'uniform', 'theme 1 is not the cripta');
-  assertEq(layoutFor(3, 4, 4, 3), 'cave', 'a named theme must override the dials');
+test('the theme is the ONE layout selector, and 0 is the shipped game', () => {
+  assertEq(layoutFor(3, 0), 'digger', 'theme 0 changed the default');
+  assertEq(layoutFor(3, 1), 'uniform', 'theme 1 is not the cripta');
+  assertEq(layoutFor(3, 2), 'rogue', 'theme 2 is not the grade');
+  assertEq(layoutFor(3, 3), 'cave', 'theme 3 is not the caverna');
+  assertEq(layoutFor(3, 4), 'ring', 'theme 4 is not the anel');
+  assertEq(layoutFor(3, 5), 'hub', 'theme 5 is not the central');
+  assertEq(layoutFor(3, 6), 'sorteio', 'theme 6 is not the sorteio');
+  // The old hubEvery/ringEvery modulo dials are gone — a stale extra
+  // argument must not resurrect them.
+  assertEq(layoutFor(4, 0, 4), 'digger', 'a deleted dial still selects layouts');
 });
 
 test('the Butcher stands on floor 4 in EVERY theme, and the eviction breaks nothing', () => {

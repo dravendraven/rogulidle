@@ -68,37 +68,17 @@ export function roomRange(pair, scale = ROOM_SCALE) {
   return pair.map((n) => Math.max(ROOM_MIN_SIDE, Math.round(n * scale)));
 }
 
-// WHICH FLOORS ARE DUG AS A HUB — a central room with a ring of rooms
-// around it (src/sim/layout-hub.js) — instead of by ROT's accretion, the
-// only generator this game had.
-//
-// Every Nth floor, and 0 is never. One number rather than a list because
-// it covers the cases that matter: 4 gives floors 4 and 8, 10 gives the
-// bottom alone, 1 gives all of them.
-//
-// PER FLOOR rather than per run, which is the thing worth copying from
-// DCSS: it has no generator with parameters, it has a shelf of them and
-// draws one per level, each declaring where it may appear.
-// docs/project/dcss-layouts.md is the study. A third layout is a file and
-// a case in `layoutFor`, not a redesign.
-export const HUB_EVERY = 0;
-
 // GUESS — rooms in the hub's ring, and how many rings. Only read by the
-// hub layout. The room SIZE is not a dial there: a ring is a packing
-// problem, so layout-hub.js solves the size down from ROOM_WIDTH/HEIGHT
-// until the geometry closes.
+// hub layout (MAP_THEME index 5). The room SIZE is not a dial there: a
+// ring is a packing problem, so layout-hub.js solves the size down from
+// ROOM_WIDTH/HEIGHT until the geometry closes.
 export const HUB_BRANCHES = 4;
 export const HUB_RINGS = 1;
 
-// M50 — the ring layout (src/sim/layout-ring.js): rooms in a CYCLE, so the
-// floor has two routes to the hole and choosing one is mandatory. The
-// generator half of docs/map-design.md's "The owner's target shape".
-// RING_EVERY works exactly like HUB_EVERY and 0 is OFF — which is the
-// shipped game: the layout exists behind this dial, unjudged.
-export const RING_EVERY = 0;
-// GUESS — rooms on the ring, and how many inward spur rooms (the side
-// bets) hang off it. Room size is solved down from ROOM_WIDTH/HEIGHT the
-// same way the hub does it.
+// GUESS — the ring layout's own two numbers (MAP_THEME index 4): rooms on
+// the ring, and how many inward spur rooms (the side bets) hang off it.
+// Room size is solved down from ROOM_WIDTH/HEIGHT the same way the hub
+// does it.
 export const RING_ROOMS = 8;
 export const RING_SPURS = 3;
 // GUESS — of the mass placed ON the routes, the short route's share. A new
@@ -108,15 +88,19 @@ export const RING_SPURS = 3;
 export const SHORT_ROUTE_MASS_SHARE = 0.7;
 
 // M51 — the map THEME: which shape family draws the floor, as an index
-// into MAP_THEME_LAYOUTS. 0 is "padrão" — the hubEvery/ringEvery dials
-// decide, which with both at 0 is the shipped Digger game. The last entry
-// is 'sorteio': a theme drawn per floor from the map's own stream. The
-// catalogue exists to TEST identities before the final map design is
-// chosen (decisions.md M50 is why variety won over structure); nothing
-// ships at any value but 0 without the owner watching it first.
+// into MAP_THEME_LAYOUTS. THE ONE SELECTOR: the per-layout modulo dials it
+// once shared the panel with (hubEvery, ringEvery) were deleted — three
+// controls answering "which generator draws this floor" was the confusion
+// the owner asked removed, and per-ANCHOR mapTheme (model.floors) already
+// answers "which floors get which shape" better than any modulo could.
+// 0 is "padrão", the shipped Digger game. The last entry is 'sorteio': a
+// theme drawn per floor from the map's own stream. The catalogue exists to
+// TEST identities before the final map design is chosen (decisions.md M50
+// is why variety won over structure); nothing ships at any value but 0
+// without the owner watching it first.
 export const MAP_THEME = 0;
 export const MAP_THEME_LAYOUTS = [
-  null,        // 0 padrão — hubEvery/ringEvery decide (shipped: Digger)
+  null,        // 0 padrão — o Digger clássico, o jogo enviado
   'uniform',   // 1 cripta — salas regulares, corredores curtos, ordenado
   'rogue',     // 2 grade — 3×3 salas ligadas às vizinhas, loops de verdade
   'cave',      // 3 caverna — autômato celular, aberto e orgânico
