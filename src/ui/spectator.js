@@ -36,6 +36,7 @@ import { loadDialOverrides } from './dial-overrides.js';
 import { eventsEnabled, makeEventLayer } from './events.js';
 import { playRun } from './run.js';
 import { askPlayerName, hideNotice, showNotice } from './player.js';
+import { claimTab } from './tab-lock.js';
 import {
   clearSlice, getPlayer, readSave, readSlice, replaceSave, setPlayer, writeSlice,
 } from './save.js';
@@ -1202,6 +1203,25 @@ function wireLab(overrides, devMode) {
 export async function start() {
   grab();
   buildGrid(el.grid);
+
+  // ONE TAB BEFORE ONE NAME. Two tabs of the same browser share one save,
+  // and the service's lock only catches them while it can be reached — with
+  // no network both would play into the same document and take turns
+  // overwriting it (src/ui/tab-lock.js).
+  //
+  // Only "recarregar" is offered. Inside one browser, closing the other tab
+  // is trivial, and a second way to take something over would be more to
+  // explain than it is worth.
+  if (!await claimTab()) {
+    await showNotice(el.playerGate, {
+      title: 'já está aberto em outra aba',
+      text: 'este navegador só joga em uma aba por vez — as duas dividiriam o'
+        + ' mesmo save. feche a outra e recarregue esta.',
+      buttons: [{ id: 'reload', label: 'recarregar' }],
+    });
+    location.reload();
+    return;
+  }
 
   // THE NAME COMES FIRST, before a single slice is read.
   //

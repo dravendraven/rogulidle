@@ -586,6 +586,13 @@ sinal. A reserva tem prazo e se renova sozinha enquanto o jogo roda: fechar a
 aba a devolve na hora, e um aparelho que sumiu sem devolver a perde quando o
 prazo vence — ninguém fica trancado para fora do próprio jogo.
 
+**Uma aba por navegador, e essa recusa vem antes do nome.** Duas abas do
+mesmo navegador dividem o mesmo save: com o serviço no ar a segunda já era
+recusada como se fosse outro aparelho, mas sem rede as duas jogariam e
+gravariam por cima uma da outra. A segunda aba só oferece recarregar —
+dentro do mesmo navegador, fechar a outra é trivial. O navegador libera essa
+reserva sozinho quando a aba morre, sem prazo nenhum.
+
 **Quem foi recusado pode assumir na hora.** O prazo resolve sozinho o
 aparelho que morreu segurando o nome, mas só depois de correr inteiro, e
 quem está diante da tela em geral sabe que o outro está fechado. O botão
