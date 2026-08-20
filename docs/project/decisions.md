@@ -1923,3 +1923,35 @@ axe against the Butcher.
 **Nothing here was watched.** It also assumes the shipped `DEFAULT_ORDER`;
 a player who reorders the shelf in the Lab has a different economy from the
 one measured.
+
+## The achievement that looked like a lie
+
+Reported as a bug: the Butcher row said earned on "run 3", and run 3 in the
+history strip beside it had died to a boar.
+
+**`earnedBy` was not wrong, and this is the part worth keeping.** It reads
+`vault && dead` off the finished run's own roster, and `dead` is written in
+exactly one place — `playerAttacks`, when the hero lands the killing blow.
+Cross-checked on real runs against the engine's independent record, the
+player's kill list, over hundreds of runs: never once did the claim and the
+kill list disagree. The invariant now has a test of its own, searched rather
+than pinned, so it stays true across balance changes.
+
+**Two things made a correct claim read as a false one, and both are the
+strip's, not the achievement's:**
+
+- **A run can kill the pig and still die on that same floor**, to something
+  that is not the pig. The chip shows only the killer, so "died to the boar"
+  and "killed the Butcher" are both true of one run and the strip could only
+  ever show the first.
+- **`session.runNumber` restarts at every page load; the achievement store
+  does not.** An achievement earned on run 3 of one sitting kept printing
+  "run 3" over the NEXT sitting's run 3 — a different run, with a different
+  ending, sitting right there to be compared against.
+
+**The run number is deleted rather than made durable.** A lifetime counter
+would be a second piece of state to keep honest, and it still could not point
+at a run that has fallen off the end of a twelve-chip strip. The stamp shows
+`at`, which was already stored and is still true tomorrow; the run is
+identified where it can actually be looked at — a green chip with a trophy on
+it, in the strip, for as long as that run is still in it.

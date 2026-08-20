@@ -302,13 +302,19 @@ export function renderDebugInfo(element, entry) {
   element.textContent = parts.join(' · ');
 }
 
-// Recent runs, newest first: how far each one got and how it ended.
-// 🟩 cleared the descent, 💀 died, 🕳️ ran out of turns.
+// WHEN, not "run N". The run number this used to print came from a counter
+// that restarts at every page load while the achievement store does not, so
+// after one reload it pointed at somebody else's run — see the note on
+// `earn` in src/ui/achievements.js. The instant is the one field in a
+// receipt that still means the same thing tomorrow.
 //
-// Cleared is NOT the hole any more: the hole is what a floor's exit looks
-// like now, and the timeout chip already owned that glyph — two identical
-// icons in one strip say nothing. Green is the same "made it" the hp bar
-// already uses.
+// The visitor's own locale, no format of ours: this is a date and every
+// browser already knows how the person reading it writes one.
+function stampDate(at) {
+  if (!Number.isFinite(at)) return '';
+  return new Date(at).toLocaleDateString();
+}
+
 // U11 — the achievements strip under the history. Two rows, redrawn whole
 // on every change; `justEarned` is the id that flipped this run, which is
 // the only thing that gets the celebration class.
@@ -335,18 +341,45 @@ export function renderAchievements(element, list, earned, justEarned = null) {
 
     const stamp = document.createElement('span');
     stamp.className = 'ach-stamp';
-    stamp.textContent = got ? `run ${earned[a.id].run}` : '';
+    stamp.textContent = got ? stampDate(earned[a.id].at) : '';
 
     row.append(icon, text, stamp);
     element.append(row);
   }
 }
 
-export function renderHistory(element, history) {
+// Recent runs, newest first: how far each one got and how it ended.
+// 🟩 cleared the descent, 💀 died, 🕳️ ran out of turns.
+//
+// Cleared is NOT the hole any more: the hole is what a floor's exit looks
+// like now, and the timeout chip already owned that glyph — two identical
+// icons in one strip say nothing. Green is the same "made it" the hp bar
+// already uses.
+//
+// `list` is ACHIEVEMENTS, the same array `renderAchievements` takes — a chip
+// needs the TITLE of what its run earned for the tooltip, and the ids are all
+// the session keeps (src/ui/spectator.js).
+export function renderHistory(element, history, list = []) {
   element.innerHTML = '';
   for (const entry of history) {
+    // U11 — which achievements this run was the FIRST to earn. Empty for
+    // every ordinary run, and empty for the hundredth Butcher too: `earn`
+    // reports only the first time, and a strip where half the chips are green
+    // marks nothing.
+    //
+    // Ids rather than a boolean, so the tooltip can NAME the thing. That
+    // matters more here than it looks: the chip already shows what killed the
+    // run, and "died to the boar" and "killed the pig" are both true of the
+    // same run — the pig dies on floor 4 and the floor kills you anyway. The
+    // strip could never say the second one, which is exactly how a correct
+    // achievement came to look like a lie.
+    const won = (entry.earned || [])
+      .map((id) => list.find((a) => a.id === id))
+      .filter(Boolean);
+
     const chip = document.createElement('span');
-    chip.className = 'history-chip' + (entry.cleared ? ' cleared' : '');
+    chip.className = 'history-chip' + (entry.cleared ? ' cleared' : '')
+      + (won.length ? ' achieved' : '');
     const icon = entry.cleared ? '🟩' : entry.cause === 'timeout' ? '🕳️' : '💀';
 
     // WHAT KILLED IT, beside the skull. A row of identical skulls says only
@@ -362,9 +395,17 @@ export function renderHistory(element, history) {
     const killer = entry.cleared ? null : monsterEmoji(entry.killedBy);
     const killerSvg = killer ? tileSvg(killer) : null;
 
+    // ONE trophy however many were earned at once. The chip is eleven pixels
+    // tall and already carries two glyphs; a second cup would say nothing the
+    // first did not, and the tooltip lists them all anyway.
+    const trophy = won.length ? (tileSvg('🏆') || '') : '';
+
     chip.innerHTML = `<span class="depth">${entry.depth}</span>${tileSvg(icon)}`
-      + (killerSvg || '');
-    chip.title = entry.killedBy ? `run ${entry.run} — ${entry.killedBy}` : `run ${entry.run}`;
+      + (killerSvg || '') + trophy;
+    const parts = [`run ${entry.run}`];
+    if (entry.killedBy) parts.push(entry.killedBy);
+    for (const a of won) parts.push(`🏆 ${a.title}`);
+    chip.title = parts.join(' — ');
     element.append(chip);
   }
 }
