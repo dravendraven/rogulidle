@@ -491,6 +491,51 @@ pieces, one entry per anchor. Hell's curve is that mechanism handed a
 second model — exactly CLAUDE.md's "a harder dungeon tier is a model
 handed to `makeFloorPlan`", already a hard rule.
 
+#### The infernal coin — owner, 2026-08-20
+
+**Hell runs on its own currency, and the exchange happens at the moment a
+clear is paid.** One infernal coin costs a fixed amount of gold (a number
+for `balance.md` when built; ~20 was the first guess) and is a FIXED item
+on the shop shelf, offered on a clear. That placement does three jobs at
+once:
+
+- **The snowball becomes a choice with an opportunity cost.** A streak of
+  clears is the one state that runs away (decisions.md); converting gold to
+  infernal coin deliberately WEAKENS the next run. Farming hell and
+  snowballing gear are now the same budget — self-regulating, no dial.
+- **It obeys "what a loss owes" by construction**: the coin only ever comes
+  from a clear, so only winning pays what crosses into hell.
+- **The shop ORDER becomes the pre-AFK strategy** (`objectives.md`, the
+  heaviest decision): the player who ranks the infernal coin high in the
+  auto-buy order (U13's existing, player-configurable mechanism) has said
+  "every clear converts"; leaving it out says "snowball until it breaks".
+  Idle strategy gets a mechanic in UI that already exists.
+
+**Choosing hell transforms the shop**: prices in infernal coin, and NEW
+items appear as hell achievements unlock them — under the registered
+situational-power rule, never a plain multiplier.
+
+**The open question — how to stop indefinite coin farming — leans CAP, not
+clock.** Expiring coins (24h / daily reset) punish absence, which
+contradicts the owner's own requirement that a long absence returns to a
+REWARD, not less. A small WALLET CAP kills indefinite farming without
+that cost, and the sizing rule is already written (the shelved game-loop's
+wallet note): derived from the price of a hell loadout, never a
+free-standing number. Together with this file's per-day descent cap the
+cycle closes: the day limits attempts, the wallet limits stock, the daily
+seed makes each day a fresh problem. Not decided — recorded with the
+argument so the decision starts here.
+
+**One honest limit:** "helps the snowball with no fine-tuning" is only true
+for whoever CHOOSES the coin. An idle session on a default order that does
+not include it snowballs exactly as today — where the coin sits in the
+DEFAULT order is the real brake, and that is a design decision, not a
+detail.
+
+**And it sharpens the build order:** the coin is priced in gold, so gold
+has to matter first — the economy rebalance (make the naked pig
+unbeatable, the bought pig rare) stays upstream of everything here.
+
 #### Hell is unlocked, and both keys already exist
 
 **The base game has no hell.** It is earned, and the achievement that earns it
