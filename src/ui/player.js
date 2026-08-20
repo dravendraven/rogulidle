@@ -9,14 +9,64 @@
 // WHY A NAME AT ALL. A save has to have an address before it can be looked
 // up from anywhere but this browser
 // (`docs/project/persistencia-e-login.md`). The name is that address, and
-// nothing more — no password, no account. Today it buys one thing you can
-// see: two names in one browser are two independent games.
+// nothing more — no password, no account. It buys two things: two names in
+// one browser are two independent games, and the same name typed on another
+// device opens the same game (src/ui/sync.js).
 //
-// It promises NOTHING about another device yet, and the wording here is
-// careful about that: the server that would make the same name open the
-// same save elsewhere is the next piece of the study, not this one.
+// ONE DEVICE AT A TIME, though, which is the owner's rule and the reason the
+// service lends the name rather than copying it. The second device is
+// refused, and the refusal is shown through `showNotice` below.
 
 import { normalisePlayerName } from './save.js';
+
+// THE SAME OVERLAY, SAYING SOMETHING ELSE. Three things use it besides the
+// name field: waiting on the service, the refusal when the name is open on
+// another device, and the stop when the lock is lost mid-game. They are all
+// "the page cannot go on until you read this", which is one screen, not
+// three (src/ui/sync.js).
+//
+// Returns a promise that resolves with the id of the button pressed — and
+// never resolves when there are no buttons, which is exactly right for a
+// notice that something else is about to replace.
+export function showNotice(container, { title, text, buttons = [] } = {}) {
+  return new Promise((resolve) => {
+    container.innerHTML = '';
+
+    const card = document.createElement('div');
+    card.className = 'player-card';
+
+    const heading = document.createElement('div');
+    heading.className = 'player-title';
+    heading.textContent = title;
+
+    const line = document.createElement('div');
+    line.className = 'player-note';
+    line.textContent = text || '';
+
+    card.append(heading, line);
+
+    if (buttons.length) {
+      const row = document.createElement('div');
+      row.className = 'player-form';
+      for (const { id, label } of buttons) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = label;
+        button.addEventListener('click', () => resolve(id));
+        row.append(button);
+      }
+      card.append(row);
+    }
+
+    container.append(card);
+    container.hidden = false;
+  });
+}
+
+export function hideNotice(container) {
+  container.hidden = true;
+  container.innerHTML = '';
+}
 
 // Shows the gate and resolves with a normalised name — or with null when it
 // was opened over a game that already has one and the player backed out.
@@ -57,7 +107,7 @@ export function askPlayerName(container, { current = null } = {}) {
     // reads as an account and this is not one.
     const note = document.createElement('div');
     note.className = 'player-note';
-    note.textContent = 'um nome guarda um jogo, sem senha. outro nome começa outro jogo neste navegador.';
+    note.textContent = 'um nome guarda um jogo, sem senha. o mesmo nome em outro aparelho continua de onde parou — um aparelho por vez.';
 
     // Only ever offered over a game that already has a player: on the first
     // visit there is nothing to go back to, and a gate that could be

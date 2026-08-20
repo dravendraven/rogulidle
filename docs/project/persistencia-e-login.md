@@ -197,12 +197,21 @@ pequeno: mudar de aparelho pode custar as últimas runs.
 
 Ao entrar o nome: `claim`. Se vier `409`, a tela do nome mostra o recado e
 não deixa entrar (e diz há quanto tempo o outro aparelho deu sinal). Se vier
-`200`, o save remoto é adotado — **quem tem a trava é a verdade**, não o
-carimbo de tempo mais novo. É a regra simples que sobrevive a um aparelho que
-jogou offline segurando a trava.
+`200`, o save remoto é adotado — mas **só quando ele está à frente**: o
+documento guarda a revisão do servidor a que ele corresponde (fatia `sync`),
+e adotar é a resposta quando a revisão de lá é maior. Igual ou menor significa
+que a cópia daqui é o mesmo jogo ou um mais novo, e a próxima subida ordinária
+a leva.
 
 Depois disso o jogo roda como sempre; a sincronização é um efeito de borda do
 ponto de salvamento que a Peça 2 já criou.
+
+**Uma recusa não é sempre um segundo aparelho.** Este é um jogo idle: uma aba
+pausada por mais tempo que o prazo simplesmente deixa de renovar, e o nome
+cai livre sem que ninguém o queira. Por isso um `409` na subida bate na porta
+de novo: se o nome ainda está como foi deixado, a aba retoma a trava e segue
+em silêncio; se alguém entrou no meio, aí sim ela para. Dizer «foi aberto em
+outro aparelho» para quem só pausou seria mentira.
 
 ## 8. Peça 6 — quando a rede falha
 
@@ -246,8 +255,8 @@ Cada uma vale sozinha e dá para ver se funcionou.
 | T2 ✔ | fatia `session`, gravada quando a run é contada | refresh mantém «recent runs» e o número da run, e a contagem continua de onde estava |
 | T3 ✔ | tela do nome, save por nome, «trocar de jogador» | dois nomes no mesmo browser = dois jogos independentes |
 | T4 ✔ | Worker + KV com as três rotas | responde por `curl`, antes de a página saber que ele existe |
-| T5 | cliente: claim, adoção do save remoto, sync estrangulado, perda de trava | dois browsers: o segundo é recusado com o recado certo |
-| T6 | falha de rede: selo, retomada, descarte do órfão | devtools em offline durante uma run e de volta |
+| T5 ✔ | cliente: claim, adoção do save remoto, sync estrangulado, perda de trava | dois browsers: o segundo é recusado com o recado certo |
+| T6 | falha de rede: **selo e jogo local já feitos no T5**; falta a RETOMADA — uma aba que abriu sem rede nunca mais tenta | devtools em offline durante uma run e de volta |
 
 T1–T3 não dependem de decisão nenhuma e resolvem o problema relatado.
 T4–T6 dependem das respostas 2 e 3 do §10.

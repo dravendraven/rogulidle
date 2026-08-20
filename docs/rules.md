@@ -579,6 +579,26 @@ independentes, e trocar de nome não apaga o jogo de ninguém.
 antes de o nome existir continua de onde estava. Só o primeiro: o segundo
 nome começa limpo.
 
+**O mesmo nome em outro aparelho continua o mesmo jogo, um aparelho por
+vez.** Ao entrar, o nome é reservado; quem chegar depois é recusado com um
+recado que diz em que tipo de aparelho ele está aberto e há quanto tempo deu
+sinal. A reserva tem prazo e se renova sozinha enquanto o jogo roda: fechar a
+aba a devolve na hora, e um aparelho que sumiu sem devolver a perde quando o
+prazo vence — ninguém fica trancado para fora do próprio jogo.
+
+**O save sobe de tempos em tempos, e ao fechar a aba** — não a cada run. O
+navegador continua gravando toda run; o que é espaçado é a subida. A
+consequência é honesta e pequena: trocar de aparelho pode custar as últimas
+runs.
+
+**Quem perde a reserva para.** Se o nome foi tomado por outro aparelho, a aba
+diz isso e encerra ali, em vez de seguir jogando runs que nenhum save vai
+guardar.
+
+**Sem servidor, o jogo continua.** Fora do ar ou sem rede, tudo é jogado e
+gravado só naquele aparelho, e o cabeçalho marca que nada está
+sincronizando.
+
 **O que a página lembra, ela lembra entre visitas.** Refresh não começa outra
 sessão. O número da run, o histórico dos últimos resultados, o placar e a
 cadeia de seeds voltam como estavam — junto com o que já persistia: itens

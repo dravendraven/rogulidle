@@ -263,6 +263,30 @@ export function setPlayer(name) {
   return clean;
 }
 
+// ***** the whole document *****
+//
+// One caller: the sync (src/ui/sync.js), which sends the document up and
+// puts a downloaded one in its place. Nothing else has any business reading
+// or writing more than its own slice.
+
+export function readSave() {
+  return copy(load());
+}
+
+// Adopt a document that came from somewhere else. It is written straight to
+// disk rather than merged: a save is a photograph of one player's game, and
+// half of one is not a save.
+export function replaceSave(save) {
+  if (!save || typeof save !== 'object' || !save.slices) return false;
+  doc = {
+    v: VERSION,
+    rev: Number(save.rev) || 0,
+    updatedAt: Number(save.updatedAt) || 0,
+    slices: copy(save.slices),
+  };
+  return flush();
+}
+
 // Drop the in-memory copy, so the next read goes back to disk.
 //
 // For anything that changes the document behind this module's back: the test

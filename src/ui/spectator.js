@@ -35,10 +35,13 @@ import {
 import { loadDialOverrides } from './dial-overrides.js';
 import { eventsEnabled, makeEventLayer } from './events.js';
 import { playRun } from './run.js';
-import { askPlayerName } from './player.js';
+import { askPlayerName, hideNotice, showNotice } from './player.js';
 import {
-  clearSlice, getPlayer, readSlice, setPlayer, writeSlice,
+  clearSlice, getPlayer, readSave, readSlice, replaceSave, setPlayer, writeSlice,
 } from './save.js';
+import {
+  claimName, pushSave, releaseSave, serverRevision, syncEnabled, syncing,
+} from './sync.js';
 import { sleep } from './clock.js';
 
 const MAX_TURNS = 900;       // per floor
@@ -83,6 +86,11 @@ const session = {
   // not the player's own — it must not overwrite the save it was opened to
   // look at.
   persist: true,
+  // Set when the name was taken over by another device (src/ui/sync.js).
+  // The loop stops at the end of the run it is playing: this page is no
+  // longer the one whose save counts, and every run it went on playing
+  // would be a run nobody could keep.
+  stopped: false,
   runNumber: 0,
   // Legacy single-floor mode only (?difficulty=).
   ascended: 0,
@@ -176,6 +184,106 @@ function saveSession() {
     cleared: session.cleared,
     history: session.history,
   });
+}
+
+// WHICH SERVER REVISION THIS BROWSER'S SAVE CORRESPONDS TO — the sync's own
+// slice, and the one number that lets a claim decide who is ahead. Zero, or
+// absent, means this save has never been up.
+const SYNC_SLICE = 'sync';
+
+const syncedRev = () => Number((readSlice(SYNC_SLICE) || {}).rev) || 0;
+
+// TAKE THE NAME, AND FIND OUT WHO IS AHEAD. Runs after the name is known and
+// before a single slice is read, for the same reason the name itself does:
+// what comes back may replace the whole document.
+//
+// Three ways out, and only one of them starts the game on this device.
+async function connectSave() {
+  if (!syncEnabled()) return;
+
+  // A RELOAD RACES ITSELF. Leaving the page hands the lock back by beacon,
+  // and the page that replaces it claims a moment later — if those two cross
+  // in flight, a player who pressed refresh is told their own game is open
+  // somewhere else. One silent retry covers the gap; the late beacon that
+  // arrives afterwards is refused by the service (its token is no longer the
+  // holder's), so nothing is unlocked behind our backs.
+  let quiet = true;
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    showNotice(el.playerGate, {
+      title: 'entrando…', text: 'falando com o servidor',
+    });
+    const got = await claimName(getPlayer());
+
+    if (got.state === 'active') {
+      if (quiet) {
+        quiet = false;
+        await sleep(800);
+        continue;
+      }
+      // THE MESSAGE THE OWNER ASKED FOR. It names the kind of device and how
+      // long ago it was heard from, because "somewhere else" is not enough to
+      // act on — the lock lapses by itself, so "há 9 minutos" tells the
+      // player that waiting is the answer.
+      const choice = await showNotice(el.playerGate, {
+        title: 'este jogo já está aberto',
+        text: `em ${got.device || 'outro aparelho'}, com sinal ${sinceWhen(got.lastSeen)}.`
+          + ' um aparelho por vez — feche o outro, ou espere alguns minutos.',
+        buttons: [
+          { id: 'retry', label: 'tentar de novo' },
+          { id: 'switch', label: 'outro nome' },
+        ],
+      });
+      if (choice === 'switch') {
+        const name = await askPlayerName(el.playerGate, { current: getPlayer() });
+        if (name) {
+          setPlayer(name);
+          location.reload();
+          // Nothing after a reload is worth running.
+          await new Promise(() => {});
+        }
+      }
+      continue;
+    }
+
+    if (got.state === 'ok') {
+      // WHOEVER IS AHEAD WINS, and the comparison is against what THIS
+      // browser last managed to send up. A higher revision on the server
+      // means another device played since; anything else means the copy here
+      // is the same game or a newer one, and the next ordinary push carries
+      // it up.
+      if (got.save && got.rev > syncedRev()) replaceSave(got.save);
+      writeSlice(SYNC_SLICE, { rev: got.rev });
+    }
+
+    // 'offline' falls through here too: the service is unreachable and the
+    // game plays locally, which is what it did before any of this existed.
+    hideNotice(el.playerGate);
+    return;
+  }
+}
+
+// "há 9 minutos", from a timestamp. Rounded down and deliberately coarse —
+// the number is there to say "wait" or "that was me an hour ago", and a
+// precision nobody can act on would only look like a clock.
+function sinceWhen(at) {
+  const minutes = Math.floor((Date.now() - (at || 0)) / 60000);
+  if (!at || minutes < 0) return 'agora';
+  if (minutes < 1) return 'agora mesmo';
+  if (minutes === 1) return 'há 1 minuto';
+  return `há ${minutes} minutos`;
+}
+
+// The end of this page's game: the name belongs to another device now, and
+// this one has to stop rather than play runs that no save will ever hold.
+function stopForOtherDevice() {
+  session.stopped = true;
+  showNotice(el.playerGate, {
+    title: 'o jogo foi aberto em outro aparelho',
+    text: 'esta aba parou aqui. o que ela já tinha gravado está guardado.',
+    buttons: [{ id: 'reload', label: 'recarregar' }],
+  }).then(() => location.reload());
 }
 
 // True when a session was restored. False for a fresh visitor, for a broken
@@ -660,6 +768,7 @@ async function showDescentSummary(run, finalState) {
 async function runDescentForever() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
+    if (session.stopped) return;
     session.runNumber++;
     session.unbankedCoins = 0;
     if (el.coins) el.coins.textContent = coinsText();
@@ -787,6 +896,18 @@ async function runDescentForever() {
     tallyDescent(run, finalState, hero.name, { seed, config });
     // The run is counted, and this is the whole save point — see saveSession.
     saveSession();
+    // …and the only place the save goes up. Rationed inside `pushSave`, so
+    // most runs cost nothing but the localStorage write above.
+    const sent = await pushSave(readSave());
+    if (sent === 'lost') {
+      stopForOtherDevice();
+      return;
+    }
+    // WHAT WENT UP IS RECORDED HERE. Without this the stored revision stays
+    // at whatever the claim returned while the server moves on, and the next
+    // load reads its own uploads as somebody else being ahead — throwing
+    // away exactly the runs that had not been sent yet.
+    if (sent === 'ok') writeSlice(SYNC_SLICE, { rev: serverRevision() });
     await showDescentSummary(run, finalState);
     // No seed any more: the no-input purchase used to be a weighted draw and
     // is now the player's declared order (src/ui/shop.js), so the shop is
@@ -808,7 +929,16 @@ async function runDescentForever() {
 // exist for one button.
 function wirePlayerButton() {
   if (!el.player) return;
-  const paint = () => { el.player.textContent = `👤 ${getPlayer() || ''}`; };
+  // The ⚠ is the whole of the offline signal: the game is playing and being
+  // saved, just not anywhere but here. A banner would be shouting about a
+  // state the player can do nothing about.
+  const paint = () => {
+    const alone = syncEnabled() && !syncing();
+    el.player.textContent = `👤 ${getPlayer() || ''}${alone ? ' ⚠' : ''}`;
+    el.player.title = alone
+      ? 'sem sincronizar — o jogo está sendo salvo só neste aparelho'
+      : 'trocar de jogador';
+  };
   paint();
 
   el.player.addEventListener('click', async () => {
@@ -981,6 +1111,16 @@ export async function start() {
   // Only ever asked once per browser: `getPlayer()` answers on every visit
   // after the first, and the gate never shows again.
   if (!getPlayer()) setPlayer(await askPlayerName(el.playerGate));
+
+  // …and then the name is taken on the service, which may hand back a save
+  // played on another device. Before any slice is read, for the same reason.
+  await connectSave();
+
+  // A CLOSING TAB HANDS THE LOCK BACK, with its last save. Without this the
+  // other device waits out the whole lease to play a game nobody is playing,
+  // and the runs since the last upload would be the ones lost.
+  window.addEventListener('pagehide', () => releaseSave(readSave()));
+
   wirePlayerButton();
 
   // BEFORE anything reads an achievement — the rows below, and the rail's
