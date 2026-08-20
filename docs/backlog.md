@@ -32,6 +32,20 @@ stacks on it.
    owner watches before anything ships. This creates the farm→buy→win
    loop; the infernal coin (U11) is priced in gold and only works after
    this does.
+
+   **Owner's context (2026-08-20), recorded before any code:**
+
+   - **The target player strategy is a two-run figure: SKIP the pig to
+     descend and farm coins, then, with the shop purchase, try to kill it
+     the next run.** Skipping must be possible and must PAY. Today the room
+     is a toll (~99% enter — `docs/project/vault-irrecusavel.md`); the
+     Ganância-minimum band is the only one that refuses the room, and it
+     must be re-measured in the new world as the candidate FARM BUILD
+     (coragem alta, ganância baixa). If it confirms, the dial panel gains
+     its first real strategic choice: farm build vs kill build.
+   - **The shallow loot cut (floors 1–3) is probably dial-overrides
+     ONLY** — `chestLootChance` / `weaponScarcity` on the `from:1` anchor
+     of `model.floors` — no new code. Try that path first.
 3. **Hero gates, two rungs** — pig unlocks pawa/ricardo; the FIRST CLEAR
    unlocks vito/papazito. The chained analysis measured papazito dominant
    (information beats force on the themed maps), so the strong pair moves
