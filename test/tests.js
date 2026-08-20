@@ -4851,3 +4851,29 @@ export async function runAll() {
   await Promise.all(pending);
   return results;
 }
+
+// ***** the shipped curve reaches the no-Lab path (src/ui/dials.js) ***** //
+//
+// `resolvedDefaults` is what a visitor who never opens the Lab plays, and
+// what every headless reading measures. `floors` has no dial, so the loop
+// over SECTIONS never copies it — this dropped the shipped curve for both
+// of those consumers while the Lab's read() carried it, and an E2 sweep
+// that cut "floors 1–3" measured the whole descent moving before anyone
+// noticed. The import is dynamic for the same reason spectator.js's is
+// not: this is the one UI module the engine tests touch, and a static
+// import would drag it into every environment the suite runs in.
+
+test('resolvedDefaults carries the floors curve it was handed', async () => {
+  const { resolvedDefaults } = await import('../src/ui/dials.js');
+  const floors = [
+    { from: 1, monstersBase: 5, mapTheme: 3 },
+    { from: 4, monstersBase: 6, mapTheme: 2 },
+  ];
+  const out = resolvedDefaults({ model: { monstersBase: 5, floors } });
+  assert(Array.isArray(out.model.floors), 'the floors list was dropped');
+  assertEq(out.model.floors.length, 2, 'the curve lost anchors on the way');
+  assertEq(out.model.floors[1].mapTheme, 2, 'an anchor came through altered');
+  const bare = resolvedDefaults({ model: { monstersBase: 5 } });
+  assertEq(bare.model.floors, undefined,
+    'a model without a curve grew one — a file without floors is one anchor at floor 1');
+});

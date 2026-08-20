@@ -890,6 +890,18 @@ export function resolvedDefaults(overrides = {}) {
       }
     }
   }
+  // `floors` has NO DIAL either — the curve is panel state, rebuilt by
+  // curveModel() only when the Lab is open. This object is what a visitor
+  // who never clicks 🧪 plays, and what every headless reading measures
+  // (tools/measure.mjs), so the shipped curve has to travel here or the
+  // `floors` list in dial-overrides.json silently reaches nobody outside
+  // the Lab. read()'s anchor seeding fixed its own copy of this hole once
+  // already ("the visitor's floor 1 was not the cave the file asked for");
+  // this is the same hole in the no-Lab path, found when an E2 sweep cut
+  // "floors 1–3" and measured the whole descent moving.
+  if (overrides.model && overrides.model.floors) {
+    out.model.floors = overrides.model.floors;
+  }
   return out;
 }
 
