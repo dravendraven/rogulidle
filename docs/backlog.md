@@ -10,29 +10,45 @@ thing the item is for, and update the doc the change made stale
 
 ## Order
 
-1. **The return** — R2, R3, R4. Victory already requires nineteen traversals
-   (R1), but the return is still structurally identical to the descent, so
-   the second half of every run is the first half replayed. Two tripwires
-   fire because of this ("wins too rare", "nothing gets deep").
-2. **The opening** — "opening deaths" fires at 0.667 against its 0.5 bar
-   since the kit was emptied (M41). Watch it, decide whether the answer is
-   a dial (`EARLY_TIER_CUT`, `MONSTERS_BASE`, scarcities) or a design
-   change. Nothing else is worth tuning while most runs end by traversal 3.
-3. **The vault is built, measured and shipped** — V1 through V5, plus M44's
-   `speed`. Floor 4 kills 45.6% against 8.7% without it, 43.5% of the runs
-   that reach it go in, and 22% of the fights taken are won. Design in
-   `docs/project/candidates.md` M43; results in `decisions.md` under M43,
-   M44 and "the vault takes over its floor".
+Reordered 2026-08-20 with the owner, after the chained-session analysis
+(`decisions.md`, "Stamina, measured over chains") found the difficulty in
+the wrong place: the pig falls in minutes while the strategy loop the game
+is built around — farm coins, buy well, beat the wall — does not exist,
+because in-run loot alone beats the vault. Economy first; everything else
+stacks on it.
 
-   **V6 is answered: the room stays hard, and nothing about it gets softened
-   to buy reach.** Owner, 2026-08-17 — the reasoning is in `decisions.md`
-   under "V6". Do not reopen it by reading a depth number and concluding the
-   vault is too expensive; that trade was made on purpose. The line this item
-   used to carry — "the lever is the Butcher's `hp`" — is retracted: that
-   lever was measured and does not work (`docs/project/vault-irrecusavel.md`).
-4. Everything else below.
+1. **E1 · Measure the economy gap.** Coins a median session accumulates by
+   the time the pig kills it, against the price of a loadout that beats the
+   pig; then sweep shallow-loot scarcity and shop prices over CHAINS with
+   the right metric — the distribution of "first pig kill" in runs, which
+   is the owner's "hours, not minutes" target as a number. Analysis only.
+2. **E2 · Rebalance the economy** until the naked pig is ~unbeatable and
+   the bought pig is rare. Value changes (shop prices, chest scarcity /
+   quality), chains re-measured, owner watches. This creates the
+   farm→buy→win loop; the infernal coin (U11) is priced in gold and only
+   works after this does.
+3. **Hero gates, two rungs** — pig unlocks pawa/ricardo; the FIRST CLEAR
+   unlocks vito/papazito. The chained analysis measured papazito dominant
+   (information beats force on the themed maps), so the strong pair moves
+   behind the harder key. Cheap, self-contained, UI/achievements front —
+   a session of its own, only meaningful after E2.
+4. **The inferno (U11)** — its own session, reading U11 fresh: the design
+   is complete there (daily seed, barrier bosses, the infernal coin, the
+   wallet-cap question). Downstream of E2 by its own arithmetic.
+5. **The return** — R2, R3, R4. Still wanted, still OFF in the shipped
+   game; doing it before E2 would re-tune everything twice, and nineteen
+   traversals × the stamina budget is a coupling E2 moves.
+6. Everything else below.
 
-**Item 2 above is closed as written, and I3 is why.** The 0.667 it quotes
+Closed entries the old order carried, kept for their lessons: **the
+opening** ("opening deaths" at 0.667) was I3's artifact — the wires ran on
+code defaults; on shipped dials nothing fired. **The vault** is built,
+measured and shipped (V1–V5, M44); **V6 is answered by the owner — the
+room stays hard** (`decisions.md`, "V6"), and "the lever is the Butcher's
+hp" is retracted (`vault-irrecusavel.md`). Do not reopen either by reading
+a number.
+
+**The old item 2's own note, kept:** The 0.667 it quotes
 came from the code defaults; the wires now run on the shipped dials, where
 the whole board reads clean at 60 runs — opening deaths 0.283, clears 0.05,
 the shamble 0, nothing gets deep 0.067, the gamble 0.801. **No tripwire
