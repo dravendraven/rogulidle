@@ -40,8 +40,8 @@ import {
   clearSlice, getPlayer, readSave, readSlice, replaceSave, setPlayer, writeSlice,
 } from './save.js';
 import {
-  claimName, pushSave, reconnect, releaseSave, serverRevision, syncEnabled,
-  syncing,
+  claimName, pushSave, reconnect, releaseSave, serverRevision, stillOurs,
+  syncEnabled, syncing,
 } from './sync.js';
 import { sleep } from './clock.js';
 
@@ -214,12 +214,16 @@ async function connectSave() {
   // holder's), so nothing is unlocked behind our backs.
   let quiet = true;
 
+  // Set by the button behind the refusal, spent on the next claim.
+  let insist = false;
+
   // eslint-disable-next-line no-constant-condition
   while (true) {
     showNotice(el.playerGate, {
       title: 'entrando…', text: 'falando com o servidor',
     });
-    const got = await claimName(getPlayer());
+    const got = await claimName(getPlayer(), { force: insist });
+    insist = false;
 
     if (got.state === 'active') {
       if (quiet) {
@@ -234,12 +238,21 @@ async function connectSave() {
       const choice = await showNotice(el.playerGate, {
         title: 'este jogo já está aberto',
         text: `em ${got.device || 'outro aparelho'}, com sinal ${sinceWhen(got.lastSeen)}.`
-          + ' um aparelho por vez — feche o outro, ou espere alguns minutos.',
+          + ' um aparelho por vez — feche o outro, espere alguns minutos, ou'
+          + ' assuma daqui (o outro para, e o que ele ainda não tinha salvo'
+          + ' se perde).',
         buttons: [
           { id: 'retry', label: 'tentar de novo' },
+          // THE BUTTON FOR THE CASE THE LEASE HANDLES BADLY: a device that
+          // died holding the name. Waiting out the term is the honest
+          // default, and the person looking at this screen is usually the
+          // one who knows the other device is shut — which is a thing only
+          // they can know, so it is a button and never automatic.
+          { id: 'force', label: 'assumir mesmo assim' },
           { id: 'switch', label: 'outro nome' },
         ],
       });
+      if (choice === 'force') insist = true;
       if (choice === 'switch') {
         const name = await askPlayerName(el.playerGate, { current: getPlayer() });
         if (name) {
@@ -318,6 +331,16 @@ async function syncAfterRun() {
   // reads its own uploads as somebody else being ahead — throwing away
   // exactly the runs that had not been sent yet.
   if (sent === 'ok') writeSlice(SYNC_SLICE, { rev: serverRevision() });
+
+  // THE RUN THAT DID NOT UPLOAD STILL ASKS. Most runs are inside the upload
+  // window and send nothing, and without this a device that somebody took
+  // the name from would go on playing until the window opened — minutes of
+  // runs that no save will ever hold. The question is a read, so it is free
+  // against the budget the uploads are rationed by.
+  if (sent === 'skipped' && !await stillOurs()) {
+    stopForOtherDevice('outro aparelho assumiu este nome. o que esta aba jogou desde a última gravação fica por aqui.');
+    return false;
+  }
 
   if (sent === 'offline') {
     const back = await reconnect();

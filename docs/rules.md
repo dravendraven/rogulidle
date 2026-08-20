@@ -586,6 +586,14 @@ sinal. A reserva tem prazo e se renova sozinha enquanto o jogo roda: fechar a
 aba a devolve na hora, e um aparelho que sumiu sem devolver a perde quando o
 prazo vence — ninguém fica trancado para fora do próprio jogo.
 
+**Quem foi recusado pode assumir na hora.** O prazo resolve sozinho o
+aparelho que morreu segurando o nome, mas só depois de correr inteiro, e
+quem está diante da tela em geral sabe que o outro está fechado. O botão
+toma o nome imediatamente; o aparelho que o tinha para no fim da run
+seguinte e perde o que ainda não tinha gravado. É por isso que só um botão
+faz isso, e nunca acontece sozinho: só quem está olhando sabe que o outro
+lado pode ser interrompido.
+
 **O save sobe de tempos em tempos, e ao fechar a aba** — não a cada run. O
 navegador continua gravando toda run; o que é espaçado é a subida. A
 consequência é honesta e pequena: trocar de aparelho pode custar as últimas

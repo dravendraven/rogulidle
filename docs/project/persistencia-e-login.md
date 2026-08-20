@@ -161,8 +161,10 @@ não têm escrita condicional).
 
 Três rotas, e a trava é uma delas:
 
-- `POST /claim {nome, aparelho}` → `200 {token, lease, save}` ou
-  `409 {motivo:'ativo', ultimaAtividade, aparelho}`
+- `POST /claim {nome, aparelho, force}` → `200 {token, lease, save}` ou
+  `409 {motivo:'ativo', ultimaAtividade, aparelho}`. Com `force`, a recusa
+  não acontece: a trava viva é tomada, e o aparelho que a tinha é parado
+  pelo mecanismo que já existia — o token dele deixou de ser o do dono.
 - `PUT /state {nome, rev, save}` + header `X-Token` → `200 {rev, lease}`,
   `409` se o token não for mais o dono, `412` se a `rev` estiver atrasada
 - `POST /release {nome, token, save, rev}` → grava e solta a trava; é o que o
@@ -253,9 +255,14 @@ produto — não de persistência.
    respondidas e estão no código.
 2. ~~**Onde hospedar?**~~ — respondido: Cloudflare Worker + KV. Falta só a
    conta e o deploy, que são do dono: o arquivo está escrito e testado.
-3. ~~**Takeover**~~ — respondido: quando o prazo vence, o segundo aparelho
-   entra sozinho. Sem botão e sem decisão para o jogador; uma trava que
-   sobrevive ao aparelho que a segurava é um jogador trancado para fora.
+3. ~~**Takeover**~~ — respondido DUAS vezes, e a segunda pelo uso. Primeiro:
+   quando o prazo vence, o segundo aparelho entra sozinho. Depois, no
+   primeiro dia de uso de verdade, o dono fechou o navegador do PC, o aviso
+   de saída não saiu junto (fechar a janela inteira às vezes mata o processo
+   antes), e o celular ficou esperando o prazo inteiro — então o botão
+   «assumir mesmo assim» entrou também. Os dois convivem: o prazo é o que
+   funciona sem ninguém, o botão é para quem SABE que o outro lado está
+   fechado, que é uma coisa que só quem está olhando pode saber.
 4. ~~**Os notches seguem o nome?**~~ — respondido: seguem (§3).
 
 ## 11. As tarefas, em ordem

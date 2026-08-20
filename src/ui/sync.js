@@ -53,6 +53,11 @@ let player = null;
 let lastPush = 0;
 let live = false;
 
+// When our lease runs out, as the service last told us. It is also our
+// FINGERPRINT on the lock: the deadline moves every time the name is taken
+// or renewed, so a lease whose deadline is not this one is not ours.
+let leaseUntil = 0;
+
 // Did the last trip actually get there? Holding the lock and reaching the
 // service are two different things — a page can hold a lease and be on a
 // train — and the mark in the header is about the second one.
@@ -118,14 +123,20 @@ async function peek(name) {
 //   { state: 'ok', save, rev }              — it is ours, here is the save
 //   { state: 'active', device, lastSeen }   — somebody else is playing it
 //   { state: 'offline' }                    — no service; play locally
-export async function claimName(name) {
+//
+// `force` takes the name even from a device that still holds it — the button
+// behind the refusal, for when the player knows the other one is shut. Never
+// automatic: only the person looking at the screen knows that.
+export async function claimName(name, { force = false } = {}) {
   if (!SERVICE) return { state: 'offline' };
   // Remembered even when the claim fails: a page that opened with no network
   // still has to know whose name to ask for when it comes back.
   player = name;
   lastTry = Date.now();
   try {
-    const { status, body } = await ask('claim', 'POST', { name, device: deviceLabel() });
+    const { status, body } = await ask('claim', 'POST', {
+      name, device: deviceLabel(), force,
+    });
     reachable = true;
     if (status === 409) {
       return { state: 'active', device: body.device || '', lastSeen: body.lastSeen || 0 };
@@ -136,6 +147,7 @@ export async function claimName(name) {
 
     token = body.token;
     serverRev = body.rev;
+    leaseUntil = body.until;
     live = true;
     lastPush = Date.now();
     return { state: 'ok', save: body.save, rev: body.rev };
@@ -187,6 +199,7 @@ export async function pushSave(save, { force = false } = {}) {
   reachable = true;
   if (result.status === 200) {
     serverRev = result.body.rev;
+    leaseUntil = result.body.until;
     lastPush = now;
     return 'ok';
   }
@@ -219,6 +232,25 @@ export async function pushSave(save, { force = false } = {}) {
   }
 
   return 'offline';
+}
+
+// IS THE NAME STILL OURS? A read, not a write — which is the whole reason
+// this can be asked after every run while the save itself goes up every few
+// minutes.
+//
+// It exists because of the button that takes a live lock (`force`): without
+// it, a device that has just been displaced keeps playing until its next
+// upload, which can be minutes of runs that no save will ever hold. "Takes
+// over" should mean the other one stops, and this is what makes it prompt.
+//
+// A failed read answers TRUE. Not being able to reach the service is not
+// evidence of anything, and stopping a game over a hiccup would be worse
+// than the lag this exists to remove.
+export async function stillOurs() {
+  if (!live || !player) return true;
+  const there = await peek(player);
+  if (!there) return true;
+  return there.until === leaseUntil;
 }
 
 // The last save, on the way out of the page, plus the lock handed back so
