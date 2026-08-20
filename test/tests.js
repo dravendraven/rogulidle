@@ -46,6 +46,7 @@ import {
   earnedBy, isEarned, verifyAchievements, HERO_GATE,
 } from '../src/ui/achievements.js';
 import { getChosenHero, setChosenHero } from '../src/ui/roster.js';
+import { readSlice, reloadSave, writeSlice } from '../src/ui/save.js';
 import {
   DEFAULT_ORDER, SHOP_ITEMS, getShopOrder, nextPurchase, setShopOrder,
 } from '../src/ui/shop.js';
@@ -3980,21 +3981,26 @@ test('an awake pursuer is fought rather than fled forever', () => {
 // store and puts it back in a `finally`. A test suite that ate a player's
 // unlocks would be worse than no test suite.
 
-const ACH_KEY = 'rogulidle-achievements';
-const HERO_KEY = 'rogulidle-hero';
-const SHOP_ORDER_KEY = 'rogulidle-shop-order';
+// One key now, not three: everything the page remembers lives in a single
+// document with a slice per module (src/ui/save.js).
+const SAVE_KEY = 'rogulidle:save:local';
 
 function withStores(fn) {
-  const saved = [ACH_KEY, HERO_KEY, SHOP_ORDER_KEY]
-    .map((k) => [k, localStorage.getItem(k)]);
+  // READ BEFORE SAVING, and the order matters. A browser that still holds
+  // the seven old keys is migrated by the first read — which DELETES them.
+  // Snapshotting first would capture the document as absent, and putting
+  // that back would erase a real player's progress instead of restoring it.
+  readSlice('achievements');
+  const saved = localStorage.getItem(SAVE_KEY);
   try {
     fn();
   } finally {
-    for (const [k, v] of saved) {
-      if (v === null) localStorage.removeItem(k);
-      else localStorage.setItem(k, v);
-    }
-    // Leave the module agreeing with the store it was handed back.
+    if (saved === null) localStorage.removeItem(SAVE_KEY);
+    else localStorage.setItem(SAVE_KEY, saved);
+    // The store was changed behind the module's back, so its cached copy
+    // has to go — and then the achievements module has to agree with what
+    // it was handed back.
+    reloadSave();
     verifyAchievements();
   }
 }
@@ -4026,7 +4032,7 @@ function aRunThatEarned() {
 
 test('a hand-written achievement flag unlocks nothing', () => {
   withStores(() => {
-    localStorage.setItem(ACH_KEY, JSON.stringify({ [HERO_GATE]: { run: 1, at: 0 } }));
+    writeSlice('achievements', { [HERO_GATE]: { run: 1, at: 0 } });
     verifyAchievements();
     assert(!isEarned(HERO_GATE),
       'a flag typed into the console counted as earned — the gate is a boolean again');
@@ -4036,9 +4042,9 @@ test('a hand-written achievement flag unlocks nothing', () => {
 test('a receipt whose run really did it is accepted', () => {
   withStores(() => {
     const hit = aRunThatEarned();
-    localStorage.setItem(ACH_KEY, JSON.stringify({
+    writeSlice('achievements', {
       [hit.id]: { run: 1, at: 0, seed: hit.seed, config: hit.config },
-    }));
+    });
     verifyAchievements();
     assert(isEarned(hit.id), `a genuine receipt for ${hit.id} was refused`);
   });
@@ -4047,9 +4053,9 @@ test('a receipt whose run really did it is accepted', () => {
 test('a receipt pointing at a different run is refused', () => {
   withStores(() => {
     const hit = aRunThatEarned();
-    localStorage.setItem(ACH_KEY, JSON.stringify({
+    writeSlice('achievements', {
       [hit.id]: { run: 1, at: 0, seed: hit.seed + 1, config: hit.config },
-    }));
+    });
     verifyAchievements();
     assert(!isEarned(hit.id), 'the seed was changed and the claim still stood');
   });
@@ -4061,21 +4067,21 @@ test('a refused receipt is ignored, never deleted', () => {
   // those apart — so a change that broke them must be revertible with every
   // unlock intact.
   withStores(() => {
-    const written = JSON.stringify({ [HERO_GATE]: { run: 1, at: 0, seed: 7, config: {} } });
-    localStorage.setItem(ACH_KEY, written);
+    const written = { [HERO_GATE]: { run: 1, at: 0, seed: 7, config: {} } };
+    writeSlice('achievements', written);
     verifyAchievements();
-    assertEq(localStorage.getItem(ACH_KEY), written,
+    assertEq(JSON.stringify(readSlice('achievements')), JSON.stringify(written),
       'verification rewrote the store');
   });
 });
 
 test('with the gate shut, a hero picked earlier reads as the base hero', () => {
   withStores(() => {
-    localStorage.removeItem(ACH_KEY);
+    writeSlice('achievements', {});
     verifyAchievements();
     setChosenHero('vito');
     assertEq(getChosenHero(), '', 'the gate let an unearned hero through');
-    assertEq(localStorage.getItem(HERO_KEY), 'vito',
+    assertEq(readSlice('hero'), 'vito',
       'the gate erased the pick instead of merely refusing it');
   });
 });
@@ -4197,7 +4203,9 @@ test('a stored order survives a reload, and junk in it does not', () => {
     assertEq(back.length, SHOP_ITEMS.length, 'the stored order lost an item');
     assertEq(back[0], 'shield', 'sanitising reordered what was actually asked for');
 
-    localStorage.setItem(SHOP_ORDER_KEY, 'not json at all');
+    // Not a list of names at all — every shape a broken store can hand
+    // back reaches sanitiseOrder as something that is not an array.
+    writeSlice('shopOrder', 'not an order at all');
     assertEq(getShopOrder().join(','), DEFAULT_ORDER.join(','),
       'a corrupt store did not fall back to the default order');
   });

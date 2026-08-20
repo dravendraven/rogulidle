@@ -48,8 +48,11 @@
 // them can be reverted and everyone's unlocks come straight back.
 
 import { playRun } from './run.js';
+import { readSlice, writeSlice } from './save.js';
 
-const KEY = 'rogulidle-achievements';
+// One slice of the save document (src/ui/save.js), which owns the storage
+// and the failure cases this used to carry itself.
+const SLICE = 'achievements';
 
 // `emoji` has to be a glyph `src/ui/tiles.js` carries a sprite for — the
 // renderer draws Twemoji SVGs, not system emoji, and returns nothing for a
@@ -76,23 +79,12 @@ export const ACHIEVEMENTS = [
 export const HERO_GATE = 'butcher';
 
 function load() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return (parsed && typeof parsed === 'object') ? parsed : {};
-  } catch {
-    // Private browsing, quota, or corrupt JSON — the page just shows
-    // everything locked rather than breaking.
-    return {};
-  }
+  const parsed = readSlice(SLICE);
+  return (parsed && typeof parsed === 'object') ? parsed : {};
 }
 
 function save(data) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(data));
-  } catch {
-    // Same cases as load().
-  }
+  writeSlice(SLICE, data);
 }
 
 // Receipts that have been re-run and reproduced, keyed by id. `null` means

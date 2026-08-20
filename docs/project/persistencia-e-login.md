@@ -88,14 +88,22 @@ não seguir o nome, o mesmo jogador encontra outro bot no celular. O botão
 ## 4. Peça 2 — a sessão persistida, com um ponto de salvamento só
 
 O que salvar já está listado no §1. **Quando** salvar é a decisão que evita
-metade dos problemas: **no fim da run, depois que a loja fecha.**
+metade dos problemas: **no instante em que a run é contada.**
 
-É o único instante em que o estado inteiro é coerente — a run foi contada, o
-que morreu já foi perdido, a compra já foi feita. E tem uma consequência boa
-de graça: **uma run interrompida por refresh simplesmente é jogada de novo,
-idêntica.** Ela não chegou a mexer em nada persistido, e o par `(seed da
-sessão, runNumber)` reproduz exatamente o mesmo mapa. Não existe «salvar no
-meio», porque não existe meio que precise ser salvo.
+Antes desse instante a run não tocou em nada persistido, e por isso **uma run
+interrompida por refresh simplesmente é jogada de novo, idêntica** — o par
+`(seed da sessão, runNumber)` reproduz exatamente o mesmo mapa. Não existe
+«salvar no meio», porque não existe meio que precise ser salvo.
+
+Depois dele a run está contada. É por isso que o ponto **não** pode esperar a
+loja, que dura meia dúzia de dezenas de segundos: quando ela abre, a
+pontuação vitalícia já foi paga, a linha do recorde já foi escrita e o item
+que o herói carregava já foi perdido para a morte. Gravar depois da loja
+faria um refresh no meio dela repetir uma run que já cobrou tudo isso — e
+cobrar de novo.
+
+A loja grava a própria fatia no clique de cada compra, então sair no meio
+dela custa o resto das compras e nada mais.
 
 Ao carregar, `sessionSeed` e `runNumber` vêm do save; a próxima run é a
 `runNumber + 1` da mesma cadeia. O refresh deixa de começar outra sessão e
@@ -217,8 +225,8 @@ Cada uma vale sozinha e dá para ver se funcionou.
 
 | # | tarefa | como se vê que funcionou |
 |---|---|---|
-| T1 | `save.js`: documento único, sete módulos portados, chaves antigas migradas | o jogo se comporta igual; o devtools mostra uma chave só, com o progresso antigo dentro |
-| T2 | fatia `session`, gravada no fim da run | refresh mantém «recent runs» e o número da run, e a contagem continua de onde estava |
+| T1 ✔ | `save.js`: documento único, sete módulos portados, chaves antigas migradas | o jogo se comporta igual; o devtools mostra uma chave só, com o progresso antigo dentro |
+| T2 ✔ | fatia `session`, gravada quando a run é contada | refresh mantém «recent runs» e o número da run, e a contagem continua de onde estava |
 | T3 | tela do nome, save por nome, «trocar de jogador» | dois nomes no mesmo browser = dois jogos independentes |
 | T4 | Worker + KV com as três rotas | responde por `curl`, antes de a página saber que ele existe |
 | T5 | cliente: claim, adoção do save remoto, sync estrangulado, perda de trava | dois browsers: o segundo é recusado com o recado certo |

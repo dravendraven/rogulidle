@@ -21,6 +21,7 @@ import {
   TURN_BUDGET, VAULT_LEVEL, VAULT_SIZE,
 } from '../sim/balance.js';
 import { LEVELS, RETURN_ENABLED } from '../sim/dungeon.js';
+import { readSlice, writeSlice } from './save.js';
 
 // B20 — SIX NAMED STEPS INSTEAD OF A CONTINUOUS SLIDER, and the count is
 // even on purpose: there is no middle to park on, so every setting leans
@@ -116,17 +117,12 @@ function bandClass(dial, index) {
 // `src/ui/`, it runs once before any run is built, and what it produces is
 // a dial value like any the player could have dragged to. Determinism is
 // about `src/sim/` — same seed AND same dials still replays exactly.
-const NOTCHES_KEY = 'rogulidle-notches';
+// One slice of the save document (src/ui/save.js), which owns the storage
+// and the failure cases this used to carry itself.
+const SLICE = 'notches';
 
 function rolledNotches(keys) {
-  let stored = null;
-  try {
-    stored = JSON.parse(localStorage.getItem(NOTCHES_KEY) || 'null');
-  } catch {
-    // Private browsing, quota, corrupt JSON — fall through to a fresh roll
-    // that simply does not persist, the same way score.js degrades.
-    stored = null;
-  }
+  const stored = readSlice(SLICE);
 
   const out = {};
   let complete = true;
@@ -138,11 +134,7 @@ function rolledNotches(keys) {
 
   // Written back when anything was missing, so a dial added later joins the
   // stored personality instead of rerolling the whole thing every load.
-  if (!complete) {
-    try {
-      localStorage.setItem(NOTCHES_KEY, JSON.stringify(out));
-    } catch { /* as above */ }
-  }
+  if (!complete) writeSlice(SLICE, out);
   return out;
 }
 

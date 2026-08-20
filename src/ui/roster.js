@@ -22,8 +22,11 @@
 import { HEROES, heroLabel } from '../sim/heroes.js';
 import { tileSvg } from './tiles.js';
 import { HERO_GATE, isEarned, lockedReason } from './achievements.js';
+import { clearSlice, readSlice, writeSlice } from './save.js';
 
-const KEY = 'rogulidle-hero';
+// One slice of the save document (src/ui/save.js), which owns the storage
+// and the failure cases this used to carry itself.
+const SLICE = 'hero';
 
 // THE GATE. Choosing a hero is earned, not given: until `butcher` is down
 // the cast is visible but shut, which is the first rung of the ladder in
@@ -78,14 +81,11 @@ export function getChosenHero() {
   return stored !== null && !allowed(stored) ? '' : stored;
 }
 
+// A slice that is not a string is treated as never chosen — the same answer
+// a corrupt store always gave, now that the parsing happens one file over.
 function read() {
-  try {
-    return localStorage.getItem(KEY);
-  } catch {
-    // Private browsing or a full quota — the picker simply stops remembering
-    // rather than breaking the page, same as score.js.
-    return null;
-  }
+  const stored = readSlice(SLICE);
+  return typeof stored === 'string' ? stored : null;
 }
 
 // Back to NEVER CHOSE, which is not the same as choosing the plain hero:
@@ -95,19 +95,11 @@ function read() {
 // re-select itself the moment the gate is earned again, which is the last
 // thing the word "reset" should mean.
 export function clearChosenHero() {
-  try {
-    localStorage.removeItem(KEY);
-  } catch {
-    // As below.
-  }
+  clearSlice(SLICE);
 }
 
 export function setChosenHero(name) {
-  try {
-    localStorage.setItem(KEY, name);
-  } catch {
-    // As above.
-  }
+  writeSlice(SLICE, name);
 }
 
 // Order is deliberate: the ordinary hero first, because it is the one every

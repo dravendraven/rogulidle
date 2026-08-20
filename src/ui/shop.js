@@ -13,6 +13,7 @@
 // what keeps a shop purchase indistinguishable from a chest find.
 
 import { ITEM_TABLE } from '../sim/balance.js';
+import { readSlice, writeSlice } from './save.js';
 
 const byName = (name) => ITEM_TABLE.find((item) => item.name === name);
 
@@ -84,7 +85,9 @@ export const DEFAULT_ORDER = SHOP_ITEMS
   .sort((a, b) => b.price - a.price)
   .map((entry) => entry.item.name);
 
-const ORDER_KEY = 'rogulidle-shop-order';
+// One slice of the save document (src/ui/save.js), which owns the storage
+// and the failure cases this used to carry itself.
+const SLICE = 'shopOrder';
 
 // Unknown names dropped, duplicates dropped, MISSING ones appended in the
 // default order. That last half is what lets a fifth item join the shelf
@@ -109,22 +112,14 @@ function sanitiseOrder(names) {
 // `step()` takes no storage access, so nothing here is read by the engine —
 // it only decides what the page hands it as the next run's startingItems.
 export function getShopOrder() {
-  try {
-    return sanitiseOrder(JSON.parse(localStorage.getItem(ORDER_KEY) || 'null'));
-  } catch {
-    // Private browsing, quota, corrupt JSON — the order simply stops being
-    // remembered rather than breaking the page.
-    return [...DEFAULT_ORDER];
-  }
+  // sanitiseOrder already answers for anything that is not a list of names
+  // it knows, which is every shape a broken store can hand back.
+  return sanitiseOrder(readSlice(SLICE));
 }
 
 export function setShopOrder(names) {
   const order = sanitiseOrder(names);
-  try {
-    localStorage.setItem(ORDER_KEY, JSON.stringify(order));
-  } catch {
-    // As above.
-  }
+  writeSlice(SLICE, order);
   return order;
 }
 

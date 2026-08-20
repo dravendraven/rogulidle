@@ -568,6 +568,25 @@ não some no fim da run: entra na run seguinte como qualquer outra compra, e
 só é gasto quando o herói o usa. O preço mínimo da prateleira é o que decide
 se um saldo sobra sem comprar nada.
 
+**O que a página lembra, ela lembra entre visitas.** Refresh não começa outra
+sessão. O número da run, o histórico dos últimos resultados, o placar e a
+cadeia de seeds voltam como estavam — junto com o que já persistia: itens
+guardados, recordes, feitos, herói escolhido, ordem da loja e a personalidade
+sorteada do bot.
+
+**A sessão é gravada no instante em que a run é contada.** Antes disso a run
+não tocou em nada guardado, então uma interrupção no meio dela a faz ser
+jogada de novo, idêntica — o par (seed da sessão, número da run) a reproduz.
+Depois disso a run está contada e não volta. A loja que vem em seguida grava
+o que ela mesma compra, na hora do clique; sair no meio dela custa o resto
+das compras e nada além.
+
+**Sessão reproduzível não grava.** Abrir o jogo com um seed pedido é olhar a
+sessão de outra pessoa, e olhar não escreve por cima do próprio save.
+
+**Recomeçar apaga a sessão junto** — histórico, contagem e cadeia de seeds —
+e abandona a run em curso, que por isso não conta.
+
 **Os preços são fixos e não escalam com nada** — nem com a profundidade
 alcançada, nem com o que já foi comprado antes. O que cada item custa está em
 `src/ui/shop.js`; o que cada compra vale em jogo está medido em

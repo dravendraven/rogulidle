@@ -11,28 +11,21 @@
 // access, so this stays out of src/sim/ in both directions — nothing here
 // is read by the engine, and nothing here changes what a run does.
 
-const KEY = 'rogulidle-wallet';
+import { readSlice, writeSlice } from './save.js';
+
+// One slice of the save document (src/ui/save.js), which owns the storage
+// and the failure cases this used to carry itself.
+const SLICE = 'wallet';
 
 function load() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return {
-      heldItems: Array.isArray(parsed.heldItems) ? parsed.heldItems : [],
-    };
-  } catch {
-    // Private browsing, quota, or corrupt JSON — the wallet just doesn't
-    // persist rather than breaking the page.
-    return { heldItems: [] };
-  }
+  const parsed = readSlice(SLICE) || {};
+  return {
+    heldItems: Array.isArray(parsed.heldItems) ? parsed.heldItems : [],
+  };
 }
 
 function save(data) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(data));
-  } catch {
-    // Same cases as load() — nothing to do about it here.
-  }
+  writeSlice(SLICE, data);
 }
 
 export function getHeldItems() {

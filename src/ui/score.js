@@ -12,30 +12,23 @@
 // verify without waiting" the item asks for: finishes reads near 0 right
 // now, so waiting for a real clear to check this isn't practical yet.
 
-const KEY = 'rogulidle-score';
+import { readSlice, writeSlice } from './save.js';
+
+// One slice of the save document (src/ui/save.js), which owns the storage
+// and the failure cases this used to carry itself.
+const SLICE = 'score';
 
 function load() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return {
-      total: Number(parsed.total) || 0,
-      clears: Number(parsed.clears) || 0,
-      last: Number.isFinite(parsed.last) ? parsed.last : null,
-    };
-  } catch {
-    // Private browsing, storage quota, or corrupt JSON — the score just
-    // doesn't persist rather than breaking the page.
-    return { total: 0, clears: 0, last: null };
-  }
+  const parsed = readSlice(SLICE) || {};
+  return {
+    total: Number(parsed.total) || 0,
+    clears: Number(parsed.clears) || 0,
+    last: Number.isFinite(parsed.last) ? parsed.last : null,
+  };
 }
 
 function save(data) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(data));
-  } catch {
-    // Same cases as load() — nothing to do about it here.
-  }
+  writeSlice(SLICE, data);
 }
 
 export function readScore() {

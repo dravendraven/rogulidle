@@ -35,6 +35,7 @@ import {
 import { loadDialOverrides } from './dial-overrides.js';
 import { eventsEnabled, makeEventLayer } from './events.js';
 import { playRun } from './run.js';
+import { clearSlice, readSlice, writeSlice } from './save.js';
 import { sleep } from './clock.js';
 
 const MAX_TURNS = 900;       // per floor
@@ -63,7 +64,22 @@ const COIN_POPUP_MS = 900;
 const SHOP_MS = 30000;
 const HISTORY_LEN = 12;
 
+// T2 — docs/project/persistencia-e-login.md. The one slice this file owns.
+// Everything else the page remembers has a module of its own; the session
+// has none, because until now it never left memory — which is exactly why a
+// refresh reset the run counter and emptied the history strip.
+const SESSION_SLICE = 'session';
+
 const session = {
+  // The chain every run's seed is drawn from (`hashSeeds(seed, runNumber)`),
+  // and therefore half of what makes a session reproducible. Persisted with
+  // the counter beside it, so a reload CONTINUES the session instead of
+  // silently starting another one.
+  seed: 0,
+  // False under `?seed=`, which is an inspection of somebody's session and
+  // not the player's own — it must not overwrite the save it was opened to
+  // look at.
+  persist: true,
   runNumber: 0,
   // Legacy single-floor mode only (?difficulty=).
   ascended: 0,
@@ -129,6 +145,52 @@ function grab() {
   ]) {
     el[id] = document.getElementById(id);
   }
+}
+
+// THE SAVE POINT IS THE INSTANT A RUN IS COUNTED, and there is only one.
+//
+// A refresh BEFORE it lands on a run that has not touched a single stored
+// value, so the run is simply played again, identically — `(seed,
+// runNumber)` reproduces it exactly. There is no "save in the middle"
+// because there is no middle that needs saving.
+//
+// A refresh AFTER it keeps the run. That is why this cannot wait for the
+// shop, which is half a minute long: `tallyDescent` has by then already
+// paid the lifetime score, written the highscore row and taken the held
+// items off a corpse. A session saved after the shop would replay a run
+// those had already been paid for, and pay them twice.
+//
+// The shop that follows writes only its own slice — a purchase is in the
+// wallet the moment it is clicked — so a refresh during it costs the rest
+// of the shopping and nothing else.
+function saveSession() {
+  if (!session.persist) return;
+  writeSlice(SESSION_SLICE, {
+    seed: session.seed,
+    runNumber: session.runNumber,
+    runsPlayed: session.runsPlayed,
+    cleared: session.cleared,
+    history: session.history,
+  });
+}
+
+// True when a session was restored. False for a fresh visitor, for a broken
+// slice, and for a slice with no seed in it — all three want a new chain,
+// which the caller draws.
+function loadSession() {
+  const saved = readSlice(SESSION_SLICE);
+  if (!saved || typeof saved !== 'object') return false;
+  const seed = Number(saved.seed);
+  if (!Number.isFinite(seed)) return false;
+
+  session.seed = seed >>> 0;
+  session.runNumber = Number(saved.runNumber) || 0;
+  session.runsPlayed = Number(saved.runsPlayed) || 0;
+  session.cleared = Number(saved.cleared) || 0;
+  session.history = Array.isArray(saved.history)
+    ? saved.history.slice(0, HISTORY_LEN)
+    : [];
+  return true;
 }
 
 async function waitWhilePaused() {
@@ -591,13 +653,16 @@ async function showDescentSummary(run, finalState) {
 // The real product: floors 1 to 10 in one continuous descent, using the same
 // entry point the batch runner and the ruler measure with, so what is
 // watched is what is measured.
-async function runDescentForever(sessionSeed) {
+async function runDescentForever() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     session.runNumber++;
     session.unbankedCoins = 0;
     if (el.coins) el.coins.textContent = coinsText();
-    const seed = hashSeeds(sessionSeed, session.runNumber);
+    // Read from the session rather than taken as an argument: the reset
+    // button draws a new chain, and a parameter captured once could not
+    // hear about it.
+    const seed = hashSeeds(session.seed, session.runNumber);
 
     // playDungeon calls this once per floor; a bot carries plan state that
     // means nothing on the next map down, so each floor gets a fresh trace
@@ -716,6 +781,8 @@ async function runDescentForever(sessionSeed) {
     // `''` `session.heroName` prints for it) so the highscore board's key
     // matches `roster.js`'s own ORDER and chip keys.
     tallyDescent(run, finalState, hero.name, { seed, config });
+    // The run is counted, and this is the whole save point — see saveSession.
+    saveSession();
     await showDescentSummary(run, finalState);
     // No seed any more: the no-input purchase used to be a weighted draw and
     // is now the player's declared order (src/ui/shop.js), so the shop is
@@ -774,12 +841,30 @@ function wireControls() {
   // (src/ui/dials.js). Clearing them would hand back a different bot, which
   // is not what starting over means.
   el.resetSession.addEventListener('click', () => {
-    if (!confirm('Reset your coin balance, held items, lifetime total, achievements, hero and highscores? This cannot be undone.')) return;
+    if (!confirm('Reset your coin balance, held items, lifetime total, achievements, hero, highscores and run history? This cannot be undone.')) return;
     resetScore();
     resetOnDeath();
     resetAchievements();
     clearChosenHero();
     resetHighscores();
+
+    // THE SESSION GOES WITH THEM, now that it survives a reload. A button
+    // that promised a fresh visitor and left «run 87» and twelve chips on
+    // screen would be describing something else. A new chain is drawn too:
+    // keeping the old seed would replay the very runs just erased.
+    //
+    // And the run in flight is ABANDONED rather than counted into the fresh
+    // session — the restart path already says an abandoned run is not a run
+    // (it does not count, does not bank, does not reach the shop), which is
+    // exactly what a reset wants from the run it interrupts.
+    clearSlice(SESSION_SLICE);
+    session.history = [];
+    session.runNumber = 0;
+    session.runsPlayed = 0;
+    session.cleared = 0;
+    session.seed = Date.now() >>> 0;
+    session.restart = true;
+    if (el.history) renderHistory(el.history, session.history);
 
     // Both displays are redrawn here rather than left to the next run: the
     // gate re-shuts the instant the receipts go (`resetAchievements` clears
@@ -948,11 +1033,24 @@ export async function start() {
   }
 
   // ?seed=whatever makes a whole session reproducible, which is how you go
-  // back and look at a run the bot played badly.
+  // back and look at a run the bot played badly. It starts that chain from
+  // the top and, being somebody else's session rather than this player's,
+  // never writes over the save (see `session.persist`).
+  //
+  // Without it: the saved session is resumed — same chain, next run number,
+  // the history strip already on screen — and only a visitor who has none
+  // draws a new chain from the clock.
   const requested = params.get('seed');
-  const sessionSeed = requested
-    ? seedFromString(requested)
-    : (Date.now() >>> 0);
+  if (requested) {
+    session.seed = seedFromString(requested);
+    session.persist = false;
+  } else if (!loadSession()) {
+    session.seed = Date.now() >>> 0;
+  }
+  // Drawn before the first run for the same reason the achievements are:
+  // the strip is the record of a session that is being CONTINUED, and a box
+  // that filled in only after the next run ended would read as an empty one.
+  if (el.history) renderHistory(el.history, session.history);
 
   // ?difficulty=0..1 is a lab affordance kept for old links: it plays the
   // OLD single synthetic floor instead of the ten-floor descent, at a fixed
@@ -962,8 +1060,8 @@ export async function start() {
   if (requestedDial !== null) {
     session.dial = Number(requestedDial);
     session.floor = difficultyToParams(session.dial);
-    runForever(sessionSeed);
+    runForever(session.seed);
   } else {
-    runDescentForever(sessionSeed);
+    runDescentForever();
   }
 }

@@ -10,28 +10,20 @@
 
 import { HEROES, heroLabel } from '../sim/heroes.js';
 import { ORDER } from './roster.js';
+import { readSlice, writeSlice } from './save.js';
 import { tileSvg } from './tiles.js';
 
-const KEY = 'rogulidle-highscores';
+// One slice of the save document (src/ui/save.js), which owns the storage
+// and the failure cases this used to carry itself.
+const SLICE = 'highscores';
 
 function load() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return (parsed && typeof parsed === 'object') ? parsed : {};
-  } catch {
-    // Private browsing, quota, or corrupt JSON — the board just shows
-    // everyone at zero rather than breaking the page.
-    return {};
-  }
+  const parsed = readSlice(SLICE);
+  return (parsed && typeof parsed === 'object') ? parsed : {};
 }
 
 function save(data) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(data));
-  } catch {
-    // Same cases as load().
-  }
+  writeSlice(SLICE, data);
 }
 
 export function getHighscores() {
