@@ -4449,6 +4449,45 @@ test('a release that arrives late unlocks nobody', async () => {
   assertEq(third.status, 409, 'the late release unlocked the device that had it');
 });
 
+test('insisting takes a lock that is still alive, and stops the one that had it', async () => {
+  // The button behind the refusal. The lease frees a name on its own, but
+  // only after its whole term, and the person looking at the screen is
+  // usually the one who knows the other device is shut.
+  const env = fakeKv();
+  const first = await call(env, 'POST', 'claim', { name: 'vito', device: 'o note' });
+  await call(env, 'PUT', 'state', {
+    name: 'vito', token: first.body.token, rev: 0, save: { n: 1 },
+  });
+
+  const polite = await call(env, 'POST', 'claim', { name: 'vito', device: 'o celular' });
+  assertEq(polite.status, 409, 'a live lock was handed over without being asked');
+
+  const forced = await call(env, 'POST', 'claim', {
+    name: 'vito', device: 'o celular', force: true,
+  });
+  assertEq(forced.status, 200, 'insisting did not take the name');
+  assertEq(forced.body.save.n, 1, 'the save did not come with the name');
+
+  // NOTHING NEW MAKES THIS SAFE — the token check that was always there does.
+  const displaced = await call(env, 'PUT', 'state', {
+    name: 'vito', token: first.body.token, rev: 1, save: { n: 2 },
+  });
+  assertEq(displaced.status, 409, 'the device that was displaced could still write');
+  assertEq(displaced.body.error, 'lost', 'the refusal did not say the lock was gone');
+});
+
+test('a release from the displaced device does not unlock the one that insisted', async () => {
+  const env = fakeKv();
+  const first = await call(env, 'POST', 'claim', { name: 'vito', device: 'a' });
+  await call(env, 'POST', 'claim', { name: 'vito', device: 'b', force: true });
+
+  const late = await call(env, 'POST', 'release', { name: 'vito', token: first.body.token });
+  assertEq(late.status, 409, 'the displaced device released a lock it no longer had');
+
+  const third = await call(env, 'POST', 'claim', { name: 'vito', device: 'c' });
+  assertEq(third.status, 409, 'the name was left unlocked by a stale release');
+});
+
 test('a name the client would never produce is refused', async () => {
   // The fold lives in one place (src/ui/save.js) and the server refuses
   // anything that did not come out of it, rather than folding a second time.

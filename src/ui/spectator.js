@@ -36,12 +36,13 @@ import { loadDialOverrides } from './dial-overrides.js';
 import { eventsEnabled, makeEventLayer } from './events.js';
 import { playRun } from './run.js';
 import { askPlayerName, hideNotice, showNotice } from './player.js';
+import { claimTab } from './tab-lock.js';
 import {
   clearSlice, getPlayer, readSave, readSlice, replaceSave, setPlayer, writeSlice,
 } from './save.js';
 import {
-  claimName, pushSave, reconnect, releaseSave, serverRevision, syncEnabled,
-  syncing,
+  claimName, pushSave, reconnect, releaseSave, serverRevision, stillOurs,
+  syncEnabled, syncing,
 } from './sync.js';
 import { sleep } from './clock.js';
 
@@ -214,12 +215,16 @@ async function connectSave() {
   // holder's), so nothing is unlocked behind our backs.
   let quiet = true;
 
+  // Set by the button behind the refusal, spent on the next claim.
+  let insist = false;
+
   // eslint-disable-next-line no-constant-condition
   while (true) {
     showNotice(el.playerGate, {
       title: 'entrando…', text: 'falando com o servidor',
     });
-    const got = await claimName(getPlayer());
+    const got = await claimName(getPlayer(), { force: insist });
+    insist = false;
 
     if (got.state === 'active') {
       if (quiet) {
@@ -234,12 +239,21 @@ async function connectSave() {
       const choice = await showNotice(el.playerGate, {
         title: 'este jogo já está aberto',
         text: `em ${got.device || 'outro aparelho'}, com sinal ${sinceWhen(got.lastSeen)}.`
-          + ' um aparelho por vez — feche o outro, ou espere alguns minutos.',
+          + ' um aparelho por vez — feche o outro, espere alguns minutos, ou'
+          + ' assuma daqui (o outro para, e o que ele ainda não tinha salvo'
+          + ' se perde).',
         buttons: [
           { id: 'retry', label: 'tentar de novo' },
+          // THE BUTTON FOR THE CASE THE LEASE HANDLES BADLY: a device that
+          // died holding the name. Waiting out the term is the honest
+          // default, and the person looking at this screen is usually the
+          // one who knows the other device is shut — which is a thing only
+          // they can know, so it is a button and never automatic.
+          { id: 'force', label: 'assumir mesmo assim' },
           { id: 'switch', label: 'outro nome' },
         ],
       });
+      if (choice === 'force') insist = true;
       if (choice === 'switch') {
         const name = await askPlayerName(el.playerGate, { current: getPlayer() });
         if (name) {
@@ -294,6 +308,29 @@ function stopForOtherDevice(text) {
     text,
     buttons: [{ id: 'reload', label: 'recarregar' }],
   }).then(() => location.reload());
+}
+
+// IS THE NAME STILL OURS? Asked on a clock, because a run is minutes long.
+//
+// The check used to sit at the end of a run, which was the natural place —
+// every other bit of syncing happens there. It was wrong for this one: the
+// owner pressed "assumir mesmo assim" on a phone and watched the computer go
+// on playing, because the computer was in the middle of a run and the end of
+// a run at ordinary speed can be several minutes away. A promise that the
+// other device stops has to be kept while somebody is looking at it.
+//
+// A READ, so it is free against the write budget the uploads are rationed
+// by, and it is the only thing in this file that runs on a timer rather than
+// on the game's own rhythm.
+const WATCH_MS = 20000;
+
+function watchTheName() {
+  if (!syncEnabled()) return;
+  setInterval(async () => {
+    if (session.stopped || !syncing()) return;
+    if (await stillOurs()) return;
+    stopForOtherDevice('outro aparelho assumiu este nome. o que esta aba jogou desde a última gravação fica por aqui.');
+  }, WATCH_MS);
 }
 
 // ONE RUN'S WORTH OF SYNCING, at the save point and nowhere else.
@@ -412,7 +449,12 @@ async function playFrames(frames, trace, tallyText) {
     // The lab's ↻: abandon the run being watched, mid-floor if need be.
     // The run itself is already computed and simply thrown away — nothing
     // in the engine is interrupted, only the playback.
-    if (session.restart) return;
+    //
+    // `stopped` leaves the same way, and for a stronger reason: the name
+    // belongs to another device now, so every frame after this one is a
+    // frame of a game nobody will keep. A run at ordinary speed lasts
+    // minutes, and "the other one stops" has to mean now.
+    if (session.restart || session.stopped) return;
 
     // The danger map is recomputed for the frame on screen rather than
     // stored for every turn of the run — one field costs a millisecond or
@@ -921,7 +963,7 @@ async function runDescentForever() {
       const alignedTrace = kept.map((k) => traces[i][Math.max(0, k.index)]);
 
       await playFrames(frames, alignedTrace, descentTallyText);
-      if (session.restart) break;
+      if (session.restart || session.stopped) break;
       finalState = frames[frames.length - 1].state;
       session.turnOffset += levelResult.turns;
 
@@ -971,6 +1013,10 @@ async function runDescentForever() {
       session.restart = false;
       continue;
     }
+    // …and a run interrupted because the name was taken is not a run either,
+    // for the same reason plus a better one: nothing it produced could ever
+    // be saved.
+    if (session.stopped) return;
 
     // `hero.name` — the real name (`HEROES.base.name` is `'base'`, not the
     // `''` `session.heroName` prints for it) so the highscore board's key
@@ -1180,6 +1226,25 @@ export async function start() {
   grab();
   buildGrid(el.grid);
 
+  // ONE TAB BEFORE ONE NAME. Two tabs of the same browser share one save,
+  // and the service's lock only catches them while it can be reached — with
+  // no network both would play into the same document and take turns
+  // overwriting it (src/ui/tab-lock.js).
+  //
+  // Only "recarregar" is offered. Inside one browser, closing the other tab
+  // is trivial, and a second way to take something over would be more to
+  // explain than it is worth.
+  if (!await claimTab()) {
+    await showNotice(el.playerGate, {
+      title: 'já está aberto em outra aba',
+      text: 'este navegador só joga em uma aba por vez — as duas dividiriam o'
+        + ' mesmo save. feche a outra e recarregue esta.',
+      buttons: [{ id: 'reload', label: 'recarregar' }],
+    });
+    location.reload();
+    return;
+  }
+
   // THE NAME COMES FIRST, before a single slice is read.
   //
   // Everything below this line — the achievements, the notches, the wallet,
@@ -1194,6 +1259,8 @@ export async function start() {
   // …and then the name is taken on the service, which may hand back a save
   // played on another device. Before any slice is read, for the same reason.
   await connectSave();
+
+  watchTheName();
 
   // A CLOSING TAB HANDS THE LOCK BACK, with its last save. Without this the
   // other device waits out the whole lease to play a game nobody is playing,

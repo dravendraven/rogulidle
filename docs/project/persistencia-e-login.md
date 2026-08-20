@@ -161,8 +161,10 @@ não têm escrita condicional).
 
 Três rotas, e a trava é uma delas:
 
-- `POST /claim {nome, aparelho}` → `200 {token, lease, save}` ou
-  `409 {motivo:'ativo', ultimaAtividade, aparelho}`
+- `POST /claim {nome, aparelho, force}` → `200 {token, lease, save}` ou
+  `409 {motivo:'ativo', ultimaAtividade, aparelho}`. Com `force`, a recusa
+  não acontece: a trava viva é tomada, e o aparelho que a tinha é parado
+  pelo mecanismo que já existia — o token dele deixou de ser o do dono.
 - `PUT /state {nome, rev, save}` + header `X-Token` → `200 {rev, lease}`,
   `409` se o token não for mais o dono, `412` se a `rev` estiver atrasada
 - `POST /release {nome, token, save, rev}` → grava e solta a trava; é o que o
@@ -213,6 +215,28 @@ de novo: se o nome ainda está como foi deixado, a aba retoma a trava e segue
 em silêncio; se alguém entrou no meio, aí sim ela para. Dizer «foi aberto em
 outro aparelho» para quem só pausou seria mentira.
 
+## 7b. Duas abas do mesmo navegador
+
+**São duas travas diferentes, e a de fora não cobre o buraco.** A do serviço
+recusa a segunda aba como recusaria outro aparelho — mas só enquanto ela for
+alcançável. Sem rede, as duas abas falham em reclamar o nome, as duas jogam,
+e as duas escrevem o mesmo documento: nenhuma corrompe os campos da outra
+(cada uma grava o documento inteiro a partir da própria cópia), elas se
+revezam apagando uma à outra, e quem subir primeiro quando a rede voltar
+apaga a outra em silêncio.
+
+A trava de dentro é do próprio navegador (`navigator.locks`): exclusiva por
+origem, devolvida por ele mesmo quando a aba morre. Sem prazo, sem
+batimento, sem chave no storage, nada a limpar depois de um crash — dez
+linhas contra o arquivo inteiro que a trava de fora custou. Um navegador sem
+a API joga como antes, porque recusar seria trocar uma bagunça rara por uma
+certa.
+
+Ela é pedida ANTES do nome: perguntar quem está jogando para recusar em
+seguida seria grosseiro. E a segunda aba só recebe «recarregar» — dentro de
+um navegador, fechar a outra aba é trivial, e um segundo jeito de tomar algo
+seria mais para explicar do que vale.
+
 ## 8. Peça 6 — quando a rede falha
 
 Rede fora não pode parar o jogo: ele grava local, mostra um selo discreto de
@@ -253,9 +277,14 @@ produto — não de persistência.
    respondidas e estão no código.
 2. ~~**Onde hospedar?**~~ — respondido: Cloudflare Worker + KV. Falta só a
    conta e o deploy, que são do dono: o arquivo está escrito e testado.
-3. ~~**Takeover**~~ — respondido: quando o prazo vence, o segundo aparelho
-   entra sozinho. Sem botão e sem decisão para o jogador; uma trava que
-   sobrevive ao aparelho que a segurava é um jogador trancado para fora.
+3. ~~**Takeover**~~ — respondido DUAS vezes, e a segunda pelo uso. Primeiro:
+   quando o prazo vence, o segundo aparelho entra sozinho. Depois, no
+   primeiro dia de uso de verdade, o dono fechou o navegador do PC, o aviso
+   de saída não saiu junto (fechar a janela inteira às vezes mata o processo
+   antes), e o celular ficou esperando o prazo inteiro — então o botão
+   «assumir mesmo assim» entrou também. Os dois convivem: o prazo é o que
+   funciona sem ninguém, o botão é para quem SABE que o outro lado está
+   fechado, que é uma coisa que só quem está olhando pode saber.
 4. ~~**Os notches seguem o nome?**~~ — respondido: seguem (§3).
 
 ## 11. As tarefas, em ordem

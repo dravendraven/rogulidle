@@ -23,8 +23,8 @@
 // 2. Edit code, paste this file whole, deploy.
 // 3. Storage → KV → create a namespace, then bind it to the worker under the
 //    variable name SAVES. Nothing else is configured; there are no secrets.
-// 4. The worker's URL is what the page will be told in T5. Nothing in the
-//    page calls this yet.
+// 4. The worker's URL goes in `SERVICE`, at the top of `src/ui/sync.js`. A
+//    page whose `SERVICE` is empty plays locally and syncs nothing.
 //
 // ***** running it here *****
 //
@@ -98,6 +98,18 @@ const held = (record, now) => Boolean(record.lease && record.lease.until > now);
 
 // Take the lock, and get back whatever is stored. This is the only way in:
 // a device that did not claim has no token, and every write needs one.
+//
+// `force` INSISTS, and it is the answer to the case the lease alone handles
+// badly: a device that died holding the lock. The lease frees the name by
+// itself, but only after its whole term, and the person waiting is usually
+// the one who knows perfectly well that the other device is shut. Forcing
+// hands the name over now.
+//
+// It needs nothing new to be safe. The displaced device is stopped by the
+// mechanism that was already there: its token is no longer the holder's, so
+// its next write is refused and it says so on screen. What it had not sent
+// up is lost, which is the honest price of insisting and is said out loud on
+// the button that does it.
 async function claim(env, given, now) {
   const name = given.name;
   const record = await read(env, name);
@@ -105,7 +117,7 @@ async function claim(env, given, now) {
   // REFUSED WHILE SOMEBODY ELSE HOLDS IT — the message the owner asked for.
   // `lastSeen` is when that device last renewed, so the page can say how long
   // ago rather than just "somewhere else".
-  if (held(record, now)) {
+  if (held(record, now) && given.force !== true) {
     return json(409, {
       error: 'active',
       device: record.lease.device || '',
@@ -113,9 +125,9 @@ async function claim(env, given, now) {
     });
   }
 
-  // An expired lease is simply taken over. Nobody is asked and no button is
-  // offered: a lock that outlives the device holding it is a locked-out
-  // player, and the whole point of a lease is that it ends by itself.
+  // An expired lease is simply taken over, and so is a live one somebody
+  // insisted on. A lock that outlives the device holding it is a locked-out
+  // player; the lease ends that by itself in time, and `force` ends it now.
   const lease = {
     token: crypto.randomUUID(),
     device: String(given.device || '').slice(0, 60),
@@ -137,6 +149,12 @@ async function peek(env, name, now) {
     rev: record.rev,
     updatedAt: record.updatedAt,
     active: held(record, now),
+    // WHOSE lease it is, without saying whose. The deadline changes every
+    // time the lock is taken or renewed, so a device that knows its own can
+    // tell "still mine" from "somebody else's" by comparing one number —
+    // and it costs a read rather than a write, which is why the page can
+    // afford to ask after every run. The token itself is never handed out.
+    until: record.lease ? record.lease.until : 0,
     save: record.save,
   });
 }
