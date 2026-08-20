@@ -515,6 +515,11 @@ once:
 items appear as hell achievements unlock them — under the registered
 situational-power rule, never a plain multiplier.
 
+**Sharpened by the owner, 2026-08-20: the infernal coin is the ONLY thing
+that accumulates across runs.** Gold stays per-run (rules.md §9) and its
+accumulation mechanism is the chain's own snowball — go further, earn
+more, buy better. The coin banks under a wallet cap; nothing else does.
+
 **The open question — how to stop indefinite coin farming — leans CAP, not
 clock.** Expiring coins (24h / daily reset) punish absence, which
 contradicts the owner's own requirement that a long absence returns to a

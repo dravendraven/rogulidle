@@ -282,6 +282,35 @@ was survivable, and the hero then died of stamina on the same floor after
 winning it. Achievement pacing cannot assume the first kill is deep into a
 session.
 
+## E1 — the economy gap, measured, and the loop is inverted
+
+2026-08-20, chained sessions and paired loadout runs, shipped dials. The
+numbers live in git; three mechanisms are what transfer:
+
+**1. The wall guards its own solution.** Coin scales with depth, so a run
+that dies at the pig earns the LEAST — the sessions that could afford the
+pig-killing loadout are the ones that already passed the pig. Any economy
+where income grows with progress and the wall sits early has this shape;
+pricing the wall's answer above the wall's own income makes the loop
+circular by construction.
+
+**2. There is no accumulation across runs, by RULE, and the owner
+confirmed that is intended.** Coin dies with its run (rules.md §9), death
+wipes carried items, and exactly one purchase layer crosses a death — so
+"farm ten runs and save up" cannot exist for GOLD no matter the dials.
+The owner's design (2026-08-20): the accumulation mechanism for gold IS
+the chain's own snowball — each purchase makes the next run go further,
+which earns more, which buys better — and only the INFERNAL COIN (U11)
+banks across runs, under a wallet cap. E2 therefore tunes the snowball's
+slope (income per depth, prices, in-run loot), never adds a gold bank.
+
+**3. The axe is the hinge of the whole shop.** One item roughly doubles
+the pig kill rate, and armour stacks multiply on top of it. The ladder
+below it barely moves the fight. Whatever E2 does to prices, the distance
+from a wall-death's income to the axe IS the difficulty of the pig
+strategy — that one ratio is the dial the owner's "hours, not minutes"
+target lives in.
+
 ## Difficulty and the map
 
 **CV of a sum falls as 1/√n in the number of independent draws.** Creature
