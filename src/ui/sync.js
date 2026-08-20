@@ -40,6 +40,11 @@ const PUSH_EVERY_MS = 5 * 60 * 1000;
 // which is simply gone does not hold the first run hostage.
 const TIMEOUT_MS = 8000;
 
+// How often a page playing alone knocks on the door again. The same spacing
+// as an upload: a request that fails costs nothing but a request, and one
+// every five minutes is nobody's idea of hammering.
+const RETRY_EVERY_MS = PUSH_EVERY_MS;
+
 // Who holds the lock, from the moment a claim succeeds until something says
 // otherwise.
 let token = null;
@@ -47,6 +52,15 @@ let serverRev = 0;
 let player = null;
 let lastPush = 0;
 let live = false;
+
+// Did the last trip actually get there? Holding the lock and reaching the
+// service are two different things — a page can hold a lease and be on a
+// train — and the mark in the header is about the second one.
+let reachable = false;
+
+// When the last attempt to reach it was made, successful or not. What keeps
+// a page that opened with no network from asking on every single run.
+let lastTry = 0;
 
 export function syncEnabled() {
   return Boolean(SERVICE);
@@ -61,10 +75,11 @@ export function serverRevision() {
   return serverRev;
 }
 
-// True while this page holds the lock. False before the first claim, when
-// the service could not be reached, and after the lock was lost.
+// True while this page holds the lock AND is reaching the service. Anything
+// else is "playing alone", which is one state to the player however many
+// ways there are to arrive at it.
 export function syncing() {
-  return live;
+  return live && reachable;
 }
 
 // What the refusal on the OTHER device will name. Deliberately vague — the
@@ -105,8 +120,13 @@ async function peek(name) {
 //   { state: 'offline' }                    — no service; play locally
 export async function claimName(name) {
   if (!SERVICE) return { state: 'offline' };
+  // Remembered even when the claim fails: a page that opened with no network
+  // still has to know whose name to ask for when it comes back.
+  player = name;
+  lastTry = Date.now();
   try {
     const { status, body } = await ask('claim', 'POST', { name, device: deviceLabel() });
+    reachable = true;
     if (status === 409) {
       return { state: 'active', device: body.device || '', lastSeen: body.lastSeen || 0 };
     }
@@ -116,13 +136,32 @@ export async function claimName(name) {
 
     token = body.token;
     serverRev = body.rev;
-    player = name;
     live = true;
     lastPush = Date.now();
     return { state: 'ok', save: body.save, rev: body.rev };
   } catch {
+    reachable = false;
     return { state: 'offline' };
   }
+}
+
+// KNOCKING AGAIN, for a page that has been playing alone.
+//
+// The mark in the header was never enough on its own: a tab that opened
+// while the wifi was down would keep that mark until somebody thought to
+// reload, which in a game meant to be left running is the same as never.
+// This is the other half — every so often, at the end of a run, it asks.
+//
+// Returns null when there is nothing to say (already syncing, no service, or
+// it is not time to ask yet), and otherwise the claim's own answer, which is
+// the caller's to judge: only the caller knows which revision this browser's
+// save corresponds to, and therefore whether what it played alone still
+// counts.
+export async function reconnect() {
+  if (live || !SERVICE || !player) return null;
+  if (Date.now() - lastTry < RETRY_EVERY_MS) return null;
+  const got = await claimName(player);
+  return got.state === 'offline' ? null : got;
 }
 
 // Send the document up, at most once every PUSH_EVERY_MS unless forced.
@@ -140,9 +179,12 @@ export async function pushSave(save, { force = false } = {}) {
   } catch {
     // The wire, not the lock: the lease is still ours until it lapses, so
     // the next run tries again rather than giving the game away.
+    reachable = false;
+    lastTry = now;
     return 'offline';
   }
 
+  reachable = true;
   if (result.status === 200) {
     serverRev = result.body.rev;
     lastPush = now;
@@ -181,6 +223,14 @@ export async function pushSave(save, { force = false } = {}) {
 
 // The last save, on the way out of the page, plus the lock handed back so
 // the other device does not have to wait out the lease.
+//
+// CALLED WITH NOTHING, it hands the lock back and STORES NOTHING — which is
+// what a page that has just discovered its own copy is an orphan has to do.
+// It took the name to find that out; keeping it would leave the name held by
+// a page about to stop, and uploading what it holds would put the discarded
+// history over the real one. The worker ignores a save whose revision does
+// not match anyway, but not sending it is the version that does not depend
+// on the worker being careful.
 //
 // `sendBeacon` because a closing page does not stay alive for a `fetch`. It
 // cannot set a content type and it cannot read the answer — the worker parses

@@ -597,7 +597,13 @@ guardar.
 
 **Sem servidor, o jogo continua.** Fora do ar ou sem rede, tudo é jogado e
 gravado só naquele aparelho, e o cabeçalho marca que nada está
-sincronizando.
+sincronizando. De tempos em tempos a aba tenta de novo sozinha — quando a
+rede volta, a marca some e o jogo volta a subir sem ninguém recarregar nada.
+
+**O que foi jogado sem rede só vale se ninguém tiver jogado no lugar.** Se
+ao voltar o nome estiver com outro aparelho, ou o save de lá tiver andado,
+as runs jogadas sozinhas são descartadas e a aba para pedindo recarregar —
+juntar as duas histórias faria uma terceira, que ninguém jogou.
 
 **O que a página lembra, ela lembra entre visitas.** Refresh não começa outra
 sessão. O número da run, o histórico dos últimos resultados, o placar e a

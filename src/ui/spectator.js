@@ -40,7 +40,8 @@ import {
   clearSlice, getPlayer, readSave, readSlice, replaceSave, setPlayer, writeSlice,
 } from './save.js';
 import {
-  claimName, pushSave, releaseSave, serverRevision, syncEnabled, syncing,
+  claimName, pushSave, reconnect, releaseSave, serverRevision, syncEnabled,
+  syncing,
 } from './sync.js';
 import { sleep } from './clock.js';
 
@@ -107,6 +108,10 @@ const session = {
   heroEmoji: undefined,
   // The rail's own `show(playing, queued)` (src/ui/roster.js), once built.
   roster: null,
+  // The header button's own repaint (`wirePlayerButton`), once built. The
+  // run loop calls it: whether anything is syncing changes while the game is
+  // running, and the mark has to change with it.
+  paintPlayer: null,
   // The highscore panel's own `show(data)` (src/ui/highscores.js), once
   // built — same one-function-returned-from-the-builder shape as `roster`.
   showHighscores: null,
@@ -275,15 +280,80 @@ function sinceWhen(at) {
   return `há ${minutes} minutos`;
 }
 
-// The end of this page's game: the name belongs to another device now, and
-// this one has to stop rather than play runs that no save will ever hold.
-function stopForOtherDevice() {
+// The end of this page's game: the name belongs somewhere else now, and this
+// one has to stop rather than play runs that no save will ever hold.
+//
+// Reloading is the recovery, and it is a real one rather than a shrug: the
+// page that comes back claims the name again and adopts whatever is stored,
+// so the player lands in the game as the other device left it.
+function stopForOtherDevice(text) {
+  if (session.stopped) return;
   session.stopped = true;
   showNotice(el.playerGate, {
     title: 'o jogo foi aberto em outro aparelho',
-    text: 'esta aba parou aqui. o que ela já tinha gravado está guardado.',
+    text,
     buttons: [{ id: 'reload', label: 'recarregar' }],
   }).then(() => location.reload());
+}
+
+// ONE RUN'S WORTH OF SYNCING, at the save point and nowhere else.
+//
+// Three states, and the third is the one T6 exists for: holding the lock and
+// reaching the service, holding it and not reaching it, and having no lock
+// at all — a page that opened while the network was down. That last one used
+// to stay alone until somebody reloaded, which in a game meant to be left
+// running is the same as never.
+//
+// Returns false when the page must stop.
+async function syncAfterRun() {
+  if (!syncEnabled()) return true;
+
+  const sent = await pushSave(readSave());
+  if (sent === 'lost') {
+    stopForOtherDevice('esta aba parou aqui. o que ela já tinha gravado está guardado.');
+    return false;
+  }
+  // WHAT WENT UP IS RECORDED HERE. Without this the stored revision stays at
+  // whatever the claim returned while the server moves on, and the next load
+  // reads its own uploads as somebody else being ahead — throwing away
+  // exactly the runs that had not been sent yet.
+  if (sent === 'ok') writeSlice(SYNC_SLICE, { rev: serverRevision() });
+
+  if (sent === 'offline') {
+    const back = await reconnect();
+
+    // THE ORPHAN. Coming back to find the name taken, or the save moved on
+    // without us, means the runs played alone were played into a copy that
+    // is no longer the game. They are dropped rather than merged: choosing
+    // which of two histories is the real one has no good answer, and a
+    // history stitched from both would be a third one nobody played.
+    if (back && back.state === 'active') {
+      stopForOtherDevice('outro aparelho está com este nome agora. o que esta aba jogou sem rede fica por aqui.');
+      return false;
+    }
+    if (back && back.state === 'ok' && back.save && back.rev > syncedRev()) {
+      // The lock was taken to ask the question, and the answer is that this
+      // page is the wrong copy — so it hands the name straight back, with
+      // nothing attached. Holding it would lock the reload out of its own
+      // game, and uploading would put the discarded history over the real
+      // one.
+      releaseSave();
+      stopForOtherDevice('outro aparelho jogou enquanto esta aba estava sem rede. recarregue para continuar de lá.');
+      return false;
+    }
+
+    // Back, and nothing happened while we were away: this copy IS the game,
+    // so it goes up at once rather than waiting out the next window.
+    if (back && back.state === 'ok') {
+      if (await pushSave(readSave(), { force: true }) === 'ok') {
+        writeSlice(SYNC_SLICE, { rev: serverRevision() });
+      }
+    }
+  }
+
+  // The mark in the header follows all of it, including the good news.
+  if (session.paintPlayer) session.paintPlayer();
+  return true;
 }
 
 // True when a session was restored. False for a fresh visitor, for a broken
@@ -896,18 +966,10 @@ async function runDescentForever() {
     tallyDescent(run, finalState, hero.name, { seed, config });
     // The run is counted, and this is the whole save point — see saveSession.
     saveSession();
-    // …and the only place the save goes up. Rationed inside `pushSave`, so
-    // most runs cost nothing but the localStorage write above.
-    const sent = await pushSave(readSave());
-    if (sent === 'lost') {
-      stopForOtherDevice();
-      return;
-    }
-    // WHAT WENT UP IS RECORDED HERE. Without this the stored revision stays
-    // at whatever the claim returned while the server moves on, and the next
-    // load reads its own uploads as somebody else being ahead — throwing
-    // away exactly the runs that had not been sent yet.
-    if (sent === 'ok') writeSlice(SYNC_SLICE, { rev: serverRevision() });
+    // …and the only place the save goes up, or the connection is tried
+    // again. Rationed inside `sync.js`, so most runs cost nothing but the
+    // localStorage write above.
+    if (!await syncAfterRun()) return;
     await showDescentSummary(run, finalState);
     // No seed any more: the no-input purchase used to be a weighted draw and
     // is now the player's declared order (src/ui/shop.js), so the shop is
@@ -940,6 +1002,7 @@ function wirePlayerButton() {
       : 'trocar de jogador';
   };
   paint();
+  session.paintPlayer = paint;
 
   el.player.addEventListener('click', async () => {
     const current = getPlayer();

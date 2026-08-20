@@ -216,11 +216,22 @@ outro aparelho» para quem só pausou seria mentira.
 ## 8. Peça 6 — quando a rede falha
 
 Rede fora não pode parar o jogo: ele grava local, mostra um selo discreto de
-«sem sincronizar» e tenta de novo no próximo ponto de salvamento. Se a trava
-ainda for dele quando voltar, sobe. Se não for mais, o loop para com a mesma
-mensagem do §6 — e nesse caso o save local do período órfão é **descartado**,
-porque a alternativa é decidir qual dos dois históricos é o verdadeiro, e não
-há resposta boa para isso.
+«sem sincronizar» e tenta de novo no próximo ponto de salvamento.
+
+**Tentar de novo é metade da peça, e é a metade que faltava.** Um selo
+sozinho espera que alguém recarregue, e num jogo feito para ficar rodando
+isso quer dizer nunca. Então toda tentativa passa pelo mesmo ponto de
+salvamento, espaçada como as subidas: a aba bate na porta, e quando ela abre
+o jogo volta a sincronizar sem ninguém tocar em nada.
+
+**O órfão é descartado, e é aqui que ele aparece.** Ao voltar, se o nome
+estiver com outro aparelho, ou se o save de lá tiver andado, as runs jogadas
+sozinhas foram jogadas numa cópia que não é mais o jogo. Elas são
+descartadas: a aba para, diz o que houve, e recarregar traz o save de lá
+inteiro. Costurar as duas histórias faria uma terceira, que ninguém jogou.
+
+Se nada tiver acontecido enquanto ela esteve fora, é o contrário — esta cópia
+É o jogo, e sobe na hora em vez de esperar a próxima janela.
 
 ## 9. O que este plano não faz
 
@@ -237,7 +248,9 @@ produto — não de persistência.
 
 ## 10. As perguntas para o dono
 
-1. **Rodar ausente entra ou não?** (§9). Recomendação: não agora.
+1. **Rodar ausente entra ou não?** (§9). Recomendação: não agora. É a única
+   pergunta deste estudo que segue em aberto — as outras três foram
+   respondidas e estão no código.
 2. ~~**Onde hospedar?**~~ — respondido: Cloudflare Worker + KV. Falta só a
    conta e o deploy, que são do dono: o arquivo está escrito e testado.
 3. ~~**Takeover**~~ — respondido: quando o prazo vence, o segundo aparelho
@@ -256,7 +269,7 @@ Cada uma vale sozinha e dá para ver se funcionou.
 | T3 ✔ | tela do nome, save por nome, «trocar de jogador» | dois nomes no mesmo browser = dois jogos independentes |
 | T4 ✔ | Worker + KV com as três rotas | responde por `curl`, antes de a página saber que ele existe |
 | T5 ✔ | cliente: claim, adoção do save remoto, sync estrangulado, perda de trava | dois browsers: o segundo é recusado com o recado certo |
-| T6 | falha de rede: **selo e jogo local já feitos no T5**; falta a RETOMADA — uma aba que abriu sem rede nunca mais tenta | devtools em offline durante uma run e de volta |
+| T6 ✔ | falha de rede: selo, jogo local, retomada sozinha e descarte do órfão | subir o serviço com a aba já rodando sem ele: ela volta a sincronizar sem recarregar |
 
 T1–T3 não dependem de decisão nenhuma e resolvem o problema relatado.
 T4–T6 dependem das respostas 2 e 3 do §10.
