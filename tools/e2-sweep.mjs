@@ -40,7 +40,12 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(here, '..');
 const url = (r) => pathToFileURL(path.join(REPO, r)).href;
 
-const cell = JSON.parse(process.argv[2] || '{}');
+// Inline JSON, or a path to a file holding it — Windows shells mangle
+// quoted JSON on child-process command lines, so a file is the safe route.
+const rawCell = process.argv[2] || '{}';
+const cell = JSON.parse(
+  fs.existsSync(rawCell) ? fs.readFileSync(rawCell, 'utf8') : rawCell,
+);
 
 // Env BEFORE any src/ import: the hook reads it when balance.js loads.
 if (cell.coinRate) process.env.E2_COIN_RATE = String(cell.coinRate);
@@ -49,6 +54,7 @@ module.register(url('tools/rot-cdn-hook.mjs'));
 module.register(url('tools/e2-coin-hook.mjs'));
 
 const { playChain } = await import(url('src/analysis/chain.js'));
+const { runWires } = await import(url('src/analysis/check.js'));
 const { SHOP_ITEMS } = await import(url('src/ui/shop.js'));
 const { resolvedDefaults } = await import(url('src/ui/dials.js'));
 const { ITEM_TABLE, COIN_RATE } = await import(url('src/sim/balance.js'));
@@ -63,6 +69,9 @@ if (cell.cut) {
     if ((seg.from ?? 1) < 4) Object.assign(seg, cell.cut);
   }
 }
+// Run-wide field (difficulty.js RUN_WIDE): what the vault's own chests
+// hold, as ITEM_TABLE names. A probe lever, not one of the three bridges.
+if (cell.vaultKit) overrides.model.vaultChestItems = cell.vaultKit;
 const dials = resolvedDefaults(overrides);
 
 // ── the shop: price mutations on the live objects ─────────────────────────
@@ -97,12 +106,18 @@ const chains = [];
 let runsTotal = 0;
 let killsTotal = 0;
 let sawTotal = 0;
+let openingTotal = 0;     // runs over by traversal 3 (check.js's own bar)
+let axeStarts = 0;        // runs that STARTED holding an axe
+let axeStartKills = 0;    // ... and killed the pig
 const wallIncomes = [];   // balance of runs that died having reached floor 4+
+const balances = [];      // every run's balance — the income distribution
 const depths = [];
+const allPlays = [];      // for the shared wires (check.js's runWires)
 
 for (let m = 0; m < M; m++) {
   const collect = [];
   const { runs } = playChain(firstSeed + m, L, { dials, hero, order, collect });
+  allPlays.push(...collect);
   let firstKill = null;
   let kills = 0;
   for (let k = 0; k < collect.length; k++) {
@@ -110,10 +125,15 @@ for (let m = 0; m < M; m++) {
     const row = runs[k];
     runsTotal++;
     depths.push(run.depth);
+    balances.push(row.balance);
+    if (!run.cleared && run.depth <= 3) openingTotal++;
     if (sawPig(run)) sawTotal++;
+    const startedArmed = (row.pile.axe ?? 0) > 0;
+    if (startedArmed) axeStarts++;
     if (pigDied(run)) {
       kills++;
       killsTotal++;
+      if (startedArmed) axeStartKills++;
       if (firstKill === null) firstKill = k + 1;
     }
     if (!run.cleared && sawPig(run)) wallIncomes.push(row.balance);
@@ -133,6 +153,11 @@ const median = (xs) => {
   const s = xs.slice().sort((a, b) => a - b);
   return s[Math.floor(s.length / 2)];
 };
+const pct = (xs, p) => {
+  if (!xs.length) return null;
+  const s = xs.slice().sort((a, b) => a - b);
+  return s[Math.min(s.length - 1, Math.floor((p / 100) * s.length))];
+};
 
 const firstKills = chains.map((c) => c.firstKill).filter((k) => k !== null);
 
@@ -149,11 +174,31 @@ process.stdout.write(`${JSON.stringify({
   chainsWithKill: firstKills.length,
   firstKillMedian: median(firstKills),
   firstKills: chains.map((c) => c.firstKill),
+  // WHERE the kills come from: the strategy loop is a kill on a run that
+  // STARTED holding a bought axe; a "naked" kill is the in-run-loot path
+  // the cut exists to close.
+  axeStarts,
+  axeStartKills,
+  nakedKills: killsTotal - axeStartKills,
   // The bridge arithmetic: what a run that met the wall and lost brought
-  // to the shop, against the axe's price this cell charges.
+  // to the shop, against the axe's price this cell charges — and the whole
+  // income distribution, since the bridge only works where the axe price
+  // sits inside its reachable tail.
   wallIncomeMedian: median(wallIncomes),
   wallRuns: wallIncomes.length,
+  income: {
+    p50: pct(balances, 50), p75: pct(balances, 75),
+    p90: pct(balances, 90), p95: pct(balances, 95),
+    max: Math.max(0, ...balances),
+  },
   reachedPigShare: +(sawTotal / runsTotal).toFixed(3),
+  openingShare: +(openingTotal / runsTotal).toFixed(3),
   axesBought: chains.reduce((n, c) => n + c.axesBought, 0),
   depthMean: +(depths.reduce((a, b) => a + b, 0) / depths.length).toFixed(2),
+  // The SHARED wires (check.js), read over every run of every chain — so a
+  // candidate cell can be checked against the same bars the shipped game
+  // answers to, not only against the kill-rate band.
+  wires: runWires(allPlays).wires.map((w) => ({
+    name: w.name, value: w.value, fires: w.fires,
+  })),
 })}\n`);

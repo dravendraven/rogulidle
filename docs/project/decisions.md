@@ -347,6 +347,60 @@ vault paid. E2 builds the world where entering kills — the one band that
 refuses the room (and the owner's own "coragem alta, ganância baixa" farm
 build) must be re-measured inside it before the dial docs are trusted.
 
+## E2 swept — the loader hole, the inverted hierarchy, and the pair
+## that fits
+
+2026-08-20, chained sessions (tools/e2-sweep.mjs — the real chain
+instrument, the real shop drain), first-kill distribution as the metric.
+NOTHING SHIPPED: the candidate waits for the owner to watch. Five
+mechanisms transfer; the cell numbers live in git.
+
+**1. THE LOADER HOLE, I3's third appearance: `resolvedDefaults` dropped
+`model.floors`.** The loop only copies keys some dial claims and the curve
+has no dial — so every no-Lab visitor AND every headless "shipped" reading
+(E1, the stamina-over-chains sweep, this sweep's first five rounds) played
+the single-anchor model at mapTheme 0. The Lab's `read()` had fixed its
+own copy of this hole; the no-Lab path kept it. Fixed with a test. Every
+numeric calibration taken through `measure.mjs` before the fix — E1's
+"median 5 runs", the 240 stamina operating point — described the no-arc
+game and deserves re-measuring; the mechanisms held up.
+
+**2. In the TRUE world E1's hierarchy inverts at the point of use: chests
+are the OPENING's lifeline before they are the pig's fuel.** Any chest cut
+deep enough to move the kill rate fires the opening-deaths wire first
+(0.25 loot chance → 56% of runs dead by traversal 3; 0.1 → 83%). The
+weapon side is the usable lever: `weaponScarcity` 16 on floors 1–3 alone
+lands the band (~2%/run) with the opening intact (~24%). The owner's guess
+that the cut is dial-overrides-only was half right — the half is weapons,
+and the chest dial is the one E2 must NOT move far.
+
+**3. The three bridges, swept in both worlds, same verdict: only the
+cheap axe is targeted.** An income raise (COIN_RATE) leaks through the
+shield path — every run buys more armour, no-axe kills reinflate, and the
+snowball compounds it (2% → 13% at 1.5×). The intermediate rung
+(adrenaline on the shelf) is inert-to-harmful: under the dearest-first
+drain it eats coins that bought gear. The axe price cut adds ONLY
+axe-start kills (naked path untouched) — it is the one dial that reaches
+the strategy without feeding the paths the cut exists to close.
+
+**4. The farm build is refuted, in both worlds, by the same mechanism.**
+Greed-min (with or without high courage) refuses the vault AND everything
+else, dies shallower, and earns LESS than the centre — income is depth,
+and refusing loot costs depth. "Skip the pig to farm" cannot be priced
+into existence by these dials: skipping pays nothing while coin scales
+with depth and the pig gates the depth where coin lives. The panel's
+farm-vs-kill choice needs a mechanism (income the pig does not gate —
+U11's infernal coin is the natural place), not a band.
+
+**5. The candidate PAIR, waiting for the owner:** `weaponScarcity` 16 on
+the `from:1` anchor (floors 1–3, dial-overrides only) + axe 16 → 12
+(src/ui/shop.js). Reads ~2.5%/run, first kill at a median ~23 chained
+runs, opening ~23%, and the bought-axe path carries ~40% of kills — the
+farm→buy→win loop exists, thinly. The cost the owner must see before
+judging: clears fall to 1–2 per 720 runs, so the LONG game nearly
+vanishes at the band the "hours" target names — the wins-too-rare wire
+sits on the edge of firing. That trade is a V6-style call, not a dial.
+
 ## Difficulty and the map
 
 **CV of a sum falls as 1/√n in the number of independent draws.** Creature
