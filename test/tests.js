@@ -4050,6 +4050,32 @@ function aRunThatEarned() {
   throw new Error('no seed in 60 earned anything — the receipt cannot be tested');
 }
 
+// THE CLAIM ITSELF, before any of the storage below. Reported as a bug: the
+// Butcher row said earned while the history strip showed that run dying to a
+// boar. Both were true — the pig dies on floor 4 and the floor kills you
+// anyway — but the only way to know that was to trust the code, so here is
+// the rule written down: `earnedBy` says the pig died exactly when the
+// ENGINE'S OWN kill list says the hero killed it. Two independent records,
+// one written by the roster and one by `playerAttacks`, compared on real runs.
+//
+// Searched rather than pinned, same reasoning as `aRunThatEarned` above, and
+// it stops at the first claim it finds so the ordinary cost is a dozen runs.
+test('the Butcher achievement is claimed only when the hero killed it', () => {
+  let claims = 0;
+  for (let i = 1; i <= 40 && claims === 0; i++) {
+    const run = playRun(hashSeeds(20260820, i), {});
+    const claimed = earnedBy(run).includes('butcher');
+    const killed = run.levels.some((level) => {
+      const frames = replayGame(level.replay);
+      return frames[frames.length - 1].state.player.kills.includes(VAULT_BOSS.name);
+    });
+    assertEq(claimed, killed,
+      `run ${i} — the achievement said ${claimed} and the engine said ${killed}`);
+    if (claimed) claims++;
+  }
+  assert(claims > 0, 'no run in 40 killed the Butcher — the comparison proved nothing');
+});
+
 test('a hand-written achievement flag unlocks nothing', () => {
   withStores(() => {
     writeSlice('achievements', { [HERO_GATE]: { run: 1, at: 0 } });

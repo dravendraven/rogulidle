@@ -539,6 +539,22 @@ main {
 .history-chip svg { width: 11px; height: 11px; }
 .history-chip.cleared { color: var(--accent); }
 
+/* U11 — the run that FIRST earned an achievement, marked where the player
+   is already looking. Green fill and a border, not green text: `.cleared`
+   above already owns the text colour, and the two facts are independent —
+   a run can clear the whole descent and earn nothing new, or die on floor
+   four having killed the pig on the way in.
+
+   Same two colours as the earned achievement row (`.ach.earned`), because
+   it is the same fact seen from the other side; the padding gives back the
+   pixel the border takes, so a marked chip does not grow out of the row. */
+.history-chip.achieved {
+  background: #16351f;
+  border: 1px solid #2f6b41;
+  padding: calc(.1rem - 1px) calc(.25rem - 1px);
+  color: var(--accent);
+}
+
 footer {
   display: flex;
   flex-wrap: wrap;

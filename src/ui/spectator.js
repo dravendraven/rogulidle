@@ -774,19 +774,6 @@ function tallyDescent(run, finalState, heroName, receipt) {
     resetOnDeath();
   }
 
-  session.history.unshift({
-    run: session.runNumber,
-    depth: run.depth,
-    cleared: run.cleared,
-    cause: run.cleared ? 'cleared' : lastFloor.outcome,
-    // WHO did it, by name, straight off the engine's own record
-    // (src/sim/combat.js writes it). Null on a clear and on a run that ran
-    // out of turns — nothing killed those.
-    killedBy: run.killedBy || null,
-  });
-  if (session.history.length > HISTORY_LEN) session.history.length = HISTORY_LEN;
-  if (el.history) renderHistory(el.history, session.history);
-
   // U11 — what this run earned, read off playDungeon's own result. `earn`
   // reports only the FIRST time, so the celebration fires once and a
   // hundredth Butcher is silent.
@@ -796,13 +783,38 @@ function tallyDescent(run, finalState, heroName, receipt) {
   // now unlocks something (the rail), and a boolean in localStorage unlocks
   // it for anyone who opens the console; see achievements.js for what the
   // receipt does and does not claim to be.
-  let justEarned = null;
+  //
+  // RESOLVED BEFORE THE HISTORY CHIP IS BUILT, and that is the whole reason
+  // it moved above it: the chip is what now shows the achievement, so the
+  // strip and the achievement row are written from one answer instead of two
+  // that could disagree about which run it was.
+  const firsts = [];
   for (const id of earnedBy(run)) {
-    if (earn(id, session.runNumber, receipt)) justEarned = id;
+    if (earn(id, receipt)) firsts.push(id);
   }
   if (el.achievements) {
-    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), justEarned);
+    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), firsts[0] || null);
   }
+
+  session.history.unshift({
+    run: session.runNumber,
+    depth: run.depth,
+    cleared: run.cleared,
+    cause: run.cleared ? 'cleared' : lastFloor.outcome,
+    // WHO did it, by name, straight off the engine's own record
+    // (src/sim/combat.js writes it). Null on a clear and on a run that ran
+    // out of turns — nothing killed those.
+    killedBy: run.killedBy || null,
+    // …and WHAT IT WON, which is the one thing about a run the strip could
+    // never say. A run can kill the Butcher on floor 4 and be killed by a
+    // boar on that same floor: the chip showed the boar, the achievement row
+    // showed a run number from a counter that resets every page load, and
+    // together they read as a bug that was not there. The green chip is the
+    // two facts finally sitting on the same object.
+    earned: firsts,
+  });
+  if (session.history.length > HISTORY_LEN) session.history.length = HISTORY_LEN;
+  if (el.history) renderHistory(el.history, session.history, ACHIEVEMENTS);
 
   // U-highscores — src/ui/highscores.js. `session.unbankedCoins` is read
   // here rather than passed in because it already IS this run's total: the
@@ -1085,13 +1097,17 @@ function wireControls() {
     session.cleared = 0;
     session.seed = Date.now() >>> 0;
     session.restart = true;
-    if (el.history) renderHistory(el.history, session.history);
 
     // Both displays are redrawn here rather than left to the next run: the
     // gate re-shuts the instant the receipts go (`resetAchievements` clears
     // the verified cache), and a rail still showing an open cast would be
     // lying until the run on screen happened to end.
     renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements());
+    // The strip goes with them. A green chip is the record of an achievement,
+    // and a reset that wipes the achievement and leaves its trophy standing
+    // would leave the page showing a thing the player no longer has.
+    for (const entry of session.history) entry.earned = [];
+    if (el.history) renderHistory(el.history, session.history, ACHIEVEMENTS);
     if (session.showHighscores) session.showHighscores(getHighscores());
     // The run being watched keeps its hero — it is deterministic from seed
     // AND hero, so swapping mid-run would make it something no seed
@@ -1294,7 +1310,11 @@ export async function start() {
   // Drawn before the first run for the same reason the achievements are:
   // the strip is the record of a session that is being CONTINUED, and a box
   // that filled in only after the next run ended would read as an empty one.
-  if (el.history) renderHistory(el.history, session.history);
+  //
+  // With the achievement list, like every other call: a restored chip keeps
+  // the trophy it won, and a strip that lost its green on a reload would be
+  // the same lie the trophy was added to end.
+  if (el.history) renderHistory(el.history, session.history, ACHIEVEMENTS);
 
   // ?difficulty=0..1 is a lab affordance kept for old links: it plays the
   // OLD single synthetic floor instead of the ten-floor descent, at a fixed
