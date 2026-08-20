@@ -311,6 +311,42 @@ from a wall-death's income to the axe IS the difficulty of the pig
 strategy — that one ratio is the dial the owner's "hours, not minutes"
 target lives in.
 
+## E1 closed — the ablation: chests carry the naked pig kill, and a cut
+## without a bridge strangles the loop instead of creating it
+
+2026-08-20, chains with the shop on, shallow loot ablated per anchor
+(floors 1–3 only). What transfers:
+
+**1. The hierarchy: chest armour first, dagger sums second.** Removing
+shallow chests collapsed the pig kill rate by nearly two orders of
+magnitude; removing shallow weapon drops, by one. The naked hero beats the
+pig on the shield pile before anything else — the same armour term the
+snowball entry already names as dominant. One mechanism, two symptoms.
+
+**2. THE PAIR RULE — a loot cut without an income/price bridge kills the
+game, it does not create the strategy.** With both shallow sources cut and
+the SHOP STILL ON, zero kills in 750 runs: wall-death income (a handful of
+coins) buys only shields, the axe stays unreachable, and the climb the
+loop needs never starts. E2 is therefore two moves or none: less shallow
+loot AND a reachable path to the hinge item (cheaper axe, higher shallow
+income, or an intermediate shop rung). Either half alone is a different
+failure — loot alone strangles, bridge alone trivialises.
+
+**3. The operating point has a measurable band.** The owner's target
+("hours, not minutes" to the first pig) corresponds to a kill rate around
+one to two percent per run in a chain — the blind weapon-cut cell landed
+in that band by accident, which calibrates the sweep without endorsing
+that particular cut. The metric that decides E2 is the FIRST-KILL
+DISTRIBUTION over chains, never a single chain (the shipped game read
+median 5 runs / ~ten minutes at closure).
+
+**4. Under a hard pig, the greed-minimum band may invert from trap to
+strategy.** Every measurement branding Ganância mínima "the armadilha"
+(vault-irrecusavel, addendum 2) was taken in a world where entering the
+vault paid. E2 builds the world where entering kills — the one band that
+refuses the room (and the owner's own "coragem alta, ganância baixa" farm
+build) must be re-measured inside it before the dial docs are trusted.
+
 ## Difficulty and the map
 
 **CV of a sum falls as 1/√n in the number of independent draws.** Creature

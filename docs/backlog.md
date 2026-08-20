@@ -17,16 +17,21 @@ is built around — farm coins, buy well, beat the wall — does not exist,
 because in-run loot alone beats the vault. Economy first; everything else
 stacks on it.
 
-1. **E1 · Measure the economy gap.** Coins a median session accumulates by
-   the time the pig kills it, against the price of a loadout that beats the
-   pig; then sweep shallow-loot scarcity and shop prices over CHAINS with
-   the right metric — the distribution of "first pig kill" in runs, which
-   is the owner's "hours, not minutes" target as a number. Analysis only.
-2. **E2 · Rebalance the economy** until the naked pig is ~unbeatable and
-   the bought pig is rare. Value changes (shop prices, chest scarcity /
-   quality), chains re-measured, owner watches. This creates the
-   farm→buy→win loop; the infernal coin (U11) is priced in gold and only
-   works after this does.
+1. **E1 · Measure the economy gap — DONE 2026-08-20.** Findings in
+   `decisions.md` ("E1" and "the ablation"): the loop is inverted (wall
+   income < wall answer), chest armour carries the naked kill, and the
+   PAIR RULE — a loot cut without an income/price bridge strangles the
+   game (0 kills in 750 runs with the shop on). Target band calibrated:
+   ~1–2% pig kills per chained run ≈ the owner's "hours".
+3. **E2 · Rebalance the economy — THE PAIR, never half.** Cut shallow
+   loot (chests are the lever, weapons second) AND build the bridge to the
+   axe (cheaper axe / higher shallow income / an intermediate rung).
+   Sweep over CHAINS with the first-kill distribution as the metric,
+   aiming the ~1–2%-per-run band; re-measure the Ganância-minimum band
+   inside the new world (it may flip from trap to the farm build); the
+   owner watches before anything ships. This creates the farm→buy→win
+   loop; the infernal coin (U11) is priced in gold and only works after
+   this does.
 3. **Hero gates, two rungs** — pig unlocks pawa/ricardo; the FIRST CLEAR
    unlocks vito/papazito. The chained analysis measured papazito dominant
    (information beats force on the themed maps), so the strong pair moves
