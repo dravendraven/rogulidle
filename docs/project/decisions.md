@@ -246,6 +246,42 @@ promises one, `routeVisits` counts on any map that has them, and the
 three-zone placement needs only the promise flag. The ring stays in the
 catalogue as one entry (the «anel» theme), not as the answer.
 
+## Stamina, measured over chains — and the budget is the endgame's gate
+
+2026-08-19, chained sessions (shop on), shipped dials, every hero. Three
+mechanisms worth more than the numbers, which live in git and go stale:
+
+**1. At 180 the budget was the dominant cause of death, and it was an
+INFORMATION tax.** Over half of all base-hero runs ended by exhaustion, not
+combat — and papazito, who sees the whole floor and wastes no step, barely
+died of it at all while the blind heroes died of it constantly. A tight
+budget punishes not knowing the map far more than it prices the detour,
+which is not the trade stamina was built for.
+
+**2. The budget is PER TRAVERSAL, so the dearest floor of the arc — not
+the average — sets the clear rate.** The sweep found a cliff, not a slope:
+clears jumped by an order of magnitude across one 20-turn step, because
+the deep floors of the theme arc cost right around that much to cross in a
+fight. While the cost of the last floors sits between two budget values,
+this dial is a direct tap on the win rate — more sensitive to it than any
+creature dial. Whoever redesigns floor 8–10 (or the inferno) moves the
+clear rate through this coupling whether they mean to or not.
+
+**3. 240 is the swept operating point, chosen by the failure directions.**
+Exhaustion still kills (single digits) and still prices the route, so the
+constraint is real; depth returns to the pre-arc band; clearing exists and
+is very rare, which is what `objectives.md` asks ("too rare and hope goes
+with it" — zero clears in 600 runs violated that on one side, and the
+step above 240 read as too common for an idle game on the other, by the
+owner's own V6 rule).
+
+**A run-1 anomaly worth keeping as a fact:** an empty-handed base hero CAN
+kill the Butcher on a lucky seed — verified by replay, not luck of
+reading: the theme arc's floors 1–3 paid enough gear that the vault fight
+was survivable, and the hero then died of stamina on the same floor after
+winning it. Achievement pacing cannot assume the first kill is deep into a
+session.
+
 ## Difficulty and the map
 
 **CV of a sum falls as 1/√n in the number of independent draws.** Creature

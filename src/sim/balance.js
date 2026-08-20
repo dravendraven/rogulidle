@@ -494,11 +494,15 @@ export const VAULT_CHEST_ITEMS = [
 // the brake on the shamble, and since M-stamina it is the STAMINA the HUD
 // shows as a draining bar — the price of a detour, which map-design.md
 // named as the game's largest open gap ("refusing is never correct").
-// Was 1500, a safety guard that never fired (median traversal ~110 turns);
-// 180 is entered as a real constraint that clips the tail. The bot does
-// NOT read this — owner decision: stamina is player information, and the
-// bot managing it would need a new mechanism, not this value.
-export const TURN_BUDGET = 180;
+// Was 1500 (a safety guard that never fired), then 180 — which starved the
+// game: over half of all chained runs died of exhaustion and clears went
+// to zero. 240 is the swept value: stamina still kills (~7%) and still
+// prices the detour, depth returns to the pre-arc level, and winning is
+// rare but exists. The mechanism behind the sweep's cliff is in
+// decisions.md ("the budget gates the endgame"). The bot does NOT read
+// this — owner decision: stamina is player information, and the bot
+// managing it would need a new mechanism, not this value.
+export const TURN_BUDGET = 240;
 
 // ***** coin ***** //
 
