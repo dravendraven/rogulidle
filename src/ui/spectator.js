@@ -310,6 +310,29 @@ function stopForOtherDevice(text) {
   }).then(() => location.reload());
 }
 
+// IS THE NAME STILL OURS? Asked on a clock, because a run is minutes long.
+//
+// The check used to sit at the end of a run, which was the natural place —
+// every other bit of syncing happens there. It was wrong for this one: the
+// owner pressed "assumir mesmo assim" on a phone and watched the computer go
+// on playing, because the computer was in the middle of a run and the end of
+// a run at ordinary speed can be several minutes away. A promise that the
+// other device stops has to be kept while somebody is looking at it.
+//
+// A READ, so it is free against the write budget the uploads are rationed
+// by, and it is the only thing in this file that runs on a timer rather than
+// on the game's own rhythm.
+const WATCH_MS = 20000;
+
+function watchTheName() {
+  if (!syncEnabled()) return;
+  setInterval(async () => {
+    if (session.stopped || !syncing()) return;
+    if (await stillOurs()) return;
+    stopForOtherDevice('outro aparelho assumiu este nome. o que esta aba jogou desde a última gravação fica por aqui.');
+  }, WATCH_MS);
+}
+
 // ONE RUN'S WORTH OF SYNCING, at the save point and nowhere else.
 //
 // Three states, and the third is the one T6 exists for: holding the lock and
@@ -332,16 +355,6 @@ async function syncAfterRun() {
   // reads its own uploads as somebody else being ahead — throwing away
   // exactly the runs that had not been sent yet.
   if (sent === 'ok') writeSlice(SYNC_SLICE, { rev: serverRevision() });
-
-  // THE RUN THAT DID NOT UPLOAD STILL ASKS. Most runs are inside the upload
-  // window and send nothing, and without this a device that somebody took
-  // the name from would go on playing until the window opened — minutes of
-  // runs that no save will ever hold. The question is a read, so it is free
-  // against the budget the uploads are rationed by.
-  if (sent === 'skipped' && !await stillOurs()) {
-    stopForOtherDevice('outro aparelho assumiu este nome. o que esta aba jogou desde a última gravação fica por aqui.');
-    return false;
-  }
 
   if (sent === 'offline') {
     const back = await reconnect();
@@ -436,7 +449,12 @@ async function playFrames(frames, trace, tallyText) {
     // The lab's ↻: abandon the run being watched, mid-floor if need be.
     // The run itself is already computed and simply thrown away — nothing
     // in the engine is interrupted, only the playback.
-    if (session.restart) return;
+    //
+    // `stopped` leaves the same way, and for a stronger reason: the name
+    // belongs to another device now, so every frame after this one is a
+    // frame of a game nobody will keep. A run at ordinary speed lasts
+    // minutes, and "the other one stops" has to mean now.
+    if (session.restart || session.stopped) return;
 
     // The danger map is recomputed for the frame on screen rather than
     // stored for every turn of the run — one field costs a millisecond or
@@ -945,7 +963,7 @@ async function runDescentForever() {
       const alignedTrace = kept.map((k) => traces[i][Math.max(0, k.index)]);
 
       await playFrames(frames, alignedTrace, descentTallyText);
-      if (session.restart) break;
+      if (session.restart || session.stopped) break;
       finalState = frames[frames.length - 1].state;
       session.turnOffset += levelResult.turns;
 
@@ -995,6 +1013,10 @@ async function runDescentForever() {
       session.restart = false;
       continue;
     }
+    // …and a run interrupted because the name was taken is not a run either,
+    // for the same reason plus a better one: nothing it produced could ever
+    // be saved.
+    if (session.stopped) return;
 
     // `hero.name` — the real name (`HEROES.base.name` is `'base'`, not the
     // `''` `session.heroName` prints for it) so the highscore board's key
@@ -1237,6 +1259,8 @@ export async function start() {
   // …and then the name is taken on the service, which may hand back a save
   // played on another device. Before any slice is read, for the same reason.
   await connectSave();
+
+  watchTheName();
 
   // A CLOSING TAB HANDS THE LOCK BACK, with its last save. Without this the
   // other device waits out the whole lease to play a game nobody is playing,
