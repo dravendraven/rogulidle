@@ -193,7 +193,8 @@ ROT.js is faithful), then e.g. `node tools/measure.mjs check tripwires
 '{"runs":24}'` or `node tools/measure.mjs chain chains
 '{"chains":8,"length":12}'`. Same functions the pages call, same numbers.
 The whole test suite runs here too — `node tools/measure.mjs test/tests.js
-runAll` — with six failures expected off the page, all `localStorage`.
+runAll` — where the `localStorage` tests fail for want of a browser and
+nothing else does. Those are the ones `run-tests.html` exists to run.
 Headless is for sweeps and regressions — it is not a licence to stop
 watching the game.
 

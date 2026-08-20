@@ -568,6 +568,17 @@ não some no fim da run: entra na run seguinte como qualquer outra compra, e
 só é gasto quando o herói o usa. O preço mínimo da prateleira é o que decide
 se um saldo sobra sem comprar nada.
 
+**Um nome guarda um jogo.** Na primeira visita a página pergunta um nome, e é
+a única vez que ela para para perguntar alguma coisa: o nome é o endereço do
+save, não uma conta — não há senha. Ele é dobrado antes de virar endereço
+(sem acentos, sem maiúsculas, um separador só), então duas grafias do mesmo
+nome abrem o mesmo jogo. Dois nomes no mesmo navegador são dois jogos
+independentes, e trocar de nome não apaga o jogo de ninguém.
+
+**O primeiro nome adota o jogo que ainda não tinha nome** — quem já jogava
+antes de o nome existir continua de onde estava. Só o primeiro: o segundo
+nome começa limpo.
+
 **O que a página lembra, ela lembra entre visitas.** Refresh não começa outra
 sessão. O número da run, o histórico dos últimos resultados, o placar e a
 cadeia de seeds voltam como estavam — junto com o que já persistia: itens

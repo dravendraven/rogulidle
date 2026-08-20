@@ -127,6 +127,17 @@ O nome vai para `rogulidle:player`, e o save passa a morar em
 independentes, o que é a maneira barata de testar tudo isto sem um segundo
 aparelho.
 
+**O primeiro nome adota o save sem nome.** Quem já jogava antes disto tem o
+progresso no slot `local`, e uma tela de login que o recebesse com histórico
+vazio custaria exatamente o que este arco existe para proteger. Acontece uma
+vez: carregado, o `local` deixa de existir, então o segundo nome começa
+limpo — que é o que dois nomes num navegador têm de significar.
+
+**Trocar de jogador recarrega a página.** A run em curso é do jogador que
+está saindo, e não há como parar o loop no meio de uma run (nada neste
+produto foi feito para parar). Recarregar é uma linha; um caminho de
+desmontagem existiria para um botão só.
+
 Um controle discreto («trocar de jogador») volta para a tela do nome. Ele
 **não apaga nada**: o save do nome anterior fica onde está.
 
@@ -227,7 +238,7 @@ Cada uma vale sozinha e dá para ver se funcionou.
 |---|---|---|
 | T1 ✔ | `save.js`: documento único, sete módulos portados, chaves antigas migradas | o jogo se comporta igual; o devtools mostra uma chave só, com o progresso antigo dentro |
 | T2 ✔ | fatia `session`, gravada quando a run é contada | refresh mantém «recent runs» e o número da run, e a contagem continua de onde estava |
-| T3 | tela do nome, save por nome, «trocar de jogador» | dois nomes no mesmo browser = dois jogos independentes |
+| T3 ✔ | tela do nome, save por nome, «trocar de jogador» | dois nomes no mesmo browser = dois jogos independentes |
 | T4 | Worker + KV com as três rotas | responde por `curl`, antes de a página saber que ele existe |
 | T5 | cliente: claim, adoção do save remoto, sync estrangulado, perda de trava | dois browsers: o segundo é recusado com o recado certo |
 | T6 | falha de rede: selo, retomada, descarte do órfão | devtools em offline durante uma run e de volta |

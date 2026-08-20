@@ -17,8 +17,10 @@
 // today — they exist so the day a server does, the document it receives can
 // already say which of two copies is later, without a migration.
 //
-// THE SLOT IS 'local' UNTIL A NAME EXISTS. Naming the save after the player
-// is the next piece of that study, and it changes exactly one line here.
+// THE SLOT IS THE PLAYER'S NAME, and 'local' until one is given. That is the
+// whole of the "login" the study describes: no password, no account, no
+// server — a name is an ADDRESS, and typing the same one opens the same
+// save. Two names in one browser are two independent games.
 //
 // localStorage only, the same rule every module it replaced already stated:
 // `step()` takes no storage access, determinism is the strongest rule in the
@@ -27,8 +29,26 @@
 // Node, where `tools/measure.mjs` imports modules that import this one.
 
 const VERSION = 1;
-const SLOT = 'local';
-const KEY = `rogulidle:save:${SLOT}`;
+// Where the current name is kept. Not a slice — it names which document to
+// open, so it cannot live inside one.
+const PLAYER_KEY = 'rogulidle:player';
+// The save every browser had before names existed, and the one a first name
+// adopts (see `setPlayer`).
+const DEFAULT_SLOT = 'local';
+// Short on purpose: a name has to be retypeable from memory on a second
+// device, which is the only thing it is for.
+const NAME_MAX = 16;
+
+const keyFor = (name) => `rogulidle:save:${name}`;
+
+// Resolved once, lazily, so the page can set a name before anything reads a
+// slice. null means "not looked yet", never "no player".
+let slot = null;
+
+function currentSlot() {
+  if (slot === null) slot = getRaw(PLAYER_KEY) || DEFAULT_SLOT;
+  return slot;
+}
 
 // The seven keys this replaced, and how each one stored its value. Read once
 // on the first load that finds no document, then deleted: two copies of the
@@ -111,7 +131,7 @@ function dropLegacy() {
 function load() {
   if (doc) return doc;
 
-  const raw = getRaw(KEY);
+  const raw = getRaw(keyFor(currentSlot()));
   if (raw) {
     try {
       const parsed = JSON.parse(raw);
@@ -147,7 +167,7 @@ function load() {
 function flush() {
   doc.rev += 1;
   doc.updatedAt = Date.now();
-  return setRaw(KEY, JSON.stringify(doc));
+  return setRaw(keyFor(currentSlot()), JSON.stringify(doc));
 }
 
 // A COPY IN BOTH DIRECTIONS, and it is not a nicety.
@@ -186,6 +206,63 @@ export function clearSlice(name) {
   flush();
 }
 
+// ***** the name *****
+//
+// FOLDED TO SOMETHING RETYPEABLE. Accents come off ('joão' and 'joao' are
+// one player, and one of them is hard to type on a borrowed keyboard),
+// case goes, spaces and underscores become the single separator, and
+// anything left over is dropped. What comes back is the id; an empty string
+// means the input was not a name at all.
+export function normalisePlayerName(raw) {
+  return String(raw == null ? '' : raw)
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, NAME_MAX);
+}
+
+// null when nobody has ever given one — which is what makes the page ask.
+export function getPlayer() {
+  return getRaw(PLAYER_KEY) || null;
+}
+
+// THE FIRST NAME ADOPTS THE UNNAMED SAVE. Everyone who played before names
+// existed has their progress in `local`, and a login screen that greeted
+// them with an empty history would have cost them the very thing this arc
+// is about. It happens once: once carried, `local` is gone, so the SECOND
+// name in the same browser starts clean, which is what two names in one
+// browser have to mean.
+//
+// Returns the name that was actually taken, or null if the input was not a
+// name.
+export function setPlayer(name) {
+  const clean = normalisePlayerName(name);
+  if (!clean) return null;
+
+  const unnamed = getRaw(keyFor(DEFAULT_SLOT));
+  if (unnamed !== null && getRaw(keyFor(clean)) === null && clean !== DEFAULT_SLOT) {
+    if (setRaw(keyFor(clean), unnamed)) {
+      try {
+        localStorage.removeItem(keyFor(DEFAULT_SLOT));
+      } catch {
+        // As getRaw. A copy left behind is harmless — it is simply never
+        // read again — where a delete without the copy would be the one way
+        // to lose a save.
+      }
+    }
+  }
+
+  setRaw(PLAYER_KEY, clean);
+  slot = clean;
+  doc = null;
+  return clean;
+}
+
 // Drop the in-memory copy, so the next read goes back to disk.
 //
 // For anything that changes the document behind this module's back: the test
@@ -193,4 +270,5 @@ export function clearSlice(name) {
 // (`test/tests.js`), and — later — a save adopted from a server.
 export function reloadSave() {
   doc = null;
+  slot = null;
 }

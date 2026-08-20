@@ -46,7 +46,9 @@ import {
   earnedBy, isEarned, verifyAchievements, HERO_GATE,
 } from '../src/ui/achievements.js';
 import { getChosenHero, setChosenHero } from '../src/ui/roster.js';
-import { readSlice, reloadSave, writeSlice } from '../src/ui/save.js';
+import {
+  getPlayer, normalisePlayerName, readSlice, reloadSave, setPlayer, writeSlice,
+} from '../src/ui/save.js';
 import {
   DEFAULT_ORDER, SHOP_ITEMS, getShopOrder, nextPurchase, setShopOrder,
 } from '../src/ui/shop.js';
@@ -3981,22 +3983,25 @@ test('an awake pursuer is fought rather than fled forever', () => {
 // store and puts it back in a `finally`. A test suite that ate a player's
 // unlocks would be worse than no test suite.
 
-// One key now, not three: everything the page remembers lives in a single
-// document with a slice per module (src/ui/save.js).
-const SAVE_KEY = 'rogulidle:save:local';
-
+// EVERY key the page owns, put back exactly as it was — not a named few.
+// A test that switches player writes keys nobody listed in advance (a save
+// per name, plus the name itself), and a suite that ate a player's unlocks
+// would be worse than no suite.
 function withStores(fn) {
-  // READ BEFORE SAVING, and the order matters. A browser that still holds
-  // the seven old keys is migrated by the first read — which DELETES them.
-  // Snapshotting first would capture the document as absent, and putting
-  // that back would erase a real player's progress instead of restoring it.
+  // READ BEFORE SNAPSHOTTING, and the order matters. A browser that still
+  // holds the seven pre-document keys is migrated by the first read — which
+  // DELETES them. Snapshotting first would capture the document as absent,
+  // and putting that back would erase a real player's progress instead of
+  // restoring it.
   readSlice('achievements');
-  const saved = localStorage.getItem(SAVE_KEY);
+  const ours = (k) => k.startsWith('rogulidle');
+  const saved = Object.keys(localStorage).filter(ours)
+    .map((k) => [k, localStorage.getItem(k)]);
   try {
     fn();
   } finally {
-    if (saved === null) localStorage.removeItem(SAVE_KEY);
-    else localStorage.setItem(SAVE_KEY, saved);
+    for (const k of Object.keys(localStorage).filter(ours)) localStorage.removeItem(k);
+    for (const [k, v] of saved) localStorage.setItem(k, v);
     // The store was changed behind the module's back, so its cached copy
     // has to go — and then the achievements module has to agree with what
     // it was handed back.
@@ -4208,6 +4213,59 @@ test('a stored order survives a reload, and junk in it does not', () => {
     writeSlice('shopOrder', 'not an order at all');
     assertEq(getShopOrder().join(','), DEFAULT_ORDER.join(','),
       'a corrupt store did not fall back to the default order');
+  });
+});
+
+// ***** the name is the address of a save (src/ui/save.js) ***** //
+
+test('a name is folded to something retypeable, and junk is not a name', () => {
+  // The fold is the whole of the "login": what comes out is the id, so two
+  // spellings of the same name have to come out as one. Accents come off
+  // because the second device may not have the keyboard the first one had.
+  assertEq(normalisePlayerName('  VITO  '), 'vito', 'case and spaces survived');
+  assertEq(normalisePlayerName('João da Silva'), 'joao-da-silva',
+    'accents or spaces were not folded');
+  assertEq(normalisePlayerName('ana_maria'), 'ana-maria', 'two separators survived');
+  assertEq(normalisePlayerName('###'), '', 'punctuation alone counted as a name');
+  assertEq(normalisePlayerName(''), '', 'nothing counted as a name');
+  assert(normalisePlayerName('a'.repeat(40)).length <= 16, 'a name was not capped');
+});
+
+test('two names in one browser are two independent games', () => {
+  withStores(() => {
+    setPlayer('primeiro');
+    writeSlice('score', { total: 111, clears: 1, last: 1 });
+
+    setPlayer('segundo');
+    assertEq(readSlice('score'), null, 'the second name opened the save of the first');
+    writeSlice('score', { total: 222, clears: 2, last: 2 });
+
+    setPlayer('primeiro');
+    assertEq(readSlice('score').total, 111, 'the first name lost its save to the second');
+    assertEq(getPlayer(), 'primeiro', 'the stored name is not the one that was set');
+  });
+});
+
+test('the first name adopts the save that had no name, and only the first', () => {
+  // Everyone who played before names existed has their progress in the
+  // unnamed slot. A login screen that greeted them with an empty history
+  // would have cost them the thing this whole arc is about.
+  withStores(() => {
+    for (const k of Object.keys(localStorage).filter((x) => x.startsWith('rogulidle'))) {
+      localStorage.removeItem(k);
+    }
+    reloadSave();
+    localStorage.setItem('rogulidle:save:local', JSON.stringify({
+      v: 1, rev: 3, updatedAt: 0, slices: { score: { total: 99, clears: 1, last: 1 } },
+    }));
+
+    setPlayer('herdeiro');
+    assertEq(readSlice('score').total, 99, 'the first name did not adopt the unnamed save');
+    assertEq(localStorage.getItem('rogulidle:save:local'), null,
+      'the unnamed save was left behind to be adopted twice');
+
+    setPlayer('outro');
+    assertEq(readSlice('score'), null, 'a second name inherited a save that was not its own');
   });
 });
 

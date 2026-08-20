@@ -35,7 +35,10 @@ import {
 import { loadDialOverrides } from './dial-overrides.js';
 import { eventsEnabled, makeEventLayer } from './events.js';
 import { playRun } from './run.js';
-import { clearSlice, readSlice, writeSlice } from './save.js';
+import { askPlayerName } from './player.js';
+import {
+  clearSlice, getPlayer, readSlice, setPlayer, writeSlice,
+} from './save.js';
 import { sleep } from './clock.js';
 
 const MAX_TURNS = 900;       // per floor
@@ -142,6 +145,7 @@ function grab() {
     'coins', 'coinPopup', 'damage', 'debugInfo', 'app', 'lab', 'dials',
     'shop', 'shopBalance', 'shopItems', 'shopSkip', 'shopTimerBar', 'shopOrder',
     'achievements', 'roster', 'highscores', 'mapDials', 'simDials', 'dialButtons', 'bossBar',
+    'player', 'playerGate',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -794,6 +798,30 @@ async function runDescentForever() {
   }
 }
 
+// The header button: who this save belongs to, and the way to change it.
+//
+// A SWITCH RELOADS THE PAGE. The run in flight belongs to the player who is
+// leaving — it would tally into the arriving player's history, spend their
+// coins and count on their board — and there is no way to stop the spectator
+// loop mid-run, because nothing in this product was ever meant to stop. A
+// reload is the whole of it: one line instead of a teardown path that would
+// exist for one button.
+function wirePlayerButton() {
+  if (!el.player) return;
+  const paint = () => { el.player.textContent = `👤 ${getPlayer() || ''}`; };
+  paint();
+
+  el.player.addEventListener('click', async () => {
+    const current = getPlayer();
+    const name = await askPlayerName(el.playerGate, { current });
+    // Backed out, or typed the name they already had: nothing happened, and
+    // reloading over it would look like the button broke something.
+    if (!name || name === current) return;
+    setPlayer(name);
+    location.reload();
+  });
+}
+
 function wireControls() {
   el.playPause.addEventListener('click', () => {
     session.paused = !session.paused;
@@ -942,6 +970,19 @@ function wireLab(overrides, devMode) {
 export async function start() {
   grab();
   buildGrid(el.grid);
+
+  // THE NAME COMES FIRST, before a single slice is read.
+  //
+  // Everything below this line — the achievements, the notches, the wallet,
+  // the session — is read out of ONE document, and which document that is
+  // depends on who is playing (src/ui/save.js). Asking afterwards would mean
+  // reading somebody else's save and then throwing it away.
+  //
+  // Only ever asked once per browser: `getPlayer()` answers on every visit
+  // after the first, and the gate never shows again.
+  if (!getPlayer()) setPlayer(await askPlayerName(el.playerGate));
+  wirePlayerButton();
+
   // BEFORE anything reads an achievement — the rows below, and the rail's
   // gate further down. Each stored receipt is re-run and only counts if it
   // reproduces (src/ui/achievements.js). One full run apiece, two at most,

@@ -1077,3 +1077,74 @@ footer {
   margin-bottom: 0;
   transform: none;
 }
+
+/* ***** the name gate (src/ui/player.js) *****
+
+   Fixed over everything, because until a name exists there is no save to
+   write into and nothing behind it is playable. It is shown once per
+   browser — the styling is deliberately plain for something almost nobody
+   sees twice. */
+
+.player-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(252, 251, 243, .97);
+}
+/* `display: flex` beats the attribute on its own, so hidden has to say so. */
+.player-gate[hidden] { display: none; }
+
+.player-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .75rem;
+  max-width: 22rem;
+  padding: 1.5rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.player-title {
+  font-family: 'Almendra SC', Georgia, serif;
+  font-weight: normal;
+  font-size: 1.3rem;
+  letter-spacing: .03em;
+}
+
+.player-form { display: flex; gap: .5rem; }
+
+.player-input {
+  font: inherit;
+  font-size: .9rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 2px solid var(--key-border);
+  border-radius: 6px;
+  padding: .3rem .5rem;
+  width: 10rem;
+}
+/* A name the fold left empty. The field says so and nothing else moves. */
+.player-input.refused { border-color: #DD2E44; }
+.player-input.refused::placeholder { color: #DD2E44; }
+
+.player-note {
+  font-size: .7rem;
+  font-weight: normal;
+  line-height: 1.4;
+  color: var(--dim);
+}
+
+.player-back {
+  font-size: .7rem;
+  background: none;
+  border: none;
+  color: var(--dim);
+  text-decoration: underline;
+}
+.player-back:active { border: none; margin-bottom: 0; transform: none; }

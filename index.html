@@ -12,6 +12,10 @@
   <header>
     <h1>Rogulidle</h1>
     <div class="controls">
+      <!-- WHO THIS SAVE BELONGS TO, and the button that changes it. It is
+           first in the row because it answers "whose game am I looking at"
+           before any control offers to change what happens in it. -->
+      <button id="player" type="button" title="trocar de jogador"></button>
       <button id="lab" type="button">🧪 lab</button>
       <button id="playPause" type="button">⏸ pause</button>
       <button id="speed" type="button">1×</button>
@@ -145,6 +149,11 @@
   </div>
 
 </div>
+
+<!-- THE NAME GATE (src/ui/player.js). Outside .app and fixed over the whole
+     page: it is shown once, before the first run is ever built, because
+     until there is a name there is no save to write into. -->
+<div id="playerGate" class="player-gate" hidden></div>
 
 <script type="module">
   import { start } from './src/ui/spectator.js';
