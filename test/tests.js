@@ -54,15 +54,30 @@ import {
 } from '../src/ui/shop.js';
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
 import { playOne } from '../src/analysis/check.js';
+import saveWorker, { LEASE_MS } from '../server/save-worker.js';
 import { balanceOf, playChain, seedOf, spend } from '../src/analysis/chain.js';
 
 // ***** tiny test harness ***** //
 
 const results = [];
+// Tests that return a promise. Their row is already in `results`, in the
+// order they were declared; `runAll` waits for these before handing the list
+// back. Needed the day a test had to talk to something with a `fetch` in it
+// (`server/save-worker.js`), and it costs the synchronous ones nothing.
+const pending = [];
 
 function test(name, fn) {
   try {
-    fn();
+    const out = fn();
+    if (out && typeof out.then === 'function') {
+      const row = { name, ok: true };
+      results.push(row);
+      pending.push(out.catch((error) => {
+        row.ok = false;
+        row.error = error.message;
+      }));
+      return;
+    }
     results.push({ name, ok: true });
   } catch (error) {
     results.push({ name, ok: false, error: error.message });
@@ -4269,6 +4284,155 @@ test('the first name adopts the save that had no name, and only the first', () =
   });
 });
 
+// ***** the lock that keeps two devices apart (server/save-worker.js) ***** //
+//
+// The worker is the one piece of this project that is not served to a
+// browser, and the only one with a rule nothing else can enforce: ONE device
+// writes at a time. These drive it directly — a fake KV and hand-built
+// requests, no HTTP — because what is being tested is the lock, not the
+// transport. `tools/save-server.mjs` is the same file behind a real port for
+// anyone who wants to curl it.
+
+function fakeKv() {
+  const store = new Map();
+  return {
+    store,
+    SAVES: {
+      async get(key, options) {
+        const raw = store.get(key);
+        if (raw === undefined) return null;
+        return options && options.type === 'json' ? JSON.parse(raw) : raw;
+      },
+      async put(key, value) { store.set(key, String(value)); },
+    },
+  };
+}
+
+// One call, JSON in and JSON out. `null` for the 204 the release answers with.
+async function call(env, method, path, payload) {
+  const response = await saveWorker.fetch(new Request('https://x.dev/' + path, {
+    method,
+    headers: { 'content-type': 'application/json' },
+    body: payload === undefined ? undefined : JSON.stringify(payload),
+  }), env);
+  const text = await response.text();
+  return { status: response.status, body: text ? JSON.parse(text) : null };
+}
+
+test('a name nobody holds is claimed, and comes back with nothing stored', async () => {
+  const env = fakeKv();
+  const got = await call(env, 'POST', 'claim', { name: 'vito', device: 'test' });
+  assertEq(got.status, 200, 'a free name was not claimable');
+  assert(typeof got.body.token === 'string' && got.body.token.length > 8,
+    'no usable token came back');
+  assertEq(got.body.rev, 0, 'a name never written had a revision');
+  assertEq(got.body.save, null, 'a name never written came back holding something');
+});
+
+test('a second device is refused while the first still holds the lock', async () => {
+  const env = fakeKv();
+  await call(env, 'POST', 'claim', { name: 'vito', device: 'o note' });
+  const second = await call(env, 'POST', 'claim', { name: 'vito', device: 'o celular' });
+  assertEq(second.status, 409, 'two devices claimed the same name at once');
+  assertEq(second.body.error, 'active', 'the refusal did not say why');
+  assertEq(second.body.device, 'o note', 'the refusal did not name who is holding it');
+  assert(typeof second.body.lastSeen === 'number', 'the refusal cannot say how long ago');
+});
+
+test('the holder writes, and what it wrote is what the next claim reads', async () => {
+  const env = fakeKv();
+  const first = await call(env, 'POST', 'claim', { name: 'vito', device: 'a' });
+  const put = await call(env, 'PUT', 'state', {
+    name: 'vito', token: first.body.token, rev: 0, save: { slices: { score: 7 } },
+  });
+  assertEq(put.status, 200, 'the holder could not write');
+  assertEq(put.body.rev, 1, 'the revision did not move');
+
+  await call(env, 'POST', 'release', { name: 'vito', token: first.body.token });
+  const again = await call(env, 'POST', 'claim', { name: 'vito', device: 'b' });
+  assertEq(again.status, 200, 'a released lock did not let the next device in');
+  assertEq(again.body.save.slices.score, 7, 'the save did not survive the handover');
+});
+
+test('a write from a device that lost the lock is refused', async () => {
+  const env = fakeKv();
+  const first = await call(env, 'POST', 'claim', { name: 'vito', device: 'a' });
+  await call(env, 'POST', 'release', { name: 'vito', token: first.body.token });
+  await call(env, 'POST', 'claim', { name: 'vito', device: 'b' });
+
+  const put = await call(env, 'PUT', 'state', {
+    name: 'vito', token: first.body.token, rev: 0, save: { gone: true },
+  });
+  assertEq(put.status, 409, 'a device that lost the lock still wrote');
+  assertEq(put.body.error, 'lost', 'the refusal did not say the lock was gone');
+
+  const look = await call(env, 'GET', 'state?name=vito');
+  assertEq(look.body.save, null, 'the refused write landed anyway');
+});
+
+test('a write a revision behind is refused, and comes back with the truth', async () => {
+  const env = fakeKv();
+  const held = await call(env, 'POST', 'claim', { name: 'vito', device: 'a' });
+  await call(env, 'PUT', 'state', {
+    name: 'vito', token: held.body.token, rev: 0, save: { n: 1 },
+  });
+
+  const stale = await call(env, 'PUT', 'state', {
+    name: 'vito', token: held.body.token, rev: 0, save: { n: 2 },
+  });
+  assertEq(stale.status, 412, 'a stale revision was accepted');
+  assertEq(stale.body.rev, 1, 'the refusal did not say which revision is current');
+  assertEq(stale.body.save.n, 1, 'the refusal did not hand back what is stored');
+});
+
+test('a lease nobody renewed lets the next device in by itself', async () => {
+  // The owner's call: a lock that outlives the device holding it is a locked
+  // out player. A dead battery must not need a button to recover from.
+  const env = fakeKv();
+  const first = await call(env, 'POST', 'claim', { name: 'vito', device: 'a' });
+
+  const record = JSON.parse(env.store.get('save:vito'));
+  record.lease.until = Date.now() - 1;
+  record.lease.at = Date.now() - LEASE_MS - 1;
+  env.store.set('save:vito', JSON.stringify(record));
+
+  const second = await call(env, 'POST', 'claim', { name: 'vito', device: 'b' });
+  assertEq(second.status, 200, 'an expired lease still locked the name');
+
+  const put = await call(env, 'PUT', 'state', {
+    name: 'vito', token: first.body.token, rev: 0, save: { gone: true },
+  });
+  assertEq(put.status, 409, 'the device whose lease expired could still write');
+});
+
+test('a release that arrives late unlocks nobody', async () => {
+  // A tab that was killed can still get its beacon out after the lease
+  // lapsed and somebody else claimed. Honouring it would unlock the device
+  // that replaced it.
+  const env = fakeKv();
+  const first = await call(env, 'POST', 'claim', { name: 'vito', device: 'a' });
+  const record = JSON.parse(env.store.get('save:vito'));
+  record.lease.until = Date.now() - 1;
+  env.store.set('save:vito', JSON.stringify(record));
+  await call(env, 'POST', 'claim', { name: 'vito', device: 'b' });
+
+  const late = await call(env, 'POST', 'release', { name: 'vito', token: first.body.token });
+  assertEq(late.status, 409, 'a late release was honoured');
+
+  const third = await call(env, 'POST', 'claim', { name: 'vito', device: 'c' });
+  assertEq(third.status, 409, 'the late release unlocked the device that had it');
+});
+
+test('a name the client would never produce is refused', async () => {
+  // The fold lives in one place (src/ui/save.js) and the server refuses
+  // anything that did not come out of it, rather than folding a second time.
+  const env = fakeKv();
+  for (const name of ['Vito', 'vito malaquias', 'joao maria x', '', 'x'.repeat(17)]) {
+    const got = await call(env, 'POST', 'claim', { name, device: 'a' });
+    assertEq(got.status, 400, 'the server accepted a name the fold cannot produce');
+  }
+});
+
 // ***** the chain — a session with the shop in it (src/analysis/chain.js) *****
 //
 // The second metrics module. Only the FIRST run of a session is ever naked;
@@ -4618,6 +4782,7 @@ test('a shipped floors curve reaches the visitor OUTSIDE dev mode', async () => 
     'the floor-1 anchor lost its theme');
 });
 
-export function runAll() {
+export async function runAll() {
+  await Promise.all(pending);
   return results;
 }

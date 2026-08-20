@@ -34,7 +34,8 @@
 
   try {
     const { runAll } = await import('./test/tests.js');
-    const results = runAll();
+    // Async now — a few tests drive the save worker, which has a `fetch`.
+    const results = await runAll();
     const failed = results.filter((r) => !r.ok);
 
     summary.textContent = failed.length

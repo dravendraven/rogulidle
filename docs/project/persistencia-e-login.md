@@ -168,6 +168,12 @@ Três rotas, e a trava é uma delas:
 - `POST /release {nome, token, save, rev}` → grava e solta a trava; é o que o
   `pagehide` manda por `sendBeacon`
 
+O arquivo é `server/save-worker.js`, e ele roda aqui também:
+`node tools/save-server.mjs` sobe o MESMO arquivo com um KV falso na porta
+8142, para curlar as rotas antes de existir conta em lugar nenhum. É por isso
+que o worker não usa nada além de `Request`, `Response` e duas chamadas de
+KV — o harness é encanamento, não uma segunda implementação.
+
 **A trava é um arrendamento, não um cadeado.** Quem tem o token é o dono por
 um tempo, e cada `PUT` renova esse tempo. Um aparelho que fechou direito
 solta na hora; um que travou ou perdeu bateria solta quando o prazo vence.
@@ -223,12 +229,12 @@ produto — não de persistência.
 ## 10. As perguntas para o dono
 
 1. **Rodar ausente entra ou não?** (§9). Recomendação: não agora.
-2. **Onde hospedar?** Cloudflare é a recomendação; precisa de uma conta do
-   dono. Se preferir não abrir conta, o plano para nas Peças 1–3 e ainda
-   resolve o refresh.
-3. **Takeover:** quando o prazo do arrendamento vence, o segundo aparelho
-   entra sozinho (recomendado) ou nunca entra sem alguém mandar?
-4. **Os notches seguem o nome?** (§3). Recomendação: seguem.
+2. ~~**Onde hospedar?**~~ — respondido: Cloudflare Worker + KV. Falta só a
+   conta e o deploy, que são do dono: o arquivo está escrito e testado.
+3. ~~**Takeover**~~ — respondido: quando o prazo vence, o segundo aparelho
+   entra sozinho. Sem botão e sem decisão para o jogador; uma trava que
+   sobrevive ao aparelho que a segurava é um jogador trancado para fora.
+4. ~~**Os notches seguem o nome?**~~ — respondido: seguem (§3).
 
 ## 11. As tarefas, em ordem
 
@@ -239,7 +245,7 @@ Cada uma vale sozinha e dá para ver se funcionou.
 | T1 ✔ | `save.js`: documento único, sete módulos portados, chaves antigas migradas | o jogo se comporta igual; o devtools mostra uma chave só, com o progresso antigo dentro |
 | T2 ✔ | fatia `session`, gravada quando a run é contada | refresh mantém «recent runs» e o número da run, e a contagem continua de onde estava |
 | T3 ✔ | tela do nome, save por nome, «trocar de jogador» | dois nomes no mesmo browser = dois jogos independentes |
-| T4 | Worker + KV com as três rotas | responde por `curl`, antes de a página saber que ele existe |
+| T4 ✔ | Worker + KV com as três rotas | responde por `curl`, antes de a página saber que ele existe |
 | T5 | cliente: claim, adoção do save remoto, sync estrangulado, perda de trava | dois browsers: o segundo é recusado com o recado certo |
 | T6 | falha de rede: selo, retomada, descarte do órfão | devtools em offline durante uma run e de volta |
 
