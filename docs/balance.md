@@ -25,7 +25,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | how much loot | `CHESTS_PER_FLOOR` | 6 | flat on purpose — loot must not grow as fast as threat |
 | | `CHEST_LOOT_CHANCE` | 0.5 | how often a chest holds anything, FLAT. Now a model field — it is the gate people were reaching for when they moved the two scarcity sliders |
 | | `CHEST_MIX` | 0.5 | the potion's share of a FILLED chest; 0 is all shield, 1 is all potion. Derived from `ARMOUR_SCARCITY`/`POTION_SCARCITY`, which stay as the engine's per-kind pair and are rebuilt from this by `chestScarcity()` — for chests only their ratio was ever live (M46), so the pair carried a degree of freedom that did nothing |
-| | `WEAPON_SCARCITY` | 4 | 1 creature drop roll in S holds a weapon |
+| | `WEAPON_SCARCITY` | 4 | 1 creature drop roll in S holds a weapon. Code default; **dial-overrides.json ships 16 on the `from:1` anchor (floors 1–3 only)** — the cut half of the E2 pair, whose bridge half is the axe's shop price (`src/ui/shop.js`). Shallow scarcity paces the first Butcher; the untouched deep floors are what keep the clear reachable (decisions.md, "E2 swept") |
 | | `MONSTER_DROP_CHANCE` | 0.50 | FAITHFUL — chance a corpse leaves anything |
 | | `EARLY_CHEST_QUALITY_BOOST` | 0.5 | floor 1's chests pay better; fades as 1/level |
 | how much the route branches | `MAP_DUG_PERCENTAGE` | 0.15 | less dug = a mandatory path actually exists; a model field, so the lab reaches it |

@@ -30,12 +30,15 @@ const byName = (name) => ITEM_TABLE.find((item) => item.name === name);
 // dagger's old 10 was the worst deal on the shelf — 0.89 hp per coin where
 // the shield gave 1.50.
 //
-// The axe stays at 16 rather than dropping to 11 because a second ruler
-// disagrees and it answers the game's FIRST objective, the Butcher. At equal
-// budget the axe beats eight shields (44% of runs killing it against 37%),
-// and at 20 coins an axe basket beats every dagger basket measured. 16 is
-// where the two rulers meet, and it keeps the axe the run's rare event
-// rather than a routine purchase.
+// The axe was 16 until E2 (owner, 2026-08-21): 12 is the bridge half of
+// the E2 pair, shipped together with the floors 1-3 weapon cut in
+// dial-overrides.json — the cut alone strangles the farm->buy->win loop
+// (E1's pair rule), and the cheap axe was the only bridge measured that
+// adds ONLY bought-axe kills without reinflating the paths the cut
+// closes. It stays the run's rare event the same way as before, just by
+// income instead of price: a wall death pays ~5-7, so 12 is still only
+// reachable by a good run. The old 16 was where two rulers met (hp value
+// 11, Butcher value higher); decisions.md "E2 swept" has the sweep.
 //
 // The potion stays at 1 rather than rising to 2 for the same kind of reason
 // in the other direction: the hp ruler OVERRATES it. Sixteen of them move
@@ -49,7 +52,7 @@ export const SHOP_ITEMS = [
   { item: byName('health'), price: 1 },
   { item: byName('shield'), price: 2 },
   { item: byName('dagger'), price: 6 },
-  { item: byName('axe'), price: 16 },
+  { item: byName('axe'), price: 12 },
 ];
 
 // ***** what the shop buys when nobody is watching *****

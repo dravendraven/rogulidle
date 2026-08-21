@@ -23,15 +23,17 @@ stacks on it.
    PAIR RULE — a loot cut without an income/price bridge strangles the
    game (0 kills in 750 runs with the shop on). Target band calibrated:
    ~1–2% pig kills per chained run ≈ the owner's "hours".
-3. **E2 · Rebalance the economy — THE PAIR, never half.** Cut shallow
-   loot (chests are the lever, weapons second) AND build the bridge to the
-   axe (cheaper axe / higher shallow income / an intermediate rung).
-   Sweep over CHAINS with the first-kill distribution as the metric,
-   aiming the ~1–2%-per-run band; re-measure the Ganância-minimum band
-   inside the new world (it may flip from trap to the farm build); the
-   owner watches before anything ships. This creates the farm→buy→win
-   loop; the infernal coin (U11) is priced in gold and only works after
-   this does.
+3. **E2 · Rebalance the economy — DONE 2026-08-21, owner's call.**
+   Shipped pair: `weaponScarcity` 16 on the `from:1` anchor
+   (dial-overrides.json, floors 1–3 only) + axe 16 → 12 (shop.js). First
+   Butcher ~1.7 h of idle, first clear ~a day — the owner's stated
+   target. The sweep, the refuted alternatives (chest cuts break the
+   opening; income bridges leak; the rung is harmful; scarcity on ALL
+   floors zeroes the clear) and the refuted farm build are in
+   decisions.md ("E2 swept", "Active against idle"). Note E1's hierarchy
+   was measured in the no-arc world (the resolvedDefaults hole, fixed
+   same session) — in the true world weapons, not chests, are the usable
+   lever.
 
    **Owner's context (2026-08-20), recorded before any code:**
 
