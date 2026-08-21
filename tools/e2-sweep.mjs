@@ -168,8 +168,10 @@ for (let m = 0; m < M; m++) {
   allPlays.push(...collect);
   let firstKill = null;
   let firstClear = null;
+  let firstAxe = null;
   let firstKillH = null;
   let firstClearH = null;
+  let firstAxeH = null;
   let clockS = 0;
   let kills = 0;
   for (let k = 0; k < collect.length; k++) {
@@ -194,6 +196,14 @@ for (let m = 0; m < M; m++) {
       firstClear = k + 1;
       firstClearH = clockS / 3600;
     }
+    // The third rung: the run whose SHOP bought an axe — the "reached the
+    // axe price" moment, and a candidate achievement. Bought, not merely
+    // afforded, so an active policy that declines a second axe still counts
+    // only real purchases.
+    if (firstAxe === null && row.bought.includes('axe')) {
+      firstAxe = k + 1;
+      firstAxeH = clockS / 3600;
+    }
     if (!run.cleared && sawPig(run)) wallIncomes.push(row.balance);
   }
   chains.push({
@@ -202,6 +212,8 @@ for (let m = 0; m < M; m++) {
     firstKillH: firstKillH === null ? null : +firstKillH.toFixed(2),
     firstClear,
     firstClearH: firstClearH === null ? null : +firstClearH.toFixed(2),
+    firstAxe,
+    firstAxeH: firstAxeH === null ? null : +firstAxeH.toFixed(2),
     hoursTotal: +(clockS / 3600).toFixed(2),
     kills,
     axesBought: runs.reduce(
@@ -225,6 +237,8 @@ const firstKills = chains.map((c) => c.firstKill).filter((k) => k !== null);
 const firstKillHs = chains.map((c) => c.firstKillH).filter((h) => h !== null);
 const firstClears = chains.map((c) => c.firstClear).filter((k) => k !== null);
 const firstClearHs = chains.map((c) => c.firstClearH).filter((h) => h !== null);
+const firstAxes = chains.map((c) => c.firstAxe).filter((k) => k !== null);
+const firstAxeHs = chains.map((c) => c.firstAxeH).filter((h) => h !== null);
 
 process.stdout.write(`${JSON.stringify({
   name: cell.name ?? 'unnamed',
@@ -248,6 +262,10 @@ process.stdout.write(`${JSON.stringify({
   firstClearHoursMedian: firstClearHs.length >= M / 2 ? median(firstClearHs) : null,
   chainsWithClear: firstClears.length,
   firstClears: chains.map((c) => c.firstClear),
+  firstAxeMedian: firstAxes.length >= M / 2 ? median(firstAxes) : null,
+  firstAxeHoursMedian: firstAxeHs.length >= M / 2 ? median(firstAxeHs) : null,
+  chainsWithAxe: firstAxes.length,
+  firstAxes: chains.map((c) => c.firstAxe),
   hoursPerChainMedian: median(chains.map((c) => c.hoursTotal)),
   // WHERE the kills come from: the strategy loop is a kill on a run that
   // STARTED holding a bought axe; a "naked" kill is the in-run-loot path
