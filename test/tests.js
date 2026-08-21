@@ -43,7 +43,7 @@ import {
 import { tileSvg } from '../src/ui/tiles.js';
 import { playRun } from '../src/ui/run.js';
 import {
-  earnedBy, isEarned, verifyAchievements, HERO_GATE,
+  earnedBy, earnedByPurchase, isEarned, verifyAchievements, HERO_GATE,
 } from '../src/ui/achievements.js';
 import { getChosenHero, setChosenHero } from '../src/ui/roster.js';
 import {
@@ -4076,6 +4076,18 @@ test('the Butcher achievement is claimed only when the hero killed it', () => {
   assert(claims > 0, 'no run in 40 killed the Butcher — the comparison proved nothing');
 });
 
+// The shop's own achievement rule, pinned so a new shelf item cannot quietly
+// start awarding it: the axe and nothing else earns on purchase.
+test('only an axe purchase earns the shop achievement', () => {
+  assertEq(JSON.stringify(earnedByPurchase('axe')), JSON.stringify(['axe']),
+    'buying an axe claimed nothing');
+  for (const entry of SHOP_ITEMS) {
+    if (entry.item.name === 'axe') continue;
+    assertEq(earnedByPurchase(entry.item.name).length, 0,
+      `buying a ${entry.item.name} claimed an achievement`);
+  }
+});
+
 test('a hand-written achievement flag unlocks nothing', () => {
   withStores(() => {
     writeSlice('achievements', { [HERO_GATE]: { run: 1, at: 0 } });
@@ -4104,6 +4116,63 @@ test('a receipt pointing at a different run is refused', () => {
     });
     verifyAchievements();
     assert(!isEarned(hit.id), 'the seed was changed and the claim still stood');
+  });
+});
+
+// What a run banks for the shop, recomputed from the run result's own rows —
+// the sum an axe receipt is verified against (rules.md §9: completed
+// traversals pay, and the engineer's stairs spend is already gone).
+function bankedBy(run) {
+  return run.levels.reduce((sum, level) =>
+    sum + (level.outcome === 'ascended' ? level.coins - (level.spent ?? 0) : 0), 0);
+}
+
+const AXE_PRICE = SHOP_ITEMS.find((entry) => entry.item.name === 'axe').price;
+
+// A run rich enough to have paid for an axe, FOUND rather than written down —
+// same reasoning as `aRunThatEarned`, and memoised for the same cost. The cap
+// is wider because banking an axe's price is the shop's rare event, roughly
+// one run in ten on the code defaults.
+let richRun = null;
+function aRunThatBankedTheAxe() {
+  if (richRun) return richRun;
+  for (let i = 1; i <= 80; i++) {
+    const seed = hashSeeds(20260822, i);
+    if (bankedBy(playRun(seed, {})) >= AXE_PRICE) {
+      richRun = { seed, config: {} };
+      return richRun;
+    }
+  }
+  throw new Error('no seed in 80 banked an axe\'s price — the receipt cannot be tested');
+}
+
+// The axe's receipt is the run whose coins paid, and the replay checks the
+// coins, not the click — src/ui/achievements.js's header says why the click
+// cannot be part of the proof. Both directions, so the check is established
+// to actually run: a rich run's receipt stands, a poor run's is refused.
+test('an axe receipt whose run banked the price is accepted', () => {
+  withStores(() => {
+    const hit = aRunThatBankedTheAxe();
+    writeSlice('achievements', { axe: { at: 0, seed: hit.seed, config: hit.config } });
+    verifyAchievements();
+    assert(isEarned('axe'), 'a genuine axe receipt was refused');
+  });
+});
+
+test('an axe receipt whose run could not pay is refused', () => {
+  withStores(() => {
+    // Searched for the other side — the first run that banks LESS than the
+    // price, which on any sane balance is most of them.
+    let poor = null;
+    for (let i = 1; i <= 80 && poor === null; i++) {
+      const seed = hashSeeds(20260823, i);
+      if (bankedBy(playRun(seed, {})) < AXE_PRICE) poor = seed;
+    }
+    assert(poor !== null,
+      'every run in 80 could afford an axe — the refusal cannot be tested');
+    writeSlice('achievements', { axe: { at: 0, seed: poor, config: {} } });
+    verifyAchievements();
+    assert(!isEarned('axe'), 'a run that never banked the price still bought the claim');
   });
 });
 
