@@ -17,8 +17,8 @@ import {
   applyDepth, renderDebugInfo, carriedSvg, renderBossBar,
 } from './render.js';
 import {
-  ACHIEVEMENTS, earn, earnedBy, getAchievements, resetAchievements,
-  verifyAchievements,
+  ACHIEVEMENTS, earn, earnedBy, earnedByPurchase, getAchievements,
+  resetAchievements, verifyAchievements,
 } from './achievements.js';
 import { tileSvg } from './tiles.js';
 import { award, resetScore } from './score.js';
@@ -178,9 +178,12 @@ function grab() {
 // items off a corpse. A session saved after the shop would replay a run
 // those had already been paid for, and pay them twice.
 //
-// The shop that follows writes only its own slice — a purchase is in the
-// wallet the moment it is clicked — so a refresh during it costs the rest
-// of the shopping and nothing else.
+// The shop that follows writes only what its own moment produced — a
+// purchase is in the wallet the instant it lands, and the first axe writes
+// its achievement and re-saves the session so the funding run's chip keeps
+// the trophy (see tallyPurchase in showShop). Re-saving there is safe
+// because the run is ALREADY counted: nothing tallied above runs twice. A
+// refresh during the shop still costs only the rest of the shopping.
 function saveSession() {
   if (!session.persist) return;
   writeSlice(SESSION_SLICE, {
@@ -605,7 +608,7 @@ function renderShopItems(balance, order) {
 // never pauses for input. SHOP_MS is long enough now that a present viewer
 // has a real chance to choose, and the reverse bar tells them how long that
 // chance lasts.
-async function showShop() {
+async function showShop(receipt) {
   if (!el.shop) return;
   let balance = session.unbankedCoins;
   let purchases = 0;
@@ -614,6 +617,29 @@ async function showShop() {
   // Read fresh on every visit, so moving a row in the Lab lands on the very
   // next shop rather than waiting for a reload.
   const order = getShopOrder();
+
+  // U11's shop-earned row — the first axe. A run result cannot see a
+  // purchase, so the shop reports it here, clicked and no-input buys alike.
+  // `receipt` is the run that just ended, whose coins are the balance being
+  // spent, and it is what a later load replays to check those coins were
+  // real (src/ui/achievements.js). `earn` reports only the first time, so
+  // the hundredth axe is as silent as the hundredth Butcher.
+  const tallyPurchase = (item) => {
+    const firsts = earnedByPurchase(item.name).filter((id) => earn(id, receipt));
+    if (!firsts.length) return;
+    if (el.achievements) {
+      renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), firsts[0]);
+    }
+    // The FUNDING run's chip takes the trophy — history[0], tallied just
+    // before this shop opened — so the strip and the achievement row tell
+    // one story about which run paid for it, and the session is re-saved so
+    // the chip survives a refresh the way the unlock itself already does.
+    if (session.history[0]) {
+      session.history[0].earned = [...(session.history[0].earned || []), ...firsts];
+      if (el.history) renderHistory(el.history, session.history, ACHIEVEMENTS);
+      saveSession();
+    }
+  };
 
   const onItemClick = (e) => {
     const btn = e.target.closest('button[data-item]');
@@ -656,6 +682,7 @@ async function showShop() {
     if (clicked) {
       balance -= clicked.price;
       addHeldItem(clicked.item);
+      tallyPurchase(clicked.item);
       purchases++;
       clicked = undefined;
       showBalance();
@@ -682,6 +709,7 @@ async function showShop() {
         while (auto) {
           balance -= auto.price;
           addHeldItem(auto.item);
+          tallyPurchase(auto.item);
           purchases++;
           showBalance();
           // A beat between purchases so a drain is something you watch
@@ -1021,7 +1049,12 @@ async function runDescentForever() {
     // `hero.name` — the real name (`HEROES.base.name` is `'base'`, not the
     // `''` `session.heroName` prints for it) so the highscore board's key
     // matches `roster.js`'s own ORDER and chip keys.
-    tallyDescent(run, finalState, hero.name, { seed, config });
+    //
+    // ONE receipt object for the tally and the shop below: both report into
+    // `earn`, and the run that killed the pig and the run whose coins buy
+    // the first axe are described by the same `{seed, config}`.
+    const receipt = { seed, config };
+    tallyDescent(run, finalState, hero.name, receipt);
     // The run is counted, and this is the whole save point — see saveSession.
     saveSession();
     // …and the only place the save goes up, or the connection is tried
@@ -1035,7 +1068,7 @@ async function runDescentForever() {
     // for anyone who never reordered — the default order is the same for
     // everybody — and diverges for anyone who did, exactly as the Lab's
     // dials already do.
-    await showShop();
+    await showShop(receipt);
   }
 }
 
