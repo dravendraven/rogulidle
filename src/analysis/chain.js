@@ -102,6 +102,13 @@ function pileOf(items) {
 // a contradiction.
 export function playChain(chainSeed, length, options = {}) {
   const order = options.order ?? DEFAULT_ORDER;
+  // The BUYER is swappable, because the shop has two real players: the
+  // unattended drain (rules.md §9 — the idle game, and the default here)
+  // and a person at the screen choosing per run with the pile in front of
+  // them. `buy(balance, keptPile)` returns `{ bought, spent }`; the
+  // policies live with whoever is measuring (tools/e2-sweep.mjs), so this
+  // file never grows a second copy of the default one.
+  const buy = options.buy ?? ((balance) => spend(balance, order));
   const dials = options.dials;
   // A NAME or the entry itself, the same two callers `check.js` serves for
   // the same reason: JSON on a command line can only carry the name.
@@ -123,7 +130,7 @@ export function playChain(chainSeed, length, options = {}) {
     if (plays) plays.push(run);
     const balance = balanceOf(run);
     const kept = run.cleared ? pile : [];
-    const { bought, spent } = spend(balance, order);
+    const { bought, spent } = buy(balance, kept);
 
     runs.push({
       run: k,

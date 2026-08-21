@@ -69,6 +69,12 @@ if (cell.cut) {
     if ((seg.from ?? 1) < 4) Object.assign(seg, cell.cut);
   }
 }
+// Same shape as `cut`, applied to EVERY anchor — for candidates where a
+// dial moves on the whole descent rather than only above the pig.
+if (cell.cutAll) {
+  Object.assign(overrides.model, cell.cutAll);
+  for (const seg of overrides.model.floors ?? []) Object.assign(seg, cell.cutAll);
+}
 // Run-wide field (difficulty.js RUN_WIDE): what the vault's own chests
 // hold, as ITEM_TABLE names. A probe lever, not one of the three bridges.
 if (cell.vaultKit) overrides.model.vaultChestItems = cell.vaultKit;
@@ -90,6 +96,48 @@ const order = SHOP_ITEMS.slice()
 const hero = cell.hero
   ? { name: cell.heroName ?? 'custom', bot: cell.hero }
   : undefined;
+
+// ── the two players of the shop ───────────────────────────────────────────
+//
+// "idle" is the unattended drain (chain.js's default). "active" is a person
+// at the screen: buys the axe when the balance reaches it AND the pile does
+// not already hold one, then stacks shields (the armour term E1 measured as
+// dominant), and turns an odd last coin into a potion. No dagger — the
+// active claim under test is that a chooser beats the fixed order, and this
+// is the obvious human policy to test it with.
+const price = (n) => SHOP_ITEMS.find((e) => e.item.name === n).price;
+const template = (n) => ({ ...ITEM_TABLE.find((i) => i.name === n) });
+const activeBuy = (balance, kept) => {
+  const bought = [];
+  let left = balance;
+  if (!kept.some((i) => i.name === 'axe') && left >= price('axe')) {
+    bought.push(template('axe'));
+    left -= price('axe');
+  }
+  while (left >= price('shield')) {
+    bought.push(template('shield'));
+    left -= price('shield');
+  }
+  if (left >= price('health')) {
+    bought.push(template('health'));
+    left -= price('health');
+  }
+  return { bought, spent: balance - left };
+};
+const buy = cell.policy === 'active' ? activeBuy : undefined;
+
+// ── the wall clock ────────────────────────────────────────────────────────
+//
+// What a run COSTS IN HOURS at the page's own pacing (src/ui/spectator.js):
+// 110 ms a turn at 1x, default speed 0.75x, summary card 2.4 s, and the
+// shop clock 30 s — which the idle player waits out on ~every run while the
+// active player clicks through in a few seconds. Same speed for both:
+// the speed button is as available to idle as to active, so the honest
+// active edge is the shop clock plus the choices, never the speed.
+const SPEED = cell.speed ?? 0.75;
+const TURN_S = 0.110 / SPEED;
+const SUMMARY_S = 2.4 / SPEED;
+const SHOP_S = (cell.policy === 'active' ? (cell.shopSeconds ?? 6) : 30 / SPEED);
 
 // ── play the chains ───────────────────────────────────────────────────────
 const M = cell.chains ?? 12;
@@ -116,9 +164,13 @@ const allPlays = [];      // for the shared wires (check.js's runWires)
 
 for (let m = 0; m < M; m++) {
   const collect = [];
-  const { runs } = playChain(firstSeed + m, L, { dials, hero, order, collect });
+  const { runs } = playChain(firstSeed + m, L, { dials, hero, order, buy, collect });
   allPlays.push(...collect);
   let firstKill = null;
+  let firstClear = null;
+  let firstKillH = null;
+  let firstClearH = null;
+  let clockS = 0;
   let kills = 0;
   for (let k = 0; k < collect.length; k++) {
     const run = collect[k];
@@ -126,6 +178,8 @@ for (let m = 0; m < M; m++) {
     runsTotal++;
     depths.push(run.depth);
     balances.push(row.balance);
+    const turns = run.levels.reduce((n, l) => n + l.turns, 0);
+    clockS += turns * TURN_S + SUMMARY_S + (row.balance >= 1 ? SHOP_S : 0);
     if (!run.cleared && run.depth <= 3) openingTotal++;
     if (sawPig(run)) sawTotal++;
     const startedArmed = (row.pile.axe ?? 0) > 0;
@@ -134,13 +188,21 @@ for (let m = 0; m < M; m++) {
       kills++;
       killsTotal++;
       if (startedArmed) axeStartKills++;
-      if (firstKill === null) firstKill = k + 1;
+      if (firstKill === null) { firstKill = k + 1; firstKillH = clockS / 3600; }
+    }
+    if (run.cleared && firstClear === null) {
+      firstClear = k + 1;
+      firstClearH = clockS / 3600;
     }
     if (!run.cleared && sawPig(run)) wallIncomes.push(row.balance);
   }
   chains.push({
     seed: firstSeed + m,
     firstKill,
+    firstKillH: firstKillH === null ? null : +firstKillH.toFixed(2),
+    firstClear,
+    firstClearH: firstClearH === null ? null : +firstClearH.toFixed(2),
+    hoursTotal: +(clockS / 3600).toFixed(2),
     kills,
     axesBought: runs.reduce(
       (n, r) => n + r.bought.filter((b) => b === 'axe').length, 0,
@@ -160,6 +222,9 @@ const pct = (xs, p) => {
 };
 
 const firstKills = chains.map((c) => c.firstKill).filter((k) => k !== null);
+const firstKillHs = chains.map((c) => c.firstKillH).filter((h) => h !== null);
+const firstClears = chains.map((c) => c.firstClear).filter((k) => k !== null);
+const firstClearHs = chains.map((c) => c.firstClearH).filter((h) => h !== null);
 
 process.stdout.write(`${JSON.stringify({
   name: cell.name ?? 'unnamed',
@@ -174,6 +239,16 @@ process.stdout.write(`${JSON.stringify({
   chainsWithKill: firstKills.length,
   firstKillMedian: median(firstKills),
   firstKills: chains.map((c) => c.firstKill),
+  // The wall clock, at the page's own pacing — see the constants above for
+  // what idle waits through that active clicks past. Hours are cumulative
+  // to the run that did it; a null median means most chains never did.
+  policy: cell.policy ?? 'idle',
+  firstKillHoursMedian: firstKillHs.length >= M / 2 ? median(firstKillHs) : null,
+  firstClearMedian: firstClears.length >= M / 2 ? median(firstClears) : null,
+  firstClearHoursMedian: firstClearHs.length >= M / 2 ? median(firstClearHs) : null,
+  chainsWithClear: firstClears.length,
+  firstClears: chains.map((c) => c.firstClear),
+  hoursPerChainMedian: median(chains.map((c) => c.hoursTotal)),
   // WHERE the kills come from: the strategy loop is a kill on a run that
   // STARTED holding a bought axe; a "naked" kill is the in-run-loot path
   // the cut exists to close.
