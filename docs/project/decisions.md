@@ -401,6 +401,36 @@ judging: clears fall to 1–2 per 720 runs, so the LONG game nearly
 vanishes at the band the "hours" target names — the wins-too-rare wire
 sits on the edge of firing. That trade is a V6-style call, not a dial.
 
+## Active against idle, measured — the edge is the clock, not the choices
+
+2026-08-21, chains of 240 runs, base and E2-candidate worlds, same seeds
+in every cell (chain.js's `buy` hook; the active policy: axe when it
+reaches and the pile has none, then shields, change into a potion, no
+dagger — one reasonable human, not the optimum).
+
+**1. Almost all of the active player's edge is WALL CLOCK, not decision
+quality.** ~25% less time per session, and nearly all of it is the 30 s
+shop window the idle player waits through on ~95% of runs. In RUNS to
+first Butcher / first axe / first clear, the active chooser is within
+noise of the idle drain in the base world.
+
+**2. In the cut world the "obvious" active policy is WORSE in runs than
+the idle default** (first kill median 67 against 55, kills 91 against
+128, paired seeds): skipping the dagger is a blunder exactly where
+weapons are scarce, and dearest-first buys it. The default order is a
+strong player. The design wish "active play should beat idle by a wide
+margin" (objectives.md, the absent-player clause) is NOT delivered by
+the current shop: the balances are too small and the shelf too short for
+choices to spread outcomes.
+
+**3. The first axe purchase is not an independent rung — it is a
+CONSEQUENCE of the first kill, in both worlds.** Chain after chain the
+first axe is bought at the end of the very run that first killed the
+Butcher: the kill is what makes the run deep enough to afford one.
+An achievement "buy an axe" lands on the same moment as "kill the pig",
+not before it. A shop rung that precedes the wall needs a price inside
+wall-death income (~5–7), or it is a trophy for having already won.
+
 ## Difficulty and the map
 
 **CV of a sum falls as 1/√n in the number of independent draws.** Creature
