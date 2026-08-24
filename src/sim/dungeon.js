@@ -141,7 +141,28 @@ function carryFrom(player) {
 // descent: the analysis modules that read per-floor rows off `levels` below
 // would otherwise get each floor twice and quietly average the two crossings
 // together. They pass `traversals: LEVELS` and say so at the call site.
+//
+// Two doors into the same loop. `playDungeon` computes the whole run at
+// once, which is what every instrument and test wants. `playDungeonSteps`
+// is a generator that pauses AFTER each traversal — the spectator drives it
+// so a floor is only computed when its playback is due, which is what lets
+// the Lab's behaviour dials reach a run already in flight: `makePolicy` for
+// floor N+1 simply has not run yet while floor N is on screen. Same loop,
+// same numbers — the eager one drains the stepwise one, so the two cannot
+// disagree. Determinism is untouched: nothing here reads a clock, and the
+// caller resuming the generator feeds no data in.
 export function playDungeon(seed, makePolicy, options = {}) {
+  const steps = playDungeonSteps(seed, makePolicy, options);
+  let step = steps.next();
+  while (!step.done) step = steps.next();
+  return step.value;
+}
+
+// Yields each completed level row (the same object pushed onto `levels`),
+// and returns the run result. `makePolicy` gets `traversal` alongside the
+// plan, so a caller that varies the bot mid-run can tell which crossing it
+// is building for.
+export function* playDungeonSteps(seed, makePolicy, options = {}) {
   // M42 — the per-traversal turn budget, named rather than hardcoded here.
   // A caller may still override it, which is what the sweeps and the older
   // instruments do; the default is what the game ships.
@@ -256,7 +277,7 @@ export function playDungeon(seed, makePolicy, options = {}) {
 
     const run = playGame(
       hashSeeds(seed, level),
-      makePolicy({ ...plan, monsterCount: plan.monsters }),
+      makePolicy({ ...plan, monsterCount: plan.monsters, traversal }),
       { maxTurns, counts },
     );
 
@@ -330,11 +351,15 @@ export function playDungeon(seed, makePolicy, options = {}) {
     // balance it offers at the end of the run — the coin is the same coin.
     const coins = coinsFor(player.xpEarned - earnedBefore, run.turns);
     earnedBefore = player.xpEarned;
-    levels[levels.length - 1].coins = coins;
-    levels[levels.length - 1].spent = 0;
-    levels[levels.length - 1].bought = null;
+    const row = levels[levels.length - 1];
+    row.coins = coins;
+    row.spent = 0;
+    row.bought = null;
 
     if (run.outcome !== 'ascended') {
+      // The row is complete before it is yielded — a caller watching the
+      // steps sees the same object the result's `levels` holds.
+      yield row;
       // `depth` counts TRAVERSALS survived, not floors — how far the run got,
       // which is what it always meant. On a pinned descent the two are the
       // same number, so every instrument reading this is unchanged; on a full
@@ -352,9 +377,10 @@ export function playDungeon(seed, makePolicy, options = {}) {
       : { spent: 0, bought: null };
     if (deal.spent) {
       purchases += deal.bought.count;
-      levels[levels.length - 1].spent = deal.spent;
-      levels[levels.length - 1].bought = deal.bought;
+      row.spent = deal.spent;
+      row.bought = deal.bought;
     }
+    yield row;
   }
 
   // R1 — VICTORY IS COMPLETING THE LAST TRAVERSAL. Reaching the bottom is

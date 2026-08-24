@@ -34,7 +34,7 @@ import {
 } from './highscores.js';
 import { loadDialOverrides } from './dial-overrides.js';
 import { eventsEnabled, makeEventLayer } from './events.js';
-import { playRun } from './run.js';
+import { playRunSteps } from './run.js';
 import { askPlayerName, hideNotice, showNotice } from './player.js';
 import { claimTab } from './tab-lock.js';
 import {
@@ -138,11 +138,14 @@ const session = {
   // `dials` is the panel's reader once built; `shippedDials` is what plays
   // for everyone who never opens it — dial-overrides.json's values layered
   // over the code defaults (src/ui/dial-overrides.js), resolved once at
-  // start(). `restart` is the ↻ button asking the run in flight to stop so
-  // the next one picks up new values.
+  // start(). `restart` is the roster and the reset button asking the run in
+  // flight to stop (a dial edit no longer needs it — it lands on the run by
+  // itself). `liveRun` is the run being watched, for the Lab's onChange:
+  // its config and the first traversal a dial change can still reach.
   dials: null,
   shippedDials: null,
   restart: false,
+  liveRun: null,
 };
 
 const el = {};
@@ -449,9 +452,9 @@ async function playFrames(frames, trace, tallyText) {
   for (let i = 0; i < frames.length; i++) {
     const frame = frames[i];
     await waitWhilePaused();
-    // The lab's ↻: abandon the run being watched, mid-floor if need be.
-    // The run itself is already computed and simply thrown away — nothing
-    // in the engine is interrupted, only the playback.
+    // The roster's ↻ and the reset button: abandon the run being watched,
+    // mid-floor if need be. The floor itself is already computed and simply
+    // thrown away — nothing in the engine is interrupted, only the playback.
     //
     // `stopped` leaves the same way, and for a stronger reason: the name
     // belongs to another device now, so every frame after this one is a
@@ -938,11 +941,13 @@ async function runDescentForever() {
     // dungeon.js forwards it to every floor's playGame unconditionally;
     // carry() wins over it from floor 2 on, so it only ever actually arms
     // floor 1 — exactly "the run about to start", per the item's framing.
-    // The lab's values, read at the moment the run is BUILT — so editing a
-    // dial mid-playback lands on the next run, or on this one via ↻. A
-    // player who never opens the Lab panel still gets `shippedDials`
-    // (dial-overrides.json layered on the code defaults), so a value dev
-    // mode pinned reaches every visitor, not only the ones who look.
+    // The lab's values, read at the moment the run is BUILT. The map's are
+    // fixed for the whole run here; the BEHAVIOUR dials can still move it
+    // mid-flight, floor by floor, through `heroChanges` (see the onChange in
+    // wireLab). A player who never opens the Lab panel still gets
+    // `shippedDials` (dial-overrides.json layered on the code defaults), so
+    // a value dev mode pinned reaches every visitor, not only the ones who
+    // look.
     const dials = session.dials ? session.dials.read() : session.shippedDials;
     // Resolved once, so the run and the HUD can never disagree about who is
     // playing it.
@@ -973,13 +978,27 @@ async function runDescentForever() {
       startingItems: getHeldItems(),
     };
     const traces = [];
-    const run = playRun(seed, config, (trace) => traces.push(trace));
+    // ONE FLOOR AT A TIME, not the whole run up front: each floor is
+    // computed the moment its playback is due (`playRunSteps` pauses between
+    // traversals), which is what lets a behaviour dial land on the run being
+    // watched — the next floor's bot is built with what the panel says NOW.
+    // The change is recorded into `config.dials.heroChanges` by the Lab's
+    // onChange (see wireLab), so the receipt an achievement stores still
+    // replays this exact run, mid-run edit and all (src/ui/run.js).
+    const steps = playRunSteps(seed, config, (trace) => traces.push(trace));
+    session.liveRun = { config, nextTraversal: 1 };
 
+    let run = null;
     let finalState = null;
     session.turnOffset = 0;
     let xpEarnedBeforeFloor = 0;
-    for (let i = 0; i < run.levels.length; i++) {
-      const levelResult = run.levels[i];
+    for (let i = 0; ; i++) {
+      const step = steps.next();
+      if (step.done) { run = step.value; break; }
+      const levelResult = step.value;
+      // While this floor plays, the earliest a dial change can act is the
+      // floor after it — this one is already decided.
+      session.liveRun.nextTraversal = levelResult.traversal + 1;
       if (el.floor) el.floor.textContent = `floor ${levelResult.level} / ${LEVELS}`;
       applyDepth(el.stage, levelResult.level);
 
@@ -1033,10 +1052,13 @@ async function runDescentForever() {
       // nothing — but, unlike before, does not erase what earlier floors in
       // this run already banked into session.unbankedCoins either.
     }
+    // Between runs there is nothing for a dial change to land on — it waits
+    // in the panel and the next run reads it at build.
+    session.liveRun = null;
 
     // An abandoned run is not a run: it does not count, does not bank, and
-    // does not reach the shop. The wallet is untouched, so ↻ costs the
-    // player nothing.
+    // does not reach the shop. The wallet is untouched, so a restart costs
+    // the player nothing.
     if (session.restart) {
       session.restart = false;
       continue;
@@ -1209,7 +1231,26 @@ function wireLab(overrides, devMode) {
   const open = () => {
     if (!session.dials) {
       session.dials = buildDialPanel(el.dials, {
-        onRestart: () => { session.restart = true; },
+        // A BEHAVIOUR DIAL LANDS ON THE RUN BEING WATCHED, from the next
+        // floor on — no restart, no button. The edit is appended to the run's
+        // own config (`heroChanges`, src/ui/run.js) rather than mutated over
+        // `dials.hero`: the config doubles as an achievement's receipt, and a
+        // replay has to make the same change at the same floor to reproduce
+        // the run it claims. Only pushed when the values really moved —
+        // onChange also fires for map dials, which stay per-run.
+        onChange: () => {
+          const live = session.liveRun;
+          if (!live || !session.dials) return;
+          const hero = session.dials.read().hero;
+          const changes = live.config.dials.heroChanges || [];
+          const current = changes.length
+            ? changes[changes.length - 1].hero
+            : live.config.dials.hero;
+          if (JSON.stringify(hero) === JSON.stringify(current)) return;
+          live.config.dials.heroChanges = [
+            ...changes, { from: live.nextTraversal, hero },
+          ];
+        },
         overrides,
         dev: devMode,
         // The map goes to the right column, under the numbers. The left

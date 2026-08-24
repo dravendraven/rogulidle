@@ -12,7 +12,7 @@
 // engine has never heard of either. Nothing here touches storage or the DOM,
 // so it is safe to call from a verification pass before the page is built.
 
-import { playDungeon, LEVELS } from '../sim/dungeon.js';
+import { playDungeonSteps, LEVELS } from '../sim/dungeon.js';
 import { makeFloorPlan } from '../sim/difficulty.js';
 import { makeBot } from '../bot/bot.js';
 import { heroByName } from '../sim/heroes.js';
@@ -35,9 +35,38 @@ import { heroByName } from '../sim/heroes.js';
 // present in one caller and absent in the other is exactly the kind of
 // difference this file exists to prevent.
 export function playRun(seed, config, onFloorTrace = null) {
+  const steps = playRunSteps(seed, config, onFloorTrace);
+  let step = steps.next();
+  while (!step.done) step = steps.next();
+  return step.value;
+}
+
+// Which behaviour-dial values a traversal's bot is built with. `dials.hero`
+// is the run's starting answer; `dials.heroChanges` is the Lab moving a dial
+// WHILE the run played — `[{ from, hero }]`, each applied from traversal
+// `from` on, latest entry winning. It lives in the config, not in page
+// state, because the config is also the receipt an achievement stores: a
+// replay walks the same list and reproduces the run, mid-run change and all
+// (src/ui/achievements.js). No existing field could carry this — `hero` is
+// one value for the whole run, and a mid-run change is a fact about a
+// specific traversal onward.
+function heroDialsAt(dials, traversal) {
+  let hero = dials.hero;
+  for (const change of dials.heroChanges || []) {
+    if (change.from <= traversal) hero = change.hero;
+  }
+  return hero;
+}
+
+// The stepwise door — same assembly, floor by floor. The spectator drives
+// it so each floor's bot is built the moment its playback is due, which is
+// what makes a behaviour dial land on the run in flight instead of waiting
+// for the next one. Verification never needs the steps; `playRun` above
+// drains this same generator, so the two cannot drift.
+export function* playRunSteps(seed, config, onFloorTrace = null) {
   const dials = config.dials || {};
   const hero = heroByName(config.heroName);
-  return playDungeon(seed, (floor) => {
+  return yield* playDungeonSteps(seed, (floor) => {
     const trace = [];
     if (onFloorTrace) onFloorTrace(trace);
     return makeBot({
@@ -48,7 +77,7 @@ export function playRun(seed, config, onFloorTrace = null) {
       // book is weighed against (src/sim/difficulty.js).
       threatAhead: floor.threatAhead,
       floorsAhead: floor.floorsAhead,
-      hero: dials.hero,
+      hero: heroDialsAt(dials, floor.traversal),
       ...dials.bot,
     });
   }, {

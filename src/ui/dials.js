@@ -4,8 +4,10 @@
 // NOTHING HERE PERSISTS and nothing here writes to balance.js. This is a
 // "what if" — a value worth keeping is still a docs/balance.md + code edit
 // (CLAUDE.md). `src/sim/` and `src/bot/` never import this file; the page
-// reads it and hands the result to makeFloorPlan / makeBot when a run
-// starts, which is the same door a sweep already used.
+// reads it and hands the result to makeFloorPlan / makeBot, which is the
+// same door a sweep already used. The map's values are read when a run
+// starts; the behaviour dials also land on the run in flight, from the next
+// floor on — the page listens through `onChange` (src/ui/spectator.js).
 
 import {
   anchorAt, DEFAULT_MODEL, floorSpread, floorStrength, monstersAt, saturatedAt,
@@ -916,15 +918,17 @@ function precisionOf(step) {
 
 // Fills `container` with the form and returns `{ read }`.
 //
-// `onRestart` is what the ↻ button calls — the page owns what "restart"
-// means, since only it knows what a run in flight is. `overrides` is
-// dial-overrides.json's content, already loaded — every field starts from
-// it rather than from the raw code constant. `dev` adds one more button,
-// "salvar como padrão", that turns the CURRENT form into a new
-// dial-overrides.json download; see that button's own handler for why a
-// download is the honest stopping point on a static site.
+// `onChange` fires on every edit, after the live lines repaint — it is how
+// the page hears that a dial moved and lands it on the run in flight (the
+// old ↻ button asked for a restart instead; a change that applies by itself
+// left it nothing to do). `overrides` is dial-overrides.json's content,
+// already loaded — every field starts from it rather than from the raw code
+// constant. `dev` adds one button, "salvar como padrão", that turns the
+// CURRENT form into a new dial-overrides.json download; see that button's
+// own handler for why a download is the honest stopping point on a static
+// site.
 export function buildDialPanel(container, {
-  onRestart, overrides = {}, dev = false, mounts = null, buttonsMount = null,
+  onChange, overrides = {}, dev = false, mounts = null, buttonsMount = null,
 } = {}) {
   container.innerHTML = '';
   const inputs = [];
@@ -1171,6 +1175,9 @@ export function buildDialPanel(container, {
           }
           // Runs at event time, long after `refreshLive` below is bound.
           refreshLive();
+          // After the repaint, so a page reading the form back sees the
+          // edit already applied.
+          if (onChange) onChange();
         });
 
         sectionEl.append(row);
@@ -1330,25 +1337,15 @@ export function buildDialPanel(container, {
     }
   }
 
-  // OUTSIDE the drawer when the page offers somewhere. `.dials` scrolls at
-  // 70vh, so buttons appended into it sat below thirty rows of sliders and
-  // you had to scroll the whole form to reach "reiniciar" — the one control
-  // you press after every edit.
+  // NO "reiniciar" BUTTON any more. A behaviour dial lands on the run being
+  // watched by itself now — the page listens through `onChange` and the next
+  // floor is built with what the panel says — so a button whose whole job
+  // was "make the edit count" had nothing left to do. And no "padrões"
+  // button either, for the older reason: every dial opens on this visitor's
+  // own rolled notch, so "default" would mean a state the panel can no
+  // longer be in. Undo is the slider itself.
   const buttonBar = buttonsMount || container;
   if (buttonsMount) buttonsMount.innerHTML = '';
-  const buttons = document.createElement('div');
-  buttons.className = 'dial-buttons';
-  const restart = document.createElement('button');
-  restart.type = 'button';
-  restart.textContent = '↻ reiniciar com estes valores';
-  buttons.append(restart);
-  buttonBar.append(buttons);
-
-  // NO "padrões" BUTTON. It restored the calibrated centre, and there is no
-  // centre to go back to any more — every dial opens on this visitor's own
-  // rolled notch, so "default" would have meant a state the panel can no
-  // longer be in. Undo is the slider itself.
-  restart.addEventListener('click', () => { if (onRestart) onRestart(); });
 
   // Read twice-guarded, because `min` on the element only stops the
   // spinner: a typed or pasted "-1" still reads back happily. A blank or
@@ -1453,7 +1450,7 @@ ${row.key2}`;
 
   // Dev mode only. Reachable through the page by `?dev=1` alone — nothing
   // in the ordinary UI links here, which is what makes this different from
-  // "reiniciar" above: that one is for anyone, this one changes what every
+  // the dials themselves: those are for anyone, this one changes what every
   // FUTURE visitor gets.
   //
   // A browser cannot write into the repo GitHub Pages serves — there is no
@@ -1463,6 +1460,9 @@ ${row.key2}`;
   // it live, and that step needs push access to the repo — which is
   // already the real security boundary, not this button.
   if (dev) {
+    const buttons = document.createElement('div');
+    buttons.className = 'dial-buttons';
+    buttonBar.append(buttons);
     const save = document.createElement('button');
     save.type = 'button';
     save.textContent = '💾 salvar como padrão';
