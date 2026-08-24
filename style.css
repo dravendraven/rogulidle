@@ -807,6 +807,18 @@ footer {
   align-self: flex-start;
 }
 
+/* The behaviour section's one standing promise: edits land on the run being
+   watched at the next turn. Same quiet look as .dial-note, but it is a
+   sentence about the PANEL, not about a dial, so it gets its own class. */
+.dial-live-note {
+  font-size: 10px;
+  color: var(--dim);
+  background: rgba(255, 255, 255, .04);
+  border-radius: 3px;
+  padding: .15rem .3rem;
+  margin-top: .35rem;
+}
+
 /* ONE sentence about where the dial IS — now on every row, not just the
    banded ones. The ⬆️/🔻 pair is gone, so this no longer needs to stack two
    children and is a plain block. */

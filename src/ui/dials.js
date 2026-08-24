@@ -6,8 +6,8 @@
 // (CLAUDE.md). `src/sim/` and `src/bot/` never import this file; the page
 // reads it and hands the result to makeFloorPlan / makeBot, which is the
 // same door a sweep already used. The map's values are read when a run
-// starts; the behaviour dials also land on the run in flight, from the next
-// floor on — the page listens through `onChange` (src/ui/spectator.js).
+// starts; the behaviour dials also land on the run in flight, at the next
+// turn — the page listens through `onChange` (src/ui/spectator.js).
 
 import {
   anchorAt, DEFAULT_MODEL, floorSpread, floorStrength, monstersAt, saturatedAt,
@@ -1191,6 +1191,18 @@ export function buildDialPanel(container, {
         });
       }
     }
+
+    // The live dials' one promise, in writing where they are: an edit needs
+    // no restart and no button — it reaches the bot on the run being
+    // watched, at its next turn. Only under the behaviour section, because
+    // it is only true there: the map's dials still wait for the next run.
+    if (section === 'Comportamento') {
+      const liveNote = document.createElement('div');
+      liveNote.className = 'dial-live-note';
+      liveNote.textContent =
+        'mexeu num dial? vale na run da tela, a partir do próximo turno';
+      sectionEl.append(liveNote);
+    }
   }
 
   // ***** the curve's anchors *****
@@ -1338,9 +1350,9 @@ export function buildDialPanel(container, {
   }
 
   // NO "reiniciar" BUTTON any more. A behaviour dial lands on the run being
-  // watched by itself now — the page listens through `onChange` and the next
-  // floor is built with what the panel says — so a button whose whole job
-  // was "make the edit count" had nothing left to do. And no "padrões"
+  // watched by itself now — the page listens through `onChange` and the
+  // bot's next turn is decided with what the panel says — so a button whose
+  // whole job was "make the edit count" had nothing left to do. And no "padrões"
   // button either, for the older reason: every dial opens on this visitor's
   // own rolled notch, so "default" would mean a state the panel can no
   // longer be in. Undo is the slider itself.

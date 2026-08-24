@@ -687,7 +687,11 @@ function safeToStandStill(belief) {
 }
 
 export function makeBot(options = {}) {
-  const hero = { ...DEFAULT_HERO, ...(options.hero ?? {}) };
+  // `let`, not `const`: `setHero` below swaps it between decisions. Every
+  // read of a trait inside `decide` goes through this binding at decision
+  // time, so the swap changes what the NEXT decision believes and nothing
+  // about the ones already made.
+  let hero = { ...DEFAULT_HERO, ...(options.hero ?? {}) };
   const settings = {
     // Generation facts the bot is told (rules.md §7): how many creatures and
     // chests the floor holds, so it knows whether the dark still owes it
@@ -726,7 +730,7 @@ export function makeBot(options = {}) {
   // opened chest look unfound again and the dark would never lose value.
   const chestsEverSeen = new Set();
 
-  return function decide(belief) {
+  const decide = function decide(belief) {
     // Objective 1, cheapest form first: drink when the missing hp covers the
     // whole heal. A real action returned directly — not a goal — so next
     // turn resumes wherever the bot was headed.
@@ -1224,4 +1228,14 @@ export function makeBot(options = {}) {
 
     return actionToward(belief.player.pos, route[1]);
   };
+
+  // Swap the hero's TRAITS under a bot that keeps everything else — its
+  // goal, the chests it has seen, its trace. That is the whole point: the
+  // Lab's behaviour dials act on the run in flight, and rebuilding the bot
+  // would amnesty the plan state mid-floor. Resolved against DEFAULT_HERO
+  // the same way construction is, so a partial object means the same thing
+  // through either door.
+  decide.setHero = (next) => { hero = { ...DEFAULT_HERO, ...(next ?? {}) }; };
+
+  return decide;
 }

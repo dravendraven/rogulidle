@@ -146,7 +146,10 @@ Three measuring notes, each learned the hard way:
 `python tools/dev-server.py` (port 8139), then:
 
 - `/index.html` — watch the bot play. `?seed=anything` reproduces a session.
-  The 🧪 Lab button opens the dial panel (`src/ui/dials.js`) beside it.
+  The 🧪 Lab button opens the dial panel (`src/ui/dials.js`) beside it. The
+  behaviour dials act on the run being watched from its next turn (recorded
+  into the run's config so receipts still replay — `src/ui/run.js`); the
+  map's dials wait for the next run.
   `?events=off` silences the floating signals (`src/ui/events.js`, U10).
 - `/run-tests.html` — the rules (tests, not metrics).
 - `/run-check.html` — the tripwires, both instruments, one section each.

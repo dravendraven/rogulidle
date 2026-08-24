@@ -172,6 +172,20 @@ export function newGame(seed, counts = {}) {
 // untouched turn keeps `step`'s own observation object, so a caller that
 // hooks nothing is byte-identical to one that cannot hook at all.
 export function driveTurns(state, policy, options = {}) {
+  const steps = driveTurnsSteps(state, policy, options);
+  let s = steps.next();
+  while (!s.done) s = steps.next();
+  return s.value;
+}
+
+// The same loop, paused after every decision. `driveTurns` above drains it —
+// one loop, two doors, so the two cannot drift (the E1 lesson). Each yield is
+// `{ state, belief, observation, action }`, the frame just produced, which is
+// what lets the spectator simulate in lockstep with the display instead of
+// computing the floor first and replaying it. Determinism is untouched: the
+// caller resuming the generator feeds nothing in, and nothing here reads a
+// clock.
+export function* driveTurnsSteps(state, policy, options = {}) {
   const maxTurns = options.maxTurns ?? 5000;
   const maxDecisions = options.maxDecisions ?? maxTurns * 4;
   const onTurn = options.onTurn;
@@ -200,6 +214,7 @@ export function driveTurns(state, policy, options = {}) {
 
     belief = foldBelief(belief, observation);
     decisions++;
+    yield { state, belief, observation, action };
   }
 
   return { state, belief, observation, decisions };
@@ -211,6 +226,17 @@ export function driveTurns(state, policy, options = {}) {
 // itself is the one above (E1). What stays here is what only a whole run
 // has: the pre-touch snapshot and the replay.
 export function playGame(seed, policy, options = {}) {
+  const game = playGameSteps(seed, policy, options);
+  let s = game.next();
+  while (!s.done) s = game.next();
+  return s.value;
+}
+
+// Stepwise twin of `playGame`, same drain pattern as `driveTurns`: yields
+// every frame `driveTurnsSteps` produces and returns the same result object,
+// replay included — the replay is recorded as the run advances, so a run
+// watched live leaves the same record a computed one does.
+export function* playGameSteps(seed, policy, options = {}) {
   const state = newGame(seed, options.counts);
 
   // What the floor held before anything was touched. Analysis needs it to
@@ -232,11 +258,14 @@ export function playGame(seed, policy, options = {}) {
   };
 
   const actions = [];
-  const driven = driveTurns(state, policy, {
+  const turns = driveTurnsSteps(state, policy, {
     maxTurns: options.maxTurns,
     maxDecisions: options.maxDecisions,
     onTurn: ({ action }) => { actions.push(action); },
   });
+  let turn = turns.next();
+  while (!turn.done) { yield turn.value; turn = turns.next(); }
+  const driven = turn.value;
 
   return {
     state: driven.state,

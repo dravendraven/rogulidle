@@ -141,7 +141,7 @@ const session = {
   // start(). `restart` is the roster and the reset button asking the run in
   // flight to stop (a dial edit no longer needs it — it lands on the run by
   // itself). `liveRun` is the run being watched, for the Lab's onChange:
-  // its config and the first traversal a dial change can still reach.
+  // its config plus the traversal and turn the next decision happens at.
   dials: null,
   shippedDials: null,
   restart: false,
@@ -943,7 +943,7 @@ async function runDescentForever() {
     // floor 1 — exactly "the run about to start", per the item's framing.
     // The lab's values, read at the moment the run is BUILT. The map's are
     // fixed for the whole run here; the BEHAVIOUR dials can still move it
-    // mid-flight, floor by floor, through `heroChanges` (see the onChange in
+    // mid-flight, turn by turn, through `heroChanges` (see the onChange in
     // wireLab). A player who never opens the Lab panel still gets
     // `shippedDials` (dial-overrides.json layered on the code defaults), so
     // a value dev mode pinned reaches every visitor, not only the ones who
@@ -978,40 +978,75 @@ async function runDescentForever() {
       startingItems: getHeldItems(),
     };
     const traces = [];
-    // ONE FLOOR AT A TIME, not the whole run up front: each floor is
-    // computed the moment its playback is due (`playRunSteps` pauses between
-    // traversals), which is what lets a behaviour dial land on the run being
-    // watched — the next floor's bot is built with what the panel says NOW.
-    // The change is recorded into `config.dials.heroChanges` by the Lab's
-    // onChange (see wireLab), so the receipt an achievement stores still
-    // replays this exact run, mid-run edit and all (src/ui/run.js).
+    // ONE DECISION AT A TIME, not the whole run up front: each turn is
+    // computed the moment its frame is due on screen (`playRunSteps` pauses
+    // per decision), which is what lets a behaviour dial land on the run
+    // being watched at the NEXT TURN. The change is recorded into
+    // `config.dials.heroChanges` by the Lab's onChange (see wireLab), so the
+    // receipt an achievement stores still replays this exact run, mid-run
+    // edit and all (src/ui/run.js).
     const steps = playRunSteps(seed, config, (trace) => traces.push(trace));
-    session.liveRun = { config, nextTraversal: 1 };
+    // What the Lab's onChange stamps a change with: the run's config plus
+    // the traversal and turn the NEXT decision will be made at.
+    session.liveRun = { config, traversal: 1, turn: 0 };
 
     let run = null;
     let finalState = null;
     session.turnOffset = 0;
     let xpEarnedBeforeFloor = 0;
-    for (let i = 0; ; i++) {
+    // Playback state for the traversal on screen.
+    let onTraversal = 0;
+    let shown = null;
+    while (true) {
+      await waitWhilePaused();
+      if (session.restart || session.stopped) break;
       const step = steps.next();
       if (step.done) { run = step.value; break; }
-      const levelResult = step.value;
-      // While this floor plays, the earliest a dial change can act is the
-      // floor after it — this one is already decided.
-      session.liveRun.nextTraversal = levelResult.traversal + 1;
-      if (el.floor) el.floor.textContent = `floor ${levelResult.level} / ${LEVELS}`;
-      applyDepth(el.stage, levelResult.level);
 
-      const all = replayGame(levelResult.replay);
-      const kept = watchableFrames(all).map((frame) => ({
-        frame, index: all.indexOf(frame),
-      }));
-      const frames = kept.map((k) => k.frame);
-      const alignedTrace = kept.map((k) => traces[i][Math.max(0, k.index)]);
+      // A frame — one decision the engine just made, rendered live.
+      if (step.value.turn) {
+        const { turn: frame, traversal, level } = step.value;
+        if (traversal !== onTraversal) {
+          onTraversal = traversal;
+          shown = null;
+          if (el.floor) el.floor.textContent = `floor ${level} / ${LEVELS}`;
+          applyDepth(el.stage, level);
+        }
+        finalState = frame.state;
+        session.liveRun.traversal = traversal;
+        session.liveRun.turn = frame.state.turn;
 
-      await playFrames(frames, alignedTrace, descentTallyText);
-      if (session.restart || session.stopped) break;
-      finalState = frames[frames.length - 1].state;
+        // A wall bump costs no turn and paints an identical board — skipped,
+        // exactly as watchableFrames always dropped them from a replay.
+        if (shown && frame.state.turn === shown.state.turn) continue;
+
+        // The bot's own note for its latest decision, for the debug overlay.
+        const trace = traces[traces.length - 1];
+        const entry = trace && trace.length ? trace[trace.length - 1] : null;
+        const debug = session.debug
+          ? { danger: dangerField(frame.belief), goal: entry ? entry.goal : null }
+          : null;
+        renderFrame(frame.state, frame.belief, debug, session.heroEmoji);
+        renderBossBar(el.bossBar, frame.state);
+        events.show(frame.state);
+        renderDebugInfo(el.debugInfo, session.debug ? entry : null);
+        renderHud(el, frame.state, session);
+        if (el.tally) el.tally.textContent = descentTallyText();
+
+        await sleep(turnMs() * (fought(frame, shown) ? COMBAT_STRETCH : 1));
+        shown = frame;
+        continue;
+      }
+
+      // A completed traversal — the bookkeeping between floors.
+      const levelResult = step.value.level;
+      // The bar goes when the floor's playback does — same reason playFrames
+      // hides it: what follows is the summary and the shop, and it must not
+      // sit over them.
+      if (el.bossBar) el.bossBar.hidden = true;
+      // The earliest a dial change can now act is the next floor's turn 0.
+      session.liveRun.traversal = levelResult.traversal + 1;
+      session.liveRun.turn = 0;
       session.turnOffset += levelResult.turns;
 
       // U5 — docs/backlog.md. coins = round(xpEarned-this-floor /
@@ -1231,13 +1266,15 @@ function wireLab(overrides, devMode) {
   const open = () => {
     if (!session.dials) {
       session.dials = buildDialPanel(el.dials, {
-        // A BEHAVIOUR DIAL LANDS ON THE RUN BEING WATCHED, from the next
-        // floor on — no restart, no button. The edit is appended to the run's
-        // own config (`heroChanges`, src/ui/run.js) rather than mutated over
-        // `dials.hero`: the config doubles as an achievement's receipt, and a
-        // replay has to make the same change at the same floor to reproduce
-        // the run it claims. Only pushed when the values really moved —
-        // onChange also fires for map dials, which stay per-run.
+        // A BEHAVIOUR DIAL LANDS ON THE RUN BEING WATCHED, at the next turn
+        // — no restart, no button. The edit is appended to the run's own
+        // config (`heroChanges`, src/ui/run.js) rather than mutated over
+        // `dials.hero`: the config doubles as an achievement's receipt, and
+        // a replay has to make the same change at the same turn to reproduce
+        // the run it claims. The stamp is the (traversal, turn) the next
+        // decision will be made at, which `liveRun` tracks frame by frame.
+        // Only pushed when the values really moved — onChange also fires for
+        // map dials, which stay per-run.
         onChange: () => {
           const live = session.liveRun;
           if (!live || !session.dials) return;
@@ -1248,7 +1285,7 @@ function wireLab(overrides, devMode) {
             : live.config.dials.hero;
           if (JSON.stringify(hero) === JSON.stringify(current)) return;
           live.config.dials.heroChanges = [
-            ...changes, { from: live.nextTraversal, hero },
+            ...changes, { traversal: live.traversal, turn: live.turn, hero },
           ];
         },
         overrides,

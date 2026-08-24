@@ -4946,3 +4946,48 @@ test('resolvedDefaults carries the floors curve it was handed', async () => {
   assertEq(bare.model.floors, undefined,
     'a model without a curve grew one — a file without floors is one anchor at floor 1');
 });
+
+// ***** the live behaviour dials (src/ui/run.js, `dials.heroChanges`) ***** //
+//
+// A dial moved while a run plays is recorded as `{ traversal, turn, hero }`
+// in the run's own config, and the bot receives the new traits from that
+// turn on THROUGH THE SAME BOT — plan state kept, judgement swapped. The
+// config doubles as an achievement's receipt, so the whole claim rests on
+// two facts checked here: the change really lands where it says, and a
+// replay of the same config reproduces the run exactly.
+
+test('a heroChanges entry lands at its turn and the receipt replays exactly', () => {
+  const meek = { bravery: 1, sideAppetite: 1, caution: 1 };
+  const wild = { bravery: 1.8, sideAppetite: 1.8, caution: 0.2 };
+
+  // A seed whose plain first floor lasts long enough for a mid-floor change
+  // to have turns left to act on.
+  let seed = 0;
+  let plain = null;
+  for (let s = 1; s < 60; s++) {
+    const run = playRun(s, { dials: { hero: meek } });
+    if (run.levels[0].turns >= 30) { seed = s; plain = run; break; }
+  }
+  assert(seed > 0, 'no seed under 60 gives a 30-turn first floor — suspicious in itself');
+
+  const config = {
+    dials: {
+      hero: meek,
+      heroChanges: [{ traversal: 1, turn: 10, hero: wild }],
+    },
+  };
+  const changed = playRun(seed, config);
+
+  // The whole run must not be identical — a change this violent (bravery,
+  // greed and caution all at an extreme) that alters nothing means the
+  // entry was never applied.
+  const shape = (r) => JSON.stringify(r.levels.map((l) => [l.turns, l.outcome, l.damage]));
+  assert(shape(changed) !== shape(plain),
+    'an extreme mid-floor change altered nothing — heroChanges is not being applied');
+
+  // The receipt claim: the same config, JSON round-tripped the way the
+  // achievement store does it, reproduces the run turn for turn.
+  const replayed = playRun(seed, JSON.parse(JSON.stringify(config)));
+  assertEq(shape(replayed), shape(changed),
+    'the same heroChanges config did not reproduce the run — receipts would rot');
+});

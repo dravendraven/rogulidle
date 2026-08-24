@@ -18,7 +18,7 @@
 import { COIN_RATE, ITEM_TABLE, PLAYER_HP, PLAYER_XP, TURN_BUDGET } from './balance.js';
 import { hashSeeds } from './rng.js';
 import { floorParams } from './difficulty.js';
-import { playGame } from './game.js';
+import { playGameSteps } from './game.js';
 import { grantArmour } from './step.js';
 import { heroItem } from './heroes.js';
 
@@ -144,13 +144,13 @@ function carryFrom(player) {
 //
 // Two doors into the same loop. `playDungeon` computes the whole run at
 // once, which is what every instrument and test wants. `playDungeonSteps`
-// is a generator that pauses AFTER each traversal — the spectator drives it
-// so a floor is only computed when its playback is due, which is what lets
-// the Lab's behaviour dials reach a run already in flight: `makePolicy` for
-// floor N+1 simply has not run yet while floor N is on screen. Same loop,
-// same numbers — the eager one drains the stepwise one, so the two cannot
-// disagree. Determinism is untouched: nothing here reads a clock, and the
-// caller resuming the generator feeds no data in.
+// is a generator that pauses after every DECISION — the spectator drives it
+// so each turn is only computed when its frame is due on screen, which is
+// what lets the Lab's behaviour dials reach a run already in flight: the
+// next decision simply has not been made yet while the current one shows.
+// Same loop, same numbers — the eager one drains the stepwise one, so the
+// two cannot disagree. Determinism is untouched: nothing here reads a
+// clock, and the caller resuming the generator feeds no data in.
 export function playDungeon(seed, makePolicy, options = {}) {
   const steps = playDungeonSteps(seed, makePolicy, options);
   let step = steps.next();
@@ -158,10 +158,17 @@ export function playDungeon(seed, makePolicy, options = {}) {
   return step.value;
 }
 
-// Yields each completed level row (the same object pushed onto `levels`),
-// and returns the run result. `makePolicy` gets `traversal` alongside the
-// plan, so a caller that varies the bot mid-run can tell which crossing it
-// is building for.
+// Yields tagged objects and returns the run result:
+//
+//   { turn: frame, traversal, level }   one per DECISION, the frame the
+//                                       engine just produced (state, belief,
+//                                       observation, action)
+//   { level: row }                      one per completed traversal — the
+//                                       same object pushed onto `levels`,
+//                                       complete when it arrives
+//
+// `makePolicy` gets `traversal` alongside the plan, so a caller that varies
+// the bot mid-run can tell which crossing it is building for.
 export function* playDungeonSteps(seed, makePolicy, options = {}) {
   // M42 — the per-traversal turn budget, named rather than hardcoded here.
   // A caller may still override it, which is what the sweeps and the older
@@ -275,11 +282,17 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
       persona: hero && hero.persona,
     };
 
-    const run = playGame(
+    const game = playGameSteps(
       hashSeeds(seed, level),
       makePolicy({ ...plan, monsterCount: plan.monsters, traversal }),
       { maxTurns, counts },
     );
+    let played = game.next();
+    while (!played.done) {
+      yield { turn: played.value, traversal, level };
+      played = game.next();
+    }
+    const run = played.value;
 
     // What the hero brought DOWN THE STAIRS, and what this floor actually
     // held. Both are needed to read net challenge: the floor's cost is only
@@ -359,7 +372,7 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
     if (run.outcome !== 'ascended') {
       // The row is complete before it is yielded — a caller watching the
       // steps sees the same object the result's `levels` holds.
-      yield row;
+      yield { level: row };
       // `depth` counts TRAVERSALS survived, not floors — how far the run got,
       // which is what it always meant. On a pinned descent the two are the
       // same number, so every instrument reading this is unchanged; on a full
@@ -380,7 +393,7 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
       row.spent = deal.spent;
       row.bought = deal.bought;
     }
-    yield row;
+    yield { level: row };
   }
 
   // R1 — VICTORY IS COMPLETING THE LAST TRAVERSAL. Reaching the bottom is
