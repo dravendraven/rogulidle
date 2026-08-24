@@ -172,7 +172,12 @@ main {
   border-color: var(--dim);
 }
 
-.roster-pending {
+/* One look for "your pick is queued", wherever the pick was made: the
+   roster's "entra na próxima run" and the dial panel's "vale a partir do
+   próximo turno" are the same promise at two speeds, so they share one
+   rule instead of drifting apart. */
+.roster-pending,
+.dial-pending {
   font-size: 10px;
   font-weight: bold;
   color: #8a6d2f;
@@ -805,18 +810,6 @@ footer {
   padding: .1rem .3rem;
   margin-top: .15rem;
   align-self: flex-start;
-}
-
-/* The behaviour section's one standing promise: edits land on the run being
-   watched at the next turn. Same quiet look as .dial-note, but it is a
-   sentence about the PANEL, not about a dial, so it gets its own class. */
-.dial-live-note {
-  font-size: 10px;
-  color: var(--dim);
-  background: rgba(255, 255, 255, .04);
-  border-radius: 3px;
-  padding: .15rem .3rem;
-  margin-top: .35rem;
 }
 
 /* ONE sentence about where the dial IS — now on every row, not just the

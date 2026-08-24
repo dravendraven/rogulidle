@@ -975,6 +975,19 @@ export function buildDialPanel(container, {
   const mountFor = (name) => (mounts && mounts[name]) || container;
   const used = new Set();
 
+  // The "your edit is queued" line — built under the behaviour section
+  // below, shown by the input listener whenever a hero dial moves. Long
+  // enough on screen to be read; a fresh drag restarts the clock.
+  let pendingNote = null;
+  let pendingTimer = null;
+  const PENDING_MS = 2500;
+  const showPending = () => {
+    if (!pendingNote) return;
+    pendingNote.hidden = false;
+    clearTimeout(pendingTimer);
+    pendingTimer = setTimeout(() => { pendingNote.hidden = true; }, PENDING_MS);
+  };
+
   for (const [section, groups] of sections) {
     const mount = mountFor(section);
     if (!used.has(mount)) { mount.innerHTML = ''; used.add(mount); }
@@ -1175,6 +1188,9 @@ export function buildDialPanel(container, {
           }
           // Runs at event time, long after `refreshLive` below is bound.
           refreshLive();
+          // The queued-edit notice, hero dials only — a map dial waits for
+          // the next run and saying "next turn" under it would be a lie.
+          if (kind === 'hero') showPending();
           // After the repaint, so a page reading the form back sees the
           // edit already applied.
           if (onChange) onChange();
@@ -1192,16 +1208,20 @@ export function buildDialPanel(container, {
       }
     }
 
-    // The live dials' one promise, in writing where they are: an edit needs
-    // no restart and no button — it reaches the bot on the run being
-    // watched, at its next turn. Only under the behaviour section, because
-    // it is only true there: the map's dials still wait for the next run.
+    // THE ROSTER'S OWN NOTICE, borrowed whole. Picking a hero shows
+    // "⏭ entra na próxima run" under the cast; moving a behaviour dial
+    // shows this line under the dials, same mark, same look — one visual
+    // language for "your edit is queued, and here is when it lands". It
+    // appears when a dial moves and fades on its own: the wait here is one
+    // turn, not one run, so a truth-driven line would blink out before it
+    // could be read. Only under the behaviour section, because it is only
+    // true there: the map's dials still wait for the next run.
     if (section === 'Comportamento') {
-      const liveNote = document.createElement('div');
-      liveNote.className = 'dial-live-note';
-      liveNote.textContent =
-        'mexeu num dial? vale na run da tela, a partir do próximo turno';
-      sectionEl.append(liveNote);
+      pendingNote = document.createElement('div');
+      pendingNote.className = 'dial-pending';
+      pendingNote.hidden = true;
+      pendingNote.textContent = '⏭ vale a partir do próximo turno';
+      sectionEl.append(pendingNote);
     }
   }
 
