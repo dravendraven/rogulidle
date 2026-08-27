@@ -115,21 +115,22 @@ const BANDS = ['muito baixo', 'baixo', 'médio-baixo', 'médio-alto', 'alto', 'm
 // same stale names, so a whole session concluded about dials nobody has.
 // Check `src/ui/dials.js` for its `kind: 'hero'` rows before trusting this.
 //
-//   Coragem  -> `bravery`      bends the ESTIMATE of a creature's health
-//   Ganancia -> `sideAppetite` what a chest is worth
-//   Cautela  -> `caution`      what a turn near danger costs, in steps
+//   Coragem     -> `bravery`      bends the ESTIMATE of a creature's health
+//   Ganancia    -> `sideAppetite` what a chest is worth
+//   Curiosidade -> `curiosity`    how cheap the unknown reads (bravery mirror)
 //
-// `fightMargin` and `persistence` are DECIDED CONSTANTS now, on purpose:
-// two dials pulling on one quantity is the confusion M47 untangled, and
-// this project has paid for it twice.
+// `fightMargin`, `persistence` and `caution`'s exposure half
+// (`EXPOSURE_STEPS`) are DECIDED CONSTANTS now, on purpose: two dials
+// pulling on one quantity is the confusion M47 untangled, and this project
+// has paid for it twice.
 const DIALS = [
   ['Coragem  (bravery)', HERO.bravery, (v) => [{ ...HERO, bravery: v }, BOT]],
   ['Ganância (sideAppetite)', HERO.sideAppetite, (v) => [{ ...HERO, sideAppetite: v }, BOT]],
-  ['Cautela  (caution)', HERO.caution, (v) => [{ ...HERO, caution: v }, BOT]],
+  ['Curiosidade (curiosity)', HERO.curiosity, (v) => [{ ...HERO, curiosity: v }, BOT]],
 ];
 
 console.log(`${RUNS} runs por célula, herói base, mesmas seeds, mãos vazias`);
-console.log(`centro: coragem ${HERO.bravery}  ganância ${HERO.sideAppetite}  cautela ${HERO.caution}\n`);
+console.log(`centro: coragem ${HERO.bravery}  ganância ${HERO.sideAppetite}  curiosidade ${HERO.curiosity}\n`);
 
 const ref = cell(HERO, BOT);
 console.log(`CENTRO   prof ${ref.mean.toFixed(2)}   7+ ${pc(ref.deep7)}   `

@@ -4957,8 +4957,8 @@ test('resolvedDefaults carries the floors curve it was handed', async () => {
 // replay of the same config reproduces the run exactly.
 
 test('a heroChanges entry lands at its turn and the receipt replays exactly', () => {
-  const meek = { bravery: 1, sideAppetite: 1, caution: 1 };
-  const wild = { bravery: 1.8, sideAppetite: 1.8, caution: 0.2 };
+  const meek = { bravery: 1, sideAppetite: 1, curiosity: 1 };
+  const wild = { bravery: 1.8, sideAppetite: 1.8, curiosity: 1.8 };
 
   // A seed whose plain first floor lasts long enough for a mid-floor change
   // to have turns left to act on.
@@ -4979,7 +4979,7 @@ test('a heroChanges entry lands at its turn and the receipt replays exactly', ()
   const changed = playRun(seed, config);
 
   // The whole run must not be identical — a change this violent (bravery,
-  // greed and caution all at an extreme) that alters nothing means the
+  // greed and curiosity all at an extreme) that alters nothing means the
   // entry was never applied.
   const shape = (r) => JSON.stringify(r.levels.map((l) => [l.turns, l.outcome, l.damage]));
   assert(shape(changed) !== shape(plain),

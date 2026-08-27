@@ -90,6 +90,13 @@ drawn per floor (`dcss-layouts.md`'s catalogue conclusion, and the owner
 named Diablo as the reference). `decisions.md` M50 has the verdict. **The
 built map is still the one-spine subset.**
 
+> Written when Cautela was a player dial. Its exposure half is the decided
+> constant `EXPOSURE_STEPS` now (the Curiosidade split, `src/bot/config.js`),
+> so "Cautela as the driver" today means: route choice falls out of a
+> CONSTANT every hero shares, not out of a dial a player leans. If per-hero
+> route personality is still wanted, that is an argument for re-examining
+> the constant when this design lands — not for a second dial on it.
+
 **3. A tail of randomness, and the tail has a designed shape of its own.** A
 creature can come from above the floor's band. What changed is that the tail is
 **not monotone across the run**: it thickens through the middle, **closes at the

@@ -49,7 +49,7 @@ fixed for two readings to mean the same thing.
 | starting items | **none** | `startingItems: []` |
 | Coragem | `DEFAULT_HERO.bravery` | `src/bot/config.js` |
 | Ganância | `DEFAULT_HERO.sideAppetite` | `src/bot/config.js` |
-| Cautela | `DEFAULT_HERO.caution` | `src/bot/config.js` |
+| Curiosidade | `DEFAULT_HERO.curiosity` | `src/bot/config.js` |
 | floor model | `DEFAULT_MODEL` + `dial-overrides.json` | repo root |
 | seeds | `hashSeeds(20260814, 1..n)`, the same set in every cell | |
 
@@ -60,9 +60,12 @@ a copy is a copy that goes stale. Read them from the code.
 This file listed Coragem as `fightMargin` and Cautela as `DANGER_PERSISTENCE`.
 Both were taken OFF the panel when M47/C1 split them — courage moved to
 `bravery`, which bends the estimate instead of the bar, and `persistence`
-became a decided constant inside the quantity `caution` multiplies, because
-two dials pulling on one number is a confusion this project has paid for
-twice. `tools/dial-sweep.mjs` carried the same stale names.
+became a decided constant inside the quantity the exposure price multiplies,
+because two dials pulling on one number is a confusion this project has paid
+for twice. `tools/dial-sweep.mjs` carried the same stale names. (And the
+third name changed AGAIN when Cautela became Curiosidade — `caution` split
+into the decided constant `EXPOSURE_STEPS` and the trait `curiosity`, which
+kept only the price of the unknown.)
 
 A session swept the stale ones and reported findings about "the player's
 dials" that were findings about constants nobody can reach. **The three the
@@ -93,7 +96,7 @@ measuring a version nobody plays.
 ```
 node tools/measure.mjs --selftest        # first: is the vendored ROT.js faithful
 node tools/dial-sweep.mjs                # all three dials, 250 runs a cell
-node tools/dial-sweep.mjs 400 cautela    # one dial, more runs
+node tools/dial-sweep.mjs 400 curiosidade    # one dial, more runs
 ```
 
 `tools/measure.mjs check tripwires` stays what it always was — the only
@@ -133,7 +136,7 @@ the commit that produced them, not to this file.
 **One finding survives because it is a mechanism, not a measurement:**
 `persistence` is the exponent in `menace = bite × persistence^distance`.
 Any value above 1 makes menace GROW with distance — the hero fears the far
-more than the near, which inverts what caution means. The band generator
+more than the near, which inverts what the exposure price means. The band generator
 has no clamp, so a centre that pushes the top band past 1 silently breaks
 the dial. Anything that puts `persistence` back on a panel has to solve
 this first.

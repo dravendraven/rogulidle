@@ -99,7 +99,16 @@ condição**. Uma sala selada e autoral é o primeiro escuro do jogo que
 certamente tem algo dentro e cujo tamanho se vê de fora — escuro com valor
 esperado, não escuro genérico.
 
-### A Cautela se parte em duas, e não é dial nova
+### A Cautela se parte em duas, e não é dial nova ✅ FEITO, com uma diferença
+
+> 2026-08-27 — o split aconteceu (`src/bot/config.js`), mas só UMA metade
+> virou dial: a exposição mediu como calibração (mortes 1,00 planas nas seis
+> faixas do dial fundido) e é a constante `EXPOSURE_STEPS`; a incerteza é a
+> **Curiosidade**, o terceiro dial do painel, via o espelho `(2 − curiosity)`
+> no `opening`. E o passo 1 da ordem abaixo NÃO foi feito: o escuro segue
+> tendo só preço, não valor — a Curiosidade barateia ou encarece esse preço,
+> o que já inverte comportamento nos extremos sem precisar do termo de valor
+> (que o Dijkstra proíbe de ser negativo de qualquer jeito).
 
 O preço de um tile hoje é uma dial multiplicando **duas** coisas:
 

@@ -86,9 +86,9 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 ## The bot's numbers — `src/bot/config.js`, not this file's business
 
 **The three player dials are ±80% biases around a calibrated centre** (M47) —
-Coragem, Ganância and Cautela. `riskAppetite` was briefly a fourth and is now
-a decided constant at 1: every one of the three is already a form of risk —
-courage against a creature, greed for a reward, caution for the road and the
+Coragem, Ganância and Curiosidade. `riskAppetite` was briefly a fourth and is
+now a decided constant at 1: every one of the three is already a form of
+risk — courage against a creature, greed for a reward, curiosity for the
 unknown — so a band named "risk" beside them names the axis rather than
 asking a new question.
 The Lab offers six named bands and none of them is the centre — and NOTHING
@@ -103,7 +103,7 @@ the generator weights the kinds. It is 1.5 today and it follows its inputs —
 never tune it by hand.
 
 The bot's dials belong to the bot. `DEFAULT_HERO` (bravery 1, sideAppetite 1,
-riskAppetite 1, caution MEAN_BITE, fightMargin 0.7, stepCost 0.1) is the whole
+riskAppetite 1, curiosity 1, fightMargin 0.7, stepCost 0.1) is the whole
 hero-as-configuration mechanism and the CENTRE the panel's six bands are built
 around. `bravery` 1 means "take the bestiary average at face value" — the bot
 is never told a creature's health (rules.md §7) and `expectedHpFor` is what it
@@ -114,16 +114,20 @@ guesses with.
 WORTH, risk multiplies the BAR a guard or a dark route may cost. Both at 1,
 the split is an exact no-op.
 
-`caution` is how many steps one turn of unpleasantness is worth —
-dimensionless, so the dial IS the ratio between hurry and danger. It prices
-two things per turn in the same unit: what can HIT the hero, and how much more
-of the map a tile opens than where he stands. **9.6, and MEASURED rather than
-derived** — it was `MEAN_BITE / stepCost` until the uncertainty term went in
-and put that centre past the top of the curve. It moves depth across its bands (the plateau starts at the fourth
-band; everything below is worse) but **deaths read 1.00 flat** — the
-survival spread it once showed was a per-tile uncertainty bug, not the dial
-(`config.js` documents the correction). It is a hero trait and NOT one of
-the three player bands — see `src/ui/dials.js` for why.
+`curiosity` replaced `caution` as the third player dial and took HALF of
+her: how cheaply the unknown reads. It bends only the `opening` term (what
+a goal that reveals new map costs), with the bravery mirror `(2 −
+curiosity)` — alta abre mapa que não precisa, baixa só faz o que está à
+vista e desce com o andar no escuro. It moves the PRICE and never the
+frontier gate, so the incurious extreme still explores when nothing else is
+left.
+
+The other half — how wide the hero detours around creatures — is
+`EXPOSURE_STEPS`, a decided constant at 9.6: how many steps one
+creature-turn of exposure is worth. The old fused dial measured depth
+rising-then-flat across its bands with **deaths 1.00 flat** — calibration,
+not a player's trade — and the survival spread it once showed was a
+per-tile uncertainty bug, not the dial (`config.js` documents both).
 
 **It is no longer what a visitor plays.** Each one gets a band ROLLED per
 dial on their first session (`src/ui/dials.js`), kept from then on — so

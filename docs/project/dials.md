@@ -14,10 +14,13 @@ são estas:
 |---|---|---|
 | **Coragem** | `bravery` | o quanto ele subestima a vida de uma criatura |
 | **Ganância** | `sideAppetite` | o quanto ele super ou subestima um baú |
-| **Cautela** | `caution` | o que vale um turno perto do perigo ou do desconhecido |
+| **Curiosidade** | `curiosity` | o quanto o desconhecido vale a caminhada |
 
-`fightMargin` e `persistence` **não são dials** — foram constantes decididas
-quando M47/C1 separou o que estava fundido. `test/baseline.md` e
+`fightMargin`, `persistence` e `EXPOSURE_STEPS` **não são dials** — foram
+constantes decididas quando o que estava fundido foi separado (M47/C1, e
+depois a própria Cautela: a metade de exposição dela mediu como calibração —
+mortes 1,00 planas — e virou `EXPOSURE_STEPS`; a metade do desconhecido
+ficou e é a Curiosidade). `test/baseline.md` e
 `dial-sweep.mjs` carregaram os nomes velhos por um tempo e uma sessão inteira
 concluiu sobre parâmetros que ninguém alcança. Quando um dial muda de nome ou
 sai, esta tabela, `baseline.md` e `dial-sweep.mjs` mudam no mesmo commit.
@@ -72,7 +75,7 @@ ALVO.
 |---|---|---|
 | Coragem | duelos **laterais** aceitos / laterais disponíveis | os da rota obrigatória não são escolha |
 | Ganância | baús **laterais** abertos / laterais disponíveis | o baú da rota ele pega de passagem |
-| Cautela | turnos por andar **e** golpes por andar | a tese dela é uma troca, e uma métrica só não mostra troca |
+| Curiosidade | share do mapa revelado por andar **e** turnos por andar | a tese dela é uma troca — mapa aberto contra tempo gasto — e uma métrica só não mostra troca |
 
 **A rota obrigatória e o vault ficam fora de todo denominador.** Uma criatura
 na espinha é enfrentada porque é preciso passar, e a sala do porco é encarada
@@ -104,6 +107,8 @@ muda, eficácia não: exatamente o alvo.
 
 **Cautela mostra a troca que o nome promete.** Turnos sobem 94 → 100 e golpes
 caem 12,7 → 12,0. Anda mais para se expor menos. Pequeno (6%) e monotônico.
+(Leitura do dial FUNDIDO, anterior à troca por Curiosidade — a linha dela nas
+seis faixas novas ainda não foi tirada.)
 
 **Os três saturam acima do centro, e esse é o defeito comum.** Coragem tem três
 bandas iguais no topo, Ganância tem quatro. **O efeito é assimétrico e as

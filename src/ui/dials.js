@@ -417,31 +417,26 @@ export const SECTIONS = [
     ]],
     ['', [
       {
-        // C1 §1 — THE DIAL THAT DECIDES HOW THE HERO WALKS, and the one that
-        // finally moves survival: across its bands deaths per run go 0.98 to
-        // 0.40, against depth 4.14 to 2.80. Nothing else in this panel trades
-        // living for going deep.
+        // THE DIAL THAT REPLACED CAUTELA, and it kept half of her: the price
+        // of opening the unknown. The other half — how wide the hero detours
+        // around creatures — measured as calibration (deaths 1.00 flat
+        // across all six bands) and became the decided constant
+        // `EXPOSURE_STEPS`. Curiosity bends only the `opening` term in
+        // src/bot/bot.js, with the bravery mirror: alta = o escuro sai
+        // barato, baixa = o escuro sai caro.
         //
-        // It prices two things per turn in one unit — what can HIT him, and
-        // how much more of the map a step OPENS — so one sentence covers the
-        // whole dial: how much a turn near danger or near the unknown is
-        // worth, counted in steps.
-        //
-        // IT TOOK THIS ROW FROM `persistence`, which used to be called
-        // Cautela and is now a decided constant off the panel. That was the
-        // owner's call and the argument is one line: exposure IS
-        // `Σ persistence^distância`, so persistence is a parameter INSIDE the
-        // number caution multiplies. Two dials on one quantity — the M47
-        // confusion, which this project has now paid for twice.
-        kind: 'hero', key: 'caution', label: 'quanto vale um turno perto do perigo ou do desconhecido',
-        title: 'Cautela', icon: '🛡️', bias: true,
+        // It moves the PRICE and never the frontier gate, so the incurious
+        // extreme still explores when the frontier is the only goal left —
+        // it just never chooses the dark over anything visible.
+        kind: 'hero', key: 'curiosity', label: 'quanto o desconhecido vale a caminhada',
+        title: 'Curiosidade', icon: '🔍', bias: true,
         says: [
-          'passa colado em tudo e entra no escuro sem olhar',
-          'aceita raspar numa criatura para encurtar caminho',
-          'prefere o caminho limpo quando é parecido',
-          'anda mais para não passar perto nem abrir o desconhecido',
-          'dá voltas largas e só explora o que precisa',
-          'desvia até de rato — vive mais e chega bem menos fundo',
+          'só faz o que está à vista — desce com o mapa no escuro',
+          'abre o escuro só quando está a caminho',
+          'espia um pouco além do necessário',
+          'abre mais mapa do que precisaria',
+          'varre quase o andar inteiro antes de descer',
+          'não desce sem revelar o andar todo — e paga os turnos disso',
         ],
       },
     ]],

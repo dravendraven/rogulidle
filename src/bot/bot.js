@@ -34,7 +34,8 @@ import {
 } from '../sim/balance.js';
 import {
   CHEST_VALUE_HP, CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_CHEST_COUNT,
-  DEFAULT_MONSTER_COUNT, DEFAULT_HERO, GOAL_STICKINESS, LOOT_VALUE, READ_AT,
+  DEFAULT_MONSTER_COUNT, DEFAULT_HERO, EXPOSURE_STEPS, GOAL_STICKINESS,
+  LOOT_VALUE, READ_AT,
 } from './config.js';
 import {
   actionToward, believedWalkable, dijkstra, flood, frontiers, key, routeTo,
@@ -163,13 +164,14 @@ export function isAwakeAt(monster, distance) {
 //
 // Every creature contributes ONE unit of exposure, decayed by distance — a
 // rat and a dragon weigh the same here. What the field measures is
-// CREATURE-TURNS, and `caution` says how many STEPS one of those is worth.
-// Judging strength is the courage dial's job, inside `duelCost`, where
-// the hero is actually deciding to fight rather than deciding where to walk.
+// CREATURE-TURNS, and `EXPOSURE_STEPS` says how many STEPS one of those is
+// worth. Judging strength is the courage dial's job, inside `duelCost`,
+// where the hero is actually deciding to fight rather than deciding where
+// to walk.
 //
-// It used to weigh each creature by its own bite. `caution`'s centre is the
-// ratio that field ran at (`MEAN_BITE / stepCost`, derived), so the middle
-// band spends the same total danger budget the old field spent —
+// It used to weigh each creature by its own bite. `EXPOSURE_STEPS` is the
+// ratio that field ran at (`MEAN_BITE / stepCost`, derived), so the field
+// spends the same total danger budget the old field spent —
 // but tile by tile it is NOT the same game, and that is the trade being
 // bought: a tile beside a rat now costs more than it did, one beside a dragon
 // less. A cautious hero detouring around a rat is the declared cost, not a
@@ -194,8 +196,9 @@ export function isAwakeAt(monster, distance) {
 // A FRACTION, not a count, and the units are the reason. Exposure runs 0..2
 // creature-turns; an unknown-tile count runs 0..250, and added raw it would
 // drown the creatures by two orders of magnitude. As a share of the viewport
-// it lands in the same range as exposure, so one `caution` scales both and
-// means one thing: how much a turn near danger OR near the unknown is worth.
+// it lands in the same range as exposure, so one `EXPOSURE_STEPS` scales
+// both in the same unit — and `curiosity` (see `opening` in `decide`) is
+// what bends the unknown's half per hero.
 //
 // It also DELETES three pieces the first attempt needed — the density of
 // unseen creatures, `MEAN_ACTIVATION`, and the emission constant. And with
@@ -236,7 +239,10 @@ function darkFraction(belief) {
 export function dangerField(belief, tuning = {}) {
   const persistence = tuning.persistence ?? DANGER_PERSISTENCE;
   const crowdPenalty = tuning.crowdPenalty ?? CROWD_PENALTY;
-  const caution = tuning.caution ?? DEFAULT_HERO.caution;
+  // A DECIDED CONSTANT since the curiosity split — the danger field is
+  // calibration, not personality. `tuning` can still override it, which is
+  // how a sweep asks whether that decision still holds.
+  const exposureSteps = tuning.exposureSteps ?? EXPOSURE_STEPS;
   const stepCost = tuning.stepCost ?? DEFAULT_HERO.stepCost;
   const darkAt = darkFraction(belief);
   const passable = believedWalkable(belief);
@@ -256,7 +262,7 @@ export function dangerField(belief, tuning = {}) {
     for (const [tile, distance] of spread.dist) {
       if (!isAwakeAt(monster, distance)) continue;
       // ONE, not the creature's bite (C1 §1). This map counts CREATURE-TURNS
-      // of exposure, not hp, and `caution` below is the exchange rate.
+      // of exposure, not hp, and `EXPOSURE_STEPS` below is the exchange rate.
       menace.set(tile, (menace.get(tile) || 0) + persistence ** distance);
       if (distance <= 1) crowd.set(tile, (crowd.get(tile) || 0) + 1);
     }
@@ -288,7 +294,7 @@ export function dangerField(belief, tuning = {}) {
       const tile = x + ',' + y;
       const exposure = menace.get(tile) || 0;
       if (exposure === 0) return 0;
-      return stepCost * caution * exposure
+      return stepCost * exposureSteps * exposure
         + ((crowd.get(tile) || 0) >= 2 ? crowdPenalty : 0);
     },
 
@@ -790,10 +796,12 @@ export function makeBot(options = {}) {
     // the cheapest hp cost of reaching each tile, danger included, so one
     // number compares "walk over there" with "have this fight".
     const passable = believedWalkable(belief);
-    // `caution` is a HERO trait and the rest of the field's tuning is a bot
+    // `stepCost` is a HERO trait and the rest of the field's tuning is a bot
     // setting, so it is merged in here rather than living in two places.
+    // `caution` used to travel with it; since the curiosity split the
+    // exposure multiplier is the field's own decided constant.
     const danger = dangerField(belief, {
-      ...settings, caution: hero.caution, stepCost: hero.stepCost,
+      ...settings, stepCost: hero.stepCost,
     });   // `settings` already carries `monsterCount`, which prices the dark
 
     // B26 — A LIVE CREATURE IS NOT FLOOR. Walking into one attacks it and the
@@ -837,14 +845,21 @@ export function makeBot(options = {}) {
     // which way to walk. A goal whose viewport reaches no further into the
     // dark than the hero's own is free; the frontier, which sits on the edge
     // of the unknown by definition, is the one that pays most — and that is
-    // the counterweight caution was built to put on exploring.
+    // the counterweight curiosity puts on exploring.
     //
     // On the GOAL and never on a tile, because the tile version double-counts
     // (see `priceAt`). Clamped at zero so walking back into known ground is
     // free rather than a rebate — and a negative price would break Dijkstra
     // anyway, which is the same wall the "greed values the dark" idea hit.
+    // CURIOSITY LIVES HERE AND ONLY HERE. The mirror `(2 − curiosity)` is
+    // the bravery idiom: 1 takes the dark's price at face value, above it
+    // the unknown reads cheaper and the hero opens map he does not need,
+    // below it the dark reads dearer and he does only what is in sight.
+    // It bends the PRICE and never the frontier gate — the gate compares
+    // exposure alone, so a refused-everything hero still explores rather
+    // than stalls (see the last-resort clause at the bottom).
     const unknownHere = danger.unknownAt(belief.player.pos[0], belief.player.pos[1]);
-    const opening = (pos) => hero.caution * hero.stepCost
+    const opening = (pos) => EXPOSURE_STEPS * (2 - hero.curiosity) * hero.stepCost
       * Math.max(0, danger.unknownAt(pos[0], pos[1]) - unknownHere);
 
     // Which creatures the cheapest route to `pos` walks INTO. Their duel is

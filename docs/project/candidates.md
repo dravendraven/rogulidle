@@ -1015,7 +1015,8 @@ flagged as deferred until bot/map base is done. Recorded, not blocking.**
 > like, why Ricardo’s original premise was wrong, why Pawa’s exploration hook
 > is dead. The CONSTANTS it maps those behaviours to are stale. Today’s
 > equivalents live in `src/bot/config.js` (`DEFAULT_HERO` and its fields:
-> `bravery`, `sideAppetite`, `caution`, `fightMargin`, `stepCost`).
+> `bravery`, `sideAppetite`, `curiosity`, `fightMargin`, `stepCost` — and
+> `EXPOSURE_STEPS` beside it, the decided half of what was `caution`).
 
 **Status changed at the premise level, not here.** `objectives.md` was
 rewritten around a premise in which the player chooses a hero, so U7 now has a

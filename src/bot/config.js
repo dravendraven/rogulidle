@@ -6,8 +6,9 @@ import { CHEST_LOOT_CHANCE } from '../sim/balance.js';
 import { ARMOUR_SCARCITY, POTION_SCARCITY } from '../sim/difficulty.js';
 import { itemWeights } from '../sim/spawn.js';
 
-// Pulled out of DEFAULT_HERO because `caution` below is defined as a ratio
-// against it, and an object cannot reference its own field while building.
+// Pulled out of DEFAULT_HERO because `EXPOSURE_STEPS` below is defined as a
+// ratio against it (steps per creature-turn), and keeping the two side by
+// side is what keeps the ratio readable.
 const STEP_COST = 0.1;
 
 // The shipped hero. A hero with special characteristics is a DIFFERENT
@@ -67,8 +68,8 @@ export const DEFAULT_HERO = {
   //
   // DECIDED AT 1, NOT A DIAL, and the reasoning is the owner's: every dial
   // here is already a form of risk. Courage is how much you risk to face a
-  // creature, greed how much you risk for a reward, caution how much you risk
-  // to explore or to cut a corner. A fourth band called "risk" beside those
+  // creature, greed how much you risk for a reward, curiosity how much you
+  // risk to explore. A fourth band called "risk" beside those
   // three is not a fourth question — it is the name of the axis the other
   // three already live on.
   //
@@ -99,50 +100,27 @@ export const DEFAULT_HERO = {
   // this was a share of hp and the two numbers are not comparable.
   sideAppetite: 1,
 
-  // HOW MANY STEPS ONE TURN OF UNPLEASANTNESS IS WORTH. C1 §1 — the dial that
-  // decides how the hero WALKS, which until now nothing did.
+  // HOW MUCH THE UNKNOWN REPELS OR BEGUILES THIS HERO. The dial that replaced
+  // Cautela on the panel, and it took HALF of what she did: the price of a
+  // goal that opens new map (`opening` in src/bot/bot.js). The other half —
+  // how wide he detours around creatures — measured as calibration, not
+  // choice (deaths 1.00 flat across all six bands), and lives on as
+  // `EXPOSURE_STEPS` below.
   //
-  //     preço(tile) = stepCost × (1 + caution × (exposição + incerteza))
+  // Same idiom as `bravery`: 1 takes the dark's price at face value, and the
+  // mirror `(2 − curiosity)` bends it — one notch up (1.16) prices the dark
+  // 16% CHEAPER, so the curious hero opens map he does not strictly need,
+  // and the incurious one does only what is in sight and descends with the
+  // floor still black. It cannot make the dark ATTRACT (a negative tile
+  // price breaks Dijkstra — tried and documented in bot.md); the range runs
+  // from "the dark is nearly free" to "the dark is nearly double".
   //
-  // Two things it prices per turn, in the same unit: what can HIT me
-  // (creature-turns, decayed by distance) and what I cannot SEE (how much
-  // more of the map this tile's viewport opens than where I stand). One
-  // sentence covers both — how much a turn near danger or near the unknown
-  // is worth — which is why they share a multiplier.
-  //
-  // DIMENSIONLESS, so the dial IS the ratio between hurry and danger and the
-  // whole route is priced in multiples of a step. `stepCost` sets walking
-  // against fighting and looting; this sets safe against short.
-  //
-  // 9.6, MEASURED, and re-measured once the uncertainty term moved onto the
-  // goal. Not derived, and that is a loss worth naming: it used to be
-  // `MEAN_BITE / stepCost`, whose virtue was that nobody chose it.
-  //
-  // The curve RISES AND THEN FLATTENS — swept at n=150 the six bands read
-  // 4.05 / 4.12 / 4.10 / 4.35 / 4.33 / 4.31 mean floors, so the plateau starts
-  // at the fourth band and everything below it is worse. `DANGER_PERSISTENCE`
-  // had exactly this shape in B24, and the rule it left is the one applied
-  // here: put the centre INSIDE the plateau, so the default is a good place
-  // and going DOWN is the deliberate choice.
-  //
-  // 8.3 sat on the knee, just under it. Moving to the plateau's start turned
-  // OFF `wins too rare` — one run in 150 now finishes, against none before —
-  // at the cost of opening deaths going 0.227 to 0.253, nowhere near its own
-  // threshold of a half.
-  //
-  // BE HONEST ABOUT THAT CLEAR: the wire's condition is "not one run in the
-  // sample is cleared", so a single completed run flips it. One run is not a
-  // result. What IS a result is the plateau — three bands at ~4.3 against
-  // three at ~4.1, consistent in direction, about 1.7 sigma.
-  //
-  // AND THE DIAL SELLS NOTHING. Deaths read 1.00 flat across all six bands.
-  // Moving the centre up gained depth and cost no lives, which means this is
-  // not a trade the player makes — it is a setting that was wrong and is now
-  // less wrong. The big survival spread this dial once showed (0.98 to 0.40)
-  // was the per-tile uncertainty bug, not the dial. Whether something that
-  // separates this little deserves one of three bands on the panel is an open
-  // question for the owner, and it is asked in docs/project/rota-e-valor.md.
-  caution: 9.6,
+  // The incurious extreme never strands him: curiosity moves the PRICE of a
+  // frontier, never the gate (that bar compares exposure only), and with the
+  // pool empty the frontier wins by having no rival — plus the last-resort
+  // clause goes to a refused frontier anyway, because standing still is
+  // never survival.
+  curiosity: 1,
 
   // What one step is worth in hp. This is the exchange rate between goal 3
   // and the other two: raising it makes near goals win harder and empties
@@ -165,6 +143,26 @@ export const DEFAULT_HERO = {
   // to be above about 0.08 and below the absurd. It is not a choice.
   stepCost: STEP_COST,
 };
+
+// HOW MANY STEPS ONE TURN OF UNPLEASANTNESS IS WORTH — the multiplier on
+// both halves of what a route pays beyond walking: exposure to creatures
+// (per tile, src/bot/bot.js `priceAt`) and the unknown a goal opens (once,
+// `opening`, where `curiosity` above bends it). Until the curiosity split
+// this WAS the hero trait `caution`, dial included.
+//
+// DECIDED, NO LONGER A DIAL, and the measurements are the ones the old dial
+// earned. 9.6, measured, re-measured once the uncertainty term moved onto
+// the goal; it used to be derived (`MEAN_BITE / stepCost`), and losing that
+// is a loss worth naming. The curve RISES AND THEN FLATTENS — six bands at
+// n=150 read 4.05 / 4.12 / 4.10 / 4.35 / 4.33 / 4.31 mean floors — so the
+// centre sits inside the plateau, the same rule `DANGER_PERSISTENCE` set in
+// B24. And THE DIAL SOLD NOTHING: deaths read 1.00 flat across all six
+// bands, so it was never a trade the player makes, only a setting that was
+// wrong and became less wrong. The big survival spread it once showed
+// (0.98 to 0.40) was the per-tile uncertainty bug, not the dial. That is
+// why it stopped being one — the question docs/project/rota-e-valor.md left
+// open, answered by giving its panel slot to `curiosity`.
+export const EXPOSURE_STEPS = 9.6;
 
 // How much of a creature's menace SURVIVES each tile of distance when
 // pricing a tile: at 0.5 a wolf two tiles away charges a quarter of its

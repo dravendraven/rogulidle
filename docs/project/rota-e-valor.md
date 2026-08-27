@@ -178,6 +178,12 @@ pode diferir de outro, e fora das seis faixas até que uma varredura diga se os
 dois são separáveis. **Se não forem, um deles é o dial e o outro é constante
 decidida — e essa escolha é do dono, não efeito colateral de nomear.**
 
+> 2026-08-27 — a escolha foi feita, e por outro caminho que o parágrafo
+> previa: a metade de EXPOSIÇÃO virou a constante `EXPOSURE_STEPS` (mortes
+> 1,00 planas nas seis faixas — calibração, não escolha) e a metade do
+> DESCONHECIDO virou o dial **Curiosidade** (`curiosity`, espelho `(2 − c)`
+> sobre o `opening`). `porta-e-chave.md` tem o mesmo registro do lado de lá.
+
 ### Por que NÃO `cautela × (1 + exposição)`
 
 Foi a primeira forma escrita e ela achata o perigo. Hoje um tile colado numa

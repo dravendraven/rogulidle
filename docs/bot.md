@@ -157,7 +157,10 @@ frases:
   do mapa o alvo destrava em relação a onde o herói está — o que a viagem
   abre. Um alvo cujo viewport não alcança nada de novo é grátis; a fronteira,
   que fica na beira do desconhecido por definição, é quem mais paga, e é esse
-  o contrapeso da cautela sobre explorar.
+  o contrapeso da curiosidade sobre explorar — e é ali, e só ali, que o dial
+  dela morde: `(2 − curiosity)` multiplica esse custo, então curiosidade alta
+  barateia o escuro e baixa o encarece. O portão da fronteira não lê o dial,
+  de propósito: o incurioso ainda explora quando não sobra mais nada.
 - **Não no preço do tile, e as duas tentativas que falharam ficam escritas.**
   A forma absoluta — "quanto escuro há perto daqui" — põe ~0,7 em quase todo
   tile, afoga o termo de criatura e derruba a profundidade de 4,00 para 2,78.
@@ -203,11 +206,19 @@ frases:
 `makeBot(options)` aceita `hero`, um override de `DEFAULT_HERO`
 (`src/bot/config.js`). Um traço por objetivo:
 
-Os **tres** tracos que o jogador mexe — Coragem, Ganancia, Cautela —
+Os **tres** tracos que o jogador mexe — Coragem, Ganancia, Curiosidade —
 aparecem no Lab com a **mesma forma**: um
 vies de ±80% em torno de um centro calibrado, em **seis faixas nomeadas**
 (muito baixo ate muito alto). Seis, numero par, para nao haver meio onde
 estacionar.
+
+**Curiosidade substituiu a Cautela** e ficou com metade dela: o preco de
+abrir o desconhecido. A outra metade — quao largo ele contorna criatura —
+virou a constante decidida `EXPOSURE_STEPS` (9,6), porque mediu como
+calibracao e nao escolha: mortes 1,00 planas nas seis faixas do dial
+fundido, profundidade sobe-e-achata. O que sobrou no dial e a unica troca
+que os extremos invertem de verdade: varrer o andar antes de descer, ou
+descer com o mapa no escuro.
 
 **O centro nao esta entre as seis, e ninguem joga nele.** As duas faixas de
 dentro o cercam (-16% e +16%), mas **cada visitante recebe uma faixa
@@ -224,10 +235,10 @@ aleatorio em torno dele.
 bau, que sai da chance de loot e da tabela de itens sozinho. Os outros dois
 tem por centro o valor que shipa.
 
-**E so a Ganancia tem pico interior.** Cautela sobe e depois achata — a
-metade de baixo custa profundidade, a de cima empata com o centro —, entao
-nela a escolha deliberada e DESCER. Coragem move quais lutas sao aceitas
-muito mais do que move a profundidade.
+**E so a Ganancia tem pico interior.** Coragem move quais lutas sao aceitas
+muito mais do que move a profundidade. A Curiosidade ainda nao tem varredura
+propria — o que se sabe dela e herdado do dial fundido que ela substituiu, e
+a leitura nas seis faixas novas esta por fazer.
 
 **`stepCost` saiu do painel** (B24, 0.1 fixo): varrido em 18 configuracoes a
 n=150, tudo entre 0.08 e 0.9 mede igual. O mecanismo fica porque em 0 andar
@@ -239,6 +250,7 @@ e gratis e o bot vaga um andar por 1500 turnos — precisa estar acima de
 | `bravery` | sobreviver | quanto ele SUBESTIMA a vida de uma criatura. Ele nunca vê vida (`rules.md` §7), só o xp, então precifica pela média do bestiário para aquele xp — e a coragem desconta essa média, espelhada em torno do centro: um entalhe acima (1,16) é ler tudo como tendo 16% menos vida. Não é aceitar odds piores, é **acreditar que morre mais rápido** — certo sobre o lobo, fatal sobre o ogro, ambos xp 4 |
 | `fightMargin` | sobreviver | fração do hp efetivo que uma luta pode custar. **Deixou de ser dial** — é constante decidida; dois dials puxando a mesma decisão de pontas opostas era a confusão que o M47 desfez |
 | `sideAppetite` | chegar rico | **quanto uma coisa vale para este herói.** Multiplica o valor esperado de um baú, e decide quão tarde livro e seringa são gastos. As duas direções são opostas de propósito: valorizar muito é **adquirir mais e consumir menos** |
+| `curiosity` | chegar rico | **quanto o desconhecido vale a caminhada.** Espelhado como a coragem — `(2 − curiosity)` multiplica o custo de abrir mapa novo (`opening`), entao 1,16 le o escuro 16% mais barato. So mexe no PRECO do objetivo, nunca no portao da fronteira nem no campo de perigo, cujo multiplicador e a constante `EXPOSURE_STEPS` |
 | `riskAppetite` | sobreviver | **constante decidida em 1, nao e faixa.** Quanto custo incerto ele aceita pagar, como múltiplo da barra que ele já aplica a uma luta comum — o guardião de um baú ou item, e o perigo no caminho até o escuro. Mesma família da coragem, população diferente: a coragem é a atitude perante a incerteza sobre criatura **à vista**, esta sobre o que ele **não viu** |
 | `stepCost` | poucos passos | quanto vale um passo em hp. **Nao e bem pressa:** o preco do tile e `stepCost + perigo`, entao valor alto torna o perigo desprezivel na comparacao e a rota vira distancia pura. Medido, 0 quebra o bot (vaga 1500 turnos porque andar e gratis) e de 0,01 a 0,2 nada muda |
 
