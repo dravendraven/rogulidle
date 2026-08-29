@@ -1,4 +1,4 @@
-// The three player dials, one at a time, against the baseline bot.
+// The player dials, one at a time, against the baseline bot.
 //
 // `tools/measure.mjs` answers "is anything broken" — a tripwire fires or it
 // does not. This answers a different question that kept being asked by hand
@@ -68,16 +68,21 @@ function playOne(seed, hero, bot) {
     monsterCount: floor.monsterCount, chestCount: floor.chests, hero, ...bot,
   }), { maxTurns: 1500, floorPlan: plan, traversals: LEVELS, startingItems: [] });
 
-  let chests = 0; let turns = 0; let kills = 0;
+  let chests = 0; let turns = 0; let kills = 0; let coins = 0;
   for (const level of run.levels) {
     chests += level.chests.filter((c) => c.opened).length;
     turns += level.turns;
     kills += level.roster.filter((m) => m.dead).length;
+    // What the engine actually paid for the traversal (dungeon.js
+    // `coinsFor`) — the economy's own number, not a re-derivation. A row a
+    // death cut short carries 0, which is the rule (a dead traversal pays
+    // nothing), so a run's coins are the sum of what it really banked.
+    coins += level.coins || 0;
   }
   // The signature answers "did this run come out differently at all",
   // which separates a dial that changes BEHAVIOUR from one that changes
   // OUTCOMES. Cautela changes 99% of runs and moves depth by 0.04.
-  return { depth: run.depth, chests, turns, kills, sig: `${run.depth}/${turns}/${kills}/${chests}` };
+  return { depth: run.depth, chests, turns, kills, coins, sig: `${run.depth}/${turns}/${kills}/${chests}` };
 }
 
 function cell(hero, bot) {
@@ -85,6 +90,10 @@ function cell(hero, bot) {
   for (let n = 1; n <= RUNS; n++) rows.push(playOne(n, hero, bot));
   const depths = rows.map((r) => r.depth);
   const mean = depths.reduce((a, b) => a + b, 0) / RUNS;
+  // MEAN coins, like every other column: the sweep compares bands, and a
+  // mean is additive and pairs with the same seeds. A median would hide the
+  // wins — coins are skewed on purpose, the good run pays most of them —
+  // and a max is one lucky seed wearing a column's clothes.
   return {
     rows,
     mean,
@@ -92,6 +101,7 @@ function cell(hero, bot) {
     chests: rows.reduce((a, r) => a + r.chests, 0) / RUNS,
     kills: rows.reduce((a, r) => a + r.kills, 0) / RUNS,
     turns: rows.reduce((a, r) => a + r.turns, 0) / RUNS,
+    coins: rows.reduce((a, r) => a + r.coins, 0) / RUNS,
   };
 }
 
@@ -135,12 +145,13 @@ console.log(`centro: coragem ${HERO.bravery}  ganância ${HERO.sideAppetite}  cu
 
 const ref = cell(HERO, BOT);
 console.log(`CENTRO   prof ${ref.mean.toFixed(2)}   7+ ${pc(ref.deep7)}   `
-  + `baús ${ref.chests.toFixed(1)}   mortes ${ref.kills.toFixed(1)}   turnos ${ref.turns.toFixed(0)}\n`);
+  + `baús ${ref.chests.toFixed(1)}   mortes ${ref.kills.toFixed(1)}   `
+  + `turnos ${ref.turns.toFixed(0)}   moedas ${ref.coins.toFixed(1)}\n`);
 
 for (const [title, centre, build] of DIALS) {
   if (ONLY && !title.toLowerCase().startsWith(ONLY)) continue;
   console.log(title);
-  console.log('  faixa          valor   prof    7+  baús mortes turnos | runs≠centro | delta pareado');
+  console.log('  faixa          valor   prof    7+  baús mortes turnos moedas | runs≠centro | delta pareado');
   for (const [i, band] of biasBands().entries()) {
     const value = +(centre * band).toFixed(3);
     const c = cell(...build(value));
@@ -148,7 +159,7 @@ for (const [title, centre, build] of DIALS) {
     const changed = c.rows.filter((r, k) => r.sig !== ref.rows[k].sig).length / RUNS;
     console.log(`  ${BANDS[i].padEnd(13)} ${String(value).padStart(6)}  ${c.mean.toFixed(2)}  `
       + `${pc(c.deep7).padStart(4)} ${c.chests.toFixed(1).padStart(5)} ${c.kills.toFixed(1).padStart(5)} `
-      + `${c.turns.toFixed(0).padStart(6)} | ${pc(changed).padStart(9)} | `
+      + `${c.turns.toFixed(0).padStart(6)} ${c.coins.toFixed(1).padStart(6)} | ${pc(changed).padStart(9)} | `
       + `${(d.mean >= 0 ? '+' : '') + d.mean.toFixed(3)} ± ${d.se.toFixed(3)}  ${d.sigma.toFixed(1)}σ`);
   }
   console.log('');
