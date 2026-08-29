@@ -56,23 +56,61 @@ sessão para sempre é tédio garantido.
 - Monetização agressiva (não se aplica aqui, mas as fontes são unânimes:
   retenção > monetização até no faturamento).
 
-## Leitura para o rogulidle
+## Leitura para o rogulidle — contra o inferno e o highscore (U11)
 
-O jogo já tem o core (run do bot) e um meta parcial (loja entre runs, §9 de
-`rules.md` — a corrente de sessão). Contra os fundamentos:
+A comparação certa não é contra o jogo construído, é contra o jogo
+DESENHADO: U11 em `candidates.md` (inferno, seed diário compartilhado,
+scoreboard de profundidade, moeda infernal, unlocks por chefe). Lido contra
+os cinco fundamentos, U11 já responde a maioria — por caminhos próprios:
 
-- **Prestige não existe.** Não há ganho permanente que atravesse a morte; a
-  morte zera a carteira. É a lacuna mais alinhada ao gênero — mas qualquer
-  desenho passa por `decisions.md` e pelo dono antes.
-- **Ausência não é recompensada.** Fechar a aba não acumula nada; não há
-  "momento de colheita" na volta. Relevante se o objetivo for jogadores que
-  voltam por dias, não só sessões longas.
-- **Unfolding é fraco.** As mecânicas visíveis na primeira run são as mesmas
-  da centésima; profundidade nova (andares, itens) existe, sistema novo não.
-- **Progresso perceptível entre runs** depende hoje da pilha de itens da
-  corrente — que só aparece em streaks raras (o motivo do `&hold=`).
+- **Meta loop — U11 É o meta loop, escolhido e nomeado como tal.** Farmar
+  1–10, converter ouro em moeda infernal, apostar a descida, destravar
+  itens situacionais, competir no seed do dia: camadas que interagem em
+  cima de um core intocado. A lacuna não é de design, é que nada disso
+  existe em código.
+- **Progresso perceptível — resolvido com o sinal invertido.** O gênero
+  mede progresso em números que sobem; U11 mede em *perder mais fundo*. O
+  Balrog inalcançável é o "sumidouro infinito de poder": todo ganho move a
+  profundidade máxima e nada termina o jogo — exatamente a rampa sem teto
+  que o fundamento pede. A tensão documentável: o gênero diz que PAREDE
+  causa churn, e o inferno é feito de paredes (chefes-barreira). A defesa
+  já está escrita — cada parede PAGA um unlock — mas é a aposta do design,
+  não um fato: se o intervalo entre chefes render "nada novo à vista", é o
+  churn de mid-game clássico.
+- **Prestige — recusado de propósito, com substituto desenhado.** O estudo
+  anterior chamou isso de lacuna; os docs mostram que é decisão: "perder
+  mil vezes nunca pode somar uma vitória" proíbe o canal de acumulação que
+  prestige é. O substituto: unlocks permanentes de poder SITUACIONAL
+  (chefe → item, highscore diário → item especial) — permanência sem
+  multiplicador. Estruturalmente cobre o papel do prestige (ciclos que
+  recomeçam mais fortes *em opções*, não em números). O risco a nomear:
+  prestige retém porque o early game *acelera* visivelmente a cada ciclo;
+  poder situacional é mais sutil, e se o jogador não SENTIR a diferença na
+  descida seguinte, o ciclo não fecha.
+- **Recompensar a ausência — o princípio já é regra do dono.** A moeda
+  não expira JUSTAMENTE porque "ausência longa volta para uma RECOMPENSA,
+  não para menos" (a razão de cap-não-relógio). O que falta é o momento de
+  colheita: hoje fechar a aba para o jogo; nada espera na volta. O seed
+  diário dá o motivo de voltar amanhã, mas a volta em si ainda não paga
+  nada visível.
+- **Unfolding — é a forma exata do gate de U11.** "O jogo base não tem
+  inferno": a entidade aparece depois do `bottom`, a loja se transforma
+  (preços em moeda infernal, itens novos por achievement), o roster abre
+  depois do `butcher`. Isso é Universal Paperclips em estrutura — o jogo
+  vira outra coisa diante de quem progrediu. Primeiro degrau já construído;
+  o resto é o que dá ao mid-game a surpresa estrutural que o gênero diz
+  ser insubstituível.
 
-Nenhum desses é tarefa; são as perguntas que o dono ordena no backlog.
+O highscore diário cobre ainda o item "metas de curto E longo prazo": a
+descida de hoje (curto), o item especial do dia (médio), o Balrog (o longo
+que nunca acaba). E o formato — comparar CONFIGURAÇÕES, não habilidade — é
+a tradução correta do gênero para um jogo que se joga sozinho.
+
+**Síntese**: U11 responde 4 dos 5 fundamentos no papel; nenhum no código. A
+pesquisa não pede design novo — ela diz que o design escolhido está alinhado
+com o que retém, e que as duas pontas soltas são (a) o intervalo entre
+chefes-barreira (parede sem novidade = churn) e (b) o momento de colheita na
+volta de uma ausência, que nenhum doc desenhou ainda.
 
 ## Fontes
 
