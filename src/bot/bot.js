@@ -973,6 +973,12 @@ export function makeBot(options = {}) {
       pool.push({
         kind: 'monster', id: monster.id, pos: monster.pos,
         price: closing + opening(monster.pos) + Math.max(0, (chasing ? 0 : duel) - prize),
+        // Diagnosis only — the debug trace snapshots these so a "why did it
+        // walk THERE" question can be answered from the overlay instead of
+        // by re-deriving the arithmetic. Nothing else reads it.
+        diag: {
+          walk, duel, chasing, prize, opening: opening(monster.pos),
+        },
       });
     }
 
@@ -991,6 +997,7 @@ export function makeBot(options = {}) {
       pool.push({
         kind: 'item', id: item.id, pos: item.pos,
         price: walk / trip + guard + opening(item.pos),
+        diag: { walk, trip, guard, opening: opening(item.pos) },
       });
     }
 
@@ -1070,7 +1077,10 @@ export function makeBot(options = {}) {
       // it. Comparing a valued chest against an unvalued creature needs the
       // creature's side too — its xp, which becomes coin — and that is a
       // bigger change than one line.
-      pool.push({ kind: 'chest', id: chest.id, pos: chest.pos, price: visit });
+      pool.push({
+        kind: 'chest', id: chest.id, pos: chest.pos, price: visit,
+        diag: { walk, trip, guard, opening: opening(chest.pos), worth },
+      });
     }
 
     // C1 §5 — THE FRONTIER IS A CANDIDATE, NOT A FALLBACK.
@@ -1220,6 +1230,15 @@ export function makeBot(options = {}) {
         goal: goal ? { ...goal } : null,
         goalId: goal ? `${goal.kind}:${goal.id ?? key(goal.pos)}` : null,
         turn: belief.turn,
+        // The whole pool, each candidate with its price, its route length in
+        // STEPS, and the arithmetic that built the price (`diag`). This is
+        // what lets "it chose the far one" be answered with WHICH TERM won,
+        // instead of a shrug. Snapshot built only when a trace is listening.
+        pool: pool.map((c) => ({
+          kind: c.kind, id: c.id, pos: c.pos, price: c.price,
+          steps: field.steps.get(key(c.pos)), diag: c.diag,
+        })),
+        at: [...belief.player.pos],
       });
     }
 
