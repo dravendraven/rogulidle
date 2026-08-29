@@ -116,10 +116,9 @@ export const DEFAULT_HERO = {
   // from "the dark is nearly free" to "the dark is nearly double".
   //
   // The incurious extreme never strands him: curiosity moves the PRICE of a
-  // frontier, never the gate (that bar compares exposure only), and with the
-  // pool empty the frontier wins by having no rival — plus the last-resort
-  // clause goes to a refused frontier anyway, because standing still is
-  // never survival.
+  // frontier, never the gate (that bar compares exposure only), and even at
+  // the bottom band (below `CURIOSITY_LAST_RESORT`) the fallback path still
+  // explores when the hole is unknown — standing still is never survival.
   curiosity: 1,
 
   // What one step is worth in hp. This is the exchange rate between goal 3
@@ -149,6 +148,26 @@ export const DEFAULT_HERO = {
   // band ships to be WATCHED, not presumed.
   stepCost: STEP_COST,
 };
+
+// Below this curiosity, the frontier stops COMPETING and goes back to being
+// the fallback it was before C1 §5: while anything visible is worth doing,
+// he does it; nothing left, he descends if he knows the hole, and only then
+// — hole unknown — does he explore. "O escuro é o último recurso", made
+// literal, because the price could never make it true: the dark's penalty
+// is `9.6 × (2 − curiosity) × stepCost × Δdark` and Δdark is a viewport
+// FRACTION (0..~0.5), so even the bottom band adds at most ~1.8 hp — a real
+// duel costs 3-8, and the frontier beat 6-12 hp fights while costing 3-5 in
+// every watched floor. A structural switch is the only shape that delivers
+// the band's own sentence.
+//
+// 0.25 sits between the bottom band (0.05) and the second (0.43) at the
+// shipped spread, so exactly ONE notch crosses it. It is a semantic
+// threshold, not a tuning dial — move the spread and re-check this gap.
+//
+// The declared cost (owner, 2026-08-29): what is visible is now done rather
+// than bypassed through the dark, and on floors where the visible things
+// are 8-11 hp fights the bottom band will take them and die more.
+export const CURIOSITY_LAST_RESORT = 0.25;
 
 // HOW MANY STEPS ONE TURN OF UNPLEASANTNESS IS WORTH — the multiplier on
 // both halves of what a route pays beyond walking: exposure to creatures

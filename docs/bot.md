@@ -178,11 +178,20 @@ frases:
   perigo, ele recusa a fronteira por ela ser desconhecida — que é o que uma
   fronteira é. O círculo custou 17% das runs ao orçamento de turnos até o fio
   da lesma pegá-lo.
-- **A fronteira é candidata, não plano B.** Ela entra na mesma lista que
-  criatura, item e baú, pelo preço da rota, e ganha ou perde por ele. Antes
-  ficava num `else` — "só explora quando nada visível vale a pena" — o que
-  fazia o bot alternar em blocos: limpar tudo à vista, varrer, limpar de novo.
-  Agora os dois se misturam.
+- **A fronteira é candidata, não plano B** — exceto na ponta mínima da
+  Curiosidade. Ela entra na mesma lista que criatura, item e baú, pelo preço
+  da rota, e ganha ou perde por ele. Antes ficava num `else` — "só explora
+  quando nada visível vale a pena" — o que fazia o bot alternar em blocos:
+  limpar tudo à vista, varrer, limpar de novo. Agora os dois se misturam.
+- **Abaixo de `CURIOSITY_LAST_RESORT` o `else` volta, como personagem da
+  ponta.** O preço nunca entregaria a frase da faixa ("o escuro é o último
+  recurso"): a penalidade do escuro é fração de viewport vezes multiplicador
+  e satura em ~1,8 hp, enquanto as lutas que ela vencia custavam 6–12 —
+  medido nos andares assistidos de 2026-08-29. Então na faixa mínima a
+  fronteira não compete: ele faz o que está à vista, desce se conhece o
+  buraco, e só explora — pelo caminho de último recurso, que continua
+  existindo — quando não conhece. Custo declarado: o visível agora é
+  encarado em vez de contornado pelo escuro, e a ponta deve morrer mais.
 - **E a barra do V5 continua.** Tirá-la foi tentado e o teste pegou: uma
   fronteira **não tem contra o que perder**. Competir por preço só recusa
   quando existe algo mais barato, e com toda luta recusada a lista fica
@@ -260,7 +269,7 @@ shamble e a grade de protecao.
 | `bravery` | sobreviver | quanto ele SUBESTIMA a vida de uma criatura. Ele nunca vê vida (`rules.md` §7), só o xp, então precifica pela média do bestiário para aquele xp — e a coragem desconta essa média, espelhada em torno do centro: um entalhe acima (1,16) é ler tudo como tendo 16% menos vida. Não é aceitar odds piores, é **acreditar que morre mais rápido** — certo sobre o lobo, fatal sobre o ogro, ambos xp 4 |
 | `fightMargin` | sobreviver | fração do hp efetivo que uma luta pode custar. **Deixou de ser dial** — é constante decidida; dois dials puxando a mesma decisão de pontas opostas era a confusão que o M47 desfez |
 | `sideAppetite` | chegar rico | **quanto uma coisa vale para este herói.** Multiplica o valor esperado de um baú, e decide quão tarde livro e seringa são gastos. As duas direções são opostas de propósito: valorizar muito é **adquirir mais e consumir menos** |
-| `curiosity` | chegar rico | **quanto o desconhecido vale a caminhada.** Espelhado como a coragem — `(2 − curiosity)` multiplica o custo de abrir mapa novo (`opening`), entao 1,16 le o escuro 16% mais barato. So mexe no PRECO do objetivo, nunca no portao da fronteira nem no campo de perigo, cujo multiplicador e a constante `EXPOSURE_STEPS` |
+| `curiosity` | chegar rico | **quanto o desconhecido vale a caminhada.** Espelhado como a coragem — `(2 − curiosity)` multiplica o custo de abrir mapa novo (`opening`), entao 1,16 le o escuro 16% mais barato. Mexe no PRECO do objetivo, nao no portao da fronteira nem no campo de perigo (`EXPOSURE_STEPS`) — e abaixo de `CURIOSITY_LAST_RESORT` a fronteira sai do pool inteira: o escuro vira literalmente o ultimo recurso |
 | `riskAppetite` | sobreviver | **constante decidida em 1, nao e faixa.** Quanto custo incerto ele aceita pagar, como múltiplo da barra que ele já aplica a uma luta comum — o guardião de um baú ou item, e o perigo no caminho até o escuro. Mesma família da coragem, população diferente: a coragem é a atitude perante a incerteza sobre criatura **à vista**, esta sobre o que ele **não viu** |
 | `stepCost` | poucos passos | **a Pressa** — quanto vale um passo em hp. Exposicao e escuro escalam JUNTO com ele (os termos multiplicam `stepCost`), entao a rota nao muda de forma; o que muda e quanto andar custa contra duelo, bau e barra — o raio do que vale a caminhada. A frase antiga "nao e bem pressa" descrevia o tempo em que o perigo NAO escalava junto; desde C1 §1 escala |
 

@@ -3484,6 +3484,42 @@ test('a chest in hand beats the dark', () => {
     `the bot went exploring instead of opening the chest: ${actions.join(',')}`);
 });
 
+// ***** curiosity's bottom band: the frontier is a last resort ***** //
+//
+// Below CURIOSITY_LAST_RESORT the frontier never enters the pool — the
+// band's own sentence ("o escuro é o último recurso") made literal, because
+// the price could never deliver it: the dark's penalty is a viewport
+// fraction times a multiplier and tops out around 1.8 hp, while the fights
+// it was beating cost 6-12. Both directions are locked: the incurious hero
+// must take the KNOWN hole over the dark, and the ordinary hero must keep
+// exploring in the same spot, or the band stopped meaning anything.
+test('curiosidade mínima: com o buraco conhecido, o escuro perde para a descida', () => {
+  // Hero mid-corridor, the shrine visible to the right, the whole left half
+  // dark. The floor still owes monsters (monsterCount high), so a competing
+  // frontier WOULD be pushed — which is exactly what the bottom band must
+  // not do.
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  // Stood near the right end so the only dark is LEFT and the shrine sits
+  // right — the two directions cannot be confused for one another.
+  const build = () => makeState({
+    map,
+    playerPos: [15, 1],
+    shrine: { id: 's', emoji: '⛩️', pos: [18, 1] },
+  });
+
+  const incurious = driveBot(build(), 4, { monsterCount: 5, hero: { curiosity: 0.05 } });
+  assert(incurious.actions.every((a) => a === 'right'),
+    `the incurious hero went exploring instead of descending: ${incurious.actions.join(',')}`);
+
+  const ordinary = driveBot(build(), 4, { monsterCount: 5, hero: { curiosity: 1 } });
+  assert(ordinary.actions.some((a) => a === 'left'),
+    `the ordinary hero should still explore the dark here: ${ordinary.actions.join(',')}`);
+});
+
 // ***** B16: the shrine is a one-way door, not floor ***** //
 //
 // docs/backlog.md B16. `believedWalkable` decides passability from the tile

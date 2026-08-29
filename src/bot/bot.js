@@ -33,9 +33,9 @@ import {
   VISIBLE_DIST,
 } from '../sim/balance.js';
 import {
-  CHEST_VALUE_HP, CROWD_PENALTY, DANGER_PERSISTENCE, DEFAULT_CHEST_COUNT,
-  DEFAULT_MONSTER_COUNT, DEFAULT_HERO, EXPOSURE_STEPS, GOAL_STICKINESS,
-  LOOT_VALUE, READ_AT,
+  CHEST_VALUE_HP, CROWD_PENALTY, CURIOSITY_LAST_RESORT, DANGER_PERSISTENCE,
+  DEFAULT_CHEST_COUNT, DEFAULT_MONSTER_COUNT, DEFAULT_HERO, EXPOSURE_STEPS,
+  GOAL_STICKINESS, LOOT_VALUE, READ_AT,
 } from './config.js';
 import {
   actionToward, believedWalkable, dijkstra, flood, frontiers, key, routeTo,
@@ -1140,7 +1140,17 @@ export function makeBot(options = {}) {
     // One frontier, the cheapest, rather than all of them. Dozens sit at
     // nearly the same price and flooding the pool with them would let a tie
     // between two patches of dark outvote a chest.
-    if (owed) {
+    //
+    // BELOW `CURIOSITY_LAST_RESORT` THE FRONTIER DOES NOT COMPETE AT ALL —
+    // the bottom band's own sentence ("o escuro é o último recurso") made
+    // literal, because the price never could: Δdark is a fraction, so the
+    // dark's whole penalty tops out around 1.8 hp while the fights it was
+    // beating cost 6-12 (measured on watched floors, 2026-08-29). The
+    // incurious hero does what is in sight, descends when he knows the
+    // hole, and reaches the dark only through the fallback path below —
+    // which still explores when the hole is unknown, so he is never
+    // stranded.
+    if (owed && hero.curiosity >= CURIOSITY_LAST_RESORT) {
       const near = frontiers(belief).reduce((a, pos) => {
         const price = priceOfReaching(field, pos);
         if (!Number.isFinite(price) || dangerOnTheWay(pos) > sideBar) return a;

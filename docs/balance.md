@@ -123,9 +123,12 @@ the split is an exact no-op.
 her: how cheaply the unknown reads. It bends only the `opening` term (what
 a goal that reveals new map costs), with the bravery mirror `(2 −
 curiosity)` — alta abre mapa que não precisa, baixa só faz o que está à
-vista e desce com o andar no escuro. It moves the PRICE and never the
-frontier gate, so the incurious extreme still explores when nothing else is
-left.
+vista e desce com o andar no escuro. It moves the PRICE, never the frontier
+gate — and below `CURIOSITY_LAST_RESORT` (the bottom band only) the frontier
+stops competing in the pool altogether: the dark becomes literally the last
+resort, because the price alone tops out around 1.8 hp and could never lose
+to a real fight. The fallback path still explores when the hole is unknown,
+so the incurious hero is never stranded.
 
 The other half — how wide the hero detours around creatures — is
 `EXPOSURE_STEPS`, a decided constant at 9.6: how many steps one
