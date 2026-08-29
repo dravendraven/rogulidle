@@ -169,6 +169,9 @@ lados.
 **A massa dela não conta como ameaça do andar.** O andar não a exige de
 ninguém: quem passa reto não a encontra.
 
+**E ela mora sozinha.** O elenco comum do andar nunca nasce dentro do
+vault — nem quando o carimbo desapropriou chão que já era andável (§2).
+
 **Ela fica no fundo da sala, acorda quando o herói entra no corredor, e é a
 única criatura rápida do jogo** — age duas vezes por turno, então uma luta
 com ela custa cerca do dobro do que a mesma vida e a mesma mordida custariam

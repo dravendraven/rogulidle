@@ -4875,10 +4875,18 @@ test('the Butcher stands on floor 4 in EVERY theme, and the eviction breaks noth
       // The mandatory route survives the eviction whole.
       const path = findPath(s.player.pos, s.shrine.pos, (x, y) => isWalkable(s.map, x, y));
       assert(path.length > 0, layout + ' seed ' + seed + ': the stamp cut the route');
-      // Nobody was left standing inside a wall the stamp wrote.
+      // Nobody was left standing inside a wall the stamp wrote — and nobody
+      // but the Butcher inside the room. The eviction takes ground that was
+      // ALREADY in the free pool, so unlike the rock-only stamp it has to be
+      // purged explicitly (spawn.js step 3c); this is what catches it not
+      // being.
       for (const m of s.monsters) {
         assert(isWalkable(s.map, m.pos[0], m.pos[1]),
           layout + ' seed ' + seed + ': a creature stands on unwalkable ground');
+        if (!m.vault) {
+          assert(!inVault(s.vault, m.pos[0], m.pos[1]),
+            layout + ' seed ' + seed + ': ' + m.name + ' spawned inside the vault');
+        }
       }
       // The vault kept its shape: one door, and it opens onto walkable ground.
       const door = s.vault.door;
