@@ -1783,18 +1783,18 @@ test('bravery discounts the guess, mirrored around the centre', () => {
   const wolf = { name: 'wolf', xp: 4, activation: 20, pos: [9, 9] };
   const plain = assumedHp(wolf, 1);
   const bands = biasBands();
-  const brave = assumedHp(wolf, bands[3]);      // 1.16
-  const timid = assumedHp(wolf, bands[2]);      // 0.84
+  const brave = assumedHp(wolf, bands[2]);      // the inner band above 1
+  const timid = assumedHp(wolf, bands[1]);      // the inner band below 1
 
   assert(brave < plain, 'a braver hero did not read the creature as weaker');
   assert(timid > plain, 'a timid hero did not read it as tougher');
-  // 1.16 -> 0.84 of the estimate, and 0.84 -> 1.16 of it: the same distance
+  // One notch up discounts what one notch down inflates: the same distance
   // either way, which is what makes one notch mean one thing on this dial.
   assert(Math.abs((plain - brave) - (timid - plain)) < 1e-9, 'the two directions are not symmetric');
 
   // And it reaches the decision: a braver hero prices the same duel cheaper.
   const hero = { xp: PLAYER_XP, hp: 10, armour: 0, inventory: [] };
-  assert(duelCost(hero, wolf, bands[3]).hpLost < duelCost(hero, wolf, bands[2]).hpLost,
+  assert(duelCost(hero, wolf, bands[2]).hpLost < duelCost(hero, wolf, bands[1]).hpLost,
     'bravery does not reach duelCost');
 });
 
@@ -3776,15 +3776,18 @@ test('B25 — the loot-value gate is on, and the flag still reverses it', () => 
   assertEq(DEFAULT_HERO.sideAppetite, 1,
     'the shipped appetite is not the dial centre, so the panel describes the wrong game');
 
-  // Six bands, symmetric around 1 and never equal to it: no middle to park
-  // on, so every setting leans. One constant generates the whole scale.
+  // Four bands (six until 2026-08-29), symmetric around 1 and never equal
+  // to it: no middle to park on, so every setting leans. One constant
+  // generates the whole scale.
   const bands = biasBands();
-  assertEq(bands.length, 6, 'expected six bands');
+  assertEq(bands.length, 4, 'expected four bands');
   assert(!bands.includes(1), 'a band sits exactly on the centre, so it can be parked on');
   assertEq(bands[0], +(1 - BIAS_SPREAD).toFixed(3), 'the weakest band is not 1 - spread');
-  assertEq(bands[5], +(1 + BIAS_SPREAD).toFixed(3), 'the strongest band is not 1 + spread');
-  const gaps = bands.slice(1).map((b, i) => +(b - bands[i]).toFixed(3));
-  assertEq(new Set(gaps).size, 1, 'the notches are not evenly spaced');
+  assertEq(bands[3], +(1 + BIAS_SPREAD).toFixed(3), 'the strongest band is not 1 + spread');
+  // Even spacing within the 3-decimal rounding the bands themselves carry.
+  const gaps = bands.slice(1).map((b, i) => b - bands[i]);
+  assert(Math.max(...gaps) - Math.min(...gaps) < 0.002,
+    'the notches are not evenly spaced');
 });
 
 test('B21 — with the gate on, a chest is refused on VALUE, not on the bar', () => {

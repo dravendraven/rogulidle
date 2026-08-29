@@ -105,7 +105,7 @@ function pairedDelta(cellA, ref) {
 }
 
 const pc = (n) => `${(100 * n).toFixed(0)}%`;
-const BANDS = ['muito baixo', 'baixo', 'médio-baixo', 'médio-alto', 'alto', 'muito alto'];
+const BANDS = ['mínimo', 'médio-baixo', 'médio-alto', 'máximo'];
 
 // THE THREE THE PANEL ACTUALLY OFFERS, and getting this list wrong is the
 // most expensive mistake this file can make: a sweep of a parameter the

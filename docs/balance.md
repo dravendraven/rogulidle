@@ -96,7 +96,9 @@ now a decided constant at 1: every one of the three is already a form of
 risk — courage against a creature, greed for a reward, curiosity for the
 unknown — so a band named "risk" beside them names the axis rather than
 asking a new question.
-The Lab offers six named bands and none of them is the centre — and NOTHING
+The Lab offers four named bands (six until 2026-08-29 — with the ends
+stretched to absolutes the upper neighbours read identical, so the count
+dropped and neighbour contrast rose ~65%) and none of them is the centre — and NOTHING
 runs at the centre any more: every visitor opens on a band rolled per dial,
 kept from their first session on. What the slider shows is what the run gets,
 always. (This paragraph said the opposite until the roll shipped, and it is
@@ -109,8 +111,8 @@ never tune it by hand.
 
 The bot's dials belong to the bot. `DEFAULT_HERO` (bravery 1, sideAppetite 1,
 riskAppetite 1, curiosity 1, fightMargin 0.7, stepCost 0.1) is the whole
-hero-as-configuration mechanism and the CENTRE the panel's six bands are built
-around. `bravery` 1 means "take the bestiary average at face value" — the bot
+hero-as-configuration mechanism and the CENTRE the panel's four bands are
+built around. `bravery` 1 means "take the bestiary average at face value" — the bot
 is never told a creature's health (rules.md §7) and `expectedHpFor` is what it
 guesses with.
 

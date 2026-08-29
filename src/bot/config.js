@@ -38,9 +38,9 @@ export const DEFAULT_HERO = {
   // creature's health at a distance (src/sim/observe.js), so it commits to
   // fights on the bestiary average for that xp. This bends that guess.
   //
-  // 1 is the average taken at face value; the six bands mirror around it, so
-  // one notch up (1.16) reads every creature as holding 16% LESS than its
-  // kind usually does. Brave is not "accepts worse odds" — it is "believes
+  // 1 is the average taken at face value; the bands mirror around it, so
+  // one notch up (1.32 at four bands) reads every creature as holding 32%
+  // LESS than its kind usually does. Brave is not "accepts worse odds" — it is "believes
   // things die faster than they look", which is right about the wolf and
   // wrong about the ogre, both of which are xp 4.
   bravery: 1,
@@ -110,8 +110,9 @@ export const DEFAULT_HERO = {
   // `EXPOSURE_STEPS` below.
   //
   // Same idiom as `bravery`: 1 takes the dark's price at face value, and the
-  // mirror `(2 − curiosity)` bends it — one notch up (1.16) prices the dark
-  // 16% CHEAPER, so the curious hero opens map he does not strictly need,
+  // mirror `(2 − curiosity)` bends it — one notch up (1.32 at four bands)
+  // prices the dark 32% CHEAPER, so the curious hero opens map he does not
+  // strictly need,
   // and the incurious one does only what is in sight and descends with the
   // floor still black. It cannot make the dark ATTRACT (a negative tile
   // price breaks Dijkstra — tried and documented in bot.md); the range runs
@@ -162,9 +163,10 @@ export const DEFAULT_HERO = {
 // every watched floor. A structural switch is the only shape that delivers
 // the band's own sentence.
 //
-// 0.25 sits between the bottom band (0.05) and the second (0.43) at the
-// shipped spread, so exactly ONE notch crosses it. It is a semantic
-// threshold, not a tuning dial — move the spread and re-check this gap.
+// 0.25 sits between the bottom band (0.05) and the second (0.68) at the
+// shipped spread and band count, so exactly ONE notch crosses it. It is a
+// semantic threshold, not a tuning dial — move the spread or the band
+// count and re-check this gap.
 //
 // The declared cost (owner, 2026-08-29): what is visible is now done rather
 // than bypassed through the dark, and on floors where the visible things
@@ -276,11 +278,10 @@ export const DEFAULT_CHEST_COUNT = 15;
 // labels and every consumer follow.
 //
 // 0.95 — WIDENED FROM 0.8 (owner, 2026-08-29): the extremes are meant to be
-// ABSOLUTES now, not leans. The two inner bands barely move (±19% against
-// ±16%), so the middle of the panel keeps its calibration; what stretches
-// is the ends — the top band prices a thing at 1.95× and the bottom at
-// 0.05×, which is "believes every creature dies in one hit" and "no chest
-// is worth a single step" territory. Deliberately in tension with
+// ABSOLUTES now, not leans. The top band prices a thing at 1.95× and the
+// bottom at 0.05×, which is "believes every creature dies in one hit" and
+// "no chest is worth a single step" territory; the inner pair (±32% at
+// four bands) is where calibration-adjacent play lives. Deliberately in tension with
 // dials.md's directive 1 (bands equivalent in effectiveness): the ends are
 // now CHARACTER, not calibration, and that doc carries the owner's note.
 //
@@ -291,15 +292,19 @@ export const DEFAULT_CHEST_COUNT = 15;
 // worth is behaviourally "never" without the arithmetic pathologies.
 export const BIAS_SPREAD = 0.95;
 
-// Six multipliers, symmetric around 1 and never equal to it, spaced evenly
-// across the whole range so that one notch is always the same size — which
-// is what lets "one band up" mean the same thing on every dial and makes
-// two readings comparable.
+// FOUR multipliers (owner, 2026-08-29 — down from six: with the ends now
+// absolutes, six notches left neighbours indistinguishable; dials.md's
+// "Quantas faixas" section carried the arithmetic — four raises the
+// contrast between neighbours ~65% at the same span), symmetric around 1
+// and never equal to it, spaced evenly so one notch is always the same
+// size — which is what lets "one band up" mean the same thing on every
+// dial and makes two readings comparable.
 //
 // The two inner bands straddle the centre rather than sitting on it: at
-// spread 0.95 they are 0.81 and 1.19, so the smallest possible setting is
-// still 19% away from the value the bot is calibrated at.
-export function biasBands(spread = BIAS_SPREAD, count = 6) {
+// spread 0.95 they are 0.68 and 1.32, so the smallest possible setting is
+// 32% away from the value the bot is calibrated at. Still an even count,
+// so there is no middle to park on.
+export function biasBands(spread = BIAS_SPREAD, count = 4) {
   const lo = 1 - spread;
   const step = (2 * spread) / (count - 1);
   return Array.from({ length: count }, (_, i) => +(lo + i * step).toFixed(3));

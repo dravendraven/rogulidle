@@ -25,21 +25,23 @@ import {
 import { LEVELS, RETURN_ENABLED } from '../sim/dungeon.js';
 import { readSlice, writeSlice } from './save.js';
 
-// B20 — SIX NAMED STEPS INSTEAD OF A CONTINUOUS SLIDER, and the count is
-// even on purpose: there is no middle to park on, so every setting leans
-// one way. A dial with `bands` offers exactly these six values and nothing
-// between them.
+// B20 — NAMED STEPS INSTEAD OF A CONTINUOUS SLIDER, and the count is even
+// on purpose: there is no middle to park on, so every setting leans one
+// way. A dial with `bands` offers exactly these values and nothing between
+// them.
 //
-// Three things it buys. A player moving one notch sees a change instead of
-// a rounding error — half of these dials measured flat across their whole
-// old range. A reading is comparable, because "alto" means one number
-// rather than wherever the thumb landed. And a sweep has six points to
-// visit instead of a continuum to sample.
+// FOUR since 2026-08-29 (owner), down from six: with the ends stretched to
+// absolutes (±95%), six notches left neighbours indistinguishable — the
+// sweeps read three-in-a-row identical above the centre. Four raises the
+// contrast between neighbours ~65% at the same span (`dials.md`, "Quantas
+// faixas").
 //
-// The shipped value is always ONE OF the six, so opening the Lab can never
-// silently move the balance by snapping the thumb to a neighbour.
+// Three things named steps buy. A player moving one notch sees a change
+// instead of a rounding error. A reading is comparable, because "máximo"
+// means one number rather than wherever the thumb landed. And a sweep has
+// four points to visit instead of a continuum to sample.
 const BAND_NAMES = [
-  'muito baixo', 'baixo', 'médio-baixo', 'médio-alto', 'alto', 'muito alto',
+  'mínimo', 'médio-baixo', 'médio-alto', 'máximo',
 ];
 
 // ONE live line for ANY dial, not just the banded ones.
@@ -84,7 +86,12 @@ function notchOf(index) {
 }
 
 function bandOf(dial, index) {
-  if (dial.bias) return notchOf(index);
+  // A bias dial has BAND_NAMES.length notches but the colour scale is 0..5
+  // for every dial — stretch the index so the top notch still paints as
+  // the extreme rather than as a middle tone.
+  if (dial.bias) {
+    return notchOf(Math.round((Number(index) * 5) / (BAND_NAMES.length - 1)));
+  }
   if (dial.type === 'switch') return Number(index) ? 5 : 0;
   const [min, max] = dial.range ?? [0, 1];
   const at = max > min ? (Number(index) - min) / (max - min) : 0;
@@ -121,7 +128,12 @@ function bandClass(dial, index) {
 // about `src/sim/` — same seed AND same dials still replays exactly.
 // One slice of the save document (src/ui/save.js), which owns the storage
 // and the failure cases this used to carry itself.
-const SLICE = 'notches';
+//
+// 'notches4', not 'notches': the six-band draws stored under the old key
+// mean the wrong thing on a four-band scale (an old 2, médio-baixo, would
+// read back as médio-alto), so the four-band era rolls everyone a fresh
+// personality once and the old slice is simply never read again.
+const SLICE = 'notches4';
 
 function rolledNotches(keys) {
   const stored = readSlice(SLICE);
@@ -389,9 +401,7 @@ export const SECTIONS = [
         says: [
           'recusa praticamente todo duelo — só luta encurralado',
           'superestima o inimigo; recusa luta que ganharia',
-          'desconfia um pouco do que vê',
-          'aposta que o bicho cai um pouco mais rápido',
-          'encara como se todo mundo fosse frágil',
+          'aposta que o bicho cai mais rápido do que parece',
           'encara qualquer criatura como se fosse morrer num golpe — às vezes quem morre é ele',
         ],
       },
@@ -405,10 +415,8 @@ export const SECTIONS = [
         title: 'Ganância', icon: '🤑', bias: true,
         says: [
           'nenhum baú vale um passo — só abre o que estiver literalmente no caminho',
-          'só desvia por baú colado na rota',
           'desvia por loot de vez em quando',
           'desvia por loot com frequência',
-          'anda e briga por baú — paga caro por loot',
           'faz de tudo por qualquer baú, custe o que custar',
         ],
       },
@@ -433,9 +441,7 @@ export const SECTIONS = [
         says: [
           'o escuro é o último recurso — desce com o mapa preto',
           'abre o escuro só quando está a caminho',
-          'espia um pouco além do necessário',
           'abre mais mapa do que precisaria',
-          'varre quase o andar inteiro antes de descer',
           'a fronteira quase não custa — revela o andar todo e paga os turnos disso',
         ],
       },
@@ -452,8 +458,6 @@ export const SECTIONS = [
         says: [
           'andar é de graça — atravessa o andar por qualquer coisa que valha',
           'anda longe sem reclamar',
-          'caminha um pouco mais barato que o normal',
-          'cada passo pesa um pouco mais',
           'só anda pelo que está perto',
           'cada passo dói — ignora o que não está colado e vai reto ao buraco',
         ],

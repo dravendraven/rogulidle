@@ -219,12 +219,13 @@ frases:
 
 Os **quatro** tracos que o jogador mexe — Coragem, Ganancia, Curiosidade,
 Pressa — aparecem no Lab com a **mesma forma**: um
-vies de ±95% em torno de um centro calibrado, em **seis faixas nomeadas**
-(muito baixo ate muito alto). Seis, numero par, para nao haver meio onde
-estacionar. Alargado de ±80% em 2026-08-29: as pontas agora sao ABSOLUTOS
-por decisao do dono — a faixa maxima precifica a 1,95x e a minima a 0,05x
-("encara qualquer criatura", "nenhum bau vale um passo"), enquanto as duas
-internas quase nao se movem (±19% contra ±16%).
+vies de ±95% em torno de um centro calibrado, em **quatro faixas nomeadas**
+(minimo, medio-baixo, medio-alto, maximo). Numero par, para nao haver meio
+onde estacionar. Duas mudancas do dono em 2026-08-29: as pontas viraram
+ABSOLUTOS (a faixa maxima precifica a 1,95x e a minima a 0,05x — "encara
+qualquer criatura", "nenhum bau vale um passo"), e as seis faixas viraram
+quatro, porque com as pontas esticadas as vizinhas de cima liam identicas
+(tres-em-linha nos sweeps). As duas internas ficam a ±32% do centro.
 
 **Curiosidade substituiu a Cautela** e ficou com metade dela: o preco de
 abrir o desconhecido. A outra metade — quao largo ele contorna criatura —

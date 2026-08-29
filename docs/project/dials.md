@@ -159,3 +159,7 @@ até o porco (7,4σ) e deixa 10% das sessões sem destravar nada em 30 runs. É 
   (±0,16 → ±0,27) e torna a armadilha da Ganância mais provável de ser
   sorteada (1 em 6 → 1 em 4). Provavelmente o problema é a distribuição, não a
   contagem.
+  **DECIDIDO em 2026-08-29: quatro** (mínimo, médio-baixo, médio-alto,
+  máximo), junto com o spread ±95% — as pontas são personagem por decisão
+  do dono, e com elas esticadas as vizinhas de cima liam idênticas. A
+  armadilha sorteada em 1-em-4 foi aceita junto; internas a ±32%.
