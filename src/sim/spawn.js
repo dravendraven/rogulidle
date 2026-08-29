@@ -18,7 +18,7 @@ import {
 } from './rng.js';
 import { findPath, isWalkable, playerPassable, posKey, walkablePositions } from './mapgen.js';
 import { classifyRooms } from './spine.js';
-import { layoutOf, stampVault } from './vault.js';
+import { inVault, layoutOf, stampVault } from './vault.js';
 
 // Items are drawn with weight 1/value, so a high value is a RARE item.
 //
@@ -383,9 +383,12 @@ export function populate(state, map, counts = {}) {
   //                      mandatory route, by construction rather than by a
   //                      dial.
   //   after `free`       the walkable pool was taken before these tiles
-  //                      existed, so the ordinary roster and the ordinary
-  //                      chests cannot spill into an authored room. Nothing
-  //                      needs to exclude it; it was never in the pool.
+  //                      existed, so on a rock-only stamp the ordinary
+  //                      roster and chests cannot spill into an authored
+  //                      room — it was never in the pool. The EVICTED stamp
+  //                      (M51) breaks that guarantee by taking ground that
+  //                      was already walkable, which is why the purge below
+  //                      also deletes the vault's interior.
   //
   // Re-classifying afterwards is not a patch and costs nothing: spine.js is
   // a read-only pass that consumes no randomness, so running it twice is
@@ -397,11 +400,15 @@ export function populate(state, map, counts = {}) {
     state.vault = stampVault(map, zones.path);
     if (state.vault) {
       // M51 — an EVICTED stamp (dense themed maps) turns walkable ground
-      // into vault wall, and those tiles are already sitting in `free`.
-      // Purge what stopped being walkable, or a creature could be placed
-      // inside a wall. On the rock-only stamp this deletes nothing.
+      // into vault wall OR vault floor, and those tiles are already sitting
+      // in `free`. Purge both: what stopped being walkable (a creature would
+      // sit inside a wall) and what is now the vault's own interior (the
+      // ordinary roster would spawn beside the Butcher, who lives alone).
+      // On the rock-only stamp this deletes nothing — the vault's tiles
+      // were dug from ground that was never in the pool.
       for (const [key, pos] of free) {
-        if (!isWalkable(map, pos[0], pos[1])) free.delete(key);
+        if (!isWalkable(map, pos[0], pos[1])
+          || inVault(state.vault, pos[0], pos[1])) free.delete(key);
       }
       zones = classifyRooms(map, playerPos, shrinePos);
       state.spine = { path: zones.path, sideRooms: zones.side.length,
