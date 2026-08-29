@@ -35,7 +35,7 @@ import {
 import {
   CHEST_VALUE_HP, CROWD_PENALTY, CURIOSITY_LAST_RESORT, DANGER_PERSISTENCE,
   DEFAULT_CHEST_COUNT, DEFAULT_MONSTER_COUNT, DEFAULT_HERO, EXPOSURE_STEPS,
-  GOAL_STICKINESS, LOOT_VALUE, READ_AT,
+  FIGHT_VALUE, GOAL_STICKINESS, LOOT_VALUE, READ_AT, XP_VALUE_HP,
 } from './config.js';
 import {
   actionToward, believedWalkable, dijkstra, flood, frontiers, key, routeTo,
@@ -716,6 +716,10 @@ export function makeBot(options = {}) {
     // editing config.js.
     lootValue: options.lootValue ?? LOOT_VALUE,
     chestValueHp: options.chestValueHp ?? CHEST_VALUE_HP,
+    // The fight's value side (owner, 2026-08-29) — same pattern as the
+    // chest's pair above, so a sweep can A/B it alone.
+    fightValue: options.fightValue ?? FIGHT_VALUE,
+    xpValueHp: options.xpValueHp ?? XP_VALUE_HP,
     // Half of the same model, separable ONLY so a sweep can tell which half
     // moved a number — it defaults to `lootValue` and nothing ships it on
     // its own. Without the split, the value gate and the amortisation would
@@ -969,6 +973,32 @@ export function makeBot(options = {}) {
       // the same clause that already waives the duel for a chaser, for the
       // same reason: what is coming anyway is not a cost of choosing it.
       const closing = chasing ? approach / 2 : approach;
+
+      // ***** the fight's VALUE GATE (owner, 2026-08-29) *****
+      //
+      // What killing this buys: its xp through the economy (`XP_VALUE_HP` —
+      // coin rate × best hp-per-coin on the shelf), scaled by greed the way
+      // every worth in this bot is. Refused when the JOURNEY — approach and
+      // dark opened, the duel itself excluded — costs more than that.
+      //
+      // The duel is deliberately not in the gated cost. It answers to the
+      // survival bar above, and pricing it here re-ran the B21 lesson from
+      // the other side: measured at n=24, gating the whole visit turned the
+      // centre bot off fighting almost entirely and opening deaths went
+      // 0.458 to 0.542, FIRING the wire — refusing fights does not buy
+      // survival when the creatures it leaves alive keep the floor
+      // dangerous. What the owner's complaint actually named was the WALK
+      // (a duel fifteen steps away with the hole adjacent), and the walk is
+      // what the value must pay for.
+      //
+      // Only a fight that is a CHOICE is gated: a chaser's duel happens
+      // whatever he does, and an inescapable creature cannot be walked away
+      // from. The gate never discounts a duel and never touches the
+      // survival bar — value can only make him fight LESS, which is why
+      // "não persegue moeda" (bot.md) still holds.
+      if (settings.fightValue && !chasing && !inescapable
+        && closing + opening(monster.pos)
+          > monster.xp * settings.xpValueHp * hero.sideAppetite) continue;
 
       pool.push({
         kind: 'monster', id: monster.id, pos: monster.pos,

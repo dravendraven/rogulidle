@@ -2,7 +2,9 @@
 // never reads this file, and src/sim/balance.js no longer holds bot dials.
 // Bot rules live in the bot (CLAUDE.md); so do the bot's numbers.
 
-import { CHEST_LOOT_CHANCE } from '../sim/balance.js';
+import {
+  CHEST_LOOT_CHANCE, COIN_RATE, ITEM_TABLE, SHOP_PRICES,
+} from '../sim/balance.js';
 import { ARMOUR_SCARCITY, POTION_SCARCITY } from '../sim/difficulty.js';
 import { itemWeights } from '../sim/spawn.js';
 
@@ -350,6 +352,65 @@ export function expectedChestValueHp(
 }
 
 export const CHEST_VALUE_HP = expectedChestValueHp();
+
+// ***** what a FIGHT is worth, in hp — xp priced through the economy *****
+//
+// The owner's ask (2026-08-29): fights were the one candidate with no value
+// side, so a payable duel 15 steps away held the pool open with the hole a
+// tile away, at any pressa. This is the chest's arithmetic applied to the
+// other half of the floor: what does killing this buy, in the bot's own
+// currency.
+//
+// COMPUTED, never tuned, through three rates that already exist:
+//   xp -> coin   `coinsFor` (src/sim/dungeon.js): COIN_RATE × xp / turns
+//   coin -> hp   the best hp-per-coin on the shop's shelf (SHOP_PRICES ×
+//                ITEM_TABLE — the potion's 3 hp for 1 coin today), the same
+//                `armour + heal` ruler the chest value uses
+//   turns        one traversal's typical length — see below
+//
+// So 1 xp ≈ COIN_RATE × hpPerCoin / turns ≈ 0.5 hp today: a rat pays half a
+// point, a wolf two. Change the shop, the rate or the pacing and this
+// follows.
+//
+// THE ONE CHOSEN NUMBER is the turns denominator. The coin formula divides
+// by the traversal's FINAL turn count, unknown mid-floor; 120 is what the
+// sweeps read as a typical traversal (~415-467 turns over ~3.4 floors).
+// Chosen, not derived, and named so a pacing change knows where to look.
+//
+// AND IT NEVER MAKES HIM BOLDER, which is what keeps "não persegue moeda"
+// (bot.md) standing: the value only REFUSES fights that do not pay their
+// walk — it is a reservation price, like greed on the book. It never
+// discounts a duel, never overrides the survival bar, and never applies to
+// a fight that is coming anyway (chasing / inescapable creatures are
+// exempt: their duel is not a choice).
+export const TYPICAL_TRAVERSAL_TURNS = 120;
+
+export function expectedXpValueHp(
+  rate = COIN_RATE, prices = SHOP_PRICES, turns = TYPICAL_TRAVERSAL_TURNS,
+) {
+  const perCoin = Math.max(...ITEM_TABLE
+    .filter((item) => prices[item.name] > 0)
+    .map((item) => ((item.armour || 0) + (item.heal || 0)) / prices[item.name]));
+  return (rate / turns) * perCoin;
+}
+
+export const XP_VALUE_HP = expectedXpValueHp();
+
+// The switch, mirroring LOOT_VALUE below: ON, a non-chasing creature is
+// refused when the JOURNEY to it (approach + dark opened, duel excluded)
+// costs more than its xp is worth to this hero (× greed). OFF restores the
+// fight-has-no-value-side bot exactly.
+//
+// OFF, AND THE MEASUREMENT IS WHY (2026-08-29, n=24 both ways). Gating the
+// whole visit: opening deaths 0.458 -> 0.542, wire FIRES. Gating the
+// journey only: 0.542, wire still FIRES — the centre bot leaves creatures
+// alive, and a floor it does not clear keeps charging exposure on every
+// route for the rest of the traversal, so refusing fights buys coin and
+// costs lives. The missing term is THREAT REMOVAL: a kill deletes that
+// creature's danger field forever, and this xp->coin->hp chain prices that
+// at zero. Turning this on without pricing removal is how the wire fired
+// twice; modelling removal is a design decision the owner has not made.
+export const FIGHT_VALUE = false;
 
 // B21/B25 — ON. A chest is refused when what the visit costs — the walk AND
 // the guard — exceeds what the chest is worth times the hero's greed, and

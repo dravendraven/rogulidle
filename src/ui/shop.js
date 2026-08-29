@@ -12,7 +12,7 @@
 // on a chest pickup (.dmg/.armour/.emoji), so reusing the real table is
 // what keeps a shop purchase indistinguishable from a chest find.
 
-import { ITEM_TABLE } from '../sim/balance.js';
+import { ITEM_TABLE, SHOP_PRICES } from '../sim/balance.js';
 import { readSlice, writeSlice } from './save.js';
 
 const byName = (name) => ITEM_TABLE.find((item) => item.name === name);
@@ -48,12 +48,12 @@ const byName = (name) => ITEM_TABLE.find((item) => item.name === name);
 // coin is discarded at the door.
 //
 // Both rulers, the baskets and the sigmas are in decisions.md (U6g, U6h).
-export const SHOP_ITEMS = [
-  { item: byName('health'), price: 1 },
-  { item: byName('shield'), price: 2 },
-  { item: byName('dagger'), price: 6 },
-  { item: byName('axe'), price: 12 },
-];
+// The numbers themselves moved to `SHOP_PRICES` (src/sim/balance.js) so the
+// bot's xp-to-hp conversion can read them without importing the UI; the
+// paragraphs above remain the derivation.
+export const SHOP_ITEMS = Object.entries(SHOP_PRICES).map(
+  ([name, price]) => ({ item: byName(name), price }),
+);
 
 // ***** what the shop buys when nobody is watching *****
 //

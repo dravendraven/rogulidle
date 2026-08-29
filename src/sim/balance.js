@@ -518,3 +518,12 @@ export const TURN_BUDGET = 240;
 // so does the one hero who spends mid-run (src/sim/heroes.js's pawa) — it
 // buys HALF-COIN STEPS, so floors that used to price the same now differ.
 export const COIN_RATE = 20;
+
+// What the shop charges, in coins. The RATIONALE for each number — the hp
+// ruler, the E2 axe bridge, why the potion stays at 1 — lives with the shop
+// (src/ui/shop.js), which builds its shelf from this table. The NUMBERS
+// live here because they are balance values and because the bot's own
+// economics read them: `XP_VALUE_HP` (src/bot/config.js) converts xp to hp
+// through the best hp-per-coin on this shelf, and a bot module importing
+// the UI to learn a price would be the dependency pointing backwards.
+export const SHOP_PRICES = { health: 1, shield: 2, dagger: 6, axe: 12 };
