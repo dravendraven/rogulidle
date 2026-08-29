@@ -32,6 +32,14 @@ Mover um dial sozinho não deve ter vencedor. Um dial que inclina para um lado
 tem um no-brainer numa das pontas, e o desenho de bandas em torno de um centro
 existe exatamente para evitar isso (`decisions.md`, B21).
 
+> **Revisão do dono, 2026-08-29 — a equivalência vale para as QUATRO faixas
+> do meio; as duas pontas são personagem, não calibração.** O spread foi
+> alargado de ±80% para ±95% de propósito: a ponta máxima precifica a 1,95×
+> e a mínima a 0,05×, que é "encara qualquer criatura" e "nenhum baú vale um
+> passo" — comportamentos extremos e opostos por desenho, com custo real em
+> eficácia assumido. A diretriz 2 (comportamento visível) passa a ser a
+> régua das pontas.
+
 **2. Mas cada faixa deve mudar o COMPORTAMENTO, de forma visível.** Isto é o
 que separa um dial situacional de um dial morto, e os dois leem igual em
 qualquer medida de resultado. `objectives.md`: "se você não consegue dizer

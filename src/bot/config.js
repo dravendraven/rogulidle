@@ -246,9 +246,23 @@ export const DEFAULT_CHEST_COUNT = 15;
 //
 // ONE NUMBER GENERATES THE WHOLE SCALE. Widening or narrowing the dials for
 // a tuning pass is editing `BIAS_SPREAD` and nothing else — the bands, the
-// labels and every consumer follow. 0.8 means the weakest setting prices a
-// thing at a fifth of its worth and the strongest at nearly double.
-export const BIAS_SPREAD = 0.8;
+// labels and every consumer follow.
+//
+// 0.95 — WIDENED FROM 0.8 (owner, 2026-08-29): the extremes are meant to be
+// ABSOLUTES now, not leans. The two inner bands barely move (±19% against
+// ±16%), so the middle of the panel keeps its calibration; what stretches
+// is the ends — the top band prices a thing at 1.95× and the bottom at
+// 0.05×, which is "believes every creature dies in one hit" and "no chest
+// is worth a single step" territory. Deliberately in tension with
+// dials.md's directive 1 (bands equivalent in effectiveness): the ends are
+// now CHARACTER, not calibration, and that doc carries the owner's note.
+//
+// NOT 1.0, though 1.0 reads cleaner: a multiplier of exactly zero breaks
+// two consumers — greed 0 makes the book's demand `missing >= hpMax × 0`,
+// true at FULL health, so the scholar reads a zero-heal on turn one; and
+// bravery 2.0 prices every duel at exactly 0 rather than nearly-0. 0.05 of
+// worth is behaviourally "never" without the arithmetic pathologies.
+export const BIAS_SPREAD = 0.95;
 
 // Six multipliers, symmetric around 1 and never equal to it, spaced evenly
 // across the whole range so that one notch is always the same size — which
@@ -256,8 +270,8 @@ export const BIAS_SPREAD = 0.8;
 // two readings comparable.
 //
 // The two inner bands straddle the centre rather than sitting on it: at
-// spread 0.8 they are 0.84 and 1.16, so the smallest possible setting is
-// still 16% away from the value the bot is calibrated at.
+// spread 0.95 they are 0.81 and 1.19, so the smallest possible setting is
+// still 19% away from the value the bot is calibrated at.
 export function biasBands(spread = BIAS_SPREAD, count = 6) {
   const lo = 1 - spread;
   const step = (2 * spread) / (count - 1);

@@ -30,7 +30,9 @@ frases:
   propósito** — o produto passa de uma barra inteira nos andares rasos com
   ganância alta, e uma exigência que ninguém alcança é justamente o que
   impede o avarento de ler cedo. O andar em que o livro se torna possível
-  sobe 1, 1, 1, 4, 8, 9 pelas seis faixas; nas duas últimas ele quase nunca
+  sobe 1, 1, 1, 4, 8, 9 pelas seis faixas (medido no spread antigo de ±80%;
+  com as pontas em ±95% a escada estica nas duas direções e não foi
+  re-medida); nas duas últimas ele quase nunca
   chega a ler, e isso é o preço de guardar tanto.
 - **A fração é a Ganância**, e é ela que decide QUANDO. O livro cura o que
   falta, então "vale a pena" precisa de uma fração para ser teste — e ganância
@@ -208,9 +210,12 @@ frases:
 
 Os **tres** tracos que o jogador mexe — Coragem, Ganancia, Curiosidade —
 aparecem no Lab com a **mesma forma**: um
-vies de ±80% em torno de um centro calibrado, em **seis faixas nomeadas**
+vies de ±95% em torno de um centro calibrado, em **seis faixas nomeadas**
 (muito baixo ate muito alto). Seis, numero par, para nao haver meio onde
-estacionar.
+estacionar. Alargado de ±80% em 2026-08-29: as pontas agora sao ABSOLUTOS
+por decisao do dono — a faixa maxima precifica a 1,95x e a minima a 0,05x
+("encara qualquer criatura", "nenhum bau vale um passo"), enquanto as duas
+internas quase nao se movem (±19% contra ±16%).
 
 **Curiosidade substituiu a Cautela** e ficou com metade dela: o preco de
 abrir o desconhecido. A outra metade — quao largo ele contorna criatura —

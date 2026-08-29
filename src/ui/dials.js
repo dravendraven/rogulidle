@@ -387,12 +387,12 @@ export const SECTIONS = [
         // kill — and the extremes are wrong far more often than they are
         // right.
         says: [
-          'acha tudo mais duro do que é — foge de rato',
+          'recusa praticamente todo duelo — só luta encurralado',
           'superestima o inimigo; recusa luta que ganharia',
           'desconfia um pouco do que vê',
           'aposta que o bicho cai um pouco mais rápido',
           'encara como se todo mundo fosse frágil',
-          'acha que tudo morre em dois golpes — e às vezes morre ele',
+          'encara qualquer criatura como se fosse morrer num golpe — às vezes quem morre é ele',
         ],
       },
       {
@@ -404,12 +404,12 @@ export const SECTIONS = [
         kind: 'hero', key: 'sideAppetite', label: 'quanto o herói super ou subestima um baú',
         title: 'Ganância', icon: '🤑', bias: true,
         says: [
-          'nenhum baú vale o desvio — segue reto para a saída',
-          'só abre baú que está no caminho',
+          'nenhum baú vale um passo — só abre o que estiver literalmente no caminho',
+          'só desvia por baú colado na rota',
           'desvia por loot de vez em quando',
           'desvia por loot com frequência',
           'anda e briga por baú — paga caro por loot',
-          'vai atrás de qualquer baú, custe o que custar',
+          'faz de tudo por qualquer baú, custe o que custar',
         ],
       },
     ]],
@@ -431,12 +431,12 @@ export const SECTIONS = [
         kind: 'hero', key: 'curiosity', label: 'quanto o desconhecido vale a caminhada',
         title: 'Curiosidade', icon: '🔍', bias: true,
         says: [
-          'só faz o que está à vista — desce com o mapa no escuro',
+          'o escuro é o último recurso — desce com o mapa preto',
           'abre o escuro só quando está a caminho',
           'espia um pouco além do necessário',
           'abre mais mapa do que precisaria',
           'varre quase o andar inteiro antes de descer',
-          'não desce sem revelar o andar todo — e paga os turnos disso',
+          'a fronteira quase não custa — revela o andar todo e paga os turnos disso',
         ],
       },
     ]],
