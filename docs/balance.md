@@ -85,11 +85,13 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 
 ## The bot's numbers — `src/bot/config.js`, not this file's business
 
-**The three player dials are ±95% biases around a calibrated centre** (M47;
+**The four player dials are ±95% biases around a calibrated centre** (M47;
+Pressa joined in 2026-08-29, reversing B24 under the behaviour criterion —
+`stepCost`'s own comment carries the reversal;
 widened from ±80% in 2026-08-29 — the owner wants the ends to be ABSOLUTES,
 so the top band prices at 1.95× and the bottom at 0.05× while the inner
 bands barely move) —
-Coragem, Ganância and Curiosidade. `riskAppetite` was briefly a fourth and is
+Coragem, Ganância, Curiosidade and Pressa. `riskAppetite` was briefly a fourth and is
 now a decided constant at 1: every one of the three is already a form of
 risk — courage against a creature, greed for a reward, curiosity for the
 unknown — so a band named "risk" beside them names the axis rather than

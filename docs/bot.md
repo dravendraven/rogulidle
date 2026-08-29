@@ -208,8 +208,8 @@ frases:
 `makeBot(options)` aceita `hero`, um override de `DEFAULT_HERO`
 (`src/bot/config.js`). Um traço por objetivo:
 
-Os **tres** tracos que o jogador mexe — Coragem, Ganancia, Curiosidade —
-aparecem no Lab com a **mesma forma**: um
+Os **quatro** tracos que o jogador mexe — Coragem, Ganancia, Curiosidade,
+Pressa — aparecem no Lab com a **mesma forma**: um
 vies de ±95% em torno de um centro calibrado, em **seis faixas nomeadas**
 (muito baixo ate muito alto). Seis, numero par, para nao haver meio onde
 estacionar. Alargado de ±80% em 2026-08-29: as pontas agora sao ABSOLUTOS
@@ -245,10 +245,15 @@ muito mais do que move a profundidade. A Curiosidade ainda nao tem varredura
 propria — o que se sabe dela e herdado do dial fundido que ela substituiu, e
 a leitura nas seis faixas novas esta por fazer.
 
-**`stepCost` saiu do painel** (B24, 0.1 fixo): varrido em 18 configuracoes a
-n=150, tudo entre 0.08 e 0.9 mede igual. O mecanismo fica porque em 0 andar
-e gratis e o bot vaga um andar por 1500 turnos — precisa estar acima de
-~0.08, mas nao e uma escolha.
+**`stepCost` VOLTOU ao painel como Pressa** (2026-08-29), revertendo o B24
+de proposito: o B24 o tirou por medir profundidade plana de 0.08 a 0.9, e
+profundidade deixou de ser o criterio — pelo criterio de comportamento
+(diretriz do dono em `docs/project/dials.md`), os extremos dele invertem: o
+raio de desvio por um bau e `valor ÷ stepCost` passos, entao pressa maxima
+so desvia pelo que esta colado e mergulha, pressa minima atravessa o andar
+por qualquer coisa. A ponta minima (0.005) fica SOB VIGIA: em 0 exato o bot
+vaga 1500 turnos, e abaixo de 0.08 e chao nao varrido — o tripwire do
+shamble e a grade de protecao.
 
 | traço | objetivo | o que faz |
 |---|---|---|
@@ -257,7 +262,7 @@ e gratis e o bot vaga um andar por 1500 turnos — precisa estar acima de
 | `sideAppetite` | chegar rico | **quanto uma coisa vale para este herói.** Multiplica o valor esperado de um baú, e decide quão tarde livro e seringa são gastos. As duas direções são opostas de propósito: valorizar muito é **adquirir mais e consumir menos** |
 | `curiosity` | chegar rico | **quanto o desconhecido vale a caminhada.** Espelhado como a coragem — `(2 − curiosity)` multiplica o custo de abrir mapa novo (`opening`), entao 1,16 le o escuro 16% mais barato. So mexe no PRECO do objetivo, nunca no portao da fronteira nem no campo de perigo, cujo multiplicador e a constante `EXPOSURE_STEPS` |
 | `riskAppetite` | sobreviver | **constante decidida em 1, nao e faixa.** Quanto custo incerto ele aceita pagar, como múltiplo da barra que ele já aplica a uma luta comum — o guardião de um baú ou item, e o perigo no caminho até o escuro. Mesma família da coragem, população diferente: a coragem é a atitude perante a incerteza sobre criatura **à vista**, esta sobre o que ele **não viu** |
-| `stepCost` | poucos passos | quanto vale um passo em hp. **Nao e bem pressa:** o preco do tile e `stepCost + perigo`, entao valor alto torna o perigo desprezivel na comparacao e a rota vira distancia pura. Medido, 0 quebra o bot (vaga 1500 turnos porque andar e gratis) e de 0,01 a 0,2 nada muda |
+| `stepCost` | poucos passos | **a Pressa** — quanto vale um passo em hp. Exposicao e escuro escalam JUNTO com ele (os termos multiplicam `stepCost`), entao a rota nao muda de forma; o que muda e quanto andar custa contra duelo, bau e barra — o raio do que vale a caminhada. A frase antiga "nao e bem pressa" descrevia o tempo em que o perigo NAO escalava junto; desde C1 §1 escala |
 
 Um herói covarde, ganancioso ou apressado é **outro objeto de config, nunca
 outro código**.

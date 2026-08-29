@@ -126,21 +126,27 @@ export const DEFAULT_HERO = {
   // and the other two: raising it makes near goals win harder and empties
   // the "worth the walk" pool sooner, so a hasty hero leaves earlier.
   //
-  // B24 — DECIDED, no longer a dial, at 0.1 (what shipped via
-  // dial-overrides.json; moved here so removing the slider changes nothing).
-  // The third inert one this project has found, and the one that resisted
-  // hardest: swept at eight points, then again as six bands around three
-  // different centres — 18 configurations at n=150 — and **everything
-  // between 0.08 and 0.9 measures the same**, 4.3 to 4.5 mean floors against
-  // a standard error of 0.15.
+  // THE PRESSA DIAL (2026-08-29), and it REVERSES B24 — deliberately, with
+  // the reason written down. B24 took the slider away because 18
+  // configurations at n=150 measured DEPTH flat from 0.08 to 0.9. Depth is
+  // no longer the criterion: the owner's directive (docs/project/dials.md)
+  // judges a dial by whether its extremes invert BEHAVIOUR, and this one's
+  // do. With LOOT_VALUE on, a chest's detour radius is `worth ÷ stepCost`
+  // steps — at the top band (0.195) he only turns aside for a chest ~7
+  // steps away against ~15 at the centre, the frontier loses to anything
+  // near, and he dives; at the bottom (0.005) walking is nearly free and
+  // everything far is worth the trip.
   //
-  // An earlier n=100 sweep said 0.4 and 0.8 were worth half a floor over
-  // 0.1. That was noise, and it is the third reading in this project's
-  // history to evaporate at three times the sample.
+  // It is the one dial that moves STEP AGAINST HP. Exposure and the dark
+  // both scale WITH it (their terms multiply stepCost), so the
+  // walk/danger/dark proportions hold and routing is untouched — what
+  // changes is how walking compares to duels, chest values and bars, which
+  // nothing else touches.
   //
-  // The MECHANISM still matters and that is why the number stays: at 0
-  // walking is free and the bot wanders one floor for 1500 turns. It needs
-  // to be above about 0.08 and below the absurd. It is not a choice.
+  // THE BOTTOM BAND IS ON WATCH: at exactly 0 the bot wanders one floor for
+  // 1500 turns, and below B24's measured floor of ~0.08 is unswept ground.
+  // 0.005 is not 0, but the shamble tripwire is the guard rail and the
+  // band ships to be WATCHED, not presumed.
   stepCost: STEP_COST,
 };
 

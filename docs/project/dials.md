@@ -1,5 +1,8 @@
 # O que um dial tem de ser, e como se mede
 
+> O título da seção abaixo diz "os três" e hoje são QUATRO — a Pressa
+> voltou em 2026-08-29 (reversão do B24 sob o critério de comportamento).
+
 **Diretriz do dono, 2026-08-17/18, mais o método que ela obriga e a primeira
 leitura feita com ele.** Escrito depois de uma sessão que mediu os dials
 errados por dois motivos diferentes e chegou à conclusão errada nas duas
@@ -15,6 +18,7 @@ são estas:
 | **Coragem** | `bravery` | o quanto ele subestima a vida de uma criatura |
 | **Ganância** | `sideAppetite` | o quanto ele super ou subestima um baú |
 | **Curiosidade** | `curiosity` | o quanto o desconhecido vale a caminhada |
+| **Pressa** | `stepCost` | quanto custa um passo em hp — o raio do que vale a caminhada |
 
 `fightMargin`, `persistence` e `EXPOSURE_STEPS` **não são dials** — foram
 constantes decididas quando o que estava fundido foi separado (M47/C1, e
@@ -84,6 +88,7 @@ ALVO.
 | Coragem | duelos **laterais** aceitos / laterais disponíveis | os da rota obrigatória não são escolha |
 | Ganância | baús **laterais** abertos / laterais disponíveis | o baú da rota ele pega de passagem |
 | Curiosidade | share do mapa revelado por andar **e** turnos por andar | a tese dela é uma troca — mapa aberto contra tempo gasto — e uma métrica só não mostra troca |
+| Pressa | passos por andar **e** baús laterais abertos | a tese é o raio: quem paga caro o passo anda menos e deixa loot para trás |
 
 **A rota obrigatória e o vault ficam fora de todo denominador.** Uma criatura
 na espinha é enfrentada porque é preciso passar, e a sala do porco é encarada

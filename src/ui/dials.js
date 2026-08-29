@@ -439,6 +439,25 @@ export const SECTIONS = [
           'a fronteira quase não custa — revela o andar todo e paga os turnos disso',
         ],
       },
+      {
+        // PRESSA (2026-08-29) — the objective-3 trait back on the panel,
+        // reversing B24 under the behaviour criterion (the trait's own
+        // comment in config.js carries the reversal). The one dial that
+        // moves STEP AGAINST HP: exposure and the dark scale with it, so
+        // routing proportions hold — what moves is how far anything is
+        // worth walking to. Detour radius for a chest is worth ÷ stepCost,
+        // which is why the top band reads as a dive.
+        kind: 'hero', key: 'stepCost', label: 'quanto custa um passo, em hp',
+        title: 'Pressa', icon: '⏱️', bias: true,
+        says: [
+          'andar é de graça — atravessa o andar por qualquer coisa que valha',
+          'anda longe sem reclamar',
+          'caminha um pouco mais barato que o normal',
+          'cada passo pesa um pouco mais',
+          'só anda pelo que está perto',
+          'cada passo dói — ignora o que não está colado e vai reto ao buraco',
+        ],
+      },
     ]],
   ]],
   // Split out of a single 'Mapa' section that had grown to hold the

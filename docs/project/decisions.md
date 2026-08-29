@@ -1721,6 +1721,13 @@ second time this file has chosen legibility over fidelity on the loot side.
 
 ## B24 — the panel closes at three dials, and only one of them is a choice
 
+> **stepCost's removal was REVERSED on 2026-08-29** — not because the B24
+> measurement was wrong, but because the criterion changed: B24 judged by
+> depth (flat 0.08–0.9), the owner's later directive (`dials.md`) judges by
+> whether the extremes invert behaviour, and stepCost's do (the detour
+> radius is `worth ÷ stepCost`). It is back as the Pressa dial. The rest of
+> B24 stands.
+
 Four sweeps, and the owner's first instinct was right before any of them:
 two dials govern almost everything.
 

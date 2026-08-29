@@ -127,6 +127,7 @@ const DIALS = [
   ['Coragem  (bravery)', HERO.bravery, (v) => [{ ...HERO, bravery: v }, BOT]],
   ['Ganância (sideAppetite)', HERO.sideAppetite, (v) => [{ ...HERO, sideAppetite: v }, BOT]],
   ['Curiosidade (curiosity)', HERO.curiosity, (v) => [{ ...HERO, curiosity: v }, BOT]],
+  ['Pressa   (stepCost)', HERO.stepCost, (v) => [{ ...HERO, stepCost: v }, BOT]],
 ];
 
 console.log(`${RUNS} runs por célula, herói base, mesmas seeds, mãos vazias`);

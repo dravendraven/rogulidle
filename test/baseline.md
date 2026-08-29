@@ -50,6 +50,7 @@ fixed for two readings to mean the same thing.
 | Coragem | `DEFAULT_HERO.bravery` | `src/bot/config.js` |
 | Ganância | `DEFAULT_HERO.sideAppetite` | `src/bot/config.js` |
 | Curiosidade | `DEFAULT_HERO.curiosity` | `src/bot/config.js` |
+| Pressa | `DEFAULT_HERO.stepCost` | `src/bot/config.js` |
 | floor model | `DEFAULT_MODEL` + `dial-overrides.json` | repo root |
 | seeds | `hashSeeds(20260814, 1..n)`, the same set in every cell | |
 
