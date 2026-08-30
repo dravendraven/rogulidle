@@ -996,9 +996,13 @@ export function makeBot(options = {}) {
       // from. The gate never discounts a duel and never touches the
       // survival bar — value can only make him fight LESS, which is why
       // "não persegue moeda" (bot.md) still holds.
+      // CORAGEM scales the worth, not greed (owner, 2026-08-30): courage IS
+      // the thirst-for-xp dial — it already decides which fights he dares,
+      // so it also decides how far a fight is worth walking. Brave heroes
+      // cross the floor for a duel; cowards find no fight worth the trip.
       if (settings.fightValue && !chasing && !inescapable
         && closing + opening(monster.pos)
-          > monster.xp * settings.xpValueHp * hero.sideAppetite) continue;
+          > monster.xp * settings.xpValueHp * hero.bravery) continue;
 
       pool.push({
         kind: 'monster', id: monster.id, pos: monster.pos,

@@ -403,8 +403,10 @@ export const XP_VALUE_HP = expectedXpValueHp();
 
 // The switch, mirroring LOOT_VALUE below: ON, a non-chasing creature is
 // refused when the JOURNEY to it (approach + dark opened, duel excluded)
-// costs more than its xp is worth to this hero (× greed). OFF restores the
-// fight-has-no-value-side bot exactly.
+// costs more than its xp is worth to this hero — scaled by CORAGEM, which
+// is the thirst-for-xp dial (owner, 2026-08-30): it already decides which
+// fights he dares, so it also decides how far one is worth walking. OFF
+// restores the fight-has-no-value-side bot exactly.
 //
 // OFF, AND THE MEASUREMENT IS WHY (2026-08-29, n=24 both ways). Gating the
 // whole visit: opening deaths 0.458 -> 0.542, wire FIRES. Gating the
