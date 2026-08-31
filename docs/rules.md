@@ -509,6 +509,15 @@ por decisão do dono; o bot continua decidindo sem saber quanto resta.
 **Moeda por travessia concluída**, derivada de xp por turno. Toda travessia
 paga, ida e volta.
 
+**Baú pode conter moedas** (2026-08-31), tomadas da mesma chance de conteúdo
+— um baú com algo dentro segura moedas numa fração dos casos, e o resto
+divide escudo/poção como sempre. A moeda achada é creditada NA ABERTURA
+(nunca vira item no chão) e paga junto com a travessia em que foi achada,
+sob a mesma regra: travessia não concluída não paga. É a segunda renda do
+jogo, e a razão de existir: a renda por taxa (xp÷turno) recompensa descer
+rápido; a renda por chão recompensa explorar — e o dial de Pressa passa a
+escolher entre as duas em vez de ter resposta certa.
+
 **A moeda é da run, e não sobrevive a ela.** O saldo começa em zero em toda
 run, é gasto na loja que fecha aquela run, e o que não for gasto é
 descartado. Não há saldo guardado entre runs.

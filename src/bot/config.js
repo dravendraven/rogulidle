@@ -3,7 +3,8 @@
 // Bot rules live in the bot (CLAUDE.md); so do the bot's numbers.
 
 import {
-  CHEST_LOOT_CHANCE, COIN_RATE, ITEM_TABLE, SHOP_PRICES,
+  CHEST_COIN_AMOUNT, CHEST_COIN_SHARE, CHEST_LOOT_CHANCE, COIN_RATE,
+  ITEM_TABLE, SHOP_PRICES,
 } from '../sim/balance.js';
 import { ARMOUR_SCARCITY, POTION_SCARCITY } from '../sim/difficulty.js';
 import { itemWeights } from '../sim/spawn.js';
@@ -348,6 +349,8 @@ export function biasBands(spread = BIAS_SPREAD, count = 4) {
 export function expectedChestValueHp(
   lootChance = CHEST_LOOT_CHANCE,
   scarcity = { armour: ARMOUR_SCARCITY, potion: POTION_SCARCITY },
+  coinShare = CHEST_COIN_SHARE,
+  coinAmount = CHEST_COIN_AMOUNT,
 ) {
   // Reuses the generator's own weighting rather than restating it — one
   // source of truth for "which kind comes out of a chest". `allowEmpty:
@@ -359,7 +362,12 @@ export function expectedChestValueHp(
   const average = entries.reduce(
     (sum, [item, w]) => sum + w * ((item.armour || 0) + (item.heal || 0)), 0,
   ) / total;
-  return lootChance * average;
+  // The coin slice of the draw (2026-08-31), valued through the shop's own
+  // exchange rate — the same honest belief as the item half: the generator
+  // holds coins this often, and a coin buys this much hp on the shelf.
+  const item = (1 - coinShare) * average;
+  const coin = coinShare * coinAmount * hpPerCoin();
+  return lootChance * (item + coin);
 }
 
 export const CHEST_VALUE_HP = expectedChestValueHp();
@@ -396,13 +404,19 @@ export const CHEST_VALUE_HP = expectedChestValueHp();
 // exempt: their duel is not a choice).
 export const TYPICAL_TRAVERSAL_TURNS = 120;
 
+// The best hp a coin buys on the shop's shelf (the potion's 3-for-1 today)
+// — the one exchange rate between the coin economy and the hp economy, used
+// by the fight's worth below AND the chest's coin term above it.
+export function hpPerCoin(prices = SHOP_PRICES) {
+  return Math.max(...ITEM_TABLE
+    .filter((item) => prices[item.name] > 0)
+    .map((item) => ((item.armour || 0) + (item.heal || 0)) / prices[item.name]));
+}
+
 export function expectedXpValueHp(
   rate = COIN_RATE, prices = SHOP_PRICES, turns = TYPICAL_TRAVERSAL_TURNS,
 ) {
-  const perCoin = Math.max(...ITEM_TABLE
-    .filter((item) => prices[item.name] > 0)
-    .map((item) => ((item.armour || 0) + (item.heal || 0)) / prices[item.name]));
-  return (rate / turns) * perCoin;
+  return (rate / turns) * hpPerCoin(prices);
 }
 
 export const XP_VALUE_HP = expectedXpValueHp();

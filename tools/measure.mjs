@@ -150,9 +150,14 @@ const GENERATION = {
 // price in the game moved, so this anchor had to; generation did not, and the
 // four checks above are what say so. Read off a RELOADED page, for the reason
 // the note above gives.
+// Re-recorded for coin chests (2026-08-31). Generation did not move — the
+// coin rides the SAME single content draw, and the four generation checks
+// above stayed byte-identical — but what chests hold changed, so the runs
+// played differently (the one clear in this tiny sample became a death).
+// Read off a freshly served page, per the rule above.
 const MEASUREMENT = {
   call: { module: 'check', fn: 'tripwires', args: { runs: 3, firstSeed: 500000 } },
-  values: [0, 0.333, 0.333, 0, 0.333, 1, 1],
+  values: [0, 0, 0, 0, 0, 1, 1],
 };
 
 // The exact snippet that produced GENERATION, for re-recording in a browser

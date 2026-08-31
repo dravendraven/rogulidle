@@ -904,6 +904,41 @@ test('opening a chest costs a turn and leaves the loot on the floor', () => {
   assertEq(collected.player.inventory.length, 1, 'the loot was not collected');
 });
 
+// ***** coins in chests (2026-08-31) — the second income ***** //
+//
+// A coin chest credits ON OPEN and leaves nothing on the floor: money has
+// no pickup decision, so a floor item would only add busywork. The credit
+// pays with the traversal under the same rule as the xp rate (dungeon.js);
+// the generator takes the coin share OUT of the content draw, so item
+// income trades for coin income instead of adding.
+test('a coin chest credits on open and drops nothing', () => {
+  const chest = {
+    id: 'c1', name: 'rock', emoji: '🪨', pos: [1, 2],
+    drop: { id: 'e9', name: 'coins', emoji: '🪙', pos: [1, 2], kind: 'coin', coin: 2, dmg: 0, dmgMin: 0, armour: 0, heal: 0 },
+  };
+  const state = makeState({ map: ROOM_5x5, playerPos: [2, 2], chests: [chest] });
+
+  const opened = step(state, 'left').state;
+  assertEq(opened.chests.length, 0, 'the chest survived');
+  assertEq(opened.items.length, 0, 'the coins landed on the floor as an item');
+  assertEq(opened.player.coinsFound, 2, 'the coins were not credited');
+  assertEq(opened.player.inventory.length, 0, 'coins entered the inventory');
+});
+
+test('the coin share is taken out of the content draw, not added on top', () => {
+  // chestCoinShare 1: every chest that holds anything holds coins; 0: none
+  // do. The loot CHANCE itself is untouched either way.
+  const plan = floorPlan(1);
+  const drops = (share) => newGame(4242, { ...plan, chests: 12, chestCoinShare: share })
+    .chests.filter((c) => c.drop);
+  const allCoins = drops(1);
+  assert(allCoins.length > 0, 'no chest held anything at share 1 — seed too poor to test');
+  assert(allCoins.every((c) => c.drop.kind === 'coin'),
+    'share 1 still produced an item drop');
+  assert(drops(0).every((c) => c.drop.kind !== 'coin'),
+    'share 0 still produced a coin drop');
+});
+
 test('picking up an item moves the player onto its tile', () => {
   const state = makeState({
     map: ROOM_5x5, playerPos: [2, 2], items: [item('axe', [1, 2], { dmg: 2 })],
@@ -4710,7 +4745,9 @@ test('a death empties the pile, and the purchase made after it survives', () => 
   // (spectator.js): the death rule fires first, the shop opens after. So a
   // run that died still spends what it earned, and what it buys arms the
   // next run — while everything the dead run was carrying is gone.
-  const { runs } = playChain(500000, 4);
+  // 500001, moved off 500000 when coin chests (2026-08-31) armed that chain
+  // into its first clear — the guard below is what caught it.
+  const { runs } = playChain(500001, 4);
   assert(runs.every((r) => !r.cleared), 'the fixture chain started clearing — see EMPTY_DUNGEON');
 
   for (let i = 1; i < runs.length; i++) {

@@ -123,7 +123,18 @@ function resolveEncounters(state, pos) {
   // the floor for a second turn to pick up.
   if (chestIndex >= 0) {
     const [chest] = state.chests.splice(chestIndex, 1);
-    if (chest.drop) state.items.push(chest.drop);
+    // COINS ARE CREDITED ON OPEN, never dropped on the floor (2026-08-31):
+    // money has no pickup decision to make — no persona values it
+    // differently, no bot should have to price walking back for it — so a
+    // floor item would only add a turn of busywork and a special case to
+    // every reader of `items`. The credit pays with the traversal
+    // (src/sim/dungeon.js), same rule as the xp rate.
+    if (chest.drop && chest.drop.kind === 'coin') {
+      // `?? 0` because hand-built states (tests) predate the field.
+      state.player.coinsFound = (state.player.coinsFound ?? 0) + chest.drop.coin;
+    } else if (chest.drop) {
+      state.items.push(chest.drop);
+    }
     state.log.push({ type: 'open', chest: chest.name, found: chest.drop ? chest.drop.name : null, turn: state.turn });
     blocked = true;
   }

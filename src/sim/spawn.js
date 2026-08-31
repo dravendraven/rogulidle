@@ -5,6 +5,7 @@
 // pool, so changing the order changes every map.
 
 import {
+  CHEST_COIN_AMOUNT, CHEST_COIN_SHARE,
   CHEST_COUNT, CHEST_GUARD_RADIUS, CHEST_LOOT_CHANCE, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST,
   ITEM_TABLE, MONSTER_COUNT,
   MONSTER_DIFFICULTY_SCALE, MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE,
@@ -168,6 +169,9 @@ function makeItem(state, template, pos) {
     dmgMin: template.dmgMin || 0,
     armour: template.armour || 0,
     heal: template.heal || 0,
+    // Coins only (2026-08-31): what opening the chest credits, in coins.
+    // Absent (0) on every real item, so nothing else changes shape.
+    ...(template.coin ? { kind: 'coin', coin: template.coin } : {}),
   };
 }
 
@@ -308,6 +312,10 @@ export function populate(state, map, counts = {}) {
     // `kills.length` (which stays a count, unchanged shape: combat.js's
     // per-module grants and the renderer both key off it).
     xpEarned: 0,
+    // Coins found on the floor this run (chests since 2026-08-31). The
+    // SECOND income — paid per traversal alongside the xp rate, and unlike
+    // it, not diluted by turns. rules.md §9.
+    coinsFound: 0,
   };
 
   // 2. Path to the centre of every room, shortest first.
@@ -522,7 +530,30 @@ export function populate(state, map, counts = {}) {
     const quality = Math.min(1, depth + earlyChestBoost);
     // `allowEmpty: false` — `hasLoot` above already decided whether this
     // chest holds anything, so this draw only picks WHICH kind.
-    const template = drawWeighted(state, 'spawn', itemWeights(scarcity, 'chest', quality, [], false));
+    //
+    // COINS RIDE THE SAME SINGLE DRAW (owner, 2026-08-31): the coin option
+    // is folded into the weighted pick instead of getting a roll of its
+    // own, so the spawn stream consumes exactly as many draws as before and
+    // every map, monster and position stays byte-identical — only what a
+    // chest holds can differ. Weighted so the coin's share of the whole
+    // draw is CHEST_COIN_SHARE, with the rest splitting by the mix as
+    // always.
+    const entries = itemWeights(scarcity, 'chest', quality, [], false);
+    const itemMass = entries.reduce((sum, [, w]) => sum + w, 0);
+    const coinShare = counts.chestCoinShare ?? CHEST_COIN_SHARE;
+    const coinTemplate = {
+      name: 'coins', emoji: '🪙', kind: 'coin',
+      coin: counts.chestCoinAmount ?? CHEST_COIN_AMOUNT,
+    };
+    if (coinShare >= 1) {
+      // Share 1 is "coins only" — the weight formula above divides by zero
+      // there, so the draw is replaced whole. A sweep's edge, not a game's.
+      entries.length = 0;
+      entries.push([coinTemplate, 1]);
+    } else if (coinShare > 0 && itemMass > 0) {
+      entries.push([coinTemplate, itemMass * coinShare / (1 - coinShare)]);
+    }
+    const template = drawWeighted(state, 'spawn', entries);
 
     const chest = drawPick(state, 'spawn', CHEST_TABLE);
     state.chests.push({

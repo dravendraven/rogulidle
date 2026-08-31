@@ -352,6 +352,26 @@ export const CHEST_TABLE = [
 // decision.
 export const CHEST_LOOT_CHANCE = 0.5;
 
+// ***** coins in chests (owner, 2026-08-31) *****
+//
+// THE PROBLEM THIS SOLVES: the game's only income was xp ÷ turns, so every
+// turn of exploring diluted the pay and "descend fast" beat every other
+// play — two dial grids measured it end to end. Floor coins are the second
+// income, the one that does NOT dilute with turns: the diver farms the
+// rate, the explorer farms the floor, and Pressa becomes a choice between
+// incomes instead of a right answer.
+//
+// The share comes OUT of the content draw, not on top of it: a chest that
+// has loot holds coins this often, and the rest splits shield/potion by
+// CHEST_MIX exactly as before. Trading item income for coin income rather
+// than adding, which is the built-in brake on inflation.
+//
+// 0.25 x 1 coin ≈ 0.25 expected per chest — deliberately HALF of the
+// estimated break-even (~0.5) between the two farms, a conservative first
+// step to be judged by the Pressa sweep's coin column, not trusted.
+export const CHEST_COIN_SHARE = 0.25;
+export const CHEST_COIN_AMOUNT = 1;
+
 // GUESS — floor 1 is the poorest floor under quality-by-depth (nowhere on it
 // is far from the entrance) at the exact moment it is the most dangerous.
 // Added to chest quality as BOOST / level, so it fades by the floors that
