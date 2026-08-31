@@ -3,8 +3,7 @@
 // Bot rules live in the bot (CLAUDE.md); so do the bot's numbers.
 
 import {
-  CHEST_COIN_AMOUNT, CHEST_COIN_SHARE, CHEST_LOOT_CHANCE, COIN_RATE,
-  ITEM_TABLE, SHOP_PRICES,
+  CHEST_LOOT_CHANCE, COIN_RATE, ITEM_TABLE, SHOP_PRICES,
 } from '../sim/balance.js';
 import { ARMOUR_SCARCITY, POTION_SCARCITY } from '../sim/difficulty.js';
 import { itemWeights } from '../sim/spawn.js';
@@ -349,25 +348,19 @@ export function biasBands(spread = BIAS_SPREAD, count = 4) {
 export function expectedChestValueHp(
   lootChance = CHEST_LOOT_CHANCE,
   scarcity = { armour: ARMOUR_SCARCITY, potion: POTION_SCARCITY },
-  coinShare = CHEST_COIN_SHARE,
-  coinAmount = CHEST_COIN_AMOUNT,
 ) {
   // Reuses the generator's own weighting rather than restating it — one
   // source of truth for "which kind comes out of a chest". `allowEmpty:
   // false` because `lootChance` above already decides whether it holds
-  // anything at all.
+  // anything at all. (Coins are not a chest kind — the pile on the floor
+  // is its own thing, priced where loose items are, src/bot/bot.js.)
   const entries = itemWeights(scarcity, 'chest', 0, [], false);
   const total = entries.reduce((sum, [, w]) => sum + w, 0);
   if (total <= 0) return 0;
   const average = entries.reduce(
     (sum, [item, w]) => sum + w * ((item.armour || 0) + (item.heal || 0)), 0,
   ) / total;
-  // The coin slice of the draw (2026-08-31), valued through the shop's own
-  // exchange rate — the same honest belief as the item half: the generator
-  // holds coins this often, and a coin buys this much hp on the shelf.
-  const item = (1 - coinShare) * average;
-  const coin = coinShare * coinAmount * hpPerCoin();
-  return lootChance * (item + coin);
+  return lootChance * average;
 }
 
 export const CHEST_VALUE_HP = expectedChestValueHp();

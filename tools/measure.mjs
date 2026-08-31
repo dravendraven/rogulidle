@@ -81,20 +81,28 @@ const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const VENDOR_SHA256 = '0123bd2a96d26cadb328c986885e7e0e58e35a267b6fc87efac2e9b5a1eb34fe';
 
 // Pure generation: `newGame(seed, floorPlan(level))` on an unplayed state.
+//
+// Re-recorded for the coin pile (2026-08-31): its placement draws sit
+// before the monsters in the spawn stream, so on floors WITH side rooms
+// every later position reshuffles — s1 moved, s12345 (no side rooms, no
+// draws) stayed byte-identical, which is the change contained exactly
+// where it claims to be. Read off a RELOADED page; the first read came off
+// a stale module cache and recorded rosters no fresh page produces — the
+// import()-cache trap CLAUDE.md warns about, again.
 const GENERATION = {
   's1L1': {
     mapHash: '154f1525',
     rooms: 4,
     player: '14,15',
     shrine: '18,5',
-    monsters: 'ghost@17,5|bat@7,3|bat@14,14|bat@6,2',
+    monsters: 'bat@14,14|bat@10,2|ghost@19,5|rat@17,9',
   },
   's1L5': {
     mapHash: '154f1525',
     rooms: 4,
     player: '14,15',
     shrine: '18,5',
-    monsters: 'wolf@18,4|boar@19,4|boar@12,15',
+    monsters: 'wolf@12,15|wolf@22,3|wolf@19,5',
   },
   's12345L1': {
     mapHash: '66529623',

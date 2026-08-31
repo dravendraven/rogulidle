@@ -123,18 +123,7 @@ function resolveEncounters(state, pos) {
   // the floor for a second turn to pick up.
   if (chestIndex >= 0) {
     const [chest] = state.chests.splice(chestIndex, 1);
-    // COINS ARE CREDITED ON OPEN, never dropped on the floor (2026-08-31):
-    // money has no pickup decision to make — no persona values it
-    // differently, no bot should have to price walking back for it — so a
-    // floor item would only add a turn of busywork and a special case to
-    // every reader of `items`. The credit pays with the traversal
-    // (src/sim/dungeon.js), same rule as the xp rate.
-    if (chest.drop && chest.drop.kind === 'coin') {
-      // `?? 0` because hand-built states (tests) predate the field.
-      state.player.coinsFound = (state.player.coinsFound ?? 0) + chest.drop.coin;
-    } else if (chest.drop) {
-      state.items.push(chest.drop);
-    }
+    if (chest.drop) state.items.push(chest.drop);
     state.log.push({ type: 'open', chest: chest.name, found: chest.drop ? chest.drop.name : null, turn: state.turn });
     blocked = true;
   }
@@ -175,6 +164,17 @@ function resolveEncounters(state, pos) {
     // filed under rogule-spec.md §13: that list is frozen and takes no new
     // entries.
     for (const item of itemsHere) {
+      // THE COIN PILE (2026-08-31) credits on contact and never enters the
+      // bag: money has no inventory decision — no persona values it
+      // differently, nothing equips it — and it pays with the traversal
+      // (src/sim/dungeon.js), same completed-only rule as the xp rate.
+      // `?? 0` because hand-built states (tests) predate the field.
+      if (item.kind === 'coin') {
+        state.player.coinsFound = (state.player.coinsFound ?? 0) + item.coin;
+        state.items.splice(state.items.indexOf(item), 1);
+        state.log.push({ type: 'pickup', item: item.name, turn: state.turn });
+        continue;
+      }
       // What the hero picks up may not be what was lying there: a persona
       // can be worth more or less of an item than the world is (heroes.js).
       // `heroItem` returns the same object when nothing applies, so the

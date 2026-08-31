@@ -35,7 +35,7 @@ import {
 import {
   CHEST_VALUE_HP, CROWD_PENALTY, CURIOSITY_LAST_RESORT, DANGER_PERSISTENCE,
   DEFAULT_CHEST_COUNT, DEFAULT_MONSTER_COUNT, DEFAULT_HERO, EXPOSURE_STEPS,
-  FIGHT_VALUE, GOAL_STICKINESS, LOOT_VALUE, READ_AT, XP_VALUE_HP,
+  FIGHT_VALUE, GOAL_STICKINESS, hpPerCoin, LOOT_VALUE, READ_AT, XP_VALUE_HP,
 } from './config.js';
 import {
   actionToward, believedWalkable, dijkstra, flood, frontiers, key, routeTo,
@@ -731,6 +731,9 @@ export function makeBot(options = {}) {
     // chest's pair above, so a sweep can A/B it alone.
     fightValue: options.fightValue ?? FIGHT_VALUE,
     xpValueHp: options.xpValueHp ?? XP_VALUE_HP,
+    // The coin pile's exchange rate (2026-08-31) — what a found coin is
+    // worth in hp through the shop's shelf.
+    hpPerCoin: options.hpPerCoin ?? hpPerCoin(),
     // Half of the same model, separable ONLY so a sweep can tell which half
     // moved a number — it defaults to `lootValue` and nothing ships it on
     // its own. Without the split, the value gate and the amortisation would
@@ -1028,6 +1031,25 @@ export function makeBot(options = {}) {
     }
 
     for (const item of belief.items.values()) {
+      // THE COIN PILE (2026-08-31) is visible money and gets the chest's own
+      // value test: worth = coins through the shop's exchange rate, scaled
+      // by greed — refused when the visit costs more than that. Ganância
+      // decides whether the detour pays; whether the pile is even KNOWN is
+      // what Pressa's curiosity half already governs, which is the whole
+      // design: income only the explorer finds.
+      if (item.kind === 'coin') {
+        const walk = priceOfReaching(field, item.pos);
+        if (!Number.isFinite(walk)) continue;
+        const guard = guardCost(belief, item.pos, { ...guardOpts, paidByRoute: onTheWay(item.pos) });
+        const trip = settings.amortiseGuard ? tripSize(belief, item.pos, danger.reach) : 1;
+        const visit = walk / trip + guard + opening(item.pos);
+        if (visit > item.coin * settings.hpPerCoin * hero.sideAppetite) continue;
+        pool.push({
+          kind: 'item', id: item.id, pos: item.pos, price: visit,
+          diag: { walk, trip, guard, opening: opening(item.pos), coin: item.coin },
+        });
+        continue;
+      }
       // Every field that makes an item worth walking to, or a weapon whose
       // only gift is a higher damage floor reads as worthless.
       if ((item.dmg || 0) + (item.dmgMin || 0)

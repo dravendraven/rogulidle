@@ -89,7 +89,10 @@ const CHEST_FIELDS = ['id', 'name', 'emoji', 'pos', 'edge'];
 // `dmgMin` belongs here beside `dmg`: it is a plain property of an item the
 // hero can already see, not an unrevealed answer, and leaving it out made
 // the bot value a floor axe as if it only widened the die.
-const ITEM_FIELDS = ['id', 'name', 'emoji', 'pos', 'dmg', 'dmgMin', 'armour', 'heal'];
+// `kind`/`coin` cross for the coin pile (2026-08-31): a pile is VISIBLE
+// money on open floor — plain properties of a thing in sight, not an
+// unrevealed answer, same reasoning as `dmgMin` above.
+const ITEM_FIELDS = ['id', 'name', 'emoji', 'pos', 'dmg', 'dmgMin', 'armour', 'heal', 'kind', 'coin'];
 const SHRINE_FIELDS = ['id', 'emoji', 'pos'];
 
 // `revealLoot` adds `drop` to the monster/chest allow-lists. Off (the

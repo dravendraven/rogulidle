@@ -5,7 +5,7 @@
 // pool, so changing the order changes every map.
 
 import {
-  CHEST_COIN_AMOUNT, CHEST_COIN_SHARE,
+  COIN_PILE_AMOUNT, COIN_PILE_PER_FLOOR,
   CHEST_COUNT, CHEST_GUARD_RADIUS, CHEST_LOOT_CHANCE, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST,
   ITEM_TABLE, MONSTER_COUNT,
   MONSTER_DIFFICULTY_SCALE, MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE,
@@ -169,9 +169,6 @@ function makeItem(state, template, pos) {
     dmgMin: template.dmgMin || 0,
     armour: template.armour || 0,
     heal: template.heal || 0,
-    // Coins only (2026-08-31): what opening the chest credits, in coins.
-    // Absent (0) on every real item, so nothing else changes shape.
-    ...(template.coin ? { kind: 'coin', coin: template.coin } : {}),
   };
 }
 
@@ -529,31 +526,11 @@ export function populate(state, map, counts = {}) {
     // second armour or potion.
     const quality = Math.min(1, depth + earlyChestBoost);
     // `allowEmpty: false` — `hasLoot` above already decided whether this
-    // chest holds anything, so this draw only picks WHICH kind.
-    //
-    // COINS RIDE THE SAME SINGLE DRAW (owner, 2026-08-31): the coin option
-    // is folded into the weighted pick instead of getting a roll of its
-    // own, so the spawn stream consumes exactly as many draws as before and
-    // every map, monster and position stays byte-identical — only what a
-    // chest holds can differ. Weighted so the coin's share of the whole
-    // draw is CHEST_COIN_SHARE, with the rest splitting by the mix as
-    // always.
-    const entries = itemWeights(scarcity, 'chest', quality, [], false);
-    const itemMass = entries.reduce((sum, [, w]) => sum + w, 0);
-    const coinShare = counts.chestCoinShare ?? CHEST_COIN_SHARE;
-    const coinTemplate = {
-      name: 'coins', emoji: '🪙', kind: 'coin',
-      coin: counts.chestCoinAmount ?? CHEST_COIN_AMOUNT,
-    };
-    if (coinShare >= 1) {
-      // Share 1 is "coins only" — the weight formula above divides by zero
-      // there, so the draw is replaced whole. A sweep's edge, not a game's.
-      entries.length = 0;
-      entries.push([coinTemplate, 1]);
-    } else if (coinShare > 0 && itemMass > 0) {
-      entries.push([coinTemplate, itemMass * coinShare / (1 - coinShare)]);
-    }
-    const template = drawWeighted(state, 'spawn', entries);
+    // chest holds anything, so this draw only picks WHICH kind. (Coins were
+    // briefly a third outcome of this draw and the opening-deaths wire
+    // fired for it — see COIN_PILE_PER_FLOOR in balance.js; chests are back
+    // to items only.)
+    const template = drawWeighted(state, 'spawn', itemWeights(scarcity, 'chest', quality, [], false));
 
     const chest = drawPick(state, 'spawn', CHEST_TABLE);
     state.chests.push({
@@ -566,6 +543,43 @@ export function populate(state, map, counts = {}) {
       // `template` is null when the scarcity dials sent this draw to the
       // empty slot, which is the replacement for Rogule's junk collectibles.
       drop: hasLoot && template ? makeItem(state, template, pos) : null,
+    });
+  }
+
+  // 4b. The coin pile (owner, 2026-08-31) — the explorer's income, and the
+  // placement rule IS the design: SIDE ROOMS ONLY, weighted by distance, so
+  // the mandatory route never trips over one. A floor whose rooms are all
+  // spine (small floors — see MIN_ROSTER_FOR_SIDE's world) simply has no
+  // pile, which is the rule holding rather than failing: money the route
+  // would collect for free is not exploration income.
+  //
+  // A VISIBLE pile on the floor, not a chest: what it pays is the act of
+  // revealing the room, so it has nothing to hide — and money has no pickup
+  // decision, so it credits on contact (src/sim/step.js) instead of taking
+  // an inventory slot.
+  state.items = [];
+  const pilesWanted = counts.coinPiles ?? COIN_PILE_PER_FLOOR;
+  const sideEntries = roomPaths.filter((entry) => zones.side.includes(entry.room));
+  for (let i = 0; i < pilesWanted && sideEntries.length; i++) {
+    const entry = drawWeighted(state, 'spawn', sideEntries.map((e) => [e, e.path.length]));
+    const roomFree = [];
+    for (let x = entry.room.x1; x <= entry.room.x2; x++) {
+      for (let y = entry.room.y1; y <= entry.room.y2; y++) {
+        if (free.has(x + ',' + y)) roomFree.push([x, y]);
+      }
+    }
+    if (!roomFree.length) continue;
+    const pos = roomFree[drawInt(state, 'spawn', 0, roomFree.length - 1)];
+    takeFree(pos);
+    state.items.push({
+      id: nextId(state),
+      name: 'coins',
+      emoji: '💰',
+      pos,
+      dmg: 0, dmgMin: 0, armour: 0, heal: 0,
+      kind: 'coin',
+      coin: counts.coinPileAmount ?? COIN_PILE_AMOUNT,
+      side: true,
     });
   }
 
@@ -1044,7 +1058,8 @@ export function populate(state, map, counts = {}) {
     });
   }
 
-  // Items lying loose on the floor. Starts empty: everything enters this list
-  // later, when a chest is opened or a monster dies.
-  state.items = [];
+  // Items lying loose on the floor: initialized at step 4b (the coin pile
+  // is generated INTO it), grown later when a chest is opened or a monster
+  // dies. The reset used to live here, which would have silently wiped the
+  // pile — order is the whole game in this file.
 }

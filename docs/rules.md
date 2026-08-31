@@ -509,14 +509,18 @@ por decisão do dono; o bot continua decidindo sem saber quanto resta.
 **Moeda por travessia concluída**, derivada de xp por turno. Toda travessia
 paga, ida e volta.
 
-**Baú pode conter moedas** (2026-08-31), tomadas da mesma chance de conteúdo
-— um baú com algo dentro segura moedas numa fração dos casos, e o resto
-divide escudo/poção como sempre. A moeda achada é creditada NA ABERTURA
-(nunca vira item no chão) e paga junto com a travessia em que foi achada,
-sob a mesma regra: travessia não concluída não paga. É a segunda renda do
-jogo, e a razão de existir: a renda por taxa (xp÷turno) recompensa descer
-rápido; a renda por chão recompensa explorar — e o dial de Pressa passa a
-escolher entre as duas em vez de ter resposta certa.
+**A pilha de moedas** (2026-08-31): cada andar pode gerar uma pilha visível
+de moedas, **só em sala lateral** — a rota obrigatória nunca tropeça numa —
+com viés para as salas distantes; andar sem sala lateral não tem pilha.
+Pisar nela credita as moedas na hora (não ocupa inventário) e elas pagam
+junto com a travessia em que foram achadas, sob a mesma regra: travessia
+não concluída não paga. É a segunda renda do jogo e a razão de existir: a
+renda por taxa (xp÷turno) recompensa descer rápido; a pilha recompensa
+REVELAR o mapa — e o dial de Pressa passa a escolher entre as duas rendas
+em vez de ter resposta certa. Baús não carregam moeda: a primeira versão
+tirava a moeda do sorteio de conteúdo deles e o wire de mortes disparou
+(sustain trocado por moeda); a pilha adiciona renda sem tocar no mundo dos
+itens.
 
 **A moeda é da run, e não sobrevive a ela.** O saldo começa em zero em toda
 run, é gasto na loja que fecha aquela run, e o que não for gasto é
