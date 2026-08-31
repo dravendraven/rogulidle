@@ -7,3 +7,4 @@
 
 # Agent worktrees — separate checkouts, never part of a commit
 .claude/worktrees/
+.claude/grid-dials-*.json
