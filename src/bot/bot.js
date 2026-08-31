@@ -653,6 +653,17 @@ function rageWouldSave(belief, hero, goalId) {
   const demand = bar * hero.sideAppetite;
   const enraged = { ...belief.player, raging: RAGE_TURNS };
 
+  // ALREADY IN MELEE MEANS NO INJECTION AT ALL (B34's rule, closed properly
+  // 2026-08-31): the loop below skips an adjacent creature as a TRIGGER, but
+  // for months nothing stopped a two-away creature from triggering while
+  // another stood beside him — "one step before the fight" was true of the
+  // trigger and false of the moment. A reshuffled seed sample surfaced it;
+  // the test now pins it.
+  for (const m of belief.monsters.values()) {
+    if (m.dead) continue;
+    if (Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py) === 1) return false;
+  }
+
   for (const m of belief.monsters.values()) {
     if (m.dead) continue;
     const away = Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py);
