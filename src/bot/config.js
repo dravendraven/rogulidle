@@ -414,16 +414,18 @@ export const XP_VALUE_HP = expectedXpValueHp();
 // fights he dares, so it also decides how far one is worth walking. OFF
 // restores the fight-has-no-value-side bot exactly.
 //
-// OFF, AND THE MEASUREMENT IS WHY (2026-08-29, n=24 both ways). Gating the
-// whole visit: opening deaths 0.458 -> 0.542, wire FIRES. Gating the
-// journey only: 0.542, wire still FIRES — the centre bot leaves creatures
-// alive, and a floor it does not clear keeps charging exposure on every
-// route for the rest of the traversal, so refusing fights buys coin and
-// costs lives. The missing term is THREAT REMOVAL: a kill deletes that
-// creature's danger field forever, and this xp->coin->hp chain prices that
-// at zero. Turning this on without pricing removal is how the wire fired
-// twice; modelling removal is a design decision the owner has not made.
-export const FIGHT_VALUE = false;
+// ON since 2026-08-31, and the story of the flag is a lesson in sample
+// size. It shipped OFF on an n=24 reading (opening deaths 0.458 -> 0.542,
+// "the wire fires") that was 0.6 SIGMA — noise, recorded as measurement,
+// in violation of the project's own 2-sigma rule. Re-measured at n=100,
+// same seeds paired: the gate at the COMPUTED 0.5 is better than off on
+// every column (deaths 0.44 vs 0.52, depth 3.47 vs 3.12, coins 4.1 vs
+// 3.5), and the response is dose-dependent — x swept at 0.5/1/1.5/2/3/4
+// converges monotonically back to the OFF numbers as the gate loosens,
+// which is the signature of a real effect. No calibration was needed: the
+// coin chain's own value is the centre, and it is deliberately NOT nudged
+// below 0.5 to chase a nicer score (see CHEST_VALUE_HP's rule above).
+export const FIGHT_VALUE = true;
 
 // B21/B25 — ON. A chest is refused when what the visit costs — the walk AND
 // the guard — exceeds what the chest is worth times the hero's greed, and

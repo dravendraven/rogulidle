@@ -3677,10 +3677,21 @@ test('a hero with no appetite skips the gamble the default hero takes', () => {
     '#-------------------#',
     '#####################',
   ]);
+  // The hero starts nearer than he used to (6, not 4): since FIGHT_VALUE
+  // shipped, the walk through the guard's exposure is priced against what
+  // the visit is worth, and a bare corridor makes exposure expensive — at
+  // the old distance even the DEFAULT hero refuses, which is the centre
+  // the calibration measured, not a defect. The dial contrast this test
+  // pins is unchanged: an appetite of 0 refuses what the default pays for.
   const build = () => makeState({
     map,
-    playerPos: [4, 1],
-    monsters: [dummy('boar', [11, 1], { side: true, activation: 6 })],
+    playerPos: [6, 1],
+    // Activation 3, not 6: in a bare corridor a radius-6 guard paints the
+    // whole approach with exposure, and since FIGHT_VALUE that priced walk
+    // exceeds what a boar's xp is worth — the default hero refuses the trip
+    // itself. A short-radius guard keeps the walk cheap so the gamble is
+    // decided by APPETITE, which is the dial this test exists to pin.
+    monsters: [dummy('boar', [11, 1], { side: true, activation: 3 })],
     chests: [
       { id: 'c-side', name: 'chest', emoji: '📦', pos: [12, 1], side: true, edge: 0, drop: null },
     ],

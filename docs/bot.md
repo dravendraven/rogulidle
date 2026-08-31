@@ -361,17 +361,22 @@ criaturas e baús do andar são concedidas e viajam nas opções do
 - **Não persegue moeda** (objetivo #2 do produto): nenhum termo de moeda
   existe. Um bot que arrisca a run por moeda faz uma troca estritamente
   ruim — moeda só é ganha em conclusão.
-- **O xp precificado existe e está DESLIGADO** (`FIGHT_VALUE`,
-  `src/bot/config.js`). `XP_VALUE_HP` converte xp em hp pelas taxas que já
-  existem (moeda por xp, hp por moeda na loja — ~0,5 hp por xp), e a porta
-  recusaria a luta cuja viagem custa mais que isso. Nunca deixa uma luta
-  mais barata nem fura a barra — só recusa, então "não persegue moeda"
-  continuaria de pé. Medido ligado, n=24, nas duas formas (viagem+duelo e
-  só viagem): mortes de abertura 0,458 → 0,542, o wire dispara. O motivo é
-  um termo que a cadeia econômica precifica em zero: **matar remove a
-  ameaça** — criatura viva cobra exposição em toda rota até o fim da
-  travessia. Ligar isso sem precificar a remoção é como o wire disparou
-  duas vezes; modelar a remoção é decisão em aberto do dono.
+- **O xp precificado está LIGADO** (`FIGHT_VALUE`, `src/bot/config.js`).
+  `XP_VALUE_HP` converte xp em hp pelas taxas que já existem (moeda por
+  xp, hp por moeda na loja — ~0,5 hp por xp), e a porta recusa a luta
+  opcional cuja VIAGEM (aproximação + escuro aberto, duelo fora) custa
+  mais que `xp × 0,5 × coragem` — a Coragem é a sede: decide quais lutas
+  ele ousa E quão longe uma vale a caminhada. Nunca deixa uma luta mais
+  barata, nunca fura a barra, nunca vale para perseguidor ou inescapável —
+  só recusa, então "não persegue moeda" segue de pé.
+- **A história da flag é uma lição de amostra**: shipou desligada por uma
+  leitura de n=24 (mortes 0,458 → 0,542, "o wire dispara") que era 0,6σ —
+  ruído registrado como medição, contra a própria regra dos 2σ. Re-medida
+  em n=100 pareado, a porta no 0,5 computado é MELHOR que desligada em
+  toda coluna (mortes 0,44 vs 0,52, profundidade 3,47 vs 3,12, moedas 4,1
+  vs 3,5), com resposta dose-dependente — x varrido até 4 converge
+  monotônico de volta ao desligado. O centro não foi beliscado: 0,5 é o
+  valor que a cadeia da moeda computa sozinha.
 - **Não olha o relógio**: o orçamento de turnos (`TURN_BUDGET`) é do motor.
   O traço `stepCost` é o quanto o herói se importa com tempo.
 - **Não simula à frente.** A busca tática de 1 turno, a dominância de
