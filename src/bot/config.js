@@ -102,9 +102,15 @@ export const DEFAULT_HERO = {
   // this was a share of hp and the two numbers are not comparable.
   sideAppetite: 1,
 
-  // HOW MUCH THE UNKNOWN REPELS OR BEGUILES THIS HERO. The dial that replaced
-  // Cautela on the panel, and it took HALF of what she did: the price of a
-  // goal that opens new map (`opening` in src/bot/bot.js). The other half —
+  // HOW MUCH THE UNKNOWN REPELS OR BEGUILES THIS HERO. NO LONGER A DIAL OF
+  // ITS OWN (fused 2026-08-31): the panel derives it from PRESSA's notch,
+  // mirrored — pressa mínima é curiosidade máxima — because the 256-combo
+  // grid measured the two moving together in every winner and the off-axis
+  // corners winning nothing. The TRAIT stays independent here so a persona
+  // (or a sweep) can still set it directly; only the panel fused them.
+  //
+  // It replaced Cautela on the panel and took HALF of what she did: the
+  // price of a goal that opens new map (`opening` in src/bot/bot.js). The other half —
   // how wide he detours around creatures — measured as calibration, not
   // choice (deaths 1.00 flat across all six bands), and lives on as
   // `EXPOSURE_STEPS` below.

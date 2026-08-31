@@ -17,8 +17,7 @@ são estas:
 |---|---|---|
 | **Coragem** | `bravery` | o quanto ele subestima a vida de uma criatura |
 | **Ganância** | `sideAppetite` | o quanto ele super ou subestima um baú |
-| **Curiosidade** | `curiosity` | o quanto o desconhecido vale a caminhada |
-| **Pressa** | `stepCost` | quanto custa um passo em hp — o raio do que vale a caminhada |
+| **Pressa** | `stepCost` + `curiosity` derivada | quanto custa um passo — e, espelhado, quanto o desconhecido atrai. Fusão de 2026-08-31: a grade de 256 mediu os dois andando juntos em todo vencedor, e o painel derivou a curiosidade do notch da Pressa invertido |
 
 `fightMargin`, `persistence` e `EXPOSURE_STEPS` **não são dials** — foram
 constantes decididas quando o que estava fundido foi separado (M47/C1, e

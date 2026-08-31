@@ -217,8 +217,8 @@ frases:
 `makeBot(options)` aceita `hero`, um override de `DEFAULT_HERO`
 (`src/bot/config.js`). Um traço por objetivo:
 
-Os **quatro** tracos que o jogador mexe — Coragem, Ganancia, Curiosidade,
-Pressa — aparecem no Lab com a **mesma forma**: um
+Os **tres** dials que o jogador mexe — Coragem, Ganancia, Pressa — aparecem
+no Lab com a **mesma forma**: um
 vies de ±95% em torno de um centro calibrado, em **quatro faixas nomeadas**
 (minimo, medio-baixo, medio-alto, maximo). Numero par, para nao haver meio
 onde estacionar. Duas mudancas do dono em 2026-08-29: as pontas viraram
@@ -226,6 +226,14 @@ ABSOLUTOS (a faixa maxima precifica a 1,95x e a minima a 0,05x — "encara
 qualquer criatura", "nenhum bau vale um passo"), e as seis faixas viraram
 quatro, porque com as pontas esticadas as vizinhas de cima liam identicas
 (tres-em-linha nos sweeps). As duas internas ficam a ±32% do centro.
+
+**A Curiosidade nao tem dial proprio desde 2026-08-31**: o painel a deriva
+do notch da Pressa, espelhada — pressa minima E curiosidade maxima. A grade
+de 256 combos mediu as duas andando juntas em todo vencedor (Cu:min +
+pressa media/alta em 19 dos 20 topos) e os cantos fora do eixo — o turista
+lento — vencendo nada, entao as combinacoes que a fusao elimina nao valiam
+o slot no painel. O TRACO `curiosity` continua independente no bot (uma
+persona ou um sweep ainda o define direto); so o painel fundiu.
 
 **Curiosidade substituiu a Cautela** e ficou com metade dela: o preco de
 abrir o desconhecido. A outra metade — quao largo ele contorna criatura —

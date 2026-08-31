@@ -127,7 +127,7 @@ const BANDS = ['mínimo', 'médio-baixo', 'médio-alto', 'máximo'];
 //
 //   Coragem     -> `bravery`      bends the ESTIMATE of a creature's health
 //   Ganancia    -> `sideAppetite` what a chest is worth
-//   Curiosidade -> `curiosity`    how cheap the unknown reads (bravery mirror)
+//   Pressa also carries `curiosity` mirrored — fused 2026-08-31
 //
 // `fightMargin`, `persistence` and `caution`'s exposure half
 // (`EXPOSURE_STEPS`) are DECIDED CONSTANTS now, on purpose: two dials
@@ -136,12 +136,16 @@ const BANDS = ['mínimo', 'médio-baixo', 'médio-alto', 'máximo'];
 const DIALS = [
   ['Coragem  (bravery)', HERO.bravery, (v) => [{ ...HERO, bravery: v }, BOT]],
   ['Ganância (sideAppetite)', HERO.sideAppetite, (v) => [{ ...HERO, sideAppetite: v }, BOT]],
-  ['Curiosidade (curiosity)', HERO.curiosity, (v) => [{ ...HERO, curiosity: v }, BOT]],
-  ['Pressa   (stepCost)', HERO.stepCost, (v) => [{ ...HERO, stepCost: v }, BOT]],
+  // THE FUSION (2026-08-31): Pressa carries curiosity mirrored — the same
+  // derivation the panel's read() does, or this sweep would measure a dial
+  // nobody has.
+  ['Pressa   (stepCost+curiosity)', HERO.stepCost, (v, i) => [{
+    ...HERO, stepCost: v, curiosity: biasBands()[biasBands().length - 1 - i],
+  }, BOT]],
 ];
 
 console.log(`${RUNS} runs por célula, herói base, mesmas seeds, mãos vazias`);
-console.log(`centro: coragem ${HERO.bravery}  ganância ${HERO.sideAppetite}  curiosidade ${HERO.curiosity}\n`);
+console.log(`centro: coragem ${HERO.bravery}  ganância ${HERO.sideAppetite}  pressa ${HERO.stepCost} (curiosidade ${HERO.curiosity}, derivada)\n`);
 
 const ref = cell(HERO, BOT);
 console.log(`CENTRO   prof ${ref.mean.toFixed(2)}   7+ ${pc(ref.deep7)}   `
@@ -154,7 +158,7 @@ for (const [title, centre, build] of DIALS) {
   console.log('  faixa          valor   prof    7+  baús mortes turnos moedas | runs≠centro | delta pareado');
   for (const [i, band] of biasBands().entries()) {
     const value = +(centre * band).toFixed(3);
-    const c = cell(...build(value));
+    const c = cell(...build(value, i));
     const d = pairedDelta(c, ref);
     const changed = c.rows.filter((r, k) => r.sig !== ref.rows[k].sig).length / RUNS;
     console.log(`  ${BANDS[i].padEnd(13)} ${String(value).padStart(6)}  ${c.mean.toFixed(2)}  `

@@ -425,41 +425,26 @@ export const SECTIONS = [
     ]],
     ['', [
       {
-        // THE DIAL THAT REPLACED CAUTELA, and it kept half of her: the price
-        // of opening the unknown. The other half — how wide the hero detours
-        // around creatures — measured as calibration (deaths 1.00 flat
-        // across all six bands) and became the decided constant
-        // `EXPOSURE_STEPS`. Curiosity bends only the `opening` term in
-        // src/bot/bot.js, with the bravery mirror: alta = o escuro sai
-        // barato, baixa = o escuro sai caro.
+        // PRESSA — and since the fusion (owner, 2026-08-31) it carries
+        // CURIOSITY inverted inside it: the grid of 256 measured the two
+        // dials moving together in every winner (Cu:min + P:mA/max) and the
+        // opposite corner — the slow tourist — winning nothing, so the
+        // off-axis combinations were paying a panel slot for nothing.
+        // `read()` derives `hero.curiosity` from this notch, mirrored: pressa
+        // mínima = curiosidade máxima. One dial, one axis, two ends that
+        // really invert.
         //
-        // It moves the PRICE and never the frontier gate, so the incurious
-        // extreme still explores when the frontier is the only goal left —
-        // it just never chooses the dark over anything visible.
-        kind: 'hero', key: 'curiosity', label: 'quanto o desconhecido vale a caminhada',
-        title: 'Curiosidade', icon: '🔍', bias: true,
-        says: [
-          'o escuro é o último recurso — desce com o mapa preto',
-          'abre o escuro só quando está a caminho',
-          'abre mais mapa do que precisaria',
-          'a fronteira quase não custa — revela o andar todo e paga os turnos disso',
-        ],
-      },
-      {
-        // PRESSA (2026-08-29) — the objective-3 trait back on the panel,
-        // reversing B24 under the behaviour criterion (the trait's own
-        // comment in config.js carries the reversal). The one dial that
-        // moves STEP AGAINST HP: exposure and the dark scale with it, so
-        // routing proportions hold — what moves is how far anything is
-        // worth walking to. Detour radius for a chest is worth ÷ stepCost,
-        // which is why the top band reads as a dive.
-        kind: 'hero', key: 'stepCost', label: 'quanto custa um passo, em hp',
+        // The trait mechanics are unchanged underneath (config.js): stepCost
+        // moves step-against-hp, curiosity bends the dark's price, and the
+        // bottom curiosity band still makes the frontier a literal last
+        // resort — which is what the top phrase here promises.
+        kind: 'hero', key: 'stepCost', label: 'quanto custa um passo — e, invertido, quanto o desconhecido atrai',
         title: 'Pressa', icon: '⏱️', bias: true,
         says: [
-          'andar é de graça — atravessa o andar por qualquer coisa que valha',
-          'anda longe sem reclamar',
-          'só anda pelo que está perto',
-          'cada passo dói — ignora o que não está colado e vai reto ao buraco',
+          'andar é de graça e o escuro chama — revela o andar inteiro, atravessa por qualquer coisa',
+          'anda longe sem reclamar e espia além do necessário',
+          'só anda pelo que está perto; abre o escuro só quando está a caminho',
+          'cada passo dói — o escuro é o último recurso, desce com o mapa preto',
         ],
       },
     ]],
@@ -901,6 +886,11 @@ export function resolvedDefaults(overrides = {}) {
   // no control of its own is seeded here or the overrides file silently
   // stops being able to set it.
   out.run.who = defaultOf('run', 'who', overrides);
+  // `curiosity` has NO DIAL since the fusion — the panel derives it from
+  // Pressa's notch (see read()). Seeded here like `who`, so the code centre
+  // (or a dial-overrides.json pin) still reaches the no-Lab and headless
+  // paths instead of silently dropping out of the hero object.
+  out.hero.curiosity = defaultOf('hero', 'curiosity', overrides);
   for (const [, groups] of SECTIONS) {
     for (const [, list] of groups) {
       for (const { kind, key } of list) {
@@ -1431,7 +1421,15 @@ export function buildDialPanel(container, {
         // Always the band under the thumb. There is no "untouched" reading
         // left: the slider opens on a real notch, so what is on screen and
         // what the run gets are the same thing at every moment.
-        out[kind][key] = bands[Math.max(0, Math.min(bands.length - 1, Number(input.value)))];
+        const notch = Math.max(0, Math.min(bands.length - 1, Number(input.value)));
+        out[kind][key] = bands[notch];
+        // THE FUSION (owner, 2026-08-31): curiosity has no dial of its own —
+        // it is Pressa's notch mirrored, so pressa mínima IS curiosidade
+        // máxima. Derived here, the one place the panel becomes a run's
+        // hero, so heroChanges and fresh runs cannot disagree about it.
+        if (kind === 'hero' && key === 'stepCost') {
+          out.hero.curiosity = biasBands()[bands.length - 1 - notch];
+        }
         continue;
       }
       const value = Number(input.value);

@@ -49,8 +49,7 @@ fixed for two readings to mean the same thing.
 | starting items | **none** | `startingItems: []` |
 | Coragem | `DEFAULT_HERO.bravery` | `src/bot/config.js` |
 | Ganância | `DEFAULT_HERO.sideAppetite` | `src/bot/config.js` |
-| Curiosidade | `DEFAULT_HERO.curiosity` | `src/bot/config.js` |
-| Pressa | `DEFAULT_HERO.stepCost` | `src/bot/config.js` |
+| Pressa | `DEFAULT_HERO.stepCost` — e `curiosity` derivada dela, espelhada (fusão 2026-08-31) | `src/bot/config.js` |
 | floor model | `DEFAULT_MODEL` + `dial-overrides.json` | repo root |
 | seeds | `hashSeeds(20260814, 1..n)`, the same set in every cell | |
 

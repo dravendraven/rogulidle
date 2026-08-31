@@ -85,13 +85,14 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 
 ## The bot's numbers — `src/bot/config.js`, not this file's business
 
-**The four player dials are ±95% biases around a calibrated centre** (M47;
-Pressa joined in 2026-08-29, reversing B24 under the behaviour criterion —
-`stepCost`'s own comment carries the reversal;
+**The three player dials are ±95% biases around a calibrated centre** (M47;
+Pressa joined in 2026-08-29 reversing B24, and absorbed Curiosidade on
+2026-08-31 — the panel derives `curiosity` from Pressa's notch mirrored,
+after the 256-combo grid showed the two moving together in every winner;
 widened from ±80% in 2026-08-29 — the owner wants the ends to be ABSOLUTES,
 so the top band prices at 1.95× and the bottom at 0.05× while the inner
 bands barely move) —
-Coragem, Ganância, Curiosidade and Pressa. `riskAppetite` was briefly a fourth and is
+Coragem, Ganância and Pressa. `riskAppetite` was briefly a fourth and is
 now a decided constant at 1: every one of the three is already a form of
 risk — courage against a creature, greed for a reward, curiosity for the
 unknown — so a band named "risk" beside them names the axis rather than
