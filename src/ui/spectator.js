@@ -7,7 +7,7 @@
 // sped up freely.
 
 import { playGame, replayGame } from '../sim/game.js';
-import { coinsFor, LEVELS } from '../sim/dungeon.js';
+import { LEVELS } from '../sim/dungeon.js';
 import { hashSeeds, seedFromString } from '../sim/rng.js';
 import { heroByName } from '../sim/heroes.js';
 import { difficultyToParams } from '../sim/difficulty.js';
@@ -993,7 +993,6 @@ async function runDescentForever() {
     let run = null;
     let finalState = null;
     session.turnOffset = 0;
-    let xpEarnedBeforeFloor = 0;
     // Playback state for the traversal on screen.
     let onTraversal = 0;
     let shown = null;
@@ -1056,26 +1055,20 @@ async function runDescentForever() {
       // this same run already earned. That total simply stops growing and
       // carries into the shop as-is, spendable whether the run won or lost.
       //
-      // run.levels[i] (src/sim/dungeon.js) does not carry xpEarned — only
-      // carryFrom() does, and only for the NEXT floor's starting state.
-      // Found this the hard way: U4 shipped reading it off run.levels too,
-      // which was silently NaN-ing the lifetime score on every real clear
-      // (never caught because U4's own verification only ever called
-      // award() directly with synthetic numbers, never traced a real
-      // playDungeon() result through tallyDescent — see U4's backlog
-      // addendum). finalState IS the live engine state from this floor's
-      // own replay, already computed above, and it does have xpEarned.
-      const xpEarnedThisFloor = finalState.player.xpEarned - xpEarnedBeforeFloor;
-      xpEarnedBeforeFloor = finalState.player.xpEarned;
-      // The formula moved to `src/sim/dungeon.js` when a hero needed to
-      // spend coin mid-run: two callers, one line. `spent` is what that hero
-      // already took out of this floor's pay, and is 0 for everyone else.
+      // THE ENGINE'S OWN ROW, not a recomputation (2026-08-31). This used
+      // to rebuild the pay with `coinsFor(xp, turns)` — a second copy of
+      // the rule, the exact E1 drift the formula's move to dungeon.js was
+      // supposed to end — and the day the coin pile joined the traversal's
+      // pay (`row.coins` = rate + coins FOUND on the floor), the page kept
+      // paying the rate alone: the watcher's shop silently ignored every
+      // pile while headless readings banked them. Two instruments, two
+      // answers, one recomputed line. `row.coins` is the one truth.
       //
       // The BALANCE takes the net — the coin is genuinely gone. The POPUP
       // shows the gross and the goods, because those are two different
       // questions ("what did the shop get" vs "what happened here") and
       // answering both with the net answered neither.
-      const earned = coinsFor(xpEarnedThisFloor, levelResult.turns);
+      const earned = levelResult.coins ?? 0;
       const spent = levelResult.spent ?? 0;
 
       if (levelResult.outcome === 'ascended') {
