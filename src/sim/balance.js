@@ -373,6 +373,14 @@ export const CHEST_LOOT_CHANCE = 0.5;
 export const COIN_PILE_PER_FLOOR = 1;
 export const COIN_PILE_AMOUNT = 2;
 
+// How many WALKED steps a pile must sit from every tile of the mandatory
+// route (owner, 2026-08-31, watching): the first placement filtered by side
+// ROOM, and on open themes (the cave has no real rooms) a "side" anchor can
+// hug the walked path — the owner saw piles beside the spine. Distance is
+// the rule that means the same thing on every theme: a pile lives in the
+// pocket the route never brushes, or the floor has none.
+export const COIN_PILE_ROUTE_GAP = 8;
+
 // GUESS — floor 1 is the poorest floor under quality-by-depth (nowhere on it
 // is far from the entrance) at the exact moment it is the most dangerous.
 // Added to chest quality as BOOST / level, so it fades by the floors that

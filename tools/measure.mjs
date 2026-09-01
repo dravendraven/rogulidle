@@ -90,19 +90,23 @@ const VENDOR_SHA256 = '0123bd2a96d26cadb328c986885e7e0e58e35a267b6fc87efac2e9b5a
 // a stale module cache and recorded rosters no fresh page produces — the
 // import()-cache trap CLAUDE.md warns about, again.
 const GENERATION = {
+  // Re-recorded again for COIN_PILE_ROUTE_GAP (2026-08-31): the pile's
+  // placement moved from a room pick to a distance-weighted tile draw, so
+  // the spawn stream changed once more on floors that place one. Same
+  // reloaded-page rite as the note above.
   's1L1': {
     mapHash: '154f1525',
     rooms: 4,
     player: '14,15',
     shrine: '18,5',
-    monsters: 'bat@14,14|bat@10,2|ghost@19,5|rat@17,9',
+    monsters: 'ghost@18,4|bat@12,4|bat@14,14|bat@17,9',
   },
   's1L5': {
     mapHash: '154f1525',
     rooms: 4,
     player: '14,15',
     shrine: '18,5',
-    monsters: 'wolf@12,15|wolf@22,3|wolf@19,5',
+    monsters: 'boar@16,3|wolf@19,5|boar@12,15',
   },
   's12345L1': {
     mapHash: '66529623',
@@ -165,7 +169,7 @@ const GENERATION = {
 // Read off a freshly served page, per the rule above.
 const MEASUREMENT = {
   call: { module: 'check', fn: 'tripwires', args: { runs: 3, firstSeed: 500000 } },
-  values: [0, 0, 0, 0, 0, 1, 1],
+  values: [0.333, 0, 0, 0, 0.333, 1, 1],
 };
 
 // The exact snippet that produced GENERATION, for re-recording in a browser

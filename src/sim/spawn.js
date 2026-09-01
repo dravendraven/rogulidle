@@ -5,7 +5,7 @@
 // pool, so changing the order changes every map.
 
 import {
-  COIN_PILE_AMOUNT, COIN_PILE_PER_FLOOR,
+  COIN_PILE_AMOUNT, COIN_PILE_PER_FLOOR, COIN_PILE_ROUTE_GAP,
   CHEST_COUNT, CHEST_GUARD_RADIUS, CHEST_LOOT_CHANCE, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST,
   ITEM_TABLE, MONSTER_COUNT,
   MONSTER_DIFFICULTY_SCALE, MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE,
@@ -559,17 +559,42 @@ export function populate(state, map, counts = {}) {
   // an inventory slot.
   state.items = [];
   const pilesWanted = counts.coinPiles ?? COIN_PILE_PER_FLOOR;
-  const sideEntries = roomPaths.filter((entry) => zones.side.includes(entry.room));
-  for (let i = 0; i < pilesWanted && sideEntries.length; i++) {
-    const entry = drawWeighted(state, 'spawn', sideEntries.map((e) => [e, e.path.length]));
-    const roomFree = [];
-    for (let x = entry.room.x1; x <= entry.room.x2; x++) {
-      for (let y = entry.room.y1; y <= entry.room.y2; y++) {
-        if (free.has(x + ',' + y)) roomFree.push([x, y]);
+  const routeGap = counts.coinPileRouteGap ?? COIN_PILE_ROUTE_GAP;
+
+  // WALKED distance from the mandatory route, every free tile at once: a
+  // multi-source BFS seeded with the route's own tiles. Room labels lied on
+  // open themes (a cave "side" anchor can hug the walked path — the first
+  // placement was room-based and the owner watched piles beside the spine);
+  // steps do not.
+  const routeDist = new Map();
+  {
+    const queue = [];
+    for (const key of zones.onPath) { routeDist.set(key, 0); queue.push(key); }
+    for (let head = 0; head < queue.length; head++) {
+      const [cx, cy] = queue[head].split(',').map(Number);
+      const next = routeDist.get(queue[head]) + 1;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = cx + dx; const ny = cy + dy;
+        const nkey = nx + ',' + ny;
+        if (routeDist.has(nkey) || !passable(nx, ny)) continue;
+        routeDist.set(nkey, next);
+        queue.push(nkey);
       }
     }
-    if (!roomFree.length) continue;
-    const pos = roomFree[drawInt(state, 'spawn', 0, roomFree.length - 1)];
+  }
+
+  for (let i = 0; i < pilesWanted; i++) {
+    // Reachable, and at least `routeGap` walked steps from every route
+    // tile — the isolated pocket. Weighted by that distance, so deeper
+    // pockets are likelier. No pocket, no pile: money the route would
+    // brush past is not exploration income.
+    const candidates = [];
+    for (const [key, pos] of free) {
+      const dist = routeDist.get(key);
+      if (dist !== undefined && dist >= routeGap) candidates.push([pos, dist]);
+    }
+    if (!candidates.length) break;
+    const pos = drawWeighted(state, 'spawn', candidates);
     takeFree(pos);
     state.items.push({
       id: nextId(state),
@@ -579,7 +604,10 @@ export function populate(state, map, counts = {}) {
       dmg: 0, dmgMin: 0, armour: 0, heal: 0,
       kind: 'coin',
       coin: counts.coinPileAmount ?? COIN_PILE_AMOUNT,
-      side: true,
+      side: zones.isSide(pos),
+      // Introspection for tests and the debug overlay: how far off the
+      // route this pocket sits, in walked steps.
+      routeGap: routeDist.get(pos[0] + ',' + pos[1]),
     });
   }
 

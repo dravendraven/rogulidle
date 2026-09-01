@@ -510,8 +510,12 @@ por decisão do dono; o bot continua decidindo sem saber quanto resta.
 paga, ida e volta.
 
 **A pilha de moedas** (2026-08-31): cada andar pode gerar uma pilha visível
-de moedas, **só em sala lateral** — a rota obrigatória nunca tropeça numa —
-com viés para as salas distantes; andar sem sala lateral não tem pilha.
+de moedas, **sempre a uma distância mínima em passos da rota obrigatória**
+(sorteio pesado pela profundidade do bolsão) — a rota nunca a roça; andar
+sem bolsão fundo o bastante não tem pilha. A regra é distância caminhada, e
+não "sala lateral", de propósito: nos temas abertos uma âncora "lateral"
+encosta no caminho andado, e o dono viu pilhas na espinha na primeira
+versão.
 Pisar nela credita as moedas na hora (não ocupa inventário) e elas pagam
 junto com a travessia em que foram achadas, sob a mesma regra: travessia
 não concluída não paga. É a segunda renda do jogo e a razão de existir: a

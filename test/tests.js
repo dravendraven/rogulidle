@@ -3,7 +3,7 @@
 
 import {
   CHEST_GUARD_RADIUS, CHEST_TABLE, COIN_PILE_AMOUNT, COIN_PILE_PER_FLOOR,
-  EARLY_CHEST_QUALITY_BOOST, ITEM_TABLE,
+  COIN_PILE_ROUTE_GAP, EARLY_CHEST_QUALITY_BOOST, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP,
   PLAYER_HP, PLAYER_XP, RAGE_MULT, RAGE_TURNS, READ_TURNS, ROOM_HEIGHT,
   ROOM_WIDTH, SHRINE_DISTANCE_SHARE,
@@ -924,17 +924,21 @@ test('stepping on a coin pile credits it and takes no inventory slot', () => {
   assertEq(after.player.inventory.length, 0, 'coins entered the inventory');
 });
 
-test('the coin pile spawns in side rooms only, and never on all-spine floors', () => {
-  // Across seeds: every generated pile sits in side ground, at most one per
-  // floor, and floors without side rooms simply have none — the rule
-  // holding, not failing.
+test('the coin pile keeps its distance from the mandatory route', () => {
+  // Across seeds: at most one pile per floor, every one at least
+  // COIN_PILE_ROUTE_GAP walked steps from the route (the spawner stamps the
+  // BFS distance on the item), and floors with no pocket that deep simply
+  // have none — the rule holding, not failing. Room labels are deliberately
+  // not the criterion: on open themes a "side" anchor can hug the walked
+  // path, which is how the owner caught the first placement.
   let piles = 0;
   for (let seed = 1; seed <= 30; seed++) {
     const state = newGame(seed, floorPlan(3));
     const found = state.items.filter((i) => i.kind === 'coin');
     assert(found.length <= COIN_PILE_PER_FLOOR, `seed ${seed} spawned ${found.length} piles`);
     for (const pile of found) {
-      assert(pile.side, `seed ${seed}: a pile sat on the mandatory route`);
+      assert(pile.routeGap >= COIN_PILE_ROUTE_GAP,
+        `seed ${seed}: a pile sat ${pile.routeGap} steps from the route`);
       assertEq(pile.coin, COIN_PILE_AMOUNT, 'a pile carries the wrong amount');
     }
     piles += found.length;
@@ -4748,9 +4752,10 @@ test('a death empties the pile, and the purchase made after it survives', () => 
   // (spectator.js): the death rule fires first, the shop opens after. So a
   // run that died still spends what it earned, and what it buys arms the
   // next run — while everything the dead run was carrying is gone.
-  // 500001, moved off 500000 when coin chests (2026-08-31) armed that chain
-  // into its first clear — the guard below is what caught it.
-  const { runs } = playChain(500001, 4);
+  // Moved twice in one day (500000 → 500001 → 500007) as the coin economy
+  // reshaped which chains clear — the guard below is what catches it, and a
+  // fixture seed is a fixture, not a claim about the game.
+  const { runs } = playChain(500007, 4);
   assert(runs.every((r) => !r.cleared), 'the fixture chain started clearing — see EMPTY_DUNGEON');
 
   for (let i = 1; i < runs.length; i++) {
