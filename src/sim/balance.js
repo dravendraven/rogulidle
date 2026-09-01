@@ -548,6 +548,28 @@ export const TURN_BUDGET = 240;
 // buys HALF-COIN STEPS, so floors that used to price the same now differ.
 export const COIN_RATE = 20;
 
+// ***** the engine's generation, for achievement receipts *****
+//
+// An achievement is stored as a RECEIPT — the seed and config of the run
+// that earned it — and every load replays receipts to prove the claim
+// (src/ui/achievements.js). A replay only proves anything on the ENGINE
+// THAT RECORDED IT: any change that alters what a seed plays (generation,
+// combat, the bot's dials' meaning) makes every older receipt produce a
+// different run, and honest players watched their pig un-die.
+//
+// So receipts carry this number, and verification only REPLAYS receipts
+// stamped with the current one; older stamps are accepted as legacy —
+// "verified on the version that earned it" — without replay. Forging a
+// legacy-stamped entry is free, and that is stated rather than hidden: the
+// replay friction was already unenforceable against engines that no longer
+// exist, and this file's whole stance is friction, not anti-cheat.
+//
+// BUMP IT IN THE SAME COMMIT as any change that moves how a seed plays —
+// the selftest's anchor rite is the reminder: if GENERATION or MEASUREMENT
+// in tools/measure.mjs had to be re-recorded, this bumps too. Receipts
+// written before the field existed read as version 0.
+export const GAME_VERSION = 1;
+
 // What the shop charges, in coins. The RATIONALE for each number — the hp
 // ruler, the E2 axe bridge, why the potion stays at 1 — lives with the shop
 // (src/ui/shop.js), which builds its shelf from this table. The NUMBERS

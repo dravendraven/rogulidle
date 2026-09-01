@@ -3,7 +3,7 @@
 
 import {
   CHEST_GUARD_RADIUS, CHEST_TABLE, COIN_PILE_AMOUNT, COIN_PILE_PER_FLOOR,
-  COIN_PILE_ROUTE_GAP, EARLY_CHEST_QUALITY_BOOST, ITEM_TABLE,
+  COIN_PILE_ROUTE_GAP, EARLY_CHEST_QUALITY_BOOST, GAME_VERSION, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP,
   PLAYER_HP, PLAYER_XP, RAGE_MULT, RAGE_TURNS, READ_TURNS, ROOM_HEIGHT,
   ROOM_WIDTH, SHRINE_DISTANCE_SHARE,
@@ -4189,11 +4189,16 @@ test('a hand-written achievement flag unlocks nothing', () => {
   });
 });
 
+// The version seal (2026-08-31): only receipts stamped by THIS engine are
+// re-run; older stamps are legacy, accepted on the verification they passed
+// when fresh. Both tests below stamp GAME_VERSION so they exercise the
+// replay path — an unstamped entry reads as version 0 and would be waved
+// through as legacy, which the third test pins on purpose.
 test('a receipt whose run really did it is accepted', () => {
   withStores(() => {
     const hit = aRunThatEarned();
     writeSlice('achievements', {
-      [hit.id]: { run: 1, at: 0, seed: hit.seed, config: hit.config },
+      [hit.id]: { run: 1, at: 0, seed: hit.seed, config: hit.config, version: GAME_VERSION },
     });
     verifyAchievements();
     assert(isEarned(hit.id), `a genuine receipt for ${hit.id} was refused`);
@@ -4204,10 +4209,26 @@ test('a receipt pointing at a different run is refused', () => {
   withStores(() => {
     const hit = aRunThatEarned();
     writeSlice('achievements', {
-      [hit.id]: { run: 1, at: 0, seed: hit.seed + 1, config: hit.config },
+      [hit.id]: { run: 1, at: 0, seed: hit.seed + 1, config: hit.config, version: GAME_VERSION },
     });
     verifyAchievements();
     assert(!isEarned(hit.id), 'the seed was changed and the claim still stood');
+  });
+});
+
+test('a legacy-version receipt is trusted without a replay', () => {
+  withStores(() => {
+    // A receipt that would FAIL a replay on this engine (wrong seed), but
+    // stamped by an older version — the pig a player really killed before
+    // the engine moved must not un-die on load. Forging this shape is free
+    // and GAME_VERSION's comment says so; what this pins is the honest
+    // player's side of that trade.
+    const hit = aRunThatEarned();
+    writeSlice('achievements', {
+      [hit.id]: { run: 1, at: 0, seed: hit.seed + 1, config: hit.config, version: GAME_VERSION - 1 },
+    });
+    verifyAchievements();
+    assert(isEarned(hit.id), 'an older engine\'s receipt was re-run and un-earned');
   });
 });
 
@@ -4245,7 +4266,7 @@ function aRunThatBankedTheAxe() {
 test('an axe receipt whose run banked the price is accepted', () => {
   withStores(() => {
     const hit = aRunThatBankedTheAxe();
-    writeSlice('achievements', { axe: { at: 0, seed: hit.seed, config: hit.config } });
+    writeSlice('achievements', { axe: { at: 0, seed: hit.seed, config: hit.config, version: GAME_VERSION } });
     verifyAchievements();
     assert(isEarned('axe'), 'a genuine axe receipt was refused');
   });
@@ -4262,7 +4283,9 @@ test('an axe receipt whose run could not pay is refused', () => {
     }
     assert(poor !== null,
       'every run in 80 could afford an axe — the refusal cannot be tested');
-    writeSlice('achievements', { axe: { at: 0, seed: poor, config: {} } });
+    // Stamped with the CURRENT version, or the seal waves it through as
+    // legacy before the replay ever runs — the same trap the pig tests hit.
+    writeSlice('achievements', { axe: { at: 0, seed: poor, config: {}, version: GAME_VERSION } });
     verifyAchievements();
     assert(!isEarned('axe'), 'a run that never banked the price still bought the claim');
   });

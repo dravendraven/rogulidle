@@ -60,6 +60,7 @@
 import { playRun } from './run.js';
 import { readSlice, writeSlice } from './save.js';
 import { SHOP_ITEMS } from './shop.js';
+import { GAME_VERSION } from '../sim/balance.js';
 
 // One slice of the save document (src/ui/save.js), which owns the storage
 // and the failure cases this used to carry itself.
@@ -170,6 +171,19 @@ export function verifyAchievements() {
   for (const a of ACHIEVEMENTS) {
     const entry = stored[a.id];
     if (!isReceipt(entry)) continue;
+    // THE VERSION SEAL (owner, 2026-08-31). A replay only proves anything
+    // on the engine that recorded the receipt: the day the coin pile
+    // reshuffled every seed, honest players watched their pig un-die on
+    // load. So a receipt stamped by an OLDER engine is accepted as legacy
+    // — it verified on the version that earned it — and only receipts from
+    // THIS engine are re-run. Entries from before the stamp existed read
+    // as version 0. Forging a legacy stamp is free and stated in
+    // GAME_VERSION's own comment: the friction was already unenforceable
+    // against engines that no longer exist.
+    if ((entry.version ?? 0) !== GAME_VERSION) {
+      out[a.id] = entry;
+      continue;
+    }
     let run;
     try {
       run = playRun(entry.seed, entry.config);
@@ -219,7 +233,14 @@ export function lockedReason(id) {
 export function earn(id, receipt) {
   const data = load();
   if (data[id]) return false;
-  data[id] = { at: Date.now(), seed: receipt.seed, config: receipt.config };
+  data[id] = {
+    at: Date.now(),
+    seed: receipt.seed,
+    config: receipt.config,
+    // The engine that recorded it — what decides, on every future load,
+    // whether this receipt is re-run (same engine) or trusted as legacy.
+    version: GAME_VERSION,
+  };
   save(data);
   if (verified) verified[id] = data[id];
   return true;
