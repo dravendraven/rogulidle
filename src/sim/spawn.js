@@ -5,7 +5,7 @@
 // pool, so changing the order changes every map.
 
 import {
-  COIN_PILE_AMOUNT, COIN_PILE_PER_FLOOR, VISIBLE_DIST,
+  COIN_CHEST_AMOUNT,
   CHEST_COUNT, CHEST_GUARD_RADIUS, CHEST_LOOT_CHANCE, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST,
   ITEM_TABLE, MONSTER_COUNT,
   MONSTER_DIFFICULTY_SCALE, MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE,
@@ -528,8 +528,8 @@ export function populate(state, map, counts = {}) {
     // `allowEmpty: false` — `hasLoot` above already decided whether this
     // chest holds anything, so this draw only picks WHICH kind. (Coins were
     // briefly a third outcome of this draw and the opening-deaths wire
-    // fired for it — see COIN_PILE_PER_FLOOR in balance.js; chests are back
-    // to items only.)
+    // fired for it — see COIN_CHEST_AMOUNT in balance.js; the coin chest
+    // now carries its coins ON TOP of this draw, never instead of it.)
     const template = drawWeighted(state, 'spawn', itemWeights(scarcity, 'chest', quality, [], false));
 
     const chest = drawPick(state, 'spawn', CHEST_TABLE);
@@ -546,27 +546,24 @@ export function populate(state, map, counts = {}) {
     });
   }
 
-  // 4b. The coin pile (owner, 2026-08-31) — the explorer's income, and the
-  // placement rule IS the design: SIDE ROOMS ONLY, weighted by distance, so
-  // the mandatory route never trips over one. A floor whose rooms are all
-  // spine (small floors — see MIN_ROSTER_FOR_SIDE's world) simply has no
-  // pile, which is the rule holding rather than failing: money the route
-  // would collect for free is not exploration income.
+  // 4b. THE COIN CHEST (owner, 2026-08-31, the fourth and final shape of
+  // the explorer's income): the chest FARTHEST from the mandatory route, by
+  // walked steps, carries COIN_CHEST_AMOUNT coins ON TOP of whatever it
+  // drew — the item world is byte-identical to a game without coins. No
+  // draw is consumed: the pick is the max of a BFS, so the spawn stream is
+  // exactly what it was before coins existed.
   //
-  // A VISIBLE pile on the floor, not a chest: what it pays is the act of
-  // revealing the room, so it has nothing to hide — and money has no pickup
-  // decision, so it credits on contact (src/sim/step.js) instead of taking
-  // an inventory slot.
+  // Why a chest and why the farthest: hidden inside a chest the coin has no
+  // magnetism (contents never cross the fog), so the bot prices every chest
+  // by an honest expected value and the hasty hero, who refuses the far
+  // chest by price, forgoes the coin without ever knowing which chest it
+  // was. The three shapes before this — coins drawn instead of items,
+  // a visible pile in a side room, a visible pile out of the route's sight
+  // — each failed a measurement the owner watched (sustain lost, or piles
+  // grabbed by anyone who glimpsed them); balance.js carries the numbers.
   state.items = [];
-  const pilesWanted = counts.coinPiles ?? COIN_PILE_PER_FLOOR;
-
-  // WALKED distance from the mandatory route, every free tile at once: a
-  // multi-source BFS seeded with the route's own tiles. Room labels lied on
-  // open themes (a cave "side" anchor can hug the walked path — the first
-  // placement was room-based and the owner watched piles beside the spine);
-  // steps do not.
-  const routeDist = new Map();
   {
+    const routeDist = new Map();
     const queue = [];
     for (const key of zones.onPath) { routeDist.set(key, 0); queue.push(key); }
     for (let head = 0; head < queue.length; head++) {
@@ -580,54 +577,16 @@ export function populate(state, map, counts = {}) {
         queue.push(nkey);
       }
     }
-  }
-
-  // OUT OF SIGHT OF THE WHOLE ROUTE, and the bar is DERIVED, not chosen:
-  // farther than `VISIBLE_DIST` from every route tile. A walked-steps gap
-  // was tried first (8) and the owner watched even max-pressa heroes
-  // collect piles anyway — the hero sees in a RADIUS, so a pocket 8 walked
-  // steps away can sit 5 tiles from the route in a straight line, and once
-  // SEEN a pile worth 6 hp refuses no one. Money the route can so much as
-  // GLIMPSE is not exploration income; a pile must be walked for blind.
-  const seenFromRoute = (pos) => {
-    for (const key of zones.onPath) {
-      const [rx, ry] = key.split(',').map(Number);
-      const dx = pos[0] - rx; const dy = pos[1] - ry;
-      if (dx * dx + dy * dy <= VISIBLE_DIST * VISIBLE_DIST) return true;
+    let farthest = null;
+    for (const chest of state.chests) {
+      // Introspection for tests and the debug overlay: every chest knows
+      // how far off the route it sits, in walked steps.
+      chest.routeGap = routeDist.get(chest.pos[0] + ',' + chest.pos[1]) ?? -1;
+      if (chest.routeGap < 0) continue;                         // unreachable
+      if (!farthest || chest.routeGap > farthest.routeGap) farthest = chest;
     }
-    return false;
-  };
-
-  for (let i = 0; i < pilesWanted; i++) {
-    // Reachable, and invisible from the route — the pocket you only find by
-    // leaving it. Weighted by walked distance, so deeper pockets are
-    // likelier. No pocket, no pile.
-    const candidates = [];
-    for (const [key, pos] of free) {
-      const dist = routeDist.get(key);
-      if (dist !== undefined && !seenFromRoute(pos)) candidates.push([pos, dist]);
-    }
-    if (!candidates.length) break;
-    const pos = drawWeighted(state, 'spawn', candidates);
-    takeFree(pos);
-    state.items.push({
-      id: nextId(state),
-      name: 'coins',
-      emoji: '💰',
-      pos,
-      dmg: 0, dmgMin: 0, armour: 0, heal: 0,
-      kind: 'coin',
-      coin: counts.coinPileAmount ?? COIN_PILE_AMOUNT,
-      side: zones.isSide(pos),
-      // Introspection for tests and the debug overlay: how far off the
-      // route this pocket sits, in walked steps and in straight-line sight.
-      routeGap: routeDist.get(pos[0] + ',' + pos[1]),
-      sightGap: Math.floor(Math.sqrt([...zones.onPath].reduce((best, key) => {
-        const [rx, ry] = key.split(',').map(Number);
-        const dx = pos[0] - rx; const dy = pos[1] - ry;
-        return Math.min(best, dx * dx + dy * dy);
-      }, Infinity))),
-    });
+    const amount = counts.coinChestAmount ?? COIN_CHEST_AMOUNT;
+    if (farthest && amount > 0) farthest.coin = amount;
   }
 
   // 5. Monsters, split between the mandatory route and the side rooms, and
@@ -1105,8 +1064,6 @@ export function populate(state, map, counts = {}) {
     });
   }
 
-  // Items lying loose on the floor: initialized at step 4b (the coin pile
-  // is generated INTO it), grown later when a chest is opened or a monster
-  // dies. The reset used to live here, which would have silently wiped the
-  // pile — order is the whole game in this file.
+  // Items lying loose on the floor: initialized at step 4b, grown later
+  // when a chest is opened or a monster dies.
 }

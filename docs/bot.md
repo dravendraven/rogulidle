@@ -116,6 +116,11 @@ frases:
   `d` some em `d/2` turnos. É aritmética que o bot errava, não dial novo.
 - Entre tudo que vale ter — item solto, baú, luta pagável — **pega sempre o
   mais barato em hp**, caminhada e perigo incluídos.
+- **O baú da moeda entra no valor esperado de TODO baú.** Um baú do andar
+  carrega moedas além do sorteio (`rules.md` §9) e ele não sabe qual, então
+  o valor do baú ganha `moedas ÷ nº de baús` em hp (pela taxa da loja) —
+  a crença honesta de "um destes tem a moeda". Só a persona que vê conteúdo
+  precifica a moeda onde ela está.
 - **Baú que ele sabe estar vazio sai da conta.** Só um herói enxerga o
   conteúdo antes de abrir (`rules.md` §7); para todos os outros o campo nem
   existe no Belief e nada muda. É filtro, não avaliação — não tem dial, e

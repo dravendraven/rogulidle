@@ -3,7 +3,7 @@
 // Bot rules live in the bot (CLAUDE.md); so do the bot's numbers.
 
 import {
-  CHEST_LOOT_CHANCE, COIN_RATE, ITEM_TABLE, SHOP_PRICES,
+  CHEST_LOOT_CHANCE, COIN_CHEST_AMOUNT, COIN_RATE, ITEM_TABLE, SHOP_PRICES,
 } from '../sim/balance.js';
 import { ARMOUR_SCARCITY, POTION_SCARCITY } from '../sim/difficulty.js';
 import { itemWeights } from '../sim/spawn.js';
@@ -364,6 +364,14 @@ export function expectedChestValueHp(
 }
 
 export const CHEST_VALUE_HP = expectedChestValueHp();
+
+// The floor's coin chest (COIN_CHEST_AMOUNT, src/sim/balance.js), in hp
+// through the shop's exchange rate — what ONE chest on the floor carries on
+// top of its draw. The bot never knows which, so the chest gate spreads it
+// over every chest the floor holds (`chestCount` is granted, rules.md §7):
+// the honest expected value of "one of these has the coins". Computed, and
+// it follows COIN_CHEST_AMOUNT and the shelf on its own.
+export const COIN_CHEST_VALUE_HP = COIN_CHEST_AMOUNT * hpPerCoin();
 
 // ***** what a FIGHT is worth, in hp — xp priced through the economy *****
 //

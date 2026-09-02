@@ -89,10 +89,7 @@ const CHEST_FIELDS = ['id', 'name', 'emoji', 'pos', 'edge'];
 // `dmgMin` belongs here beside `dmg`: it is a plain property of an item the
 // hero can already see, not an unrevealed answer, and leaving it out made
 // the bot value a floor axe as if it only widened the die.
-// `kind`/`coin` cross for the coin pile (2026-08-31): a pile is VISIBLE
-// money on open floor — plain properties of a thing in sight, not an
-// unrevealed answer, same reasoning as `dmgMin` above.
-const ITEM_FIELDS = ['id', 'name', 'emoji', 'pos', 'dmg', 'dmgMin', 'armour', 'heal', 'kind', 'coin'];
+const ITEM_FIELDS = ['id', 'name', 'emoji', 'pos', 'dmg', 'dmgMin', 'armour', 'heal'];
 const SHRINE_FIELDS = ['id', 'emoji', 'pos'];
 
 // `revealLoot` adds `drop` to the monster/chest allow-lists. Off (the
@@ -118,8 +115,13 @@ function monsterFields(revealLoot, monster) {
     : MONSTER_FIELDS;
   return revealLoot ? [...base, 'drop'] : base;
 }
+// `coin` is an unrevealed answer exactly like `drop` (the coin chest,
+// 2026-08-31): which chest carries the floor's coins is the secret the
+// explorer's income rests on, so it crosses only for the persona that sees
+// contents — and for that one it crosses with the drop, or the engineer
+// would walk past the richest chest on the floor as "empty".
 function chestFields(revealLoot) {
-  return revealLoot ? [...CHEST_FIELDS, 'drop'] : CHEST_FIELDS;
+  return revealLoot ? [...CHEST_FIELDS, 'drop', 'coin'] : CHEST_FIELDS;
 }
 
 // Deep-clones only the allow-listed fields — still a JSON round-trip

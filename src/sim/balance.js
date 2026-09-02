@@ -352,34 +352,27 @@ export const CHEST_TABLE = [
 // decision.
 export const CHEST_LOOT_CHANCE = 0.5;
 
-// ***** the coin pile (owner, 2026-08-31) *****
+// ***** the coin chest (owner, 2026-08-31) *****
 //
 // THE PROBLEM THIS SOLVES: the game's only income was xp ÷ turns, so every
 // turn of exploring diluted the pay and "descend fast" beat every other
-// play — two dial grids measured it end to end. The pile is the second
-// income, the one that does NOT dilute with turns — and it lives ONLY in
-// side rooms, so the route never trips over it: the diver farms the rate,
-// the explorer farms the floor, and Pressa chooses between incomes instead
-// of having a right answer.
+// play — two dial grids measured it end to end. The coin chest is the
+// second income, the one that does NOT dilute with turns: the chest
+// FARTHEST from the mandatory route carries these coins ON TOP of its
+// ordinary draw. The diver refuses far chests by price and so forgoes the
+// coin without knowing which chest held it; the explorer collects it.
 //
-// A VISIBLE pile on the floor, not a chest kind, by the owner's design
-// refined once: hiding money in a chest only makes the bot guess, and the
-// act being paid is REVEALING the room — the rarity and the hiding place
-// do the mystery's job. Chests are untouched: the first attempt took the
-// coin out of their content draw and the opening-deaths wire fired
-// (0.45 -> 0.53 at n=300, both with and without the sustain compensation —
-// richer floors cost dwell time in blood), so the pile adds income without
-// touching the item world at all.
-export const COIN_PILE_PER_FLOOR = 1;
-export const COIN_PILE_AMOUNT = 1;
-
-// WHERE a pile may sit is not a number here on purpose (owner, 2026-08-31,
-// twice, both times watching): "side room" lied on open themes, then a
-// walked-steps gap (8) still let max-pressa heroes collect piles — the
-// hero SEES in a radius, and a pile once seen is worth too much for any
-// dial to refuse. The rule is derived from the one constant that defines
-// seeing: farther than VISIBLE_DIST from every tile of the mandatory
-// route. Out of the route's sight, or not placed at all.
+// ON TOP, never instead — the owner's constraint after watching three
+// earlier shapes fail: coins drawn INSTEAD of items cost sustain and fired
+// the opening-deaths wire (0.45 -> 0.53 at n=300, with and without a
+// lootChance compensation); a visible pile in a side room, and then one
+// out of the route's sight, were both grabbed by whoever glimpsed them (a
+// seen pile worth 6 hp refuses no dial) or, at 1 coin, stopped mattering.
+// Hidden in a chest the coin has no magnetism and the item world is
+// byte-identical to the game before it. If the extra income ever moves
+// the win wires, the counterweight is COIN_RATE — a conversion factor —
+// and never the resources, which are survival.
+export const COIN_CHEST_AMOUNT = 2;
 
 // GUESS — floor 1 is the poorest floor under quality-by-depth (nowhere on it
 // is far from the entrance) at the exact moment it is the most dangerous.

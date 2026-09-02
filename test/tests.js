@@ -2,7 +2,7 @@
 // Run them with: python tools/dev-server.py -> http://localhost:8138/run-tests.html
 
 import {
-  CHEST_GUARD_RADIUS, CHEST_TABLE, COIN_PILE_AMOUNT, COIN_PILE_PER_FLOOR,
+  CHEST_GUARD_RADIUS, CHEST_TABLE, COIN_CHEST_AMOUNT,
   EARLY_CHEST_QUALITY_BOOST, GAME_VERSION, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP,
   PLAYER_HP, PLAYER_XP, RAGE_MULT, RAGE_TURNS, READ_TURNS, ROOM_HEIGHT,
@@ -905,48 +905,56 @@ test('opening a chest costs a turn and leaves the loot on the floor', () => {
   assertEq(collected.player.inventory.length, 1, 'the loot was not collected');
 });
 
-// ***** the coin pile (2026-08-31) — the explorer's income ***** //
+// ***** the coin chest (2026-08-31) — the explorer's income ***** //
 //
-// A visible pile of coins, side rooms only, credited on contact: money has
-// no inventory decision, and the credit pays with the traversal under the
-// same completed-only rule as the xp rate (dungeon.js). Chests never carry
-// coins — that variant traded sustain for coin and fired the deaths wire.
-test('stepping on a coin pile credits it and takes no inventory slot', () => {
-  const state = makeState({
-    map: ROOM_5x5, playerPos: [2, 2],
-    items: [{ id: 'e9', name: 'coins', emoji: '💰', pos: [1, 2], kind: 'coin', coin: 2, dmg: 0, dmgMin: 0, armour: 0, heal: 0 }],
-  });
+// One chest per floor — the FARTHEST from the mandatory route by walked
+// steps — carries coins ON TOP of its ordinary draw: the item world is
+// byte-identical to a game without coins (the shape that took coins out of
+// the draw fired the deaths wire), and hidden in a chest the coin has no
+// magnetism (the visible-pile shapes were grabbed by whoever glimpsed
+// them). Opening credits the coins and still leaves the drop on the floor.
+test('opening the coin chest credits its coins and still drops its item', () => {
+  const chest = {
+    id: 'c1', name: 'rock', emoji: '🪨', pos: [1, 2],
+    drop: item('dagger', [1, 2], { dmg: 1 }), coin: 2,
+  };
+  const state = makeState({ map: ROOM_5x5, playerPos: [2, 2], chests: [chest] });
 
-  const after = step(state, 'left').state;
-  assertEq(posKey(after.player.pos), '1,2', 'the player did not walk on');
-  assertEq(after.items.length, 0, 'the pile survived the pickup');
-  assertEq(after.player.coinsFound, 2, 'the coins were not credited');
-  assertEq(after.player.inventory.length, 0, 'coins entered the inventory');
+  const opened = step(state, 'left').state;
+  assertEq(opened.chests.length, 0, 'the chest survived');
+  assertEq(opened.items.length, 1, 'the drop was lost to the coins');
+  assertEq(opened.player.coinsFound, 2, 'the coins were not credited');
+  assertEq(opened.player.inventory.length, 0, 'coins entered the inventory');
 });
 
-test('the coin pile is invisible from every tile of the mandatory route', () => {
-  // Across seeds: at most one pile per floor, every one farther than
-  // VISIBLE_DIST in a straight line from the whole route (the spawner
-  // stamps the distance), and floors with no such pocket simply have none.
-  // Sight, not walked steps, deliberately: the owner watched a walked-gap
-  // pile get collected by max-pressa heroes, because a pocket 8 steps by
-  // foot can sit 5 tiles by eye — and a pile once SEEN is worth too much
-  // for any dial to refuse.
-  let piles = 0;
-  for (let seed = 1; seed <= 60; seed++) {
+test('exactly one chest per floor carries coins, and it is the farthest from the route', () => {
+  let floors = 0;
+  for (let seed = 1; seed <= 30; seed++) {
     const state = newGame(seed, floorPlan(3));
-    const found = state.items.filter((i) => i.kind === 'coin');
-    assert(found.length <= COIN_PILE_PER_FLOOR, `seed ${seed} spawned ${found.length} piles`);
-    for (const pile of found) {
-      // `sightGap` is FLOORED, so 9 means a real distance in (9, 10) — out
-      // of a radius-9 eye. `>=` is the right comparison for a floored gap.
-      assert(pile.sightGap >= VISIBLE_DIST,
-        `seed ${seed}: a pile sat in sight of the route (${pile.sightGap} tiles)`);
-      assertEq(pile.coin, COIN_PILE_AMOUNT, 'a pile carries the wrong amount');
-    }
-    piles += found.length;
+    const chests = state.chests.filter((c) => !c.vault);
+    const coined = state.chests.filter((c) => c.coin);
+    assert(coined.length <= 1, `seed ${seed} put coins in ${coined.length} chests`);
+    if (!coined.length) continue;
+    floors++;
+    const [rich] = coined;
+    assertEq(rich.coin, COIN_CHEST_AMOUNT, 'the coin chest carries the wrong amount');
+    assert(!rich.vault, `seed ${seed}: the vault's authored chest took the coins`);
+    const farthest = Math.max(...chests.map((c) => c.routeGap ?? -1));
+    assertEq(rich.routeGap, farthest,
+      `seed ${seed}: the coins sat ${rich.routeGap} steps off the route, but a chest sits ${farthest}`);
   }
-  assert(piles > 0, 'no pile spawned in 60 floors — the placement is dead');
+  assert(floors > 0, 'no floor in 30 placed a coin chest — the placement is dead');
+});
+
+test('the coin chest never crosses the fog, except for the persona that sees contents', () => {
+  const chest = {
+    id: 'c1', name: 'rock', emoji: '🪨', pos: [1, 2], drop: null, coin: 2,
+  };
+  const state = makeState({ map: ROOM_5x5, playerPos: [2, 2], chests: [chest] });
+  const plain = observe(state).chests[0];
+  assert(!('coin' in plain), 'which chest holds the coins leaked to the ordinary hero');
+  const seer = observe(state, { revealLoot: true }).chests[0];
+  assertEq(seer.coin, 2, 'the persona that sees contents was not shown the coins');
 });
 
 test('picking up an item moves the player onto its tile', () => {
@@ -3876,8 +3884,11 @@ test('B21 — with the gate on, a chest is refused on VALUE, not on the bar', ()
     const { actions } = driveBot(state, 1, {
       monsterCount: 0, chestCount: 1, lootValue,
       // Six tiles at 0.1 an hp is 0.6, against a chest this hero believes is
-      // worth 0.2 — so the visit costs three times what it buys.
-      chestValueHp: 0.2,
+      // worth 0.2 — so the visit costs three times what it buys. The coin
+      // chest's share (2026-08-31) is zeroed here too: this test isolates
+      // the VALUE gate itself, and with one chest on the floor the coin
+      // share would be the whole coin chest, which is not what it pins.
+      chestValueHp: 0.2, coinChestValueHp: 0,
       hero: { ...DEFAULT_HERO, stepCost: 0.1, sideAppetite: 1 },
     });
     return actions[0];
@@ -4734,9 +4745,9 @@ test('the engine really does write coins onto the traversal that killed the hero
   // engine ever starts zeroing that row, this fails and `balanceOf` can lose
   // its filter instead of keeping a guard against something that stopped
   // happening.
-  // 500001: the pile's placement draw reshuffled 500000 into a run whose
-  // fatal traversal earned nothing, which is the test's own "pick another".
-  const run = playOne(500001);
+  // Back on 500000: the coin chest consumes no draw, so the stream is the
+  // pre-coin one again and this seed's fatal traversal pays as it did.
+  const run = playOne(500000);
   assert(!run.cleared, 'the fixture seed stopped dying — pick another');
   const last = run.levels[run.levels.length - 1];
   assert(last.outcome !== 'ascended', 'the last traversal completed after all');
@@ -4788,7 +4799,7 @@ test('a death empties the pile, and the purchase made after it survives', () => 
   // Moved three times in one day (500000 → 500001 → 500007 → 500001) as the
   // coin economy reshaped which chains clear — the guard below is what
   // catches it, and a fixture seed is a fixture, not a claim about the game.
-  const { runs } = playChain(500001, 4);
+  const { runs } = playChain(500003, 4);
   assert(runs.every((r) => !r.cleared), 'the fixture chain started clearing — see EMPTY_DUNGEON');
 
   for (let i = 1; i < runs.length; i++) {

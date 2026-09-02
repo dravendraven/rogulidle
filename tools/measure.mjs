@@ -82,31 +82,26 @@ const VENDOR_SHA256 = '0123bd2a96d26cadb328c986885e7e0e58e35a267b6fc87efac2e9b5a
 
 // Pure generation: `newGame(seed, floorPlan(level))` on an unplayed state.
 //
-// Re-recorded for the coin pile (2026-08-31): its placement draws sit
-// before the monsters in the spawn stream, so on floors WITH side rooms
-// every later position reshuffles — s1 moved, s12345 (no side rooms, no
-// draws) stayed byte-identical, which is the change contained exactly
-// where it claims to be. Read off a RELOADED page; the first read came off
-// a stale module cache and recorded rosters no fresh page produces — the
-// import()-cache trap CLAUDE.md warns about, again.
+// Re-recorded three times on 2026-08-31 and back where it started: the coin
+// PILE consumed placement draws and moved s1 twice; the coin CHEST that
+// replaced it consumes none (its pick is the max of a BFS), so the spawn
+// stream is the pre-coin stream again and these rosters are the original
+// recordings — read off a RELOADED page all the same, because the earlier
+// stale-cache misread is the reason the rite exists.
 const GENERATION = {
-  // Re-recorded again for COIN_PILE_ROUTE_GAP (2026-08-31): the pile's
-  // placement moved from a room pick to a distance-weighted tile draw, so
-  // the spawn stream changed once more on floors that place one. Same
-  // reloaded-page rite as the note above.
   's1L1': {
     mapHash: '154f1525',
     rooms: 4,
     player: '14,15',
     shrine: '18,5',
-    monsters: 'ghost@18,4|bat@12,4|bat@14,14|bat@17,9',
+    monsters: 'ghost@17,5|bat@7,3|bat@14,14|bat@6,2',
   },
   's1L5': {
     mapHash: '154f1525',
     rooms: 4,
     player: '14,15',
     shrine: '18,5',
-    monsters: 'boar@16,3|wolf@19,5|boar@12,15',
+    monsters: 'wolf@18,4|boar@19,4|boar@12,15',
   },
   's12345L1': {
     mapHash: '66529623',
@@ -169,7 +164,7 @@ const GENERATION = {
 // Read off a freshly served page, per the rule above.
 const MEASUREMENT = {
   call: { module: 'check', fn: 'tripwires', args: { runs: 3, firstSeed: 500000 } },
-  values: [0.333, 0.333, 0.333, 0, 0.333, 1, 1],
+  values: [0, 0.333, 0.333, 0, 0.333, 1, 1],
 };
 
 // The exact snippet that produced GENERATION, for re-recording in a browser

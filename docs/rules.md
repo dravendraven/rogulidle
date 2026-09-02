@@ -509,24 +509,18 @@ por decisão do dono; o bot continua decidindo sem saber quanto resta.
 **Moeda por travessia concluída**, derivada de xp por turno. Toda travessia
 paga, ida e volta.
 
-**A pilha de moedas** (2026-08-31): cada andar pode gerar uma pilha de
-moedas, **fora da vista da rota obrigatória inteira** — mais longe que o
-raio de visão de todo tile da rota, barra derivada do próprio
-`VISIBLE_DIST`, nunca escolhida. Sorteio pesado pela profundidade do
-bolsão; andar sem bolsão cego não tem pilha. A regra endureceu duas vezes
-assistindo: "sala lateral" mentia nos temas abertos, e distância de
-caminhada ainda deixava o olho alcançar o que o pé não alcançava — uma
-pilha vista vale demais para qualquer dial recusar, então ela só pode
-existir onde é preciso SAIR da rota para vê-la.
-Pisar nela credita as moedas na hora (não ocupa inventário) e elas pagam
-junto com a travessia em que foram achadas, sob a mesma regra: travessia
-não concluída não paga. É a segunda renda do jogo e a razão de existir: a
-renda por taxa (xp÷turno) recompensa descer rápido; a pilha recompensa
-REVELAR o mapa — e o dial de Pressa passa a escolher entre as duas rendas
-em vez de ter resposta certa. Baús não carregam moeda: a primeira versão
-tirava a moeda do sorteio de conteúdo deles e o wire de mortes disparou
-(sustain trocado por moeda); a pilha adiciona renda sem tocar no mundo dos
-itens.
+**O baú da moeda** (2026-08-31): em cada andar, o baú **mais distante da
+rota obrigatória** (em passos andados) carrega moedas **além** do que
+sorteou — o mundo dos itens é byte-idêntico ao jogo sem moeda. Abrir credita
+as moedas e deixa o item no chão como sempre; elas pagam junto com a
+travessia, sob a regra de sempre. Qual baú é o da moeda **não cruza o fog**
+(só a persona que vê conteúdo sabe), então o bot precifica todo baú pelo
+valor esperado — e o apressado, que recusa o baú distante pelo preço, abre
+mão da moeda sem saber qual era. É a segunda renda do jogo: a taxa xp÷turno
+recompensa descer rápido; o baú distante recompensa explorar. Três formas
+anteriores foram medidas e descartadas — moeda no lugar do item (sustain
+perdido, wire de mortes disparou), pilha visível em sala lateral e pilha
+fora da vista da rota (quem vislumbrava, pegava).
 
 **A moeda é da run, e não sobrevive a ela.** O saldo começa em zero em toda
 run, é gasto na loja que fecha aquela run, e o que não for gasto é
