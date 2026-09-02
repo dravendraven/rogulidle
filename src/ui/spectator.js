@@ -7,7 +7,7 @@
 // sped up freely.
 
 import { playGame, replayGame } from '../sim/game.js';
-import { LEVELS } from '../sim/dungeon.js';
+import { coinsFor, LEVELS } from '../sim/dungeon.js';
 import { hashSeeds, seedFromString } from '../sim/rng.js';
 import { heroByName } from '../sim/heroes.js';
 import { difficultyToParams } from '../sim/difficulty.js';
@@ -481,6 +481,13 @@ async function playFrames(frames, trace, tallyText) {
     events.show(frame.state);
     renderDebugInfo(el.debugInfo, session.debug ? entry : null);
     renderHud(el, frame.state, session);
+    // The traversal's coin so far: xp earned since its first frame, over
+    // its own turn count (state.turn resets per floor).
+    // ...plus the coins FOUND on this floor (the pile), flat — the same
+    // two terms the engine's row will carry at the stairs.
+    paintCoins(coinsFor(
+      frame.state.player.xpEarned - frames[0].state.player.xpEarned, frame.state.turn,
+    ) + ((frame.state.player.coinsFound ?? 0) - (frames[0].state.player.coinsFound ?? 0)));
     if (el.tally) el.tally.textContent = tallyText();
 
     await sleep(turnMs() * (fought(frame, frames[i - 1]) ? COMBAT_STRETCH : 1));
@@ -511,6 +518,53 @@ const descentTallyText = () =>
 
 function coinsText() {
   return `🪙 ${session.unbankedCoins}`;
+}
+
+// THE LIVE COIN CHIP (owner, 2026-08-31): the banked total of the run plus
+// the PROJECTION of the traversal on screen — `coinsFor(xp this floor, turns
+// this floor)`, the engine's own exported function, called for DISPLAY
+// only. This is not the recompute drift fixed earlier today: the row the
+// engine writes stays the one truth for banking (see the floor bookkeeping
+// below); this only shows the same rule forming turn by turn, which is what
+// makes "xp per turn" legible from the sofa — the number melts while he
+// wanders and jumps when he kills. Integers by construction: coinsFor
+// rounds, so it only moves when the ratio crosses a boundary.
+//
+// Up: the chip pulses green and a "+n" ghost floats up. Down: it dips red
+// and a "−n" ghost sinks. Both off at 4× and above — at that pace they
+// strobe, and the final state is all a viewer can read anyway.
+let coinProjShown = null;
+function paintCoins(projection, { silent = false } = {}) {
+  if (!el.coins) return;
+  const proj = Math.max(0, projection ?? 0);
+  // `silent`: a bookkeeping repaint (the stairs, a reset). The projection
+  // collapsing into the bank is not a loss, and a red "−3" ghost there said
+  // it was — the floor-end popup already tells that story.
+  if (silent) coinProjShown = null;
+  let chip = el.coins.querySelector('.coin-proj');
+  if (!chip) {
+    el.coins.textContent = '';
+    el.coins.append(`🪙 ${session.unbankedCoins} `);
+    chip = document.createElement('span');
+    chip.className = 'coin-proj';
+    el.coins.append(chip);
+    coinProjShown = null;
+  } else {
+    el.coins.firstChild.textContent = `🪙 ${session.unbankedCoins} `;
+  }
+  chip.textContent = `+${proj}`;
+  if (coinProjShown !== null && proj !== coinProjShown && session.speed < 4) {
+    const up = proj > coinProjShown;
+    chip.classList.remove('up', 'down');
+    void chip.offsetWidth;   // restart the transition
+    chip.classList.add(up ? 'up' : 'down');
+    const ghost = document.createElement('span');
+    ghost.className = `coin-ghost ${up ? 'up' : 'down'}`;
+    ghost.textContent = `${up ? '+' : '−'}${Math.abs(proj - coinProjShown)}`;
+    chip.append(ghost);
+    setTimeout(() => { chip.classList.remove('up', 'down'); ghost.remove(); }, 650);
+  }
+  coinProjShown = proj;
 }
 
 // Non-blocking on purpose — this project's spectator model never pauses
@@ -662,7 +716,7 @@ async function showShop(receipt) {
     if (el.shopBalance) el.shopBalance.textContent = `balance: ${balance} 🪙`;
     renderShopItems(balance, order);
     session.unbankedCoins = balance;
-    if (el.coins) el.coins.textContent = coinsText();
+    paintCoins(0, { silent: true });
   };
 
   showBalance();
@@ -926,7 +980,7 @@ async function runDescentForever() {
     if (session.stopped) return;
     session.runNumber++;
     session.unbankedCoins = 0;
-    if (el.coins) el.coins.textContent = coinsText();
+    paintCoins(0, { silent: true });
     // Read from the session rather than taken as an argument: the reset
     // button draws a new chain, and a parameter captured once could not
     // hear about it.
@@ -996,6 +1050,7 @@ async function runDescentForever() {
     // Playback state for the traversal on screen.
     let onTraversal = 0;
     let shown = null;
+    let floorStart = { xp: 0, found: 0 };
     while (true) {
       await waitWhilePaused();
       if (session.restart || session.stopped) break;
@@ -1010,6 +1065,12 @@ async function runDescentForever() {
           shown = null;
           if (el.floor) el.floor.textContent = `floor ${level} / ${LEVELS}`;
           applyDepth(el.stage, level);
+          // The traversal's starting ledger, for the live chip below: what
+          // it pays is xp EARNED HERE over turns HERE, plus coins found here.
+          floorStart = {
+            xp: frame.state.player.xpEarned,
+            found: frame.state.player.coinsFound ?? 0,
+          };
         }
         finalState = frame.state;
         session.liveRun.traversal = traversal;
@@ -1030,6 +1091,12 @@ async function runDescentForever() {
         events.show(frame.state);
         renderDebugInfo(el.debugInfo, session.debug ? entry : null);
         renderHud(el, frame.state, session);
+        // The live coin chip — THIS loop is what the page actually watches
+        // (playFrames above is the replay path), so the projection paints
+        // here or nowhere. Same two terms the engine's row carries at the
+        // stairs, forming turn by turn.
+        paintCoins(coinsFor(frame.state.player.xpEarned - floorStart.xp, frame.state.turn)
+          + ((frame.state.player.coinsFound ?? 0) - floorStart.found));
         if (el.tally) el.tally.textContent = descentTallyText();
 
         await sleep(turnMs() * (fought(frame, shown) ? COMBAT_STRETCH : 1));
@@ -1073,7 +1140,7 @@ async function runDescentForever() {
 
       if (levelResult.outcome === 'ascended') {
         session.unbankedCoins += earned - spent;
-        if (el.coins) el.coins.textContent = coinsText();
+        paintCoins(0, { silent: true });
         await showCoinPopup(earned, levelResult.bought);
       }
       // A floor that ends in death or timeout was not completed and pays

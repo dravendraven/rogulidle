@@ -294,6 +294,35 @@ main {
 }
 .debug-info:empty { display: none; }
 
+/* The live coin chip (src/ui/spectator.js paintCoins): the projection of
+   the traversal on screen beside the banked total. Pulses up, dips down,
+   with a ghost of the delta; both off at 4x and above. */
+.coin-proj {
+  position: relative;
+  display: inline-block;
+  min-width: 1.6em;
+  text-align: center;
+  padding: 0 .35em;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .08);
+  color: #aaa;
+  transition: transform .22s ease, background .22s ease, color .22s ease;
+}
+.coin-proj.up { transform: scale(1.25); background: rgba(77, 144, 41, .35); color: #cfc; }
+.coin-proj.down { transform: translateY(2px); background: rgba(190, 60, 60, .35); color: #fbb; }
+.coin-ghost {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: .8em;
+  pointer-events: none;
+  animation: coin-rise .6s ease-out forwards;
+}
+.coin-ghost.up { color: #8f8; }
+.coin-ghost.down { color: #f99; animation-name: coin-sink; }
+@keyframes coin-rise { from { opacity: 1; top: -.2em; } to { opacity: 0; top: -1.6em; } }
+@keyframes coin-sink { from { opacity: 1; top: 1.2em; } to { opacity: 0; top: 2.4em; } }
+
 /* Floor-completion coin popup — a moment, not a modal: fades in, holds
    briefly, fades out on its own, never intercepts a click. */
 .coin-popup {

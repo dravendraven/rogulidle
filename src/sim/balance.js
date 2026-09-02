@@ -371,15 +371,15 @@ export const CHEST_LOOT_CHANCE = 0.5;
 // richer floors cost dwell time in blood), so the pile adds income without
 // touching the item world at all.
 export const COIN_PILE_PER_FLOOR = 1;
-export const COIN_PILE_AMOUNT = 2;
+export const COIN_PILE_AMOUNT = 1;
 
-// How many WALKED steps a pile must sit from every tile of the mandatory
-// route (owner, 2026-08-31, watching): the first placement filtered by side
-// ROOM, and on open themes (the cave has no real rooms) a "side" anchor can
-// hug the walked path — the owner saw piles beside the spine. Distance is
-// the rule that means the same thing on every theme: a pile lives in the
-// pocket the route never brushes, or the floor has none.
-export const COIN_PILE_ROUTE_GAP = 8;
+// WHERE a pile may sit is not a number here on purpose (owner, 2026-08-31,
+// twice, both times watching): "side room" lied on open themes, then a
+// walked-steps gap (8) still let max-pressa heroes collect piles — the
+// hero SEES in a radius, and a pile once seen is worth too much for any
+// dial to refuse. The rule is derived from the one constant that defines
+// seeing: farther than VISIBLE_DIST from every tile of the mandatory
+// route. Out of the route's sight, or not placed at all.
 
 // GUESS — floor 1 is the poorest floor under quality-by-depth (nowhere on it
 // is far from the entrance) at the exact moment it is the most dangerous.

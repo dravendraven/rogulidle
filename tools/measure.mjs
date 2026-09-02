@@ -169,7 +169,7 @@ const GENERATION = {
 // Read off a freshly served page, per the rule above.
 const MEASUREMENT = {
   call: { module: 'check', fn: 'tripwires', args: { runs: 3, firstSeed: 500000 } },
-  values: [0.333, 0, 0, 0, 0.333, 1, 1],
+  values: [0.333, 0.333, 0.333, 0, 0.333, 1, 1],
 };
 
 // The exact snippet that produced GENERATION, for re-recording in a browser

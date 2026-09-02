@@ -5,7 +5,7 @@
 // pool, so changing the order changes every map.
 
 import {
-  COIN_PILE_AMOUNT, COIN_PILE_PER_FLOOR, COIN_PILE_ROUTE_GAP,
+  COIN_PILE_AMOUNT, COIN_PILE_PER_FLOOR, VISIBLE_DIST,
   CHEST_COUNT, CHEST_GUARD_RADIUS, CHEST_LOOT_CHANCE, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST,
   ITEM_TABLE, MONSTER_COUNT,
   MONSTER_DIFFICULTY_SCALE, MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE,
@@ -559,7 +559,6 @@ export function populate(state, map, counts = {}) {
   // an inventory slot.
   state.items = [];
   const pilesWanted = counts.coinPiles ?? COIN_PILE_PER_FLOOR;
-  const routeGap = counts.coinPileRouteGap ?? COIN_PILE_ROUTE_GAP;
 
   // WALKED distance from the mandatory route, every free tile at once: a
   // multi-source BFS seeded with the route's own tiles. Room labels lied on
@@ -583,15 +582,30 @@ export function populate(state, map, counts = {}) {
     }
   }
 
+  // OUT OF SIGHT OF THE WHOLE ROUTE, and the bar is DERIVED, not chosen:
+  // farther than `VISIBLE_DIST` from every route tile. A walked-steps gap
+  // was tried first (8) and the owner watched even max-pressa heroes
+  // collect piles anyway — the hero sees in a RADIUS, so a pocket 8 walked
+  // steps away can sit 5 tiles from the route in a straight line, and once
+  // SEEN a pile worth 6 hp refuses no one. Money the route can so much as
+  // GLIMPSE is not exploration income; a pile must be walked for blind.
+  const seenFromRoute = (pos) => {
+    for (const key of zones.onPath) {
+      const [rx, ry] = key.split(',').map(Number);
+      const dx = pos[0] - rx; const dy = pos[1] - ry;
+      if (dx * dx + dy * dy <= VISIBLE_DIST * VISIBLE_DIST) return true;
+    }
+    return false;
+  };
+
   for (let i = 0; i < pilesWanted; i++) {
-    // Reachable, and at least `routeGap` walked steps from every route
-    // tile — the isolated pocket. Weighted by that distance, so deeper
-    // pockets are likelier. No pocket, no pile: money the route would
-    // brush past is not exploration income.
+    // Reachable, and invisible from the route — the pocket you only find by
+    // leaving it. Weighted by walked distance, so deeper pockets are
+    // likelier. No pocket, no pile.
     const candidates = [];
     for (const [key, pos] of free) {
       const dist = routeDist.get(key);
-      if (dist !== undefined && dist >= routeGap) candidates.push([pos, dist]);
+      if (dist !== undefined && !seenFromRoute(pos)) candidates.push([pos, dist]);
     }
     if (!candidates.length) break;
     const pos = drawWeighted(state, 'spawn', candidates);
@@ -606,8 +620,13 @@ export function populate(state, map, counts = {}) {
       coin: counts.coinPileAmount ?? COIN_PILE_AMOUNT,
       side: zones.isSide(pos),
       // Introspection for tests and the debug overlay: how far off the
-      // route this pocket sits, in walked steps.
+      // route this pocket sits, in walked steps and in straight-line sight.
       routeGap: routeDist.get(pos[0] + ',' + pos[1]),
+      sightGap: Math.floor(Math.sqrt([...zones.onPath].reduce((best, key) => {
+        const [rx, ry] = key.split(',').map(Number);
+        const dx = pos[0] - rx; const dy = pos[1] - ry;
+        return Math.min(best, dx * dx + dy * dy);
+      }, Infinity))),
     });
   }
 

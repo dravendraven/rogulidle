@@ -509,13 +509,15 @@ por decisão do dono; o bot continua decidindo sem saber quanto resta.
 **Moeda por travessia concluída**, derivada de xp por turno. Toda travessia
 paga, ida e volta.
 
-**A pilha de moedas** (2026-08-31): cada andar pode gerar uma pilha visível
-de moedas, **sempre a uma distância mínima em passos da rota obrigatória**
-(sorteio pesado pela profundidade do bolsão) — a rota nunca a roça; andar
-sem bolsão fundo o bastante não tem pilha. A regra é distância caminhada, e
-não "sala lateral", de propósito: nos temas abertos uma âncora "lateral"
-encosta no caminho andado, e o dono viu pilhas na espinha na primeira
-versão.
+**A pilha de moedas** (2026-08-31): cada andar pode gerar uma pilha de
+moedas, **fora da vista da rota obrigatória inteira** — mais longe que o
+raio de visão de todo tile da rota, barra derivada do próprio
+`VISIBLE_DIST`, nunca escolhida. Sorteio pesado pela profundidade do
+bolsão; andar sem bolsão cego não tem pilha. A regra endureceu duas vezes
+assistindo: "sala lateral" mentia nos temas abertos, e distância de
+caminhada ainda deixava o olho alcançar o que o pé não alcançava — uma
+pilha vista vale demais para qualquer dial recusar, então ela só pode
+existir onde é preciso SAIR da rota para vê-la.
 Pisar nela credita as moedas na hora (não ocupa inventário) e elas pagam
 junto com a travessia em que foram achadas, sob a mesma regra: travessia
 não concluída não paga. É a segunda renda do jogo e a razão de existir: a
