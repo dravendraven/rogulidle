@@ -368,7 +368,7 @@ criaturas e baús do andar são concedidas e viajam nas opções do
   ruim — moeda só é ganha em conclusão.
 - **O xp precificado está LIGADO** (`FIGHT_VALUE`, `src/bot/config.js`).
   `XP_VALUE_HP` converte xp em hp pelas taxas que já existem (moeda por
-  xp, hp por moeda na loja — ~0,5 hp por xp), e a porta recusa a luta
+  xp, hp por moeda na loja — ~0,35 hp por xp desde que a taxa caiu para 14), e a porta recusa a luta
   opcional cuja VIAGEM (aproximação + escuro aberto, duelo fora) custa
   mais que `xp × 0,5 × coragem` — a Coragem é a sede: decide quais lutas
   ele ousa E quão longe uma vale a caminhada. Nunca deixa uma luta mais

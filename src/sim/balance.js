@@ -372,7 +372,17 @@ export const CHEST_LOOT_CHANCE = 0.5;
 // byte-identical to the game before it. If the extra income ever moves
 // the win wires, the counterweight is COIN_RATE — a conversion factor —
 // and never the resources, which are survival.
-export const COIN_CHEST_AMOUNT = 2;
+// 1, and COIN_RATE went 20 -> 14 with it (owner, 2026-09-02), measured on
+// the chain instrument (8 chains x 40): at 2 coins on the shipped rate the
+// SESSION game snowballed — 111 clears in 320 and a pile of 206 items
+// against 1 clear and a pile of 6 before coins; both session wires fired.
+// The session sits on a knife's edge (one clear in 320 is the equilibrium),
+// and any extra income compounds: coin -> item -> clear -> coin. The pair
+// 1 coin / rate 14 is the only one measured that leaves the session
+// IDENTICAL to pre-coin (1 clear, pile 5, wires quiet); it costs ~8% of
+// total income, which the owner accepted as the price of keeping the
+// explorer's share without the snowball.
+export const COIN_CHEST_AMOUNT = 1;
 
 // GUESS — floor 1 is the poorest floor under quality-by-depth (nowhere on it
 // is far from the entrance) at the exact moment it is the most dangerous.
@@ -539,7 +549,13 @@ export const TURN_BUDGET = 240;
 // richer — the shop's prices double in the same commit (src/ui/shop.js) and
 // so does the one hero who spends mid-run (src/sim/heroes.js's pawa) — it
 // buys HALF-COIN STEPS, so floors that used to price the same now differ.
-export const COIN_RATE = 20;
+//
+// 20 -> 14 (owner, 2026-09-02): the counterweight to the coin chest. Money
+// is a conversion factor and resources are survival, so when the extra
+// income snowballed the session game (see COIN_CHEST_AMOUNT) the rate is
+// what gave, never the loot. The bot's xp-worth (XP_VALUE_HP) follows the
+// rate on its own, which is the design working, not a side effect.
+export const COIN_RATE = 14;
 
 // ***** the engine's generation, for achievement receipts *****
 //
