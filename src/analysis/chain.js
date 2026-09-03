@@ -119,6 +119,11 @@ export function playChain(chainSeed, length, options = {}) {
   // anything. `playChain` on its own throws them away, which is why the
   // rows above carry the handful of fields a reader actually wants.
   const plays = options.collect ?? null;
+  // `stop(row, run)` after each run ends the chain early when it returns
+  // true. A grid asking "when was the axe first bought" has its answer the
+  // moment it is bought; the hundreds of runs after it were the whole cost of
+  // the grid (tools/grid.mjs). `length` stays the cap.
+  const stop = options.stop ?? null;
 
   let pile = [];
   let streak = 0;
@@ -155,6 +160,7 @@ export function playChain(chainSeed, length, options = {}) {
 
     pile = [...kept, ...bought];
     streak = run.cleared ? streak + 1 : 0;
+    if (stop && stop(runs[runs.length - 1], run)) break;
   }
 
   return { chainSeed, length, runs };
