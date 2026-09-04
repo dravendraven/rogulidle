@@ -540,8 +540,16 @@ vai para a loja do mesmo jeito.
 
 **Morrer perde o que o herói estava carregando.** O item que ele começou a
 run segurando — comprado na loja anterior — é perdido junto com a run.
-Concluir a run o mantém, e a compra seguinte SOMA ao que já estava guardado:
-runs concluídas em sequência acumulam itens iniciais.
+
+**Concluir a run guarda o que o herói TERMINOU com, não o que comprou.** A
+run seguinte começa com as armas e as poções não bebidas do inventário
+final, como itens, e com a armadura que ainda estava na barra, como pontos —
+dez escudos apanhados e quase todos gastos deixam dois pontos, e é com dois
+pontos que a próxima run começa, não com dez escudos. Escudo gasto não volta;
+poção bebida não volta. A compra seguinte SOMA a isso. (Até 2026-09-04 a
+carteira guardava a lista de compras e re-creditava cada escudo comprado em
+toda run depois de uma vitória; a pilha de uma sequência de vitórias era em
+boa parte isso.)
 
 **Um herói pode gastar antes de a run acabar.** Existe herói para quem cada
 andar concluído já é uma compra: a moeda que aquele andar pagou vira item na

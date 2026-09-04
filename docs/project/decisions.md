@@ -2080,6 +2080,36 @@ axe against the Butcher.
 a player who reorders the shelf in the Lab has a different economy from the
 one measured.
 
+## The wallet kept the receipt, not the hero — 2026-09-04
+
+Found while measuring shield against potion in the shop. `heldItems` was
+the PURCHASE LIST: it grew at every buy and was emptied by a death, and
+nothing ever reconciled it with what the hero ended a run holding. So after
+a clear every bought shield was credited its 3 armour again on the next run,
+and every drunk potion came back — a session's pile was mostly re-credited
+purchases. The chain instrument played the same rule (`kept = pile`), so
+U6h's session table and every chain reading before this date describe that
+game, not the one the owner specified.
+
+**The rule now (rules.md §9):** a clear carries the hero's final inventory —
+weapons and undrunk potions as items, the armour still on the bar folded
+into one shield with that many points — and the shop adds to it. Death
+still empties the wallet. One engine function (`heldAfterClear`,
+`src/sim/dungeon.js`) feeds both the page and `chain.js`, so the two cannot
+drift.
+
+**What the defect did to the shield-versus-potion question.** Four chain
+A/Bs were run on the broken rule before it was found (24 chains × 30 runs,
+paired seeds): potion-first against shield-first at shipped prices, the
+same with the dagger skipped, and `heal` 5 and 6 at price 2. All four had
+the shield winning or tying, and at heal 6 the shield-first arm reached a
+25.7% clear rate on an 11-item mean pile. None of those numbers survive the
+fix; they are recorded here only as the reason the fix exists. Two things
+from them DO survive, because they do not depend on the carry: `heal` is a
+value of the ONE potion in `ITEM_TABLE`, so it moves every chest and vault
+potion, not the shop's; and with a mean balance of ~7 coins the dagger takes
+the visit and shield-versus-potion decides one or two coins of change.
+
 ## The achievement that looked like a lie
 
 Reported as a bug: the Butcher row said earned on "run 3", and run 3 in the

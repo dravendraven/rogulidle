@@ -883,6 +883,12 @@ function tallyDescent(run, finalState, heroName, receipt) {
   const lastFloor = run.levels[run.levels.length - 1];
   if (run.cleared) {
     session.cleared++;
+    // What the next run starts holding is what THIS one ended with (rules.md
+    // §9) — the engine's own `held`: weapons, undrunk potions, and the armour
+    // still on the bar. The shop below adds to it. The wallet used to keep
+    // the purchase list instead, so a bought shield was credited again on
+    // every run after a win.
+    setHeldItems(run.held);
     // U4's lifetime score keeps a background record even though nothing
     // displays it any more; award() is cheap to leave running in case the
     // display ever comes back.

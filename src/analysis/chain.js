@@ -129,7 +129,11 @@ export function playChain(chainSeed, length, options = {}) {
     const run = playOne(seed, dials, hero, pile);
     if (plays) plays.push(run);
     const balance = balanceOf(run);
-    const kept = run.cleared ? pile : [];
+    // A clear keeps what the hero ENDS with (`held`, rules.md §9) — not the
+    // pile it started with. A spent shield stays spent; a drunk potion stays
+    // drunk. The first version kept `pile` itself, which re-credited every
+    // bought shield on every run of a streak.
+    const kept = run.cleared ? run.held : [];
     const { bought, spent } = buy(balance, kept);
 
     runs.push({

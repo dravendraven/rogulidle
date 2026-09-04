@@ -27,7 +27,7 @@ import { classifyRooms, spineShare } from '../src/sim/spine.js';
 import { inVault, layoutOf, pillarsOf } from '../src/sim/vault.js';
 import { itemWeights, monsterWeightsAround } from '../src/sim/spawn.js';
 import {
-  floorOfTraversal, floorPlan, playDungeon, LEVELS, TRAVERSALS,
+  floorOfTraversal, floorPlan, heldAfterClear, playDungeon, LEVELS, TRAVERSALS,
 } from '../src/sim/dungeon.js';
 import {
   expectedFloorMass, floorParams, floorStrength, layoutFor, makeFloorPlan,
@@ -4791,6 +4791,36 @@ test('run 1 of a chain is the run the naked instrument measures', () => {
   assert(seedOf(500000, 2) !== seedOf(500001, 2), 'two chains share a second run');
 });
 
+test('a clear keeps what the hero ENDS with: weapons, undrunk potions, the armour left', () => {
+  // rules.md §9. Ten shields picked up and nearly all spent leave TWO points
+  // on the bar — the next run starts with those two points, not ten fresh
+  // shields. The wallet used to keep the purchase list and re-credit every
+  // bought shield on every run after a win.
+  const axe = ITEM_TABLE.find((i) => i.name === 'axe');
+  const shield = ITEM_TABLE.find((i) => i.name === 'shield');
+  const potion = ITEM_TABLE.find((i) => i.name === 'health');
+  const player = {
+    armour: 2,
+    inventory: [
+      { ...axe, id: 7 }, { ...shield, id: 8 }, { ...shield, id: 9 }, { ...potion, id: 10 },
+      { ...ITEM_TABLE.find((i) => i.name === 'book'), id: 11 },
+    ],
+  };
+  const held = heldAfterClear(player);
+  assertEq(held.map((i) => i.name).sort().join(','), 'axe,health,shield',
+    'held should be the weapon, the potion, and ONE shield for the bar');
+  assertEq(held.find((i) => i.name === 'shield').armour, 2, 'the shield carries the points left, not 3');
+  assert(held.every((i) => i.id === undefined), 'ids are minted by the next run, not carried');
+  assert(!held.some((i) => i.name === 'book'), 'a stat-less kit item re-enters by the kit, not the wallet');
+
+  // With the bar empty, no shield at all — and the next run credits EXACTLY
+  // what was carried, through the same starting-items door as a purchase.
+  assertEq(heldAfterClear({ armour: 0, inventory: [{ ...shield, id: 1 }] }).length, 0,
+    'a spent shield must not come back');
+  const next = newGame(4242, { startingItems: held });
+  assertEq(next.player.armour, 2, 'the next run should start with the two points, not six');
+});
+
 test('a death empties the pile, and the purchase made after it survives', () => {
   // The order of the two rules at a run's end, which is not interchangeable
   // (spectator.js): the death rule fires first, the shop opens after. So a
@@ -4813,13 +4843,30 @@ test('a death empties the pile, and the purchase made after it survives', () => 
   assert(runs.some((r) => r.carried > 0), 'no run in the chain was armed at all');
 });
 
-test('a clear keeps the pile, and the next purchase adds to it', () => {
-  const { runs } = playChain(7, 3, { dials: EMPTY_DUNGEON });
+test('a clear keeps what the run ENDED with, and the next purchase adds to it', () => {
+  // rules.md §9, and the instrument has to play the same rule as the page or
+  // it measures a session nobody plays. `held` is the engine's own reading
+  // of the hero at the end: weapons, undrunk potions, and ONE shield for the
+  // points left on the bar. The first version kept the purchase list itself,
+  // which re-credited every bought shield on every run of a streak.
+  const collect = [];
+  const { runs } = playChain(7, 3, { dials: EMPTY_DUNGEON, collect });
   assert(runs.every((r) => r.cleared), 'the empty dungeon stopped being clearable');
 
+  const counts = (items) => {
+    const out = {};
+    for (const item of items) out[item.name] = (out[item.name] ?? 0) + 1;
+    return JSON.stringify(Object.entries(out).sort());
+  };
   for (let i = 1; i < runs.length; i++) {
-    assertEq(runs[i].carried, runs[i - 1].carried + runs[i - 1].bought.length,
-      `run ${i + 1} did not keep what run ${i} cleared with`);
+    const run = collect[i - 1];
+    const bar = run.levels[run.levels.length - 1].armour;
+    const shields = run.held.filter((item) => item.name === 'shield');
+    assertEq(shields.length, bar > 0 ? 1 : 0, `run ${i}: one shield iff the bar has points`);
+    if (bar > 0) assertEq(shields[0].armour, bar, `run ${i}: the shield carries the bar`);
+    const expected = counts([...run.held, ...runs[i - 1].bought.map((name) => ({ name }))]);
+    assertEq(JSON.stringify(Object.entries(runs[i].pile).sort()), expected,
+      `run ${i + 1} did not start holding run ${i}'s held plus its purchase`);
     assertEq(runs[i].streak, i, 'the streak did not count consecutive clears');
   }
 });

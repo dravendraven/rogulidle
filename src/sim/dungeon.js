@@ -113,6 +113,28 @@ function atTheStairs(carry, hero, coins, purchases) {
   return { spent: bought * deal.price, bought: { emoji: template.emoji, count: bought } };
 }
 
+// What survives a CLEAR — the items the NEXT run starts holding (rules.md
+// §9). Not the shop's purchase list: what the hero actually ends with.
+// Weapons and undrunk potions travel as the items they are. Armour travels
+// as the POINTS still on the bar, folded into one shield — a shield whose
+// three points were taken is spent, and does not come back to be credited
+// again. The first version of the wallet kept the purchase list and so
+// re-credited every bought shield on every run after a win; the pile of a
+// winning streak was mostly that.
+//
+// Stat-less items (the book, the syringe) are a hero's KIT and re-enter by
+// that door every run; carrying one here would duplicate it.
+export function heldAfterClear(player) {
+  const held = player.inventory
+    .filter((item) => item.dmg || item.dmgMin || item.heal)
+    .map(({ id, pos, ...item }) => ({ ...item }));
+  if (player.armour > 0) {
+    const shield = ITEM_TABLE.find((item) => item.armour);
+    held.push({ ...shield, armour: player.armour });
+  }
+  return held;
+}
+
 // What survives the stairs.
 function carryFrom(player) {
   return {
@@ -409,5 +431,7 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
   // R1 — VICTORY IS COMPLETING THE LAST TRAVERSAL. Reaching the bottom is
   // the halfway point and clears nothing on its own; the loop above simply
   // keeps going, which is why there is no "turn" branch anywhere here.
-  return { seed, cleared: true, depth, levels, killedBy: null };
+  // `carry` is the last traversal's `carryFrom(player)` — the hero as the
+  // run ended, which is what `held` reads.
+  return { seed, cleared: true, depth, levels, killedBy: null, held: heldAfterClear(carry) };
 }
