@@ -700,7 +700,13 @@ footer {
 /* The flanks lean INWARD, so the picker and the numbers stay beside the
    board instead of drifting to the window edges on a wide screen. */
 .side { justify-self: end; width: 100%; max-width: 255px; }
-.middle { min-width: 0; }
+/* The middle column is the BOARD's width and nothing else's. The grid track
+   is `auto`, so anything wider in the column stretched it — the row of three
+   achievement cards did, to ~1140px, squeezing both flanks and leaving the
+   board alone at the left of a stage twice its size (owner, 2026-09-04).
+   18 cells + the stage's padding and border; the boxes above and below the
+   board inherit it, so the column reads as one width. */
+.middle { min-width: 0; width: calc(18 * var(--cell) + 14px); }
 /* `.panel` no longer sets justify-self: it is inside `.rail` now, and the
    rail is the grid item that leans inward. */
 
@@ -971,6 +977,7 @@ footer {
      The three-track grid becomes a single track — the flanks have nowhere
      to flank from — and each cell stops being pinned to its side. */
   .lab { grid-template-columns: 1fr; }
+  .middle { width: auto; }
   .side, .rail, .panel, .highscores, .map-dials { justify-self: stretch; max-width: none; }
   .map-dials { max-height: none; }
   /* Only one track exists here, so the explicit 3rd-column placement above
