@@ -306,9 +306,13 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
         inventory: [], kills: [] };
 
     // hpMax and xp survive a monster's death, so the roster can be read back
-    // from the finished state without regenerating the floor.
+    // from the finished state without regenerating the floor. `hpLeft` is
+    // what the creature had when the floor ended — the one thing `hp` (the
+    // full bar) cannot say, and what the achievements strip reads to show
+    // how close a run came to the Butcher (docs/project/feitos-progresso.md).
+    // A record, not a rule: nothing in the engine reads it back.
     const roster = run.state.monsters.map((m) => ({
-      xp: m.xp, hp: m.hpMax, side: m.side, edge: m.edge, dead: m.dead,
+      xp: m.xp, hp: m.hpMax, hpLeft: m.hp, side: m.side, edge: m.edge, dead: m.dead,
       // M43 — which row is the vault's occupant, so a reading can ask
       // whether the Butcher was fought without regenerating the floor.
       vault: !!m.vault,

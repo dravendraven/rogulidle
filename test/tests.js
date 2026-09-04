@@ -4187,6 +4187,34 @@ test('the Butcher achievement is claimed only when the hero killed it', () => {
   assert(claims > 0, 'no run in 40 killed the Butcher — the comparison proved nothing');
 });
 
+// docs/project/feitos-progresso.md — the roster row carries how much hp
+// the creature had when the floor ended, so a run that hurt the Butcher
+// without killing him leaves a number the achievements strip can show.
+// Searched rather than pinned: it needs one run that fought the pig and
+// lost, and one that killed him, and stops once it has seen both.
+test('the roster row records the hp the Butcher was left with', () => {
+  let wounded = 0;
+  let killed = 0;
+  for (let i = 1; i <= 60 && (wounded === 0 || killed === 0); i++) {
+    const run = playRun(hashSeeds(20260904, i), {});
+    for (const level of run.levels) {
+      const pig = level.roster.find((m) => m.vault);
+      if (!pig) continue;
+      assert(Number.isFinite(pig.hpLeft), `run ${i} — the vault row has no hpLeft`);
+      assert(pig.hpLeft <= pig.hp, `run ${i} — hpLeft ${pig.hpLeft} above the full bar ${pig.hp}`);
+      if (pig.dead) {
+        assertEq(pig.hpLeft, 0, `run ${i} — a dead Butcher still had hp`);
+        killed++;
+      } else if (pig.hpLeft < pig.hp) {
+        assert(pig.hpLeft > 0, `run ${i} — a living Butcher at 0 hp`);
+        wounded++;
+      }
+    }
+  }
+  assert(wounded > 0, 'no run in 60 wounded the Butcher and left him standing');
+  assert(killed > 0, 'no run in 60 killed the Butcher');
+});
+
 // The shop's own achievement rule, pinned so a new shelf item cannot quietly
 // start awarding it: the axe and nothing else earns on purchase.
 test('only an axe purchase earns the shop achievement', () => {
