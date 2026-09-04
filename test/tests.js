@@ -42,6 +42,7 @@ import {
   BIAS_SPREAD, DANGER_PERSISTENCE, DEFAULT_HERO, LOOT_VALUE, biasBands,
 } from '../src/bot/config.js';
 import { tileSvg } from '../src/ui/tiles.js';
+import { depthTheme } from '../src/ui/depth-theme.js';
 import { playRun } from '../src/ui/run.js';
 import {
   earnedBy, earnedByPurchase, isEarned, verifyAchievements, HERO_GATE,
@@ -3776,6 +3777,12 @@ test('every glyph the game can draw has a sprite', () => {
     ...CHEST_TABLE.map((c) => c.emoji),
     VAULT_BOSS.emoji,
     '🕳️',                                    // the way out (spawn.js)
+    // Walls and doors, every depth tier (src/ui/depth-theme.js), and the
+    // bar pips (render.js). The floor-1 wall shipped MISSING for one push
+    // (2026-09-04, a comment-and-line deletion that took the line after it
+    // too) and this list did not know walls existed.
+    ...[1, 5, 9].flatMap((level) => [depthTheme(level).wall, depthTheme(level).door]),
+    '⬜', '⚡', '🟥',
   ];
   for (const glyph of glyphs) {
     assert(tileSvg(glyph),
