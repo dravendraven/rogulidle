@@ -309,12 +309,22 @@ function stampDate(at) {
 // U11 — the achievements strip under the history. Two rows, redrawn whole
 // on every change; `justEarned` is the id that flipped this run, which is
 // the only thing that gets the celebration class.
-export function renderAchievements(element, list, earned, justEarned = null) {
+//
+// `progress` is `getProgress()`'s answer (src/ui/achievements.js): for a
+// row still locked that some run came close to, the card fills from the
+// left by that fraction and the locked sentence gives way to the record
+// (docs/project/feitos-progresso.md). Painted behind the text, never as a
+// third line — the owner took the date line out of this card for its
+// height (2026-09-04), and a bar that put it back would be the same mistake.
+export function renderAchievements(element, list, earned, justEarned = null, progress = {}) {
   element.innerHTML = '';
   for (const a of list) {
     const got = Boolean(earned[a.id]);
+    const near = !got && progress[a.id] ? progress[a.id] : null;
     const row = document.createElement('div');
-    row.className = 'ach' + (got ? ' earned' : '') + (a.id === justEarned ? ' just' : '');
+    row.className = 'ach' + (got ? ' earned' : '') + (a.id === justEarned ? ' just' : '')
+      + (near ? ' progress' : '');
+    if (near) row.style.setProperty('--fill', `${Math.round(near.fraction * 100)}%`);
 
     const icon = document.createElement('span');
     icon.className = 'ach-icon';
@@ -327,7 +337,7 @@ export function renderAchievements(element, list, earned, justEarned = null) {
     title.textContent = a.title;
     const sub = document.createElement('span');
     sub.className = 'ach-sub';
-    sub.textContent = got ? a.earned : a.locked;
+    sub.textContent = got ? a.earned : (near ? near.text : a.locked);
     text.append(title, sub);
     // The date is a tooltip, not a line: as a third line it was a fifth of
     // the card's height in a row that sits above the board (owner,

@@ -1024,6 +1024,22 @@ footer {
 .ach-title { font-weight: 600; color: var(--muted, #7a8595); }
 .ach-sub { font-size: .8em; color: var(--muted, #7a8595); opacity: .75; }
 
+/* docs/project/feitos-progresso.md — a locked row that some run came close
+   to fills from the left by that fraction (`--fill`, set by render.js).
+   Painted BEHIND the text, so the card's height is exactly what it was: a
+   third line was refused for this card on 2026-09-04. The fill is the
+   earned row's own green, dimmed — the same colour the card will turn
+   when the threshold is crossed, which is the promise the bar makes. */
+.ach { position: relative; overflow: hidden; }
+.ach > * { position: relative; }
+.ach.progress::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0;
+  width: var(--fill, 0%);
+  background: rgba(47, 107, 65, .38);
+  transition: width .6s ease-out;
+}
+.ach.progress .ach-sub { opacity: .9; }
+
 .ach.earned { background: #16351f; border-color: #2f6b41; }
 .ach.earned .ach-title { color: var(--accent, #8ce99a); }
 .ach.earned .ach-sub { opacity: .95; }
