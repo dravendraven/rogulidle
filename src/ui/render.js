@@ -329,12 +329,12 @@ export function renderAchievements(element, list, earned, justEarned = null) {
     sub.className = 'ach-sub';
     sub.textContent = got ? a.earned : a.locked;
     text.append(title, sub);
+    // The date is a tooltip, not a line: as a third line it was a fifth of
+    // the card's height in a row that sits above the board (owner,
+    // 2026-09-04).
+    if (got) row.title = stampDate(earned[a.id].at);
 
-    const stamp = document.createElement('span');
-    stamp.className = 'ach-stamp';
-    stamp.textContent = got ? stampDate(earned[a.id].at) : '';
-
-    row.append(icon, text, stamp);
+    row.append(icon, text);
     element.append(row);
   }
 }
