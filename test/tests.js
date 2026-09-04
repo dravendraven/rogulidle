@@ -4971,9 +4971,17 @@ test('the cave keeps its border rock, and its pseudo-rooms are walkable anchors'
     assert(!isWalkable(state.map, 0, i) && !isWalkable(state.map, size - 1, i),
       'cave dug through the side border');
   }
+  // Every pseudo-room is a full 3x3 of open floor: the hole sits at a
+  // centre, and a centre with all eight neighbours open never seals a
+  // passage. The single-tile fallback that once broke this is gone.
   for (const room of state.map.rooms) {
-    assert(isWalkable(state.map, room.center[0], room.center[1]),
-      'a pseudo-room centre is not walkable');
+    assertEq(room.x2 - room.x1, 2, 'a pseudo-room is not 3 wide');
+    assertEq(room.y2 - room.y1, 2, 'a pseudo-room is not 3 tall');
+    for (let x = room.x1; x <= room.x2; x++) {
+      for (let y = room.y1; y <= room.y2; y++) {
+        assert(isWalkable(state.map, x, y), 'a pseudo-room tile is not walkable');
+      }
+    }
   }
 });
 

@@ -95,6 +95,12 @@ distante, que apagaria a assimetria. O desenho por trás está em
 **Herói e buraco nascem em salas distantes entre si**, e o buraco fica numa
 sala distante, não na mais distante possível.
 
+**O buraco nunca fecha uma passagem.** Ele nasce no centro de uma sala, e
+uma sala tem sempre chão aberto em volta desse centro — vale também na
+caverna, onde as "salas" são pátios abertos achados no meio das veias. Uma
+caverna que não rende pátios suficientes é descartada e sorteada de novo,
+algumas vezes, antes de o andar ceder ao gerador padrão.
+
 **Profundidade é posicional, não o número do andar.** O quão "fundo" um tile
 está é o comprimento do caminho até ele sobre o caminho mais longo do mapa.
 Perto da entrada, a profundidade cai a zero em qualquer andar.
