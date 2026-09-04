@@ -641,7 +641,9 @@ juntar as duas histórias faria uma terceira, que ninguém jogou.
 sessão. O número da run, o histórico dos últimos resultados, o placar e a
 cadeia de seeds voltam como estavam — junto com o que já persistia: itens
 guardados, recordes, feitos, herói escolhido, ordem da loja e a personalidade
-sorteada do bot.
+do bot — sorteada na primeira visita e, dali em diante, o que o jogador
+deixou nos dials do Lab: mover um dial de comportamento reescreve a
+personalidade guardada, não é um ajuste só daquela visita.
 
 **A sessão é gravada no instante em que a run é contada.** Antes disso a run
 não tocou em nada guardado, então uma interrupção no meio dela a faz ser
