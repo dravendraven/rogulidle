@@ -2158,3 +2158,24 @@ page on a "waiting" screen instead of letting them play — that is the
 guarantee working, not a bug, and the owner chose it. The cap is a hosting
 decision (paid plan, or a store with a bigger allowance), not a game rule,
 and the game will not be bent back to fit it.
+
+**The store moved the same day: Workers KV → one Durable Object per name.**
+KV's free plan allows a thousand writes a day across the account, which
+with one write per run is a thousand runs a day for every player together.
+A SQLite-backed Durable Object allows a hundred thousand rows a day for
+free, and runs each name's requests one at a time inside that name's
+object — so "read the lock, then write" cannot interleave with another
+device's, which KV, being eventually consistent, never promised. The
+worker's routes did not change; what changed is that they run inside the
+object (`SaveRoom`) and the front door only finds the name.
+
+**And the claim stopped comparing revisions.** The page used to keep the
+server revision its copy corresponded to and adopt the server's copy only
+when the server was ahead. A store that starts over empty is exactly what
+that comparison gets wrong: a browser holding an old, high revision would
+keep its copy over a newer one uploaded since the reset, and its next
+write — at the new, low revision — would overwrite it. With every run
+uploaded before the next, there is nothing to weigh: the server's copy wins
+whenever there is one, and a name the server has never seen is refilled
+from the browser on its first claim. That upload is also the whole of the
+migration: nothing was copied out of KV.

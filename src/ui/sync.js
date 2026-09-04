@@ -50,15 +50,6 @@ export function syncEnabled() {
   return Boolean(SERVICE);
 }
 
-// WHICH SERVER REVISION THIS PAGE HAS REACHED. The caller records it in the
-// save itself after every successful trip, and that stored number is what
-// the NEXT claim compares against to decide who is ahead — so a save that
-// went up must say so, or the copy here starts looking older than it is and
-// what it holds gets thrown away for nothing.
-export function serverRevision() {
-  return serverRev;
-}
-
 // True while this page holds the lock. A page that does not is either
 // waiting for the service or stopped; it is never playing.
 export function syncing() {

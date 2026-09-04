@@ -41,7 +41,7 @@ import {
   clearSlice, getPlayer, readSave, readSlice, replaceSave, setPlayer, writeSlice,
 } from './save.js';
 import {
-  claimName, pushSave, releaseSave, serverRevision, stillOurs,
+  claimName, pushSave, releaseSave, stillOurs,
   syncEnabled, syncing,
 } from './sync.js';
 import { sleep } from './clock.js';
@@ -195,16 +195,15 @@ function saveSession() {
   });
 }
 
-// WHICH SERVER REVISION THIS BROWSER'S SAVE CORRESPONDS TO — the sync's own
-// slice, and the one number that lets a claim decide who is ahead. Zero, or
-// absent, means this save has never been up.
+// The slice an earlier version kept the server revision in, to decide at
+// claim time whether the copy here or the copy there was ahead. Nothing
+// decides that any more (see connectSave); the slice is cleared so an old
+// document stops carrying a number nobody reads.
 const SYNC_SLICE = 'sync';
 
-const syncedRev = () => Number((readSlice(SYNC_SLICE) || {}).rev) || 0;
-
-// TAKE THE NAME, AND FIND OUT WHO IS AHEAD. Runs after the name is known and
-// before a single slice is read, for the same reason the name itself does:
-// what comes back may replace the whole document.
+// TAKE THE NAME, AND ADOPT WHAT THE SERVER HOLDS. Runs after the name is
+// known and before a single slice is read, for the same reason the name
+// itself does: what comes back replaces the whole document.
 //
 // Three ways out, and only one of them starts the game on this device.
 async function connectSave() {
@@ -270,18 +269,23 @@ async function connectSave() {
     }
 
     if (got.state === 'ok') {
-      // WHOEVER IS AHEAD WINS, and the comparison is against what THIS
-      // browser last managed to send up. A higher revision on the server
-      // means another device played since; anything else means the copy here
-      // is the same game or a newer one, and the next push carries it up.
-      // The only thing the copy here can hold that the server lacks is a
-      // run whose upload was still being retried — and that run replays
-      // identically from the server's copy, so nothing is decided here.
-      if (got.save && got.rev > syncedRev()) replaceSave(got.save);
-      writeSlice(SYNC_SLICE, { rev: got.rev });
+      // THE SERVER'S COPY WINS WHENEVER THERE IS ONE. There is nothing to
+      // weigh: every run goes up before the next starts, so the only thing
+      // the copy here can hold that the server lacks is a run whose upload
+      // was still being retried — and that run replays identically from the
+      // server's copy. An older version compared revisions to decide, and
+      // a comparison is exactly what a store that starts over (the move to
+      // Durable Objects) would have fooled: a browser holding a high old
+      // revision would have kept its copy over a newer one uploaded since.
+      if (got.save) replaceSave(got.save);
+      // After the adoption, not before: the copy that comes down may carry
+      // the slice itself, uploaded by an older page.
+      clearSlice(SYNC_SLICE);
       // A NAME THE SERVER HAS NEVER SEEN goes up now, not at the end of the
       // first run: from this line on the server has everything, and that is
-      // the invariant every other line relies on.
+      // the invariant every other line relies on. It is also the whole of
+      // the migration to an empty store — each browser refills it with the
+      // game it holds.
       if (!got.save) await uploadSave();
       hideNotice(el.playerGate);
       return;
@@ -382,10 +386,6 @@ async function uploadSave() {
 
     const sent = await pushSave(readSave());
     if (sent === 'ok') {
-      // WHAT WENT UP IS RECORDED HERE. Without this the stored revision
-      // stays at whatever the claim returned while the server moves on, and
-      // the next load reads its own uploads as somebody else being ahead.
-      writeSlice(SYNC_SLICE, { rev: serverRevision() });
       hideNotice(el.playerGate);
       if (session.paintPlayer) session.paintPlayer();
       return true;

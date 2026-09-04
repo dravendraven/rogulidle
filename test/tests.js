@@ -55,7 +55,7 @@ import {
 } from '../src/ui/shop.js';
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
 import { playOne } from '../src/analysis/check.js';
-import saveWorker, { LEASE_MS } from '../server/save-worker.js';
+import saveWorker, { LEASE_MS, SaveRoom } from '../server/save-worker.js';
 import { balanceOf, playChain, seedOf, spend } from '../src/analysis/chain.js';
 
 // ***** tiny test harness ***** //
@@ -4522,17 +4522,28 @@ test('the first name adopts the save that had no name, and only the first', () =
 // transport. `tools/save-server.mjs` is the same file behind a real port for
 // anyone who wants to curl it.
 
+// What Cloudflare binds as `env.SAVES`: a namespace of one object per name,
+// each with a storage of `get` and `put`. The same fake `tools/save-server.mjs`
+// builds, and the same two calls the worker is written against.
 function fakeKv() {
-  const store = new Map();
+  const rooms = new Map();
+  const stores = new Map();
   return {
-    store,
+    // The record behind a name, for the tests that age a lease by hand.
+    record: (name) => stores.get(name).get('record'),
     SAVES: {
-      async get(key, options) {
-        const raw = store.get(key);
-        if (raw === undefined) return null;
-        return options && options.type === 'json' ? JSON.parse(raw) : raw;
+      idFromName: (name) => name,
+      get(id) {
+        if (!rooms.has(id)) {
+          const store = new Map();
+          stores.set(id, store);
+          rooms.set(id, new SaveRoom({ storage: {
+            async get(key) { return store.get(key); },
+            async put(key, value) { store.set(key, value); },
+          } }));
+        }
+        return rooms.get(id);
       },
-      async put(key, value) { store.set(key, String(value)); },
     },
   };
 }
@@ -4620,10 +4631,9 @@ test('a lease nobody renewed lets the next device in by itself', async () => {
   const env = fakeKv();
   const first = await call(env, 'POST', 'claim', { name: 'vito', device: 'a' });
 
-  const record = JSON.parse(env.store.get('save:vito'));
+  const record = env.record('vito');
   record.lease.until = Date.now() - 1;
   record.lease.at = Date.now() - LEASE_MS - 1;
-  env.store.set('save:vito', JSON.stringify(record));
 
   const second = await call(env, 'POST', 'claim', { name: 'vito', device: 'b' });
   assertEq(second.status, 200, 'an expired lease still locked the name');
@@ -4640,9 +4650,7 @@ test('a release that arrives late unlocks nobody', async () => {
   // that replaced it.
   const env = fakeKv();
   const first = await call(env, 'POST', 'claim', { name: 'vito', device: 'a' });
-  const record = JSON.parse(env.store.get('save:vito'));
-  record.lease.until = Date.now() - 1;
-  env.store.set('save:vito', JSON.stringify(record));
+  env.record('vito').lease.until = Date.now() - 1;
   await call(env, 'POST', 'claim', { name: 'vito', device: 'b' });
 
   const late = await call(env, 'POST', 'release', { name: 'vito', token: first.body.token });

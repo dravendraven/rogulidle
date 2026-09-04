@@ -153,11 +153,15 @@ o repositório**: um serviço hospedado, com conta, com teto de uso e com
 possibilidade de cair. Não existe versão disto sem essa peça; GitHub Pages
 não guarda nada de ninguém.
 
-Recomendação: **Cloudflare Worker + KV.** Um arquivo de umas sessenta linhas,
-editável pelo painel no navegador (sem CLI, sem npm), plano gratuito. As
-alternativas foram descartadas por peso (Firebase/Supabase trazem SDK e um
-modelo de autenticação que não queremos) ou por não terem trava (gist/jsonbin
-não têm escrita condicional).
+Recomendação: **Cloudflare Worker**, um arquivo editável pelo painel no
+navegador (sem CLI, sem npm), plano gratuito. As alternativas foram
+descartadas por peso (Firebase/Supabase trazem SDK e um modelo de
+autenticação que não queremos) ou por não terem trava (gist/jsonbin não têm
+escrita condicional). O armazenamento começou em KV e passou a **um Durable
+Object por nome** quando cada run passou a subir: o teto gratuito do KV
+(mil escritas por dia na conta inteira) virou o teto de runs por dia de
+todos os jogadores juntos — `docs/project/decisions.md`, «A subida
+espaçada».
 
 Três rotas, e a trava é uma delas:
 
@@ -171,10 +175,11 @@ Três rotas, e a trava é uma delas:
   `pagehide` manda por `sendBeacon`
 
 O arquivo é `server/save-worker.js`, e ele roda aqui também:
-`node tools/save-server.mjs` sobe o MESMO arquivo com um KV falso na porta
-8142, para curlar as rotas antes de existir conta em lugar nenhum. É por isso
-que o worker não usa nada além de `Request`, `Response` e duas chamadas de
-KV — o harness é encanamento, não uma segunda implementação.
+`node tools/save-server.mjs` sobe o MESMO arquivo com objetos falsos na
+porta 8142, para curlar as rotas antes de existir conta em lugar nenhum. É
+por isso que o worker não usa nada além de `Request`, `Response` e um
+storage com `get` e `put` — o harness é encanamento, não uma segunda
+implementação.
 
 **A trava é um arrendamento, não um cadeado.** Quem tem o token é o dono por
 um tempo, e cada `PUT` renova esse tempo. Um aparelho que fechou direito
@@ -200,11 +205,10 @@ espaçada».
 
 Ao entrar o nome: `claim`. Se vier `409`, a tela do nome mostra o recado e
 não deixa entrar (e diz há quanto tempo o outro aparelho deu sinal). Se vier
-`200`, o save remoto é adotado — mas **só quando ele está à frente**: o
-documento guarda a revisão do servidor a que ele corresponde (fatia `sync`),
-e adotar é a resposta quando a revisão de lá é maior. Igual ou menor significa
-que a cópia daqui é o mesmo jogo ou um mais novo, e a próxima subida ordinária
-a leva.
+`200`, o save remoto é adotado sempre que existir. (O plano original
+comparava revisões para decidir quem estava à frente; isso saiu junto com a
+subida espaçada — `docs/project/decisions.md`, «A subida espaçada».) Um nome
+que o servidor nunca viu sobe na hora, a partir da cópia do navegador.
 
 Depois disso o jogo roda como sempre; a sincronização é um efeito de borda do
 ponto de salvamento que a Peça 2 já criou.
@@ -264,8 +268,9 @@ produto — não de persistência.
 1. **Rodar ausente entra ou não?** (§9). Recomendação: não agora. É a única
    pergunta deste estudo que segue em aberto — as outras três foram
    respondidas e estão no código.
-2. ~~**Onde hospedar?**~~ — respondido: Cloudflare Worker + KV. Falta só a
-   conta e o deploy, que são do dono: o arquivo está escrito e testado.
+2. ~~**Onde hospedar?**~~ — respondido: Cloudflare Worker, hoje com um
+   Durable Object por nome (§6). O deploy é do dono: o arquivo está escrito
+   e testado.
 3. ~~**Takeover**~~ — respondido DUAS vezes, e a segunda pelo uso. Primeiro:
    quando o prazo vence, o segundo aparelho entra sozinho. Depois, no
    primeiro dia de uso de verdade, o dono fechou o navegador do PC, o aviso
@@ -285,9 +290,9 @@ Cada uma vale sozinha e dá para ver se funcionou.
 | T1 ✔ | `save.js`: documento único, sete módulos portados, chaves antigas migradas | o jogo se comporta igual; o devtools mostra uma chave só, com o progresso antigo dentro |
 | T2 ✔ | fatia `session`, gravada quando a run é contada | refresh mantém «recent runs» e o número da run, e a contagem continua de onde estava |
 | T3 ✔ | tela do nome, save por nome, «trocar de jogador» | dois nomes no mesmo browser = dois jogos independentes |
-| T4 ✔ | Worker + KV com as três rotas | responde por `curl`, antes de a página saber que ele existe |
-| T5 ✔ | cliente: claim, adoção do save remoto, sync estrangulado, perda de trava | dois browsers: o segundo é recusado com o recado certo |
-| T6 ✔ | falha de rede: selo, jogo local, retomada sozinha e descarte do órfão | subir o serviço com a aba já rodando sem ele: ela volta a sincronizar sem recarregar |
+| T4 ✔ | Worker com as três rotas (KV, depois Durable Object) | responde por `curl`, antes de a página saber que ele existe |
+| T5 ✔ | cliente: claim, adoção do save remoto, perda de trava | dois browsers: o segundo é recusado com o recado certo |
+| T6 ✔ | falha de rede — feito como «selo, jogo local, descarte do órfão» e depois refeito como «toda run sobe; sem servidor, espera» | desligar a rede com a aba rodando: a tela de espera aparece no fim da run e some sozinha quando a rede volta |
 
 T1–T3 não dependem de decisão nenhuma e resolvem o problema relatado.
 T4–T6 dependem das respostas 2 e 3 do §10.

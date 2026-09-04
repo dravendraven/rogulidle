@@ -156,8 +156,8 @@ Three measuring notes, each learned the hard way:
   Keep the tab visible while it runs.
 
 `node tools/save-server.mjs` (port 8142) runs `server/save-worker.js` — the
-save service — with a fake KV, so its routes can be curled without an
-account existing. It is the ONE piece of this project that is not a file
+save service — with fake Durable Objects, so its routes can be curled
+without an account existing. It is the ONE piece of this project that is not a file
 GitHub Pages hands to a browser; `docs/project/persistencia-e-login.md` says
 why there is no version of a cross-device save without it.
 
