@@ -273,11 +273,19 @@ export function populate(state, map, counts = {}) {
   //
   // `map.rooms.length` is a handful (measured ~3-5 after M16), so an
   // O(rooms^2) pairwise `findPath` between centres is cheap.
+  //
+  // Only rooms with open floor all round their centre may hold either end
+  // of the floor. The cave's single-tile pseudo-rooms stay in `map.rooms`
+  // for everything else (chests, creatures, spine classification), but a
+  // hole on a one-wide vein seals the map behind it — the owner watched it
+  // happen, 2026-09-03 — and the hero's spawn becomes the hole on the way
+  // back up. Every other layout's rooms clear this bar by construction.
+  const endRooms = map.rooms.filter((room) => room.x2 > room.x1 && room.y2 > room.y1);
   let bestPair = null;
-  for (let i = 0; i < map.rooms.length; i++) {
-    for (let j = i + 1; j < map.rooms.length; j++) {
-      const a = map.rooms[i];
-      const b = map.rooms[j];
+  for (let i = 0; i < endRooms.length; i++) {
+    for (let j = i + 1; j < endRooms.length; j++) {
+      const a = endRooms[i];
+      const b = endRooms[j];
       const path = findPath(a.center, b.center, passable);
       if (!path.length) continue;
       if (!bestPair || path.length > bestPair.length) bestPair = { a, b, length: path.length };
@@ -315,7 +323,7 @@ export function populate(state, map, counts = {}) {
   // Spec quirk §9.1: the original sorts by the path VECTOR rather than its
   // length, which scatters the shrine into an arbitrary room and skews the
   // difficulty curve for everything placed afterwards. We sort by length.
-  const roomPaths = map.rooms
+  const roomPaths = endRooms
     .map((room) => ({
       room,
       center: room.center,

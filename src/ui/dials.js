@@ -1,9 +1,11 @@
 // The dial lab: every number the map generator and the bot run on, as a
 // form, built once and reused wherever index.html opens the Lab button.
 //
-// NOTHING HERE PERSISTS and nothing here writes to balance.js. This is a
-// "what if" — a value worth keeping is still a docs/balance.md + code edit
-// (CLAUDE.md). `src/sim/` and `src/bot/` never import this file; the page
+// ONE THING HERE PERSISTS: the bot's personality — the notch each bias dial
+// stands on, rolled on the first visit and rewritten whenever the player
+// moves one (`rolledNotches` / `keepNotch`). Every other dial is a "what
+// if", and nothing here writes to balance.js — a value worth shipping is
+// still a docs/balance.md + code edit (CLAUDE.md). `src/sim/` and `src/bot/` never import this file; the page
 // reads it and hands the result to makeFloorPlan / makeBot, which is the
 // same door a sweep already used. The map's values are read when a run
 // starts; the behaviour dials also land on the run in flight, at the next
@@ -117,10 +119,15 @@ function bandClass(dial, index) {
 // for, and the six sentences under the sliders explain the bot you actually
 // got rather than one you might build.
 //
-// ROLLED ONCE, then kept. "First session" is taken literally: the draw is
-// stored, so coming back tomorrow is the same bot, and only a cleared store
-// gets a new one. A reroll on every reload would make the thing unwatchable
-// as a habit — you could never say "mine is the greedy one".
+// ROLLED ONCE, then kept — and EDITED IN PLACE. "First session" is taken
+// literally: the draw is stored, so coming back tomorrow is the same bot,
+// and only a cleared store gets a new one. A reroll on every reload would
+// make the thing unwatchable as a habit — you could never say "mine is the
+// greedy one". Moving a bias dial in the Lab rewrites its notch in the same
+// slice (`keepNotch`), so the edit IS the new personality: before this the
+// panel snapped back to the draw on every refresh, and a player who had set
+// the bot up the way they wanted lost it the moment they reloaded
+// (owner, 2026-09-04).
 //
 // `Math.random()` is fine here and banned three directories away: this is
 // `src/ui/`, it runs once before any run is built, and what it produces is
@@ -150,6 +157,15 @@ function rolledNotches(keys) {
   // stored personality instead of rerolling the whole thing every load.
   if (!complete) writeSlice(SLICE, out);
   return out;
+}
+
+// One notch moved by hand becomes part of the stored personality. Merged
+// over what is there, never a rewrite of the whole slice, so two dials
+// edited in a row both survive and a dial the panel did not draw keeps its
+// draw.
+function keepNotch(key, index) {
+  const stored = readSlice(SLICE) || {};
+  writeSlice(SLICE, { ...stored, [key]: index });
 }
 
 function bandIndexOf(bands, value) {
@@ -1187,6 +1203,7 @@ export function buildDialPanel(container, {
           input.classList.toggle('changed', isChanged);
           if (bands) {
             input.title = `${BAND_NAMES[Number(input.value)]} · ${bands[Number(input.value)]}`;
+            keepNotch(key, Number(input.value));
           }
           if (valueOut) {
             valueOut.textContent = isSwitch

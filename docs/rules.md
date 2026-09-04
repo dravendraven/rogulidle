@@ -95,6 +95,13 @@ distante, que apagaria a assimetria. O desenho por trás está em
 **Herói e buraco nascem em salas distantes entre si**, e o buraco fica numa
 sala distante, não na mais distante possível.
 
+**O buraco nunca fecha uma passagem.** Herói e buraco só nascem em salas
+com chão aberto em volta do centro. Na caverna, as "salas" são pátios
+abertos achados no meio das veias, e um trecho de veia estreita também
+conta como sala — recebe baús e criaturas — mas nunca o herói nem o
+buraco. Uma caverna que não rende pátios suficientes é descartada e
+sorteada de novo, algumas vezes, antes de o andar ceder ao gerador padrão.
+
 **Profundidade é posicional, não o número do andar.** O quão "fundo" um tile
 está é o comprimento do caminho até ele sobre o caminho mais longo do mapa.
 Perto da entrada, a profundidade cai a zero em qualquer andar.
@@ -633,7 +640,9 @@ juntar as duas histórias faria uma terceira, que ninguém jogou.
 sessão. O número da run, o histórico dos últimos resultados, o placar e a
 cadeia de seeds voltam como estavam — junto com o que já persistia: itens
 guardados, recordes, feitos, herói escolhido, ordem da loja e a personalidade
-sorteada do bot.
+do bot — sorteada na primeira visita e, dali em diante, o que o jogador
+deixou nos dials do Lab: mover um dial de comportamento reescreve a
+personalidade guardada, não é um ajuste só daquela visita.
 
 **A sessão é gravada no instante em que a run é contada.** Antes disso a run
 não tocou em nada guardado, então uma interrupção no meio dela a faz ser
