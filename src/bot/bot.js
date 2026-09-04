@@ -35,7 +35,7 @@ import {
 import {
   CHEST_VALUE_HP, CROWD_PENALTY, CURIOSITY_LAST_RESORT, DANGER_PERSISTENCE,
   DEFAULT_CHEST_COUNT, DEFAULT_MONSTER_COUNT, DEFAULT_HERO, EXPOSURE_STEPS,
-  COIN_CHEST_VALUE_HP, FIGHT_VALUE, GOAL_STICKINESS, LOOT_VALUE, READ_AT,
+  FIGHT_VALUE, GOAL_STICKINESS, LOOT_VALUE, READ_AT,
   XP_VALUE_HP,
 } from './config.js';
 import {
@@ -732,9 +732,6 @@ export function makeBot(options = {}) {
     // chest's pair above, so a sweep can A/B it alone.
     fightValue: options.fightValue ?? FIGHT_VALUE,
     xpValueHp: options.xpValueHp ?? XP_VALUE_HP,
-    // The floor's coin chest, in hp (2026-08-31) — spread over every chest
-    // in the gate below, since which one carries it never crosses the fog.
-    coinChestValueHp: options.coinChestValueHp ?? COIN_CHEST_VALUE_HP,
     // Half of the same model, separable ONLY so a sweep can tell which half
     // moved a number — it defaults to `lootValue` and nothing ships it on
     // its own. Without the split, the value gate and the amortisation would
@@ -1065,7 +1062,7 @@ export function makeBot(options = {}) {
       // every other hero it is absent and must fall through here — reading
       // a missing field as "empty" would make the ordinary bot refuse every
       // chest on the floor.
-      if ('drop' in chest && !chest.drop && !chest.coin) continue;
+      if ('drop' in chest && !chest.drop) continue;
 
       const walk = priceOfReaching(field, chest.pos);
       if (!Number.isFinite(walk)) continue;
@@ -1106,14 +1103,7 @@ export function makeBot(options = {}) {
       // and expected cost is not survival. This file says so itself in
       // `fightMargin`: a duel priced at exactly what the hero has loses about
       // half the time.
-      // ...plus the floor's coin chest spread over the chests it holds —
-      // one of them carries COIN_CHEST_VALUE_HP and he cannot tell which.
-      // The persona who CAN see contents prices the coin where it is.
-      const coinShare = 'coin' in chest
-        ? (chest.coin ? settings.coinChestValueHp : 0)
-        : settings.coinChestValueHp / Math.max(1, settings.chestCount);
-      const worth = settings.lootValue
-        ? (settings.chestValueHp + coinShare) * hero.sideAppetite : 0;
+      const worth = settings.lootValue ? settings.chestValueHp * hero.sideAppetite : 0;
 
       if (settings.lootValue) {
         if (visit > worth) continue;

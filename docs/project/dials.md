@@ -137,15 +137,29 @@ dial por vez erra por isso.
 até o porco (7,4σ) e deixa 10% das sessões sem destravar nada em 30 runs. É a
 única violação clara da diretriz 1 no painel hoje.
 
+## A grade das combinações, e o que ela deve mostrar
+
+`tools/grid.mjs` mede os 64 combos contra cada objetivo (runs até o primeiro
+machado, o primeiro porco, a primeira run com 25 moedas; o Clear à parte). A
+primeira leitura (2026-09-03, jogo com o baú-moeda) mostrou o desenho
+falhando pelo lado que a fronteira de Pareto não enxerga: várias combinações
+na fronteira, sim, mas **flat** — dentro do quarto que não falha, todo combo
+chega no mesmo número de runs, e um quarto (Ganância mínima) simplesmente não
+chega. O dial punia o erro e não premiava o acerto. A causa lida no código:
+toda luta é forçada (monstro que vê persegue, e a rota passa a menos do raio
+de ativação de tudo), então a renda por run é a mesma para qualquer bot que
+sobreviva, e objetivo comprado com moeda vira relógio.
+
+**O alvo do dono para a forma da curva** (2026-09-03): o jogo roda centenas
+de runs por dia sem esforço, então a mediana de um combo aleatório tem de ser
+LONGA; o top 5 consideravelmente abaixo dela; o top 1–2 abaixo do top 3–5.
+Isso exige renda que dependa do combo como PRODUTO de acertos (um dial errado
+zera a fatia), não como soma de ajustes, e uma baseline pobre. A sessão do
+combo certo será mais forte que a de hoje; os wires de chain passam a ser
+lidos para o combo mediano.
+
 ## O que ainda não foi medido
 
-- **As combinações.** Tudo acima move um dial por vez, o que por construção
-  não enxerga "Coragem baixa com Ganância alta" — que é onde a diretriz 3 põe
-  o conteúdo. O desenho que responderia: a grade das combinações contra
-  múltiplos eixos de resultado (profundidade, moeda, armadilhas), e olhar a
-  **fronteira de Pareto**. Várias combinações na fronteira, cada uma vencendo
-  num eixo, é a diretriz satisfeita; uma combinação dominando todos os eixos é
-  no-brainer e o desenho falhou.
 - **Os heróis.** Tudo acima é `HEROES.base`. A diretriz 5 só é testável
   repetindo isto por persona.
 - **As hipóteses do dono sobre para que serve cada ponta**, ainda não testadas:

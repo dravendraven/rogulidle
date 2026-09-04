@@ -2,7 +2,7 @@
 // Run them with: python tools/dev-server.py -> http://localhost:8138/run-tests.html
 
 import {
-  CHEST_GUARD_RADIUS, CHEST_TABLE, COIN_CHEST_AMOUNT,
+  CHEST_GUARD_RADIUS, CHEST_TABLE,
   EARLY_CHEST_QUALITY_BOOST, GAME_VERSION, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP,
   PLAYER_HP, PLAYER_XP, RAGE_MULT, RAGE_TURNS, READ_TURNS, ROOM_HEIGHT,
@@ -42,6 +42,7 @@ import {
   BIAS_SPREAD, DANGER_PERSISTENCE, DEFAULT_HERO, LOOT_VALUE, biasBands,
 } from '../src/bot/config.js';
 import { tileSvg } from '../src/ui/tiles.js';
+import { depthTheme } from '../src/ui/depth-theme.js';
 import { playRun } from '../src/ui/run.js';
 import {
   earnedBy, earnedByPurchase, getProgress, isEarned, recordProgress,
@@ -904,58 +905,6 @@ test('opening a chest costs a turn and leaves the loot on the floor', () => {
   const collected = step(opened, 'left').state;
   assertEq(posKey(collected.player.pos), '1,2', 'the player did not step on');
   assertEq(collected.player.inventory.length, 1, 'the loot was not collected');
-});
-
-// ***** the coin chest (2026-08-31) — the explorer's income ***** //
-//
-// One chest per floor — the FARTHEST from the mandatory route by walked
-// steps — carries coins ON TOP of its ordinary draw: the item world is
-// byte-identical to a game without coins (the shape that took coins out of
-// the draw fired the deaths wire), and hidden in a chest the coin has no
-// magnetism (the visible-pile shapes were grabbed by whoever glimpsed
-// them). Opening credits the coins and still leaves the drop on the floor.
-test('opening the coin chest credits its coins and still drops its item', () => {
-  const chest = {
-    id: 'c1', name: 'rock', emoji: '🪨', pos: [1, 2],
-    drop: item('dagger', [1, 2], { dmg: 1 }), coin: 2,
-  };
-  const state = makeState({ map: ROOM_5x5, playerPos: [2, 2], chests: [chest] });
-
-  const opened = step(state, 'left').state;
-  assertEq(opened.chests.length, 0, 'the chest survived');
-  assertEq(opened.items.length, 1, 'the drop was lost to the coins');
-  assertEq(opened.player.coinsFound, 2, 'the coins were not credited');
-  assertEq(opened.player.inventory.length, 0, 'coins entered the inventory');
-});
-
-test('exactly one chest per floor carries coins, and it is the farthest from the route', () => {
-  let floors = 0;
-  for (let seed = 1; seed <= 30; seed++) {
-    const state = newGame(seed, floorPlan(3));
-    const chests = state.chests.filter((c) => !c.vault);
-    const coined = state.chests.filter((c) => c.coin);
-    assert(coined.length <= 1, `seed ${seed} put coins in ${coined.length} chests`);
-    if (!coined.length) continue;
-    floors++;
-    const [rich] = coined;
-    assertEq(rich.coin, COIN_CHEST_AMOUNT, 'the coin chest carries the wrong amount');
-    assert(!rich.vault, `seed ${seed}: the vault's authored chest took the coins`);
-    const farthest = Math.max(...chests.map((c) => c.routeGap ?? -1));
-    assertEq(rich.routeGap, farthest,
-      `seed ${seed}: the coins sat ${rich.routeGap} steps off the route, but a chest sits ${farthest}`);
-  }
-  assert(floors > 0, 'no floor in 30 placed a coin chest — the placement is dead');
-});
-
-test('the coin chest never crosses the fog, except for the persona that sees contents', () => {
-  const chest = {
-    id: 'c1', name: 'rock', emoji: '🪨', pos: [1, 2], drop: null, coin: 2,
-  };
-  const state = makeState({ map: ROOM_5x5, playerPos: [2, 2], chests: [chest] });
-  const plain = observe(state).chests[0];
-  assert(!('coin' in plain), 'which chest holds the coins leaked to the ordinary hero');
-  const seer = observe(state, { revealLoot: true }).chests[0];
-  assertEq(seer.coin, 2, 'the persona that sees contents was not shown the coins');
 });
 
 test('picking up an item moves the player onto its tile', () => {
@@ -3736,15 +3685,17 @@ test('a hero with no appetite skips the gamble the default hero takes', () => {
     '#-------------------#',
     '#####################',
   ]);
-  // The hero starts nearer than he used to (6, not 4): since FIGHT_VALUE
-  // shipped, the walk through the guard's exposure is priced against what
-  // the visit is worth, and a bare corridor makes exposure expensive — at
-  // the old distance even the DEFAULT hero refuses, which is the centre
-  // the calibration measured, not a defect. The dial contrast this test
-  // pins is unchanged: an appetite of 0 refuses what the default pays for.
+  // The hero starts nearer than he used to (8; it was 4, then 6): since
+  // FIGHT_VALUE shipped, the walk through the guard's exposure is priced
+  // against what the visit is worth, and a bare corridor makes exposure
+  // expensive — at the old distances even the DEFAULT hero refuses, which
+  // is the centre the calibration measured, not a defect. (6 held only
+  // while the coin chest's share padded every chest's worth; that share
+  // left with the chest.) The dial contrast this test pins is unchanged:
+  // an appetite of 0 refuses what the default pays for.
   const build = () => makeState({
     map,
-    playerPos: [6, 1],
+    playerPos: [8, 1],
     // Activation 3, not 6: in a bare corridor a radius-6 guard paints the
     // whole approach with exposure, and since FIGHT_VALUE that priced walk
     // exceeds what a boar's xp is worth — the default hero refuses the trip
@@ -3827,6 +3778,12 @@ test('every glyph the game can draw has a sprite', () => {
     ...CHEST_TABLE.map((c) => c.emoji),
     VAULT_BOSS.emoji,
     '🕳️',                                    // the way out (spawn.js)
+    // Walls and doors, every depth tier (src/ui/depth-theme.js), and the
+    // bar pips (render.js). The floor-1 wall shipped MISSING for one push
+    // (2026-09-04, a comment-and-line deletion that took the line after it
+    // too) and this list did not know walls existed.
+    ...[1, 5, 9].flatMap((level) => [depthTheme(level).wall, depthTheme(level).door]),
+    '⬜', '⚡', '🟥',
   ];
   for (const glyph of glyphs) {
     assert(tileSvg(glyph),
@@ -3885,11 +3842,8 @@ test('B21 — with the gate on, a chest is refused on VALUE, not on the bar', ()
     const { actions } = driveBot(state, 1, {
       monsterCount: 0, chestCount: 1, lootValue,
       // Six tiles at 0.1 an hp is 0.6, against a chest this hero believes is
-      // worth 0.2 — so the visit costs three times what it buys. The coin
-      // chest's share (2026-08-31) is zeroed here too: this test isolates
-      // the VALUE gate itself, and with one chest on the floor the coin
-      // share would be the whole coin chest, which is not what it pins.
-      chestValueHp: 0.2, coinChestValueHp: 0,
+      // worth 0.2 — so the visit costs three times what it buys.
+      chestValueHp: 0.2,
       hero: { ...DEFAULT_HERO, stepCost: 0.1, sideAppetite: 1 },
     });
     return actions[0];
@@ -4821,8 +4775,6 @@ test('the engine really does write coins onto the traversal that killed the hero
   // engine ever starts zeroing that row, this fails and `balanceOf` can lose
   // its filter instead of keeping a guard against something that stopped
   // happening.
-  // Back on 500000: the coin chest consumes no draw, so the stream is the
-  // pre-coin one again and this seed's fatal traversal pays as it did.
   const run = playOne(500000);
   assert(!run.cleared, 'the fixture seed stopped dying — pick another');
   const last = run.levels[run.levels.length - 1];

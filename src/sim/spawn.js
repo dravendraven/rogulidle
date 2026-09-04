@@ -5,7 +5,6 @@
 // pool, so changing the order changes every map.
 
 import {
-  COIN_CHEST_AMOUNT,
   CHEST_COUNT, CHEST_GUARD_RADIUS, CHEST_LOOT_CHANCE, CHEST_TABLE, EARLY_CHEST_QUALITY_BOOST,
   ITEM_TABLE, MONSTER_COUNT,
   MONSTER_DIFFICULTY_SCALE, MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE,
@@ -317,10 +316,6 @@ export function populate(state, map, counts = {}) {
     // `kills.length` (which stays a count, unchanged shape: combat.js's
     // per-module grants and the renderer both key off it).
     xpEarned: 0,
-    // Coins found on the floor this run (chests since 2026-08-31). The
-    // SECOND income — paid per traversal alongside the xp rate, and unlike
-    // it, not diluted by turns. rules.md §9.
-    coinsFound: 0,
   };
 
   // 2. Path to the centre of every room, shortest first.
@@ -534,10 +529,7 @@ export function populate(state, map, counts = {}) {
     // second armour or potion.
     const quality = Math.min(1, depth + earlyChestBoost);
     // `allowEmpty: false` — `hasLoot` above already decided whether this
-    // chest holds anything, so this draw only picks WHICH kind. (Coins were
-    // briefly a third outcome of this draw and the opening-deaths wire
-    // fired for it — see COIN_CHEST_AMOUNT in balance.js; the coin chest
-    // now carries its coins ON TOP of this draw, never instead of it.)
+    // chest holds anything, so this draw only picks WHICH kind.
     const template = drawWeighted(state, 'spawn', itemWeights(scarcity, 'chest', quality, [], false));
 
     const chest = drawPick(state, 'spawn', CHEST_TABLE);
@@ -554,48 +546,7 @@ export function populate(state, map, counts = {}) {
     });
   }
 
-  // 4b. THE COIN CHEST (owner, 2026-08-31, the fourth and final shape of
-  // the explorer's income): the chest FARTHEST from the mandatory route, by
-  // walked steps, carries COIN_CHEST_AMOUNT coins ON TOP of whatever it
-  // drew — the item world is byte-identical to a game without coins. No
-  // draw is consumed: the pick is the max of a BFS, so the spawn stream is
-  // exactly what it was before coins existed.
-  //
-  // Why a chest and why the farthest: hidden inside a chest the coin has no
-  // magnetism (contents never cross the fog), so the bot prices every chest
-  // by an honest expected value and the hasty hero, who refuses the far
-  // chest by price, forgoes the coin without ever knowing which chest it
-  // was. The three shapes before this — coins drawn instead of items,
-  // a visible pile in a side room, a visible pile out of the route's sight
-  // — each failed a measurement the owner watched (sustain lost, or piles
-  // grabbed by anyone who glimpsed them); balance.js carries the numbers.
   state.items = [];
-  {
-    const routeDist = new Map();
-    const queue = [];
-    for (const key of zones.onPath) { routeDist.set(key, 0); queue.push(key); }
-    for (let head = 0; head < queue.length; head++) {
-      const [cx, cy] = queue[head].split(',').map(Number);
-      const next = routeDist.get(queue[head]) + 1;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const nx = cx + dx; const ny = cy + dy;
-        const nkey = nx + ',' + ny;
-        if (routeDist.has(nkey) || !passable(nx, ny)) continue;
-        routeDist.set(nkey, next);
-        queue.push(nkey);
-      }
-    }
-    let farthest = null;
-    for (const chest of state.chests) {
-      // Introspection for tests and the debug overlay: every chest knows
-      // how far off the route it sits, in walked steps.
-      chest.routeGap = routeDist.get(chest.pos[0] + ',' + chest.pos[1]) ?? -1;
-      if (chest.routeGap < 0) continue;                         // unreachable
-      if (!farthest || chest.routeGap > farthest.routeGap) farthest = chest;
-    }
-    const amount = counts.coinChestAmount ?? COIN_CHEST_AMOUNT;
-    if (farthest && amount > 0) farthest.coin = amount;
-  }
 
   // 5. Monsters, split between the mandatory route and the side rooms, and
   // — M7, docs/backlog.md — placed in CLUSTERS rather than independently.

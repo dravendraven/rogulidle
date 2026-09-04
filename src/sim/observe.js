@@ -115,13 +115,8 @@ function monsterFields(revealLoot, monster) {
     : MONSTER_FIELDS;
   return revealLoot ? [...base, 'drop'] : base;
 }
-// `coin` is an unrevealed answer exactly like `drop` (the coin chest,
-// 2026-08-31): which chest carries the floor's coins is the secret the
-// explorer's income rests on, so it crosses only for the persona that sees
-// contents — and for that one it crosses with the drop, or the engineer
-// would walk past the richest chest on the floor as "empty".
 function chestFields(revealLoot) {
-  return revealLoot ? [...CHEST_FIELDS, 'drop', 'coin'] : CHEST_FIELDS;
+  return revealLoot ? [...CHEST_FIELDS, 'drop'] : CHEST_FIELDS;
 }
 
 // Deep-clones only the allow-listed fields — still a JSON round-trip

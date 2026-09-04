@@ -125,7 +125,6 @@ function carryFrom(player) {
     // U3, docs/backlog.md — survives the stairs the same way xp and
     // inventory already do.
     xpEarned: player.xpEarned,
-    coinsFound: player.coinsFound ?? 0,
   };
 }
 
@@ -189,7 +188,6 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
   // Coin is paid per traversal on xp EARNED THERE, so the running total has
   // to be differenced rather than read (rules.md §9).
   let earnedBefore = 0;
-  let foundBefore = 0;
   let purchases = 0;
 
   // A LAB TOOL, and the default is the game. `startFloor` skips straight to
@@ -368,16 +366,12 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
     // What this traversal paid, and what the hero spent of it before the
     // next one. Recorded on the row so the page can take the spend off the
     // balance it offers at the end of the run — the coin is the same coin.
-    // The traversal's pay is the xp RATE plus the coins FOUND on its floor
-    // (chests, 2026-08-31). Found coins are flat — they do not divide by
-    // turns, which is the whole reason they exist (rules.md §9): the
-    // explorer's income against the diver's rate. The fatal-traversal rule
-    // is untouched — the row is written either way, and `balanceOf`
-    // (src/analysis/chain.js) and the page keep paying only 'ascended'.
-    const coins = coinsFor(player.xpEarned - earnedBefore, run.turns)
-      + ((player.coinsFound ?? 0) - foundBefore);
+    // The traversal's pay is the xp RATE, and nothing else (rules.md §9; a
+    // second, flat income from a chest was built and removed, decisions.md).
+    // The fatal-traversal rule: the row is written either way, and
+    // `balanceOf` (src/analysis/chain.js) and the page pay only 'ascended'.
+    const coins = coinsFor(player.xpEarned - earnedBefore, run.turns);
     earnedBefore = player.xpEarned;
-    foundBefore = player.coinsFound ?? 0;
     const row = levels[levels.length - 1];
     row.coins = coins;
     row.spent = 0;
