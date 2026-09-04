@@ -4,14 +4,29 @@
     {
       "name": "rogulidle-tests",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["tools/dev-server.py", "8141"],
+      "runtimeArgs": [
+        "tools/dev-server.py",
+        "8141"
+      ],
       "port": 8141
     },
     {
       "name": "rogulidle-ach",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["tools/dev-server.py", "8146"],
+      "runtimeArgs": [
+        "tools/dev-server.py",
+        "8146"
+      ],
       "port": 8146
+    },
+    {
+      "name": "rogulidle-cave",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "tools/dev-server.py",
+        "8148"
+      ],
+      "port": 8148
     }
   ]
 }
