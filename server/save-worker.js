@@ -30,14 +30,15 @@
 //
 // ***** deploying it *****
 //
-// 1. Cloudflare dashboard → Workers & Pages → Create → Worker. Any name.
-// 2. Edit code, paste this file whole, deploy.
-// 3. Settings → Bindings → Add → Durable Object: variable name SAVES, class
-//    SaveRoom (from this same worker). New namespaces are SQLite-backed.
-//    Nothing else is configured; there are no secrets. If the dashboard
-//    will not offer the class, the equivalent wrangler config is
-//      durable_objects.bindings = [{ name: "SAVES", class_name: "SaveRoom" }]
-//      exports.SaveRoom = { type: "durable-object", storage: "sqlite" }
+// 1. Once, from the repo root, because the dashboard cannot create a
+//    Durable Object namespace (its binding picker only lists ones that
+//    exist): `npx wrangler login`, then
+//    `npx wrangler deploy --config server/wrangler.jsonc`. That file
+//    declares the class, the SQLite storage and the SAVES binding, and
+//    says why this is not a breach of the no-npm rule.
+// 2. From then on the dashboard editor works as before: paste this file
+//    whole, deploy. The namespace and the binding stay.
+// 3. Nothing else is configured; there are no secrets.
 // 4. The worker's URL goes in `SERVICE`, at the top of `src/ui/sync.js`. A
 //    page whose `SERVICE` is empty plays locally and syncs nothing.
 //

@@ -161,7 +161,9 @@ escrita condicional). O armazenamento começou em KV e passou a **um Durable
 Object por nome** quando cada run passou a subir: o teto gratuito do KV
 (mil escritas por dia na conta inteira) virou o teto de runs por dia de
 todos os jogadores juntos — `docs/project/decisions.md`, «A subida
-espaçada».
+espaçada». O Durable Object custou uma exceção ao «sem CLI»: o painel não
+cria o namespace, então o primeiro deploy da classe passa pelo `wrangler`,
+uma vez (`server/wrangler.jsonc`); depois disso o painel volta a servir.
 
 Três rotas, e a trava é uma delas:
 
