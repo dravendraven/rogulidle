@@ -117,9 +117,6 @@ const session = {
   // built — same one-function-returned-from-the-builder shape as `roster`.
   showHighscores: null,
   history: [],
-  // Turns banked from floors already finished this run — see renderHud's
-  // xp-rate comment in render.js. 0 in legacy single-floor mode.
-  turnOffset: 0,
   // U5/U6b — docs/backlog.md. THE run's bankable total — U5 displays it
   // live as an efficiency read, U6b is this comment: naming it
   // "unbanked" rather than reusing U5's own "coins" wording, since U6c
@@ -156,7 +153,7 @@ let events = { show: () => {} };
 
 function grab() {
   for (const id of [
-    'grid', 'stage', 'hp', 'stamina', 'xpEarned', 'xpRate', 'steps', 'kills', 'inventory',
+    'grid', 'stage', 'hp', 'stamina', 'steps', 'kills', 'inventory',
     'run', 'tally', 'seed', 'summary', 'summaryTitle', 'summaryBody',
     'playPause', 'speed', 'debug', 'resetSession', 'floor', 'history',
     'coins', 'coinPopup', 'damage', 'debugInfo', 'app', 'lab', 'dials',
@@ -1046,7 +1043,6 @@ async function runDescentForever() {
 
     let run = null;
     let finalState = null;
-    session.turnOffset = 0;
     // Playback state for the traversal on screen.
     let onTraversal = 0;
     let shown = null;
@@ -1113,7 +1109,6 @@ async function runDescentForever() {
       // The earliest a dial change can now act is the next floor's turn 0.
       session.liveRun.traversal = levelResult.traversal + 1;
       session.liveRun.turn = 0;
-      session.turnOffset += levelResult.turns;
 
       // U5 — docs/backlog.md. coins = round(xpEarned-this-floor /
       // turns-this-floor * 10), on floor COMPLETION only: dying or timing
