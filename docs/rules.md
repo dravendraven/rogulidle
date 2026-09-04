@@ -650,6 +650,13 @@ cadeia de seeds voltam como estavam — junto com o que já persistia: itens
 guardados, recordes, feitos, herói escolhido, ordem da loja e a personalidade
 sorteada do bot.
 
+**Um feito ainda trancado mostra o quão perto alguma run já chegou dele** —
+a menor vida em que o Butcher ficou, o máximo que uma run pagou contra o
+preço do machado, o andar mais fundo alcançado. É só mostrador: não destrava
+nada, não tem recibo, e some quando o feito é conquistado
+(`docs/project/feitos-progresso.md`). Recomeçar apaga esses recordes junto
+com os feitos.
+
 **A sessão é gravada no instante em que a run é contada.** Antes disso a run
 não tocou em nada guardado, então uma interrupção no meio dela a faz ser
 jogada de novo, idêntica — o par (seed da sessão, número da run) a reproduz.

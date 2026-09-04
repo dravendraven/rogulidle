@@ -44,7 +44,8 @@ import {
 import { tileSvg } from '../src/ui/tiles.js';
 import { playRun } from '../src/ui/run.js';
 import {
-  earnedBy, earnedByPurchase, isEarned, verifyAchievements, HERO_GATE,
+  earnedBy, earnedByPurchase, getProgress, isEarned, recordProgress,
+  verifyAchievements, HERO_GATE,
 } from '../src/ui/achievements.js';
 import { getChosenHero, setChosenHero } from '../src/ui/roster.js';
 import {
@@ -4213,6 +4214,47 @@ test('the roster row records the hp the Butcher was left with', () => {
   }
   assert(wounded > 0, 'no run in 60 wounded the Butcher and left him standing');
   assert(killed > 0, 'no run in 60 killed the Butcher');
+});
+
+// docs/project/feitos-progresso.md — the record only ever improves, a dead
+// pig records nothing (the achievement owns that), and the two bars with
+// no store of their own are read off the highscore rows handed in.
+const pigRun = (hpLeft, dead = false) => ({
+  levels: [{ roster: [{ vault: true, dead, hp: 12, hpLeft }] }],
+});
+test('the Butcher record keeps the lowest hp and never climbs back', () => {
+  withStores(() => {
+    writeSlice('achievements', {});
+    assertEq(getProgress().butcher, undefined, 'a fresh store already had a record');
+    assert(recordProgress(pigRun(8)), 'the first wound was not recorded');
+    assertEq(getProgress().butcher.text, 'o porco já ficou com 8 de 12 de vida');
+    assert(!recordProgress(pigRun(10)), 'a worse run overwrote a better one');
+    assertEq(getProgress().butcher.text, 'o porco já ficou com 8 de 12 de vida');
+    assert(recordProgress(pigRun(3)), 'a better run was not recorded');
+    assertEq(Math.round(getProgress().butcher.fraction * 100), 75, 'the fraction is not the damage dealt');
+    assert(!recordProgress(pigRun(0, true)), 'a killed Butcher was recorded as a wound');
+    assertEq(getProgress().butcher.text, 'o porco já ficou com 3 de 12 de vida');
+    // A run that never reached the vault floor has nothing to say.
+    assert(!recordProgress({ levels: [{ roster: [{ vault: false, dead: false, hp: 3, hpLeft: 1 }] }] }),
+      'an ordinary creature stood in for the Butcher');
+  });
+});
+
+test('depth and coin progress are the best of the highscore rows', () => {
+  withStores(() => {
+    writeSlice('achievements', {});
+    assertEq(getProgress({}).bottom, undefined, 'no rows, yet a depth showed');
+    const rows = {
+      base: { bestDepth: 4, maxCoins: 5 },
+      pawa: { bestDepth: 7, maxCoins: 2 },
+    };
+    const p = getProgress(rows);
+    assertEq(p.bottom.text, 'já chegou ao andar 7 de 10');
+    assertEq(Math.round(p.bottom.fraction * 100), 70);
+    const price = SHOP_ITEMS.find((entry) => entry.item.name === 'axe').price;
+    assertEq(p.axe.text, `a melhor run pagou 5 de ${price} moedas`);
+    assert(p.axe.fraction > 0 && p.axe.fraction <= 1, 'the coin fraction left 0..1');
+  });
 });
 
 // The shop's own achievement rule, pinned so a new shelf item cannot quietly

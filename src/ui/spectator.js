@@ -17,8 +17,8 @@ import {
   applyDepth, renderDebugInfo, carriedSvg, renderBossBar,
 } from './render.js';
 import {
-  ACHIEVEMENTS, earn, earnedBy, earnedByPurchase, getAchievements,
-  resetAchievements, verifyAchievements,
+  ACHIEVEMENTS, earn, earnedBy, earnedByPurchase, getAchievements, getProgress,
+  recordProgress, resetAchievements, verifyAchievements,
 } from './achievements.js';
 import { tileSvg } from './tiles.js';
 import { award, resetScore } from './score.js';
@@ -682,7 +682,8 @@ async function showShop(receipt) {
     const firsts = earnedByPurchase(item.name).filter((id) => earn(id, receipt));
     if (!firsts.length) return;
     if (el.achievements) {
-      renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), firsts[0]);
+      renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), firsts[0],
+        getProgress(getHighscores()));
     }
     // The FUNDING run's chip takes the trophy — history[0], tallied just
     // before this shop opened — so the strip and the achievement row tell
@@ -916,8 +917,25 @@ function tallyDescent(run, finalState, heroName, receipt) {
   for (const id of earnedBy(run)) {
     if (earn(id, receipt)) firsts.push(id);
   }
+
+  // U-highscores — src/ui/highscores.js. `session.unbankedCoins` is read
+  // here rather than passed in because it already IS this run's total: the
+  // next run's reset happens at the top of runDescentForever's loop, one
+  // iteration after this call. Recorded BEFORE the achievement rows are
+  // drawn, because two of their progress bars are read off these rows
+  // (docs/project/feitos-progresso.md) and a bar one run behind would
+  // show the previous best under the run that just beat it.
+  recordRun(heroName, {
+    depth: run.depth, cleared: run.cleared, coins: session.unbankedCoins, turns: totalTurns,
+  });
+  if (session.showHighscores) session.showHighscores(getHighscores());
+
+  // The third bar — how low this run left the Butcher — has no highscore
+  // row to live in, so the achievements module keeps it itself.
+  recordProgress(run);
   if (el.achievements) {
-    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), firsts[0] || null);
+    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), firsts[0] || null,
+      getProgress(getHighscores()));
   }
 
   session.history.unshift({
@@ -939,15 +957,6 @@ function tallyDescent(run, finalState, heroName, receipt) {
   });
   if (session.history.length > HISTORY_LEN) session.history.length = HISTORY_LEN;
   if (el.history) renderHistory(el.history, session.history, ACHIEVEMENTS);
-
-  // U-highscores — src/ui/highscores.js. `session.unbankedCoins` is read
-  // here rather than passed in because it already IS this run's total: the
-  // next run's reset happens at the top of runDescentForever's loop, one
-  // iteration after this call.
-  recordRun(heroName, {
-    depth: run.depth, cleared: run.cleared, coins: session.unbankedCoins, turns: totalTurns,
-  });
-  if (session.showHighscores) session.showHighscores(getHighscores());
 }
 
 async function showDescentSummary(run, finalState) {
@@ -1293,7 +1302,8 @@ function wireControls() {
     // gate re-shuts the instant the receipts go (`resetAchievements` clears
     // the verified cache), and a rail still showing an open cast would be
     // lying until the run on screen happened to end.
-    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements());
+    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(),
+      null, getProgress(getHighscores()));
     // The strip goes with them. A green chip is the record of an achievement,
     // and a reset that wipes the achievement and leaves its trophy standing
     // would leave the page showing a thing the player no longer has.
@@ -1444,7 +1454,8 @@ export async function start() {
   // Drawn before the first run so the board reads as "two things to do"
   // rather than appearing out of nowhere the moment one is done.
   if (el.achievements) {
-    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements());
+    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(),
+      null, getProgress(getHighscores()));
   }
   events = makeEventLayer(el.stage, el.grid, { enabled: eventsEnabled(), signalMs });
   wireControls();
