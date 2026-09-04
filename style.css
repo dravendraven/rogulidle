@@ -11,12 +11,12 @@
   --key-bg: #D4E1EA;
   --key-border: #AAB8C2;
   /* The board is 18 cells tall and must fit the window without a scroll:
-     36px on a tall screen, shrinking on a short one, never below 20px (the
-     phone size below). The 400px is everything else stacked above and
-     below it — page padding,
-     header, the achievements row, the floor bar, the hp and stamina bars.
-     Grow any of those and this number is stale (owner, 2026-09-04). */
-  --cell: clamp(20px, calc((100vh - 400px) / 18), 36px);
+     up to 48px on a tall screen, down to 20px (the phone size below) on a
+     short one. The 390px is everything else stacked above and below it —
+     page padding, header, the achievements row, the floor bar, the hp and
+     stamina bars. Grow any of those and this number is stale (owner,
+     2026-09-04). */
+  --cell: clamp(20px, calc((100vh - 390px) / 18), 48px);
 }
 
 * { box-sizing: border-box; }
@@ -29,8 +29,13 @@ body {
     ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+/* The board's width plus two full flanks plus the gaps and page padding.
+   It was 920px, and 1300px with the lab open — both right for a 36px
+   cell and both squeezing the flanks once the board grew with the window
+   (owner, 2026-09-04). The flanks hold the hero and the shop whether or
+   not the lab is open, so the width no longer depends on it. */
 .app {
-  max-width: 920px;
+  max-width: calc(18 * var(--cell) + 14px + 2 * 255px + 4.8rem);
   margin: 0 auto;
   padding: 1.25rem 1rem 2rem;
 }
@@ -735,8 +740,6 @@ footer {
 }
 .map-dials[hidden] { display: none; }
 
-/* Wider only while the lab is open, so the plain game keeps its column. */
-.app.lab-open { max-width: 1300px; }
 
 /* SECONDARY, and it should look it. The hero block above owns the eye; this
    is the drawer you open when you want to fiddle. Smaller type, dimmer
@@ -983,7 +986,7 @@ footer {
   /* Only one track exists here, so the explicit 3rd-column placement above
      would target a column that no longer exists — back to plain flow. */
   .dials { width: 100%; max-height: 55vh; padding-right: 0; }
-  .app.lab-open { max-width: none; }
+  .app { max-width: none; }
 
   /* The picker goes horizontal-first here: with the column full width, the
      card and the five faces read as one row of a form rather than a rail. */
@@ -1003,9 +1006,7 @@ footer {
   gap: .35rem;
 }
 
-/* Icon in one column, title/sub/stamp stacked in the other. As a flex row
-   the stamp took a third of a card that is now a third as wide, and the
-   title wrapped around it. */
+/* Icon in one column, title and sub stacked in the other. */
 .ach {
   display: grid; grid-template-columns: 22px minmax(0, 1fr);
   column-gap: .6rem; align-items: center;
@@ -1022,7 +1023,6 @@ footer {
 .ach-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
 .ach-title { font-weight: 600; color: var(--muted, #7a8595); }
 .ach-sub { font-size: .8em; color: var(--muted, #7a8595); opacity: .75; }
-.ach-stamp { grid-column: 2; font-size: .8em; color: var(--muted, #7a8595); opacity: .6; white-space: nowrap; }
 
 .ach.earned { background: #16351f; border-color: #2f6b41; }
 .ach.earned .ach-title { color: var(--accent, #8ce99a); }
