@@ -160,8 +160,8 @@ async function peek(env, name, now) {
 }
 
 // Store the save and renew the lock, in that order and in one write — the
-// write budget is the reason the client only calls this every few minutes
-// (§6 of the study), so the heartbeat cannot be a separate request.
+// write budget is per day and the client calls this once per run, so the
+// heartbeat cannot be a separate request.
 async function store(env, given, now) {
   const record = await read(env, given.name);
 

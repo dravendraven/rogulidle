@@ -188,12 +188,13 @@ que o dono pediu é a metade visível de um mecanismo que precisa existir de
 qualquer forma.
 
 **O orçamento de escrita é uma restrição de projeto, não um detalhe.** O
-plano gratuito tem teto diário de escritas, e uma run dura poucos minutos:
-gravar a cada run, com alguns amigos jogando horas, estoura. Por isso a
-gravação remota é **estrangulada** — no máximo uma a cada poucos minutos,
-sempre no limite de uma run, mais a do `pagehide`. O `localStorage` continua
-gravando toda run; o que é raro é a subida. O preço disso é conhecido e
-pequeno: mudar de aparelho pode custar as últimas runs.
+plano gratuito tem teto diário de escritas, e uma run dura poucos minutos.
+Este plano propôs **estrangular** a subida (uma a cada poucos minutos) para
+caber no teto, aceitando que mudar de aparelho custasse as últimas runs. Isso
+foi construído, produziu duas histórias do mesmo nome, e foi desfeito: hoje
+toda run sobe, e o teto é um custo do plano de hospedagem, não uma regra do
+jogo — `docs/rules.md` §9 e `docs/project/decisions.md`, «A subida
+espaçada».
 
 ## 7. Peça 5 — o cliente
 
@@ -239,23 +240,11 @@ seria mais para explicar do que vale.
 
 ## 8. Peça 6 — quando a rede falha
 
-Rede fora não pode parar o jogo: ele grava local, mostra um selo discreto de
-«sem sincronizar» e tenta de novo no próximo ponto de salvamento.
-
-**Tentar de novo é metade da peça, e é a metade que faltava.** Um selo
-sozinho espera que alguém recarregue, e num jogo feito para ficar rodando
-isso quer dizer nunca. Então toda tentativa passa pelo mesmo ponto de
-salvamento, espaçada como as subidas: a aba bate na porta, e quando ela abre
-o jogo volta a sincronizar sem ninguém tocar em nada.
-
-**O órfão é descartado, e é aqui que ele aparece.** Ao voltar, se o nome
-estiver com outro aparelho, ou se o save de lá tiver andado, as runs jogadas
-sozinhas foram jogadas numa cópia que não é mais o jogo. Elas são
-descartadas: a aba para, diz o que houve, e recarregar traz o save de lá
-inteiro. Costurar as duas histórias faria uma terceira, que ninguém jogou.
-
-Se nada tiver acontecido enquanto ela esteve fora, é o contrário — esta cópia
-É o jogo, e sobe na hora em vez de esperar a próxima janela.
+Esta peça propunha que rede fora não parasse o jogo: gravar local, mostrar um
+selo de «sem sincronizar», descartar o «órfão» ao voltar se outro aparelho
+tivesse jogado no meio. Foi construída assim e foi o que produziu o caso que
+a derrubou. O que vale hoje está em `docs/rules.md` §9 («Sem servidor, o jogo
+espera») e o porquê em `docs/project/decisions.md`, «A subida espaçada».
 
 ## 9. O que este plano não faz
 

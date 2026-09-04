@@ -620,29 +620,31 @@ reserva sozinho quando a aba morre, sem prazo nenhum.
 aparelho que morreu segurando o nome, mas só depois de correr inteiro, e
 quem está diante da tela em geral sabe que o outro está fechado. O botão
 toma o nome imediatamente; o aparelho que o tinha para em segundos, no meio
-da run se for o caso, e perde o que ainda não tinha gravado — a run
-interrompida não conta, não paga e não chega à loja. É por isso que só um botão
-faz isso, e nunca acontece sozinho: só quem está olhando sabe que o outro
-lado pode ser interrompido.
+da run se for o caso — e só a run interrompida se perde: ela não conta, não
+paga e não chega à loja, e tudo antes dela já estava no servidor. É por isso
+que só um botão faz isso, e nunca acontece sozinho: só quem está olhando sabe
+que o outro lado pode ser interrompido.
 
-**O save sobe de tempos em tempos, e ao fechar a aba** — não a cada run. O
-navegador continua gravando toda run; o que é espaçado é a subida. A
-consequência é honesta e pequena: trocar de aparelho pode custar as últimas
-runs.
+**O servidor é o jogo; o navegador é uma cópia dele.** Toda run sobe inteira
+— o resultado e o que a loja comprou — antes de a run seguinte começar, e a
+página não segue enquanto o servidor não confirmar. Nunca existe uma run
+contada num aparelho que o servidor não tenha: é isso, e só isso, que torna
+impossível dois aparelhos com duas histórias do mesmo nome. Uma cópia local
+que o servidor não conhece só pode ser a run cuja subida ainda está sendo
+tentada, e essa run se reproduz idêntica a partir da cópia do servidor.
 
 **Quem perde a reserva para.** Se o nome foi tomado por outro aparelho, a aba
 diz isso e encerra ali, em vez de seguir jogando runs que nenhum save vai
 guardar.
 
-**Sem servidor, o jogo continua.** Fora do ar ou sem rede, tudo é jogado e
-gravado só naquele aparelho, e o cabeçalho marca que nada está
-sincronizando. De tempos em tempos a aba tenta de novo sozinha — quando a
-rede volta, a marca some e o jogo volta a subir sem ninguém recarregar nada.
-
-**O que foi jogado sem rede só vale se ninguém tiver jogado no lugar.** Se
-ao voltar o nome estiver com outro aparelho, ou o save de lá tiver andado,
-as runs jogadas sozinhas são descartadas e a aba para pedindo recarregar —
-juntar as duas histórias faria uma terceira, que ninguém jogou.
+**Sem servidor, o jogo espera.** Fora do ar ou sem rede, a página mostra que
+está sem conexão e não joga — nem começa, nem passa para a próxima run — até
+o servidor responder. Ela tenta de novo sozinha, a cada poucos segundos, e
+volta a rodar sem ninguém recarregar nada. Esse é o preço da regra acima, e
+foi escolhido de olhos abertos: jogar sem rede era exatamente o que produzia
+duas histórias (`docs/project/decisions.md`, «A subida espaçada»). Só uma
+página cujo serviço nem está configurado (um fork sem servidor) joga e grava
+só localmente, como antes de o servidor existir.
 
 **O que a página lembra, ela lembra entre visitas.** Refresh não começa outra
 sessão. O número da run, o histórico dos últimos resultados, o placar e a

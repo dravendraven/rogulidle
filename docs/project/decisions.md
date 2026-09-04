@@ -2111,3 +2111,50 @@ at a run that has fallen off the end of a twelve-chip strip. The stamp shows
 `at`, which was already stored and is still true tomorrow; the run is
 identified where it can actually be looked at — a green chip with a trophy on
 it, in the strip, for as long as that run is still in it.
+
+## A subida espaçada — removed, and why "play on alone" had to go with it
+
+Reported on 2026-09-04: the owner's name was open in one browser at run
+710. Typing the same name into a second browser opened it at run 559.
+
+**What the service actually held was run 558.** The first browser had gone
+on for a hundred and fifty runs (and the session's only clear) without one
+of them reaching the server; its lease lapsed, the name fell free, and the
+second browser took it and was handed the last copy that had gone up. Not a
+rollback — the server was never told. Why the first browser stopped
+reaching the service is not known and does not matter: the design allowed a
+page to keep playing, and counting, for hours after its last upload.
+
+**Two decisions of the study (§6, §8) made that possible together:**
+
+- **The rationed upload.** One trip every five minutes to fit the free
+  plan's daily write cap, with the stated price "changing device can lose
+  the last few runs". The price was stated for a page that uploads on
+  schedule; it was never bounded for one whose uploads fail.
+- **Play on alone.** A page that could not reach the service kept playing
+  and marked the header. The mark is a signal nobody acts on in a game
+  meant to be left running — and the runs it played were real to the
+  player and invisible to the server.
+
+**The fix is the invariant the study never stated: nothing counted here is
+missing from the server.** Every run goes up, after the shop, before the
+next run starts; a page whose upload fails shows it and waits, retrying on
+its own. The "orphan" branch, the reconnect-on-schedule, the ⚠-and-carry-on
+— all deleted, because the state they handled can no longer arise. What a
+displaced page loses is at most the run in progress, which never counted.
+What a page that dies mid-upload loses is nothing: it comes back to the
+server's copy and replays that run identically from the same seed.
+
+**Why not merge, or "whoever has more runs wins".** A history stitched from
+two copies is a third one nobody watched; and a longer copy is not a truer
+one — the second browser's 559 was the copy the server vouched for. The
+comparison the claim makes (server revision against the revision this
+browser last sent) stays, because with the invariant it is only ever
+deciding between identical copies.
+
+**What this costs, said plainly.** One write per run against a per-day cap
+on the free tier. A service that is down, or over its cap, now holds every
+page on a "waiting" screen instead of letting them play — that is the
+guarantee working, not a bug, and the owner chose it. The cap is a hosting
+decision (paid plan, or a store with a bigger allowance), not a game rule,
+and the game will not be bent back to fit it.
