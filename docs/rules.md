@@ -509,18 +509,10 @@ por decisão do dono; o bot continua decidindo sem saber quanto resta.
 **Moeda por travessia concluída**, derivada de xp por turno. Toda travessia
 paga, ida e volta.
 
-**O baú da moeda** (2026-08-31): em cada andar, o baú **mais distante da
-rota obrigatória** (em passos andados) carrega moedas **além** do que
-sorteou — o mundo dos itens é byte-idêntico ao jogo sem moeda. Abrir credita
-as moedas e deixa o item no chão como sempre; elas pagam junto com a
-travessia, sob a regra de sempre. Qual baú é o da moeda **não cruza o fog**
-(só a persona que vê conteúdo sabe), então o bot precifica todo baú pelo
-valor esperado — e o apressado, que recusa o baú distante pelo preço, abre
-mão da moeda sem saber qual era. É a segunda renda do jogo: a taxa xp÷turno
-recompensa descer rápido; o baú distante recompensa explorar. Três formas
-anteriores foram medidas e descartadas — moeda no lugar do item (sustain
-perdido, wire de mortes disparou), pilha visível em sala lateral e pilha
-fora da vista da rota (quem vislumbrava, pegava).
+A taxa xp÷turno é a **única** renda. Uma segunda, plana — moedas num baú
+longe da rota — foi construída, nerfada até não pesar para não criar bola de
+neve, e removida (`decisions.md`, "O baú da moeda"); o que recompensa
+explorar tem de vir do mapa, não de uma moeda escondida.
 
 **A moeda é da run, e não sobrevive a ela.** O saldo começa em zero em toda
 run, é gasto na loja que fecha aquela run, e o que não for gasto é

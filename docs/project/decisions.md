@@ -2111,3 +2111,37 @@ at a run that has fallen off the end of a twelve-chip strip. The stamp shows
 `at`, which was already stored and is still true tomorrow; the run is
 identified where it can actually be looked at — a green chip with a trophy on
 it, in the strip, for as long as that run is still in it.
+
+## O baú da moeda — construído, nerfado até a irrelevância, removido
+
+**Status: removido (2026-09-04). Antes de reintroduzir uma segunda renda,
+ler isto.**
+
+O problema que ele tentou resolver era real e continua de pé: a única renda
+é xp÷turno, então todo turno de exploração dilui o pagamento e "descer
+rápido" vence qualquer outro jogo. A resposta foi uma renda PLANA, que não
+divide por turnos: moedas escondidas no baú mais distante da rota, em cima
+do sorteio normal, sem cruzar o fog (`rules.md` §9 da época). Três formas
+anteriores já tinham sido medidas e descartadas — moeda no lugar do item
+(sustain perdido, wire de mortes disparou), pilha visível em sala lateral e
+pilha fora da vista da rota (quem vislumbrava, pegava).
+
+**O que matou a quarta forma foi o contrapeso.** A 2 moedas na taxa 20 a
+sessão virou bola de neve (o instrumento de chain disparou os dois wires de
+vitória; pilha de centenas de itens). O único par medido que deixava a
+sessão idêntica ao pré-moeda foi 1 moeda com a taxa em 14 — e nesse ponto a
+renda por faixa de Pressa variava ~15% entre extremos. Uma renda que não
+pode pesar sem criar bola de neve, e que nerfada não pesa, não paga um
+mecanismo: BFS no spawn, campo na observação, crédito no step, carry entre
+andares, termo no preço do baú, três testes e três docs.
+
+**A leitura que ficou** (grade de 64 combos, `tools/grid.mjs`): a renda é
+constante entre combos porque toda luta é forçada — monstro que vê
+persegue, e a rota passa a menos do raio de ativação de tudo. Nenhuma
+moeda extra corrige isso; só o mapa corrige (luta opcional: criatura
+visível fora do raio de ativação a partir da rota). `docs/project/dials.md`
+tem o alvo do dono para a curva.
+
+**O que ficou dele:** `COIN_RATE` em 14 (baseline mais pobre, que é o que o
+alvo novo pede), e o contador de moedas ao vivo no HUD, que mostra xp÷turno
+se formando e não dependia do baú. `GAME_VERSION` subiu para 2.
