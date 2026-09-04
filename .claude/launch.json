@@ -20,6 +20,15 @@
       "port": 8146
     },
     {
+      "name": "rogulidle-progress",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "tools/dev-server.py",
+        "8152"
+      ],
+      "port": 8152
+    },
+    {
       "name": "rogulidle-cave",
       "runtimeExecutable": "python",
       "runtimeArgs": [

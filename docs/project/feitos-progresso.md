@@ -120,6 +120,14 @@ por reload, e ele não existe mais. Risco específico: uma sessão aberta com
 jogador — o cartão precisa omitir o número quando `session.persist` é
 falso.
 
+**Estado (2026-09-04): T1 a T4 construídas.** `hpLeft` na linha de roster;
+`recordProgress` / `getProgress` em `achievements.js` (o recorde do porco na
+chave `progress` da fatia dos feitos, os outros dois lidos dos highscores);
+a barra é o `::before` do cartão trancado. Verificado com um save fabricado:
+a altura dos cartões é a mesma com e sem barra. **Não foi assistido em jogo
+real** — o primeiro recorde de verdade ainda não aconteceu na tela de
+ninguém. T5 segue em aberto, decisão do dono.
+
 ## 4. O que fica em aberto para quem assistir
 
 - **A barra pode ficar parada por dias.** Ela só anda quando uma run fez
