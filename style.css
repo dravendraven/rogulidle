@@ -10,7 +10,13 @@
   --accent: #4D9029;
   --key-bg: #D4E1EA;
   --key-border: #AAB8C2;
-  --cell: 36px;
+  /* The board is 18 cells tall and must fit the window without a scroll:
+     36px on a tall screen, shrinking on a short one, never below 20px (the
+     phone size below). The 400px is everything else stacked above and
+     below it — page padding,
+     header, the achievements row, the floor bar, the hp and stamina bars.
+     Grow any of those and this number is stale (owner, 2026-09-04). */
+  --cell: clamp(20px, calc((100vh - 400px) / 18), 36px);
 }
 
 * { box-sizing: border-box; }
@@ -979,10 +985,23 @@ footer {
 
 /* U11 — the achievements strip. Locked rows are legible but drained; an
    earned one lights up, and the run that earned it flashes once. */
-.achievements { display: flex; flex-direction: column; gap: .35rem; }
+/* One ROW, not a stack: three cards stacked cost 255px above the board and
+   pushed its bottom off the screen (owner, 2026-09-04). Side by side they
+   keep the top slot and the green, at a third of the height. */
+.achievements {
+  display: grid;
+  /* Three across, always — auto-fit wrapped to 2+1 on a 1280px screen,
+     which is the stack again in a different coat. Text wraps instead. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .35rem;
+}
 
+/* Icon in one column, title/sub/stamp stacked in the other. As a flex row
+   the stamp took a third of a card that is now a third as wide, and the
+   title wrapped around it. */
 .ach {
-  display: flex; align-items: center; gap: .6rem;
+  display: grid; grid-template-columns: 22px minmax(0, 1fr);
+  column-gap: .6rem; align-items: center;
   padding: .4rem .55rem; border-radius: 6px;
   background: var(--panel-2, #1b1e24);
   border: 1px solid transparent;
@@ -996,7 +1015,7 @@ footer {
 .ach-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
 .ach-title { font-weight: 600; color: var(--muted, #7a8595); }
 .ach-sub { font-size: .8em; color: var(--muted, #7a8595); opacity: .75; }
-.ach-stamp { margin-left: auto; font-size: .8em; color: var(--muted, #7a8595); opacity: .6; }
+.ach-stamp { grid-column: 2; font-size: .8em; color: var(--muted, #7a8595); opacity: .6; white-space: nowrap; }
 
 .ach.earned { background: #16351f; border-color: #2f6b41; }
 .ach.earned .ach-title { color: var(--accent, #8ce99a); }
