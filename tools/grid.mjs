@@ -25,6 +25,7 @@
 //   node tools/grid.mjs                      screen 8x60, fine 32x500, 12 workers
 //   node tools/grid.mjs '{"fine":{"chains":16,"cap":300}}'
 //   node tools/grid.mjs '{"clear":true}'      the Clear objective alone, long chains
+//   node tools/grid.mjs '{"combos":[3,7,21]}' fine stage only, on these combos
 //   node tools/grid.mjs '{"seedBase":960000}' fresh seeds (spend a new base per
 //                                            question — a base reused for
 //                                            selection AND measurement selects
@@ -57,7 +58,14 @@ const DEFAULTS = {
   seedBase: 950000,
   workers: Math.max(1, os.cpus().length),
   screen: { chains: 8, cap: 60 },
-  fine: { chains: 32, cap: 500, top: 16 },
+  // The cap only ever costs on the chains that FAIL — a finalist's median
+  // sits far below it — so 500 here is a two-hour stage for nothing: what
+  // a longer cap would add is which failing combo fails slower.
+  fine: { chains: 32, cap: 200, top: 16 },
+  // A list of combo indices skips the screen and runs the fine stage on
+  // exactly these — to resume a stage the machine lost, or to re-measure
+  // last time's finalists on fresh seeds.
+  combos: null,
   clear: false,
 };
 
@@ -104,6 +112,8 @@ async function worker(argv) {
         },
       });
       chainsOut.push(ev);
+      process.stderr.write(`combo ${combo} chain ${m + 1}/${chains} ${JSON.stringify(ev)}
+`);
     }
     results.push({ combo, bands: digits(combo), hero, chains: chainsOut });
     fs.writeFileSync(outFile, JSON.stringify(results));
@@ -166,16 +176,21 @@ async function main() {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 
   let t = Date.now();
-  console.log(`triagem: 64 combos × ${opts.screen.chains} chains × cap ${opts.screen.cap}, ${opts.workers} workers, seeds ${opts.seedBase}+`);
-  const screened = await runStage(all, opts.screen, opts, `${stamp}-screen`);
-  console.log(`triagem em ${Math.round((Date.now() - t) / 1000)}s`);
-  report(screened, opts.screen.cap, objectives, 'TODOS os 64 combos');
+  let screened = null;
+  let finalists = opts.combos;
+  if (!finalists) {
+    console.log(`triagem: 64 combos × ${opts.screen.chains} chains × cap ${opts.screen.cap}, ${opts.workers} workers, seeds ${opts.seedBase}+`);
+    screened = await runStage(all, opts.screen, opts, `${stamp}-screen`);
+    console.log(`triagem em ${Math.round((Date.now() - t) / 1000)}s`);
+    report(screened, opts.screen.cap, objectives, 'TODOS os 64 combos');
 
-  const keep = new Set();
-  for (const obj of objectives) {
-    rank(screened, obj, opts.screen.cap).slice(0, opts.fine.top).forEach((r) => keep.add(r.combo));
+    const keep = new Set();
+    for (const obj of objectives) {
+      rank(screened, obj, opts.screen.cap).slice(0, opts.fine.top).forEach((r) => keep.add(r.combo));
+    }
+    finalists = [...keep].sort((a, b) => a - b);
+    console.log(`finalistas: [${finalists.join(',')}]`);
   }
-  const finalists = [...keep].sort((a, b) => a - b);
 
   t = Date.now();
   console.log(`\nfina: ${finalists.length} combos × ${opts.fine.chains} chains × cap ${opts.fine.cap}`);
