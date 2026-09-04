@@ -128,6 +128,17 @@ a altura dos cartões é a mesma com e sem barra. **Não foi assistido em jogo
 real** — o primeiro recorde de verdade ainda não aconteceu na tela de
 ninguém. T5 segue em aberto, decisão do dono.
 
+**Redesenho do dono (2026-09-04): pips no lugar da frase.** A barra de
+fundo virou a linguagem do próprio jogo — os quadrados da barra do chefe. No
+cartão trancado, a linha da frase passa a ter os pips e o número ao lado
+(`🟥` a vida que sobrou ao porco, `🪙` moedas contra o preço, `🟩` andares),
+e a frase inteira vira tooltip. Mesma altura. `PROGRESS_PIPS` em
+`render.js` desliga isto e volta ao preenchimento com frase, sem tocar em
+mais nada. O que se viu ao desenhar: o cartão já tem o ícone grande, então o
+emoji pequeno na ponta da barra foi deixado de fora; e as três barras
+crescem em direções diferentes (o porco esvazia, as outras enchem), o que o
+número ao lado torna inofensivo.
+
 ## 4. O que fica em aberto para quem assistir
 
 - **A barra pode ficar parada por dias.** Ela só anda quando uma run fez

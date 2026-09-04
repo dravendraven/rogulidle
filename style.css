@@ -1040,6 +1040,15 @@ footer {
 }
 .ach.progress .ach-sub { opacity: .9; }
 
+/* The pips version (PROGRESS_PIPS in render.js): the sentence's own line
+   holds the bar, so the card is exactly as tall as before. The pips SHRINK
+   before they wrap — twelve of them plus a number must stay on one line in
+   a card that is already narrow, or the height problem is back. */
+.ach-sub.pips { display: flex; align-items: center; gap: .3rem; white-space: nowrap; opacity: 1; }
+.ach-pips { display: flex; flex: 1 1 auto; min-width: 0; gap: 1px; }
+.ach-pips svg { flex: 1 1 0; min-width: 0; max-width: 11px; height: auto; }
+.ach-num { flex: 0 0 auto; color: var(--muted, #7a8595); font-variant-numeric: tabular-nums; }
+
 .ach.earned { background: #16351f; border-color: #2f6b41; }
 .ach.earned .ach-title { color: var(--accent, #8ce99a); }
 .ach.earned .ach-sub { opacity: .95; }

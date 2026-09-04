@@ -4232,6 +4232,7 @@ test('the Butcher record keeps the lowest hp and never climbs back', () => {
     assertEq(getProgress().butcher.text, 'o porco já ficou com 8 de 12 de vida');
     assert(recordProgress(pigRun(3)), 'a better run was not recorded');
     assertEq(Math.round(getProgress().butcher.fraction * 100), 75, 'the fraction is not the damage dealt');
+    assertEq(`${getProgress().butcher.filled}/${getProgress().butcher.total}`, '3/12', 'the pips are not his bar');
     assert(!recordProgress(pigRun(0, true)), 'a killed Butcher was recorded as a wound');
     assertEq(getProgress().butcher.text, 'o porco já ficou com 3 de 12 de vida');
     // A run that never reached the vault floor has nothing to say.
@@ -4251,9 +4252,14 @@ test('depth and coin progress are the best of the highscore rows', () => {
     const p = getProgress(rows);
     assertEq(p.bottom.text, 'já chegou ao andar 7 de 10');
     assertEq(Math.round(p.bottom.fraction * 100), 70);
+    assertEq(`${p.bottom.filled}/${p.bottom.total} ${p.bottom.label}`, '7/10 7/10', 'the depth pips');
     const price = SHOP_ITEMS.find((entry) => entry.item.name === 'axe').price;
     assertEq(p.axe.text, `a melhor run pagou 5 de ${price} moedas`);
     assert(p.axe.fraction > 0 && p.axe.fraction <= 1, 'the coin fraction left 0..1');
+    assertEq(`${p.axe.filled}/${p.axe.total}`, `5/${price}`, 'the coin pips');
+    // Every pip glyph has to be one the renderer can draw (src/ui/tiles.js).
+    for (const id of ['axe', 'bottom']) assert(tileSvg(p[id].glyph), `${id}'s pip glyph has no sprite`);
+    assert(tileSvg('🟥') && tileSvg('⬛'), 'the Butcher bar glyphs have no sprite');
   });
 });
 

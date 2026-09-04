@@ -318,9 +318,19 @@ export function recordProgress(runResult) {
   return true;
 }
 
-// `{ [id]: { fraction, text } }` for every row that has something to show;
-// a row absent here shows its `locked` sentence. `fraction` is 0..1 of the
-// way to the threshold. `highscores` is `getHighscores()`'s result.
+// `{ [id]: { fraction, text, filled, total, glyph, label } }` for every row
+// that has something to show; a row absent here shows its `locked`
+// sentence. `fraction` is 0..1 of the way to the threshold; `filled` of
+// `total` are the pips the card draws in `glyph`, `label` the number
+// beside them, `text` the whole sentence (the tooltip, or the line itself
+// when the pips are switched off — `PROGRESS_PIPS` in render.js).
+//
+// The Butcher's pips are HIS bar, frozen where the best run left it: red
+// for the hp he kept, so the player recognises the bar they watched shrink
+// during the fight. The other two fill toward the threshold. The three
+// therefore grow in different directions, and the label is what makes that
+// harmless — nobody has to decode a direction to read "9 hp".
+// `highscores` is `getHighscores()`'s result.
 export function getProgress(highscores = {}) {
   const out = {};
   const stored = load()[PROGRESS];
@@ -331,6 +341,7 @@ export function getProgress(highscores = {}) {
       text: pig.hpLeft < pig.hpMax
         ? `o porco já ficou com ${pig.hpLeft} de ${pig.hpMax} de vida`
         : 'já chegou ao porco, sem o arranhar',
+      filled: pig.hpLeft, total: pig.hpMax, glyph: '🟥', label: `${pig.hpLeft} hp`,
     };
   }
   const rows = Object.values(highscores || {});
@@ -339,6 +350,7 @@ export function getProgress(highscores = {}) {
     out.axe = {
       fraction: Math.min(1, coins / AXE_PRICE),
       text: `a melhor run pagou ${coins} de ${AXE_PRICE} moedas`,
+      filled: Math.min(coins, AXE_PRICE), total: AXE_PRICE, glyph: '🪙', label: `${coins}/${AXE_PRICE}`,
     };
   }
   const depth = Math.max(0, ...rows.map((r) => Number(r.bestDepth) || 0));
@@ -346,6 +358,7 @@ export function getProgress(highscores = {}) {
     out.bottom = {
       fraction: Math.min(1, depth / LEVELS),
       text: `já chegou ao andar ${depth} de ${LEVELS}`,
+      filled: Math.min(depth, LEVELS), total: LEVELS, glyph: '🟩', label: `${depth}/${LEVELS}`,
     };
   }
   return out;
