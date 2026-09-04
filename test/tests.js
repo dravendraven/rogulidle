@@ -4971,18 +4971,34 @@ test('the cave keeps its border rock, and its pseudo-rooms are walkable anchors'
     assert(!isWalkable(state.map, 0, i) && !isWalkable(state.map, size - 1, i),
       'cave dug through the side border');
   }
-  // Every pseudo-room is a full 3x3 of open floor: the hole sits at a
-  // centre, and a centre with all eight neighbours open never seals a
-  // passage. The single-tile fallback that once broke this is gone.
   for (const room of state.map.rooms) {
-    assertEq(room.x2 - room.x1, 2, 'a pseudo-room is not 3 wide');
-    assertEq(room.y2 - room.y1, 2, 'a pseudo-room is not 3 tall');
-    for (let x = room.x1; x <= room.x2; x++) {
-      for (let y = room.y1; y <= room.y2; y++) {
-        assert(isWalkable(state.map, x, y), 'a pseudo-room tile is not walkable');
+    assert(isWalkable(state.map, room.center[0], room.center[1]),
+      'a pseudo-room centre is not walkable');
+  }
+});
+
+test('the hole and the hero never sit on a one-wide vein of the cave', () => {
+  // Single-tile pseudo-rooms stay (they anchor chests and creatures in the
+  // narrows), but a hole on one seals the map behind it, and the hero's
+  // spawn becomes the hole on the way back up. Both ends must have all
+  // eight neighbours open — the ring you walk around the hole on.
+  const openAround = (map, [x, y]) => {
+    let n = 0;
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        if ((dx || dy) && isWalkable(map, x + dx, y + dy)) n++;
       }
     }
+    return n;
+  };
+  let singles = 0;
+  for (let seed = 1; seed <= 40; seed++) {
+    const state = newGame(seed, { ...floorPlan(1), layout: 'cave', vaultLevel: 0 });
+    singles += state.map.rooms.filter((room) => room.x1 === room.x2).length;
+    assertEq(openAround(state.map, state.shrine.pos), 8, 'seed ' + seed + ': hole on a narrow tile');
+    assertEq(openAround(state.map, state.player.pos), 8, 'seed ' + seed + ': hero on a narrow tile');
   }
+  assert(singles > 0, 'no single-tile pseudo-room in 40 caves — the test proves nothing');
 });
 
 test('sorteio draws different themes across floors of one run', () => {

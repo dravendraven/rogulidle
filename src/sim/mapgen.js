@@ -269,29 +269,32 @@ function caveLayout(size) {
       };
       const byCentre = open.slice().sort((a, b) => (
         (a[0] - cx) ** 2 + (a[1] - cy) ** 2) - ((b[0] - cx) ** 2 + (b[1] - cy) ** 2));
-      // No 3x3 anywhere in the sector: no anchor. This used to fall back
-      // to a single open tile, and that tile was usually a one-wide vein —
-      // the hole (or, on the way back up, the hero's spawn) sat in it and
-      // sealed off everything behind it (owner, 2026-09-03: "o buraco as
-      // vezes ficou em um corredor de 1 tile"). A 3x3 patch always has a
-      // ring to walk around its centre; a lone tile promises nothing.
-      const anchor = byCentre.find(fits3);
-      if (!anchor) continue;
+      // No 3x3 anywhere in the sector: the anchor is a single open tile,
+      // usually a one-wide vein. The owner wants those kept (2026-09-04) —
+      // they are what gives the cave chests and creatures in its narrows.
+      // What they cannot host is the hole or the hero: a lone tile with the
+      // hole on it seals everything behind it (the hero's spawn too, since
+      // the way back up turns that into the hole). spawn.js keeps both
+      // ends on rooms with a ring of open floor around the centre.
+      const anchor = byCentre.find(fits3) ?? byCentre[0];
+      const r = fits3(anchor) ? 1 : 0;
       const room = {
-        x1: anchor[0] - 1, y1: anchor[1] - 1,
-        x2: anchor[0] + 1, y2: anchor[1] + 1,
+        x1: anchor[0] - r, y1: anchor[1] - r,
+        x2: anchor[0] + r, y2: anchor[1] + r,
         doors: [],
       };
       room.center = roomCenter(room);
       rooms.push(room);
     }
   }
-  // Too few anchors is a floor nothing can be placed on sensibly.
-  if (rooms.length < 3) return null;
+  // Too few anchors is a floor nothing can be placed on sensibly — and the
+  // anchors that count are the 3x3 ones, since only those may hold the
+  // hero or the hole.
+  if (rooms.filter((room) => room.x2 > room.x1).length < 3) return null;
   return { dug, rooms };
 }
 
-// A cave that came out with too few anchors is vetoed and rolled again —
+// A cave that came out with too few 3x3 anchors is vetoed and rolled again —
 // DCSS's answer, which docs/map-design.md reserves for a layout that cannot
 // promise its shape by construction, and the automaton cannot. Each roll
 // consumes the ROT stream in order, so the same seed still gives the same
