@@ -58,8 +58,15 @@
       <main>
         <div id="stage" class="stage">
           <!-- Above the board and inside its frame, the mirror of the hp bar
-               below it: how deep, then the floor, then what it costs. -->
-          <div id="floor" class="floor-bar"></div>
+               below it: the floor in the middle, the coins at the right edge.
+               The coin chip used to be the sixth chip in the right rail,
+               400px from the hero; it is the one number that shows the
+               game's rule forming turn by turn, so it lives where the eye
+               already is (owner, 2026-09-03). -->
+          <div class="floor-bar">
+            <span id="floor" class="floor-label"></span>
+            <span id="coins" class="coin-hud" title="🪙 bancado nesta run, e +N = a projeção da travessia atual: xp ÷ turnos × 20, arredondado — o que a travessia vai pagar se terminar agora"></span>
+          </div>
           <div id="grid" class="grid"></div>
           <!-- The boss bar. Over the board rather than beside it: it only
                exists while one creature is awake, and a slot in the HUD that
@@ -113,7 +120,6 @@
         <span id="steps"></span>
         <span id="kills"></span>
         <span id="damage" title="the damage die one blow rolls over: xp + weapons, floor raised by dmgMin. A blow still misses 1 turn in 6."></span>
-        <span id="coins" title="🪙 bancado nesta run, e +N = a projeção da travessia atual: xp ÷ turnos × 20, arredondado — o que a travessia vai pagar se terminar agora"></span>
       </div>
 
       <div class="field">
