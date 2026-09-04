@@ -61,6 +61,7 @@ import { playRun } from './run.js';
 import { readSlice, writeSlice } from './save.js';
 import { SHOP_ITEMS } from './shop.js';
 import { GAME_VERSION } from '../sim/balance.js';
+import { LEVELS } from '../sim/dungeon.js';
 
 // One slice of the save document (src/ui/save.js), which owns the storage
 // and the failure cases this used to carry itself.
@@ -277,4 +278,88 @@ export function earnedBy(runResult) {
 // run whose coins paid.
 export function earnedByPurchase(itemName) {
   return itemName === 'axe' ? ['axe'] : [];
+}
+
+// HOW CLOSE A RUN HAS COME to each row still locked — docs/project/
+// feitos-progresso.md. The owner's complaint was that a feito arrives while
+// they sleep, with no history behind it; what these show is the best any
+// run has done against the fixed threshold, and they vanish the moment the
+// threshold is crossed. Not a scoreboard: the target never moves.
+//
+// Only the Butcher's record needs a home of its own. Depth and coins already
+// live in the highscore rows, per hero, and the closest a PLAYER has come is
+// the best of those — `getProgress` is handed the rows rather than importing
+// them, because highscores.js reaches roster.js and roster.js reaches this
+// file, and that would be a cycle.
+//
+// The record sits under a key no achievement will ever be called, in the
+// same slice, so the reset that wipes the receipts wipes it with them. No
+// receipt and no replay: a number that unlocks nothing is a number, like the
+// highscores are. A forged one earns a drawing.
+const PROGRESS = 'progress';
+
+// The Butcher's remaining hp at the end of the vault floor, kept only when
+// this run left him lower than any before it. A run that killed him records
+// nothing — that is the achievement's own job, and the bar is gone by then.
+export function recordProgress(runResult) {
+  let lowest = null;
+  for (const level of runResult.levels) {
+    for (const m of level.roster) {
+      if (!m.vault || m.dead || !Number.isFinite(m.hpLeft)) continue;
+      if (lowest === null || m.hpLeft < lowest.hpLeft) lowest = { hpLeft: m.hpLeft, hpMax: m.hp };
+    }
+  }
+  if (!lowest) return false;
+  const data = load();
+  const best = data[PROGRESS] && data[PROGRESS].butcher;
+  if (best && best.hpLeft <= lowest.hpLeft) return false;
+  data[PROGRESS] = { ...(data[PROGRESS] || {}), butcher: lowest };
+  save(data);
+  return true;
+}
+
+// `{ [id]: { fraction, text, filled, total, glyph, label } }` for every row
+// that has something to show; a row absent here shows its `locked`
+// sentence. `fraction` is 0..1 of the way to the threshold; `filled` of
+// `total` are the pips the card draws in `glyph`, `label` the number
+// beside them, `text` the whole sentence (the tooltip, or the line itself
+// when the pips are switched off — `PROGRESS_PIPS` in render.js).
+//
+// The Butcher's pips are HIS bar, frozen where the best run left it: red
+// for the hp he kept, so the player recognises the bar they watched shrink
+// during the fight. The other two fill toward the threshold. The three
+// therefore grow in different directions, and the label is what makes that
+// harmless — nobody has to decode a direction to read "9 hp".
+// `highscores` is `getHighscores()`'s result.
+export function getProgress(highscores = {}) {
+  const out = {};
+  const stored = load()[PROGRESS];
+  const pig = stored && stored.butcher;
+  if (pig && Number.isFinite(pig.hpLeft) && pig.hpMax > 0) {
+    out.butcher = {
+      fraction: 1 - pig.hpLeft / pig.hpMax,
+      text: pig.hpLeft < pig.hpMax
+        ? `o porco já ficou com ${pig.hpLeft} de ${pig.hpMax} de vida`
+        : 'já chegou ao porco, sem o arranhar',
+      filled: pig.hpLeft, total: pig.hpMax, glyph: '🟥', label: `${pig.hpLeft} hp`,
+    };
+  }
+  const rows = Object.values(highscores || {});
+  const coins = Math.max(0, ...rows.map((r) => Number(r.maxCoins) || 0));
+  if (coins > 0) {
+    out.axe = {
+      fraction: Math.min(1, coins / AXE_PRICE),
+      text: `a melhor run pagou ${coins} de ${AXE_PRICE} moedas`,
+      filled: Math.min(coins, AXE_PRICE), total: AXE_PRICE, glyph: '🪙', label: `${coins}/${AXE_PRICE}`,
+    };
+  }
+  const depth = Math.max(0, ...rows.map((r) => Number(r.bestDepth) || 0));
+  if (depth > 0) {
+    out.bottom = {
+      fraction: Math.min(1, depth / LEVELS),
+      text: `já chegou ao andar ${depth} de ${LEVELS}`,
+      filled: Math.min(depth, LEVELS), total: LEVELS, glyph: '🟩', label: `${depth}/${LEVELS}`,
+    };
+  }
+  return out;
 }

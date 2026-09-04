@@ -233,9 +233,9 @@ export function carriedSvg(inventory) {
 // drift between the two is what an empty pip looks like. Red for the enemy
 // so the two bars are never read as the same pool — green is the hero's, and
 // they can be on screen at once.
-function hearts(current, max, armour = 0, filled = '🟩') {
+function hearts(current, max, armour = 0, filled = '🟩', empty = '⬜') {
   let out = '';
-  for (let i = 0; i < max; i++) out += tileSvg(i < current ? filled : '⬜') || '';
+  for (let i = 0; i < max; i++) out += tileSvg(i < current ? filled : empty) || '';
   for (let i = 0; i < armour; i++) out += tileSvg('🛡️') || '';
   return out;
 }
@@ -309,12 +309,32 @@ function stampDate(at) {
 // U11 — the achievements strip under the history. Two rows, redrawn whole
 // on every change; `justEarned` is the id that flipped this run, which is
 // the only thing that gets the celebration class.
-export function renderAchievements(element, list, earned, justEarned = null) {
+//
+// `progress` is `getProgress()`'s answer (src/ui/achievements.js): for a
+// row still locked that some run came close to, the locked sentence gives
+// way to the record (docs/project/feitos-progresso.md). Never as a third
+// line — the owner took the date line out of this card for its height
+// (2026-09-04), and a bar that put it back would be the same mistake.
+//
+// TWO WAYS TO DRAW IT, one switch. With `PROGRESS_PIPS` on (owner's
+// design, 2026-09-04) the sentence's line holds the game's own pips — the
+// boss bar's language, a number beside them, the sentence as the tooltip.
+// Off, the card fills from the left behind the text and the sentence is
+// printed — the first version, kept so the pips can be reverted by
+// flipping this rather than by digging the old code out of git.
+export const PROGRESS_PIPS = true;
+
+export function renderAchievements(element, list, earned, justEarned = null, progress = {}) {
   element.innerHTML = '';
   for (const a of list) {
     const got = Boolean(earned[a.id]);
+    const near = !got && progress[a.id] ? progress[a.id] : null;
+    const pips = Boolean(near && PROGRESS_PIPS);
     const row = document.createElement('div');
-    row.className = 'ach' + (got ? ' earned' : '') + (a.id === justEarned ? ' just' : '');
+    row.className = 'ach' + (got ? ' earned' : '') + (a.id === justEarned ? ' just' : '')
+      + (near && !pips ? ' progress' : '');
+    if (near && !pips) row.style.setProperty('--fill', `${Math.round(near.fraction * 100)}%`);
+    if (pips) row.title = near.text;
 
     const icon = document.createElement('span');
     icon.className = 'ach-icon';
@@ -327,7 +347,18 @@ export function renderAchievements(element, list, earned, justEarned = null) {
     title.textContent = a.title;
     const sub = document.createElement('span');
     sub.className = 'ach-sub';
-    sub.textContent = got ? a.earned : a.locked;
+    if (pips) {
+      sub.classList.add('pips');
+      const bar = document.createElement('span');
+      bar.className = 'ach-pips';
+      bar.innerHTML = hearts(near.filled, near.total, 0, near.glyph, '⬛');
+      const num = document.createElement('span');
+      num.className = 'ach-num';
+      num.textContent = near.label;
+      sub.append(bar, num);
+    } else {
+      sub.textContent = got ? a.earned : (near ? near.text : a.locked);
+    }
     text.append(title, sub);
     // The date is a tooltip, not a line: as a third line it was a fifth of
     // the card's height in a row that sits above the board (owner,

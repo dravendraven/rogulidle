@@ -516,18 +516,10 @@ por decisão do dono; o bot continua decidindo sem saber quanto resta.
 **Moeda por travessia concluída**, derivada de xp por turno. Toda travessia
 paga, ida e volta.
 
-**O baú da moeda** (2026-08-31): em cada andar, o baú **mais distante da
-rota obrigatória** (em passos andados) carrega moedas **além** do que
-sorteou — o mundo dos itens é byte-idêntico ao jogo sem moeda. Abrir credita
-as moedas e deixa o item no chão como sempre; elas pagam junto com a
-travessia, sob a regra de sempre. Qual baú é o da moeda **não cruza o fog**
-(só a persona que vê conteúdo sabe), então o bot precifica todo baú pelo
-valor esperado — e o apressado, que recusa o baú distante pelo preço, abre
-mão da moeda sem saber qual era. É a segunda renda do jogo: a taxa xp÷turno
-recompensa descer rápido; o baú distante recompensa explorar. Três formas
-anteriores foram medidas e descartadas — moeda no lugar do item (sustain
-perdido, wire de mortes disparou), pilha visível em sala lateral e pilha
-fora da vista da rota (quem vislumbrava, pegava).
+A taxa xp÷turno é a **única** renda. Uma segunda, plana — moedas num baú
+longe da rota — foi construída, nerfada até não pesar para não criar bola de
+neve, e removida (`decisions.md`, "O baú da moeda"); o que recompensa
+explorar tem de vir do mapa, não de uma moeda escondida.
 
 **A moeda é da run, e não sobrevive a ela.** O saldo começa em zero em toda
 run, é gasto na loja que fecha aquela run, e o que não for gasto é
@@ -650,7 +642,16 @@ só localmente, como antes de o servidor existir.
 sessão. O número da run, o histórico dos últimos resultados, o placar e a
 cadeia de seeds voltam como estavam — junto com o que já persistia: itens
 guardados, recordes, feitos, herói escolhido, ordem da loja e a personalidade
-sorteada do bot.
+do bot — sorteada na primeira visita e, dali em diante, o que o jogador
+deixou nos dials do Lab: mover um dial de comportamento reescreve a
+personalidade guardada, não é um ajuste só daquela visita.
+
+**Um feito ainda trancado mostra o quão perto alguma run já chegou dele** —
+a menor vida em que o Butcher ficou, o máximo que uma run pagou contra o
+preço do machado, o andar mais fundo alcançado. É só mostrador: não destrava
+nada, não tem recibo, e some quando o feito é conquistado
+(`docs/project/feitos-progresso.md`). Recomeçar apaga esses recordes junto
+com os feitos.
 
 **A sessão é gravada no instante em que a run é contada.** Antes disso a run
 não tocou em nada guardado, então uma interrupção no meio dela a faz ser

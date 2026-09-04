@@ -17,8 +17,8 @@ import {
   applyDepth, renderDebugInfo, carriedSvg, renderBossBar,
 } from './render.js';
 import {
-  ACHIEVEMENTS, earn, earnedBy, earnedByPurchase, getAchievements,
-  resetAchievements, verifyAchievements,
+  ACHIEVEMENTS, earn, earnedBy, earnedByPurchase, getAchievements, getProgress,
+  recordProgress, resetAchievements, verifyAchievements,
 } from './achievements.js';
 import { tileSvg } from './tiles.js';
 import { award, resetScore } from './score.js';
@@ -483,12 +483,11 @@ async function playFrames(frames, trace, tallyText) {
     renderDebugInfo(el.debugInfo, session.debug ? entry : null);
     renderHud(el, frame.state, session);
     // The traversal's coin so far: xp earned since its first frame, over
-    // its own turn count (state.turn resets per floor).
-    // ...plus the coins FOUND on this floor (the pile), flat — the same
-    // two terms the engine's row will carry at the stairs.
+    // its own turn count (state.turn resets per floor) — the one term the
+    // engine's row will carry at the stairs.
     paintCoins(coinsFor(
       frame.state.player.xpEarned - frames[0].state.player.xpEarned, frame.state.turn,
-    ) + ((frame.state.player.coinsFound ?? 0) - (frames[0].state.player.coinsFound ?? 0)));
+    ));
     if (el.tally) el.tally.textContent = tallyText();
 
     await sleep(turnMs() * (fought(frame, frames[i - 1]) ? COMBAT_STRETCH : 1));
@@ -686,7 +685,8 @@ async function showShop(receipt) {
     const firsts = earnedByPurchase(item.name).filter((id) => earn(id, receipt));
     if (!firsts.length) return;
     if (el.achievements) {
-      renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), firsts[0]);
+      renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), firsts[0],
+        getProgress(getHighscores()));
     }
     // The FUNDING run's chip takes the trophy — history[0], tallied just
     // before this shop opened — so the strip and the achievement row tell
@@ -920,8 +920,25 @@ function tallyDescent(run, finalState, heroName, receipt) {
   for (const id of earnedBy(run)) {
     if (earn(id, receipt)) firsts.push(id);
   }
+
+  // U-highscores — src/ui/highscores.js. `session.unbankedCoins` is read
+  // here rather than passed in because it already IS this run's total: the
+  // next run's reset happens at the top of runDescentForever's loop, one
+  // iteration after this call. Recorded BEFORE the achievement rows are
+  // drawn, because two of their progress bars are read off these rows
+  // (docs/project/feitos-progresso.md) and a bar one run behind would
+  // show the previous best under the run that just beat it.
+  recordRun(heroName, {
+    depth: run.depth, cleared: run.cleared, coins: session.unbankedCoins, turns: totalTurns,
+  });
+  if (session.showHighscores) session.showHighscores(getHighscores());
+
+  // The third bar — how low this run left the Butcher — has no highscore
+  // row to live in, so the achievements module keeps it itself.
+  recordProgress(run);
   if (el.achievements) {
-    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), firsts[0] || null);
+    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), firsts[0] || null,
+      getProgress(getHighscores()));
   }
 
   session.history.unshift({
@@ -943,15 +960,6 @@ function tallyDescent(run, finalState, heroName, receipt) {
   });
   if (session.history.length > HISTORY_LEN) session.history.length = HISTORY_LEN;
   if (el.history) renderHistory(el.history, session.history, ACHIEVEMENTS);
-
-  // U-highscores — src/ui/highscores.js. `session.unbankedCoins` is read
-  // here rather than passed in because it already IS this run's total: the
-  // next run's reset happens at the top of runDescentForever's loop, one
-  // iteration after this call.
-  recordRun(heroName, {
-    depth: run.depth, cleared: run.cleared, coins: session.unbankedCoins, turns: totalTurns,
-  });
-  if (session.showHighscores) session.showHighscores(getHighscores());
 }
 
 async function showDescentSummary(run, finalState) {
@@ -1066,11 +1074,8 @@ async function runDescentForever() {
           if (el.floor) el.floor.textContent = `floor ${level} / ${LEVELS}`;
           applyDepth(el.stage, level);
           // The traversal's starting ledger, for the live chip below: what
-          // it pays is xp EARNED HERE over turns HERE, plus coins found here.
-          floorStart = {
-            xp: frame.state.player.xpEarned,
-            found: frame.state.player.coinsFound ?? 0,
-          };
+          // it pays is xp EARNED HERE over turns HERE.
+          floorStart = { xp: frame.state.player.xpEarned };
         }
         finalState = frame.state;
         session.liveRun.traversal = traversal;
@@ -1093,10 +1098,9 @@ async function runDescentForever() {
         renderHud(el, frame.state, session);
         // The live coin chip — THIS loop is what the page actually watches
         // (playFrames above is the replay path), so the projection paints
-        // here or nowhere. Same two terms the engine's row carries at the
+        // here or nowhere. Same term the engine's row carries at the
         // stairs, forming turn by turn.
-        paintCoins(coinsFor(frame.state.player.xpEarned - floorStart.xp, frame.state.turn)
-          + ((frame.state.player.coinsFound ?? 0) - floorStart.found));
+        paintCoins(coinsFor(frame.state.player.xpEarned - floorStart.xp, frame.state.turn));
         if (el.tally) el.tally.textContent = descentTallyText();
 
         await sleep(turnMs() * (fought(frame, shown) ? COMBAT_STRETCH : 1));
@@ -1302,7 +1306,8 @@ function wireControls() {
     // gate re-shuts the instant the receipts go (`resetAchievements` clears
     // the verified cache), and a rail still showing an open cast would be
     // lying until the run on screen happened to end.
-    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements());
+    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(),
+      null, getProgress(getHighscores()));
     // The strip goes with them. A green chip is the record of an achievement,
     // and a reset that wipes the achievement and leaves its trophy standing
     // would leave the page showing a thing the player no longer has.
@@ -1453,7 +1458,8 @@ export async function start() {
   // Drawn before the first run so the board reads as "two things to do"
   // rather than appearing out of nowhere the moment one is done.
   if (el.achievements) {
-    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements());
+    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(),
+      null, getProgress(getHighscores()));
   }
   events = makeEventLayer(el.stage, el.grid, { enabled: eventsEnabled(), signalMs });
   wireControls();
