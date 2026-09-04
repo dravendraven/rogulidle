@@ -369,6 +369,14 @@ criaturas e baús do andar são concedidas e viajam nas opções do
   ele ousa E quão longe uma vale a caminhada. Nunca deixa uma luta mais
   barata, nunca fura a barra, nunca vale para perseguidor ou inescapável —
   só recusa, então "não persegue moeda" segue de pé.
+- **A viagem NÃO cobra o perigo do próprio alvo.** O campo de perigo pinta
+  as casas ao redor de cada criatura, então o trecho final de qualquer rota
+  até uma criatura pagava ~2 hp de "perigo" que era só ela estar ali — os
+  mesmos golpes que o duelo já precifica. Com isso dentro, um rato (xp 2)
+  nunca passava na porta em coragem nenhuma: o valor dele chega a ~1,4 hp
+  e a aproximação nunca caía abaixo de 2,5. A parcela do PRÓPRIO alvo sai
+  da aproximação (`ownPriceAt`); uma segunda criatura no caminho é risco
+  real da caminhada e continua cobrada.
 - **A história da flag é uma lição de amostra**: shipou desligada por uma
   leitura de n=24 (mortes 0,458 → 0,542, "o wire dispara") que era 0,6σ —
   ruído registrado como medição, contra a própria regra dos 2σ. Re-medida

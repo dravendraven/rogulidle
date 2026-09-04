@@ -251,9 +251,11 @@ export function dangerField(belief, tuning = {}) {
   const menace = new Map();   // tile -> creature-turns of exposure there
   const crowd = new Map();    // tile -> how many creatures could strike it
   const reach = new Map();    // monster id -> its step count to each tile
+  const byId = new Map();     // monster id -> the creature, for `ownPriceAt`
 
   for (const monster of belief.monsters.values()) {
     if (monster.dead) continue;
+    byId.set(monster.id, monster);
 
     // Flooding from the monster gives its distance to every tile at once,
     // stopped at the chase radius — past it the creature never moves.
@@ -297,6 +299,16 @@ export function dangerField(belief, tuning = {}) {
       if (exposure === 0) return 0;
       return stepCost * exposureSteps * exposure
         + ((crowd.get(tile) || 0) >= 2 ? crowdPenalty : 0);
+    },
+    // ONE creature's share of `priceAt` — what THIS monster alone adds to
+    // the tile. `decide` subtracts it along the route to that same monster,
+    // because a creature's own menace on the way to fighting it IS the
+    // fight, and the duel already prices every blow of that.
+    ownPriceAt(monsterId, x, y) {
+      const monster = byId.get(monsterId);
+      const distance = monster && reach.get(monsterId).get(x + ',' + y);
+      if (distance === undefined || !isAwakeAt(monster, distance)) return 0;
+      return stepCost * exposureSteps * persistence ** distance;
     },
 
     // The raw share of a tile's viewport that is still unknown. `decide` reads
@@ -922,7 +934,22 @@ export function makeBot(options = {}) {
       // its tile is the fight. Take that back out here, or the pool adds the
       // duel a second time on its own terms (net of the prize, waived when it
       // is already chasing) and every creature is priced at twice its cost.
-      const approach = walk - duel;
+      //
+      // AND IT ENDS WITH THE CREATURE'S OWN MENACE, which is the same blows
+      // again from the other side. The field paints every tile near a
+      // creature with its exposure, so the last stretch of any route to a
+      // creature pays ~2 hp of "danger" that is nothing but the creature
+      // being there — the thing the duel is already the price of. Left in,
+      // the value gate below could not be passed by a rat at ANY courage:
+      // worth tops out near 1.4 hp and the approach never fell under 2.5.
+      // Only the target's own share comes out; a second creature on the way
+      // is a real hazard of the walk and stays priced.
+      let ownMenace = 0;
+      const route = routeTo(field, monster.pos);
+      for (let i = 1; i < route.length - 1; i++) {
+        ownMenace += danger.ownPriceAt(monster.id, route[i][0], route[i][1]);
+      }
+      const approach = Math.max(0, walk - duel - ownMenace);
 
       // A creature already chasing charges only the walk: its duel happens
       // whatever the bot does next, so fighting it now is the version where
