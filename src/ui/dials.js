@@ -386,7 +386,7 @@ export const SECTIONS = [
         // the bot is calibrated at; the six bands are that value times
         // `biasBands()`. One notch means the same thing on every row, which
         // is what made these comparable at all.
-        kind: 'hero', key: 'bravery', label: 'quanto ele subestima a vida de uma criatura',
+        kind: 'hero', key: 'bravery', label: 'com que facilidade ele aceita um duelo',
         title: 'Coragem', icon: '💪', bias: true,
         // One sentence per notch, describing a behaviour that is VISIBLE on
         // screen — `objectives.md` says a choice you cannot recognise by
@@ -399,10 +399,10 @@ export const SECTIONS = [
         // kill — and the extremes are wrong far more often than they are
         // right.
         says: [
-          'recusa praticamente todo duelo — só luta encurralado',
-          'superestima o inimigo; recusa luta que ganharia',
-          'aposta que o bicho cai mais rápido do que parece',
-          'encara qualquer criatura como se fosse morrer num golpe — às vezes quem morre é ele',
+          'evita duelos; luta só quando não há saída',
+          'entra em luta que tem certeza de ganhar',
+          'entra em luta que parece ganhável, mesmo apertada',
+          'enfrenta qualquer criatura que aparece no caminho',
         ],
       },
       {
@@ -411,13 +411,13 @@ export const SECTIONS = [
         // in hp and follows the loot chance and the item table on its own.
         // So this dial's centre 1.0 means "price a chest at exactly what it
         // is worth", and the bands are honest over- and under-valuing.
-        kind: 'hero', key: 'sideAppetite', label: 'quanto o herói super ou subestima um baú',
+        kind: 'hero', key: 'sideAppetite', label: 'quanto um baú desvia o herói da rota',
         title: 'Ganância', icon: '🤑', bias: true,
         says: [
-          'nenhum baú vale um passo — só abre o que estiver literalmente no caminho',
-          'desvia por loot de vez em quando',
-          'desvia por loot com frequência',
-          'faz de tudo por qualquer baú, custe o que custar',
+          'segue a rota; abre só o baú que estiver no caminho',
+          'desvia por um baú de vez em quando',
+          'desvia por um baú com frequência',
+          'vai atrás de todo baú que vê',
         ],
       },
     ]],
@@ -441,10 +441,10 @@ export const SECTIONS = [
         kind: 'hero', key: 'stepCost', label: 'quanto custa um passo — e, invertido, quanto o desconhecido atrai',
         title: 'Pressa', icon: '⏱️', bias: true,
         says: [
-          'andar é de graça e o escuro chama — revela o andar inteiro, atravessa por qualquer coisa',
-          'anda longe sem reclamar e espia além do necessário',
-          'só anda pelo que está perto; abre o escuro só quando está a caminho',
-          'cada passo dói — o escuro é o último recurso, desce com o mapa preto',
+          'o escuro chama — revela o andar inteiro antes de descer',
+          'anda bastante e abre boa parte do escuro antes de descer',
+          'anda pelo que está perto; abre o escuro quando está a caminho',
+          'vai direto à escada; o escuro fica para quando não há outro caminho',
         ],
       },
     ]],

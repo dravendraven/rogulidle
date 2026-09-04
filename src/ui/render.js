@@ -257,15 +257,6 @@ export function renderHud(elements, state, session) {
     elements.stamina.innerHTML = hearts(pips, 10, 0, '⚡');
   }
 
-  // xpEarned carries across floors; state.turn resets to 0 at each one. The
-  // rate is only meaningful over the whole run, so session.turnOffset (the
-  // turn count banked from floors already finished) makes up the gap — 0
-  // for the legacy single-floor mode, where there is nothing to add.
-  const totalTurns = (session.turnOffset || 0) + state.turn;
-  elements.xpEarned.textContent = player.xpEarned + ' xp';
-  elements.xpRate.textContent =
-    (totalTurns > 0 ? (player.xpEarned / totalTurns).toFixed(2) : '0.00') + ' xp/turn';
-
   elements.steps.textContent = state.turn + ' 👣';
   elements.kills.textContent = player.kills.length
     ? '⚔️ ' + player.kills.length
