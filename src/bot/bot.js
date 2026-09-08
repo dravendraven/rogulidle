@@ -691,6 +691,30 @@ function rageWouldSave(belief, hero, goalId) {
   return false;
 }
 
+// THE FLIGHT (docs/project/fuga.md): the verb for leaving a fight already
+// joined, which until now did not exist — surrounded, the bot had no move at
+// all. It fires on exactly one shape: a creature that is AWAKE AND FASTER
+// than the hero (the one thing the gate below calls inescapable, and the one
+// place this bot reads `speed`) whose duel, read with the blows already
+// landed discounted, the fight gate refuses. Anything slower can be walked
+// away from for free (rules.md §4), so spending the item on it would be
+// spending it on nothing; anything the gate still accepts is a fight he
+// takes. The bar is the fight gate's own, so "refused" means the same thing
+// here as everywhere else.
+function fleeWouldSave(belief, hero) {
+  if (!belief.player.inventory.some((i) => i.kind === 'flight')) return false;
+  const [px, py] = belief.player.pos;
+  const bar = hero.fightMargin * effectiveHp(belief.player);
+  for (const m of belief.monsters.values()) {
+    if (m.dead) continue;
+    if ((m.speed ?? 1) <= 1) continue;
+    const away = Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py);
+    if (!isAwakeAt(m, away)) continue;
+    if (duelCost(belief.player, m, hero.bravery).hpLost > bar) return true;
+  }
+  return false;
+}
+
 function safeToStandStill(belief) {
   const [px, py] = belief.player.pos;
   for (const m of belief.monsters.values()) {
@@ -760,6 +784,11 @@ export function makeBot(options = {}) {
     if (potion && belief.player.hpMax - belief.player.hp >= potion.heal) {
       return 'drink';
     }
+
+    // Objective 1, the flight: out of a fight he is losing to something he
+    // cannot outrun. Reactive like the drink — a real action, no goal — and
+    // ahead of the goal search because there is nothing to search for.
+    if (fleeWouldSave(belief, hero)) return 'flee';
 
     // Objective 1, the scholar's version. Same shape as the potion above —
     // a threshold on numbers already in hand, no lookahead — but the second

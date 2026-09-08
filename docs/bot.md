@@ -15,6 +15,14 @@ Tudo que o bot faz é um desses três aplicado. A política inteira, em seis
 frases:
 
 - **Bebe** uma poção assim que o hp que falta cobre a cura inteira.
+- **Foge** quando está diante de uma criatura **acordada e mais rápida** que
+  ele cujo duelo, lido com os golpes já dados descontados, o portão da luta
+  recusa. Só essa forma: criatura mais lenta se deixa para trás de graça
+  (`rules.md` §4), e luta que o portão aceita ele toma. É o único verbo do
+  bot para sair de uma luta já começada, e o segundo lugar onde ele lê
+  `velocidade` — nos dois, para responder "consigo sair", nunca "quanto
+  custa entrar" (M44). `docs/project/fuga.md` tem o desenho e o que ainda
+  está aberto.
 - **Lê o livro** quando o hp que falta passa de uma fração da barra **e**
   nada acordado o alcança nos cinco turnos parados (`rules.md` §5). A segunda
   metade é exata, não chute: criatura fora do raio de ativação não anda, e

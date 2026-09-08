@@ -122,11 +122,13 @@ function atTheStairs(carry, hero, coins, purchases) {
 // re-credited every bought shield on every run after a win; the pile of a
 // winning streak was mostly that.
 //
-// Stat-less items (the book, the syringe) are a hero's KIT and re-enter by
-// that door every run; carrying one here would duplicate it.
+// The book and the syringe are a hero's KIT and re-enter by that door
+// every run; carrying one here would duplicate it. Everything else that is
+// not armour travels: weapons, potions, an unused flight.
+const KIT_KINDS = ['book', 'syringe'];
 export function heldAfterClear(player) {
   const held = player.inventory
-    .filter((item) => item.dmg || item.dmgMin || item.heal)
+    .filter((item) => !item.armour && !KIT_KINDS.includes(item.kind))
     .map(({ id, pos, ...item }) => ({ ...item }));
   if (player.armour > 0) {
     const shield = ITEM_TABLE.find((item) => item.armour);
@@ -350,6 +352,13 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
       .filter((e) => e.type === 'attack' && e.target === 'player')
       .map((e) => e.damage);
     const damage = blowsTaken.reduce((sum, d) => sum + d, 0);
+    // docs/project/fuga.md — the flights this floor saw, for the reading
+    // that decides whether the item is a choice: how many, from what, at
+    // what hp, and whether the jump found a tile (`to` null = spent for
+    // nothing).
+    const flights = run.state.log
+      .filter((e) => e.type === 'flee')
+      .map((e) => ({ turn: e.turn, from: e.from, to: e.to }));
 
     const player = run.state.player;
     levels.push({
@@ -371,6 +380,7 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
       // damage is 0..xp-1, so a single roll at the top of the table can take
       // most of a 10 hp hero, and a mean hides that completely.
       blowsTaken,
+      flights,
       hp: player.hp,
       armour: player.armour,
       xp: player.xp,

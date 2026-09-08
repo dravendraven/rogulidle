@@ -287,6 +287,12 @@ export const ITEM_TABLE = [
   // what it does is the `rage` action. A `dmg` here would be added to the
   // die like any weapon, and adding is exactly what this does NOT do.
   { name: 'adrenaline', emoji: '💉', value: 5, kind: 'syringe' },
+  // The flight (docs/project/fuga.md). Stat-less like the two above: what
+  // it does is the `flee` action — out of the fight the hero is already in
+  // and losing, the one thing no amount of hp can buy. Not drawn by any
+  // chest or creature (its kind is in no source's list); it reaches the
+  // hero only by the shop, and only once a price is decided.
+  { name: 'flight', emoji: '🌀', value: 5, kind: 'flight' },
 ];
 
 // How many turns reading costs. The hero does nothing for all of them and

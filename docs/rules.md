@@ -351,6 +351,14 @@ mínimo. Multiplica em vez de somar de propósito: um bônus fixo seria enorme
 num herói desarmado e irrelevante num equipado, e um fator vale o mesmo nos
 dois. Ele continua agindo normalmente enquanto dura; não há nada a esperar.
 
+**E existe um item que se usa para sair de uma luta.** Ninguém começa com
+ele; só a loja o vende, e ainda não a preço decidido (`docs/project/fuga.md`).
+Usado, custa o turno e o herói **reaparece num tile onde nenhuma criatura
+viva o alcança** — fora do raio de ativação de todas, sorteado pela run, então
+a mesma seed foge para o mesmo lugar. Não é a escada: aparecer no buraco
+seria pular o andar, que é outro item. Se o andar não tem tile assim, o item
+é gasto e nada acontece; quem o usa aposta por Belief e pode errar.
+
 **Quanto um item vale pode depender de quem o carrega.** O mundo larga
 sempre o mesmo item; o que muda é a mão. Um herói pode tirar de uma arma ou
 de um escudo mais — ou menos — do que outro tira do mesmo objeto, e isso
@@ -391,6 +399,11 @@ depois do herói, o turno gasto bebendo é um turno em que quem persegue
 alcança — e §4 diz o que isso significa: o golpe é pago exatamente quando o
 herói deixa de aumentar a distância. Beber sem ninguém atrás custa zero;
 beber encurralado custa um golpe. Quem escolhe o momento é o bot.
+
+**Fugir custa o turno, e é o único movimento que ganha distância de quem é
+mais rápido.** Uma criatura de velocidade 2 nunca é deixada para trás a pé
+(§4); a fuga a deixa, uma vez, e o turno gasto não custa golpe porque o herói
+já não está ao alcance de ninguém quando elas agem.
 
 **As criaturas agem depois do herói.**
 

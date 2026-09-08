@@ -20,7 +20,7 @@ import {
   weaponDamage, weaponMinDamage, armourValue, effectiveHp, expectedDamage,
 } from '../src/sim/combat.js';
 import {
-  findPath, generateMap, isWalkable, playerPassable, posKey, tileAt,
+  findPath, generateMap, isWalkable, playerPassable, posKey, samePos, tileAt,
 } from '../src/sim/mapgen.js';
 import { drawLogUniform, drawWeighted, hashSeeds, makeRng } from '../src/sim/rng.js';
 import { classifyRooms, spineShare } from '../src/sim/spine.js';
@@ -1906,6 +1906,106 @@ test('vito injects one step from the melee, never inside it', () => {
   }
   // Otherwise the loop above proves nothing and passes anyway.
   assert(injections > 0, 'no syringe was used in the whole sample');
+});
+
+// ***** the flight — docs/project/fuga.md ***** //
+
+const flightItem = () => ({ ...ITEM_TABLE.find((i) => i.name === 'flight') });
+
+// A floor-4 state with the hero standing beside the Butcher, holding the
+// flight. The one shape the item exists for: awake, faster, unwinnable.
+function besideTheButcher(seed, hp) {
+  const state = newGame(seed, { ...floorPlan(VAULT_LEVEL), startingItems: [flightItem()] });
+  const boss = state.monsters.find((m) => m.vault);
+  if (!boss) return null;
+  const [bx, by] = boss.pos;
+  const spot = [[bx + 1, by], [bx - 1, by], [bx, by + 1], [bx, by - 1]]
+    .find(([x, y]) => isWalkable(state.map, x, y)
+      && !state.monsters.some((m) => !m.dead && m.pos[0] === x && m.pos[1] === y));
+  if (!spot) return null;
+  state.player.pos = spot;
+  state.player.hp = hp;
+  return state;
+}
+
+test('fleeing lands outside every live creature\'s reach, and the same seed lands in the same place', () => {
+  let checked = 0;
+  for (let seed = 0; seed < 8; seed++) {
+    const state = besideTheButcher(880000 + seed, 3);
+    if (!state) continue;
+    checked++;
+    const turn = state.turn;
+    const a = step(state, 'flee').state;
+    const b = step(state, 'flee').state;
+    assertEq(a.player.pos.join(','), b.player.pos.join(','), 'the flight is not deterministic');
+    assert(a.turn > turn, 'the flight did not spend the turn');
+    assert(!a.player.inventory.some((i) => i.kind === 'flight'), 'the item survived its own use');
+    assert(!samePos(a.player.pos, state.player.pos), 'the hero did not move');
+    // No creature wakes for the tile he landed on: measured as monsters.js
+    // measures it, a path (creature's own tile included) shorter than its
+    // activation. `a` is the state AFTER the creatures acted on it, so the
+    // Butcher having moved would already show as a blow or a step.
+    for (const m of state.monsters) {
+      if (m.dead) continue;
+      const path = findPath(m.pos, a.player.pos, playerPassable(state.map));
+      assert(path.length === 0 || path.length >= m.activation,
+        `seed ${seed}: landed ${path.length - 1} steps from a creature with activation ${m.activation}`);
+    }
+    assert(a.player.hp === 3, `seed ${seed}: took a blow on the turn he fled`);
+  }
+  assert(checked >= 6, 'too few seeds placed a hero beside the Butcher');
+});
+
+test('fleeing without the item passes no turn, like drinking without a potion', () => {
+  const state = newGame(4242, floorPlan(1));
+  const after = step(state, 'flee').state;
+  assertEq(after.turn, state.turn, 'a flight he does not have cost a turn');
+  assertEq(after.player.pos.join(','), state.player.pos.join(','), 'he moved without an item');
+});
+
+test('the bot flees the Butcher when the duel is refused, and never a fight it would take', () => {
+  let fled = 0;
+  let stayed = 0;
+  for (let seed = 0; seed < 8; seed++) {
+    const state = besideTheButcher(880000 + seed, 3);
+    if (!state) continue;
+    const bot = makeBot({ monsterCount: 5, chestCount: 6, threatAhead: 1, floorsAhead: 6 });
+    const belief = foldBelief(emptyBelief(), observe(state));
+    assertEq(bot(belief), 'flee', `seed ${seed}: beside the Butcher at 3 hp he did not flee`);
+    fled++;
+
+    // Same spot, a bar the Butcher's duel fits under: armour to spare.
+    const rich = besideTheButcher(880000 + seed, 10);
+    rich.player.armour = 60;
+    const calm = makeBot({ monsterCount: 5, chestCount: 6, threatAhead: 1, floorsAhead: 6 });
+    assert(calm(foldBelief(emptyBelief(), observe(rich))) !== 'flee',
+      `seed ${seed}: fled a fight the gate accepts`);
+    stayed++;
+  }
+  assert(fled >= 6 && stayed >= 6, 'too few seeds placed a hero beside the Butcher');
+});
+
+test('the bot never flees a creature it can simply walk away from', () => {
+  // A speed-1 creature adjacent with the duel refused: leaving is free
+  // (rules.md §4), so the item is not spent on it.
+  let checked = 0;
+  for (let seed = 0; seed < 20; seed++) {
+    const state = newGame(881000 + seed, { ...floorPlan(6), startingItems: [flightItem()] });
+    const slow = state.monsters.find((m) => !m.dead && (m.speed ?? 1) <= 1);
+    if (!slow) continue;
+    const [mx, my] = slow.pos;
+    const spot = [[mx + 1, my], [mx - 1, my], [mx, my + 1], [mx, my - 1]]
+      .find(([x, y]) => isWalkable(state.map, x, y)
+        && !state.monsters.some((m) => !m.dead && m.pos[0] === x && m.pos[1] === y));
+    if (!spot) continue;
+    state.player.pos = spot;
+    state.player.hp = 1;
+    const bot = makeBot({ monsterCount: 5, chestCount: 6, threatAhead: 1, floorsAhead: 4 });
+    assert(bot(foldBelief(emptyBelief(), observe(state))) !== 'flee',
+      `seed ${seed}: spent the flight on a creature he could outwalk`);
+    checked++;
+  }
+  assert(checked >= 10, 'too few seeds produced the scenario');
 });
 
 // ***** map design: the spine and its detours ***** //
@@ -4840,11 +4940,12 @@ test('a clear keeps what the hero ENDS with: weapons, undrunk potions, the armou
     inventory: [
       { ...axe, id: 7 }, { ...shield, id: 8 }, { ...shield, id: 9 }, { ...potion, id: 10 },
       { ...ITEM_TABLE.find((i) => i.name === 'book'), id: 11 },
+      { ...ITEM_TABLE.find((i) => i.name === 'flight'), id: 12 },
     ],
   };
   const held = heldAfterClear(player);
-  assertEq(held.map((i) => i.name).sort().join(','), 'axe,health,shield',
-    'held should be the weapon, the potion, and ONE shield for the bar');
+  assertEq(held.map((i) => i.name).sort().join(','), 'axe,flight,health,shield',
+    'held should be the weapon, the potion, the unused flight, and ONE shield for the bar');
   assertEq(held.find((i) => i.name === 'shield').armour, 2, 'the shield carries the points left, not 3');
   assert(held.every((i) => i.id === undefined), 'ids are minted by the next run, not carried');
   assert(!held.some((i) => i.name === 'book'), 'a stat-less kit item re-enters by the kit, not the wallet');
