@@ -138,7 +138,6 @@ export function newGame(seed, counts = {}) {
       inventory: carried.inventory.map((i) => ({ ...i })),
       kills: carried.kills.slice(),
       xpEarned: carried.xpEarned,
-      coinsFound: carried.coinsFound ?? 0,
     };
   }
   return state;

@@ -97,7 +97,19 @@ measuring a version nobody plays.
 node tools/measure.mjs --selftest        # first: is the vendored ROT.js faithful
 node tools/dial-sweep.mjs                # all three dials, 250 runs a cell
 node tools/dial-sweep.mjs 400 curiosidade    # one dial, more runs
+node tools/grid.mjs                      # every combo of the three, per OBJECTIVE
 ```
+
+`tools/grid.mjs` is the third instrument and answers a third question: "do
+the COMBINATIONS matter" — how many runs each of the 64 combos takes to reach
+an objective (axe bought, Butcher dead, 25 coins in one run; Clear on its
+own with `{"clear":true}`). It is a chain instrument (the shop between runs,
+paired chain seeds in every cell), it stops a chain at the last fast
+objective, and it screens all 64 before spending chains on the finalists.
+What it prints is the SHAPE — the median of every combo against the median
+of the top five and the top one — and the owner's target for that shape is
+in `docs/project/dials.md`. Spend a fresh `seedBase` per question: a base
+used to select the finalists is not a base to measure them with.
 
 `tools/measure.mjs check tripwires` stays what it always was — the only
 fire-or-not surface. The sweep is for questions of the form "does this dial

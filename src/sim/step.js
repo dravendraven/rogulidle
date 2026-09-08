@@ -124,14 +124,8 @@ function resolveEncounters(state, pos) {
   if (chestIndex >= 0) {
     const [chest] = state.chests.splice(chestIndex, 1);
     if (chest.drop) state.items.push(chest.drop);
-    // THE COIN CHEST (2026-08-31): its coins credit on open, ON TOP of the
-    // drop it leaves on the floor. Money has no pickup decision, so it never
-    // becomes an item; it pays with the traversal (src/sim/dungeon.js) under
-    // the completed-only rule. `?? 0` because hand-built states predate it.
-    if (chest.coin) state.player.coinsFound = (state.player.coinsFound ?? 0) + chest.coin;
     state.log.push({
-      type: 'open', chest: chest.name, found: chest.drop ? chest.drop.name : null,
-      coins: chest.coin || 0, turn: state.turn,
+      type: 'open', chest: chest.name, found: chest.drop ? chest.drop.name : null, turn: state.turn,
     });
     blocked = true;
   }

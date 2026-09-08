@@ -1,0 +1,32 @@
+// The ONE deploy that cannot be done from the dashboard.
+//
+// A Durable Object namespace is created by a migration at upload time, and
+// the dashboard has no button for it (its binding picker only lists
+// namespaces that already exist). So the first deploy of `SaveRoom` goes
+// through wrangler, once, from the repo root:
+//
+//     npx wrangler login
+//     npx wrangler deploy --config server/wrangler.jsonc
+//
+// Nothing is installed into the repo — `npx` fetches wrangler into its own
+// cache — and the page keeps its rule of no npm and no build step; this is
+// the server, which was always the one piece that is not a file GitHub
+// Pages serves. After this deploy the code can go on being pasted into the
+// dashboard editor as before: the namespace and the binding stay.
+//
+// `name` must be the worker that already exists, so the URL in
+// `src/ui/sync.js` keeps pointing at the same place. A KV binding that the
+// dashboard had on it is dropped by this deploy, which is intended.
+{
+  "name": "rogulidle-save",
+  "main": "save-worker.js",
+  "compatibility_date": "2026-09-01",
+  "durable_objects": {
+    "bindings": [
+      { "name": "SAVES", "class_name": "SaveRoom" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["SaveRoom"] }
+  ]
+}

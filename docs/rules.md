@@ -516,18 +516,10 @@ por decisão do dono; o bot continua decidindo sem saber quanto resta.
 **Moeda por travessia concluída**, derivada de xp por turno. Toda travessia
 paga, ida e volta.
 
-**O baú da moeda** (2026-08-31): em cada andar, o baú **mais distante da
-rota obrigatória** (em passos andados) carrega moedas **além** do que
-sorteou — o mundo dos itens é byte-idêntico ao jogo sem moeda. Abrir credita
-as moedas e deixa o item no chão como sempre; elas pagam junto com a
-travessia, sob a regra de sempre. Qual baú é o da moeda **não cruza o fog**
-(só a persona que vê conteúdo sabe), então o bot precifica todo baú pelo
-valor esperado — e o apressado, que recusa o baú distante pelo preço, abre
-mão da moeda sem saber qual era. É a segunda renda do jogo: a taxa xp÷turno
-recompensa descer rápido; o baú distante recompensa explorar. Três formas
-anteriores foram medidas e descartadas — moeda no lugar do item (sustain
-perdido, wire de mortes disparou), pilha visível em sala lateral e pilha
-fora da vista da rota (quem vislumbrava, pegava).
+A taxa xp÷turno é a **única** renda. Uma segunda, plana — moedas num baú
+longe da rota — foi construída, nerfada até não pesar para não criar bola de
+neve, e removida (`decisions.md`, "O baú da moeda"); o que recompensa
+explorar tem de vir do mapa, não de uma moeda escondida.
 
 **A moeda é da run, e não sobrevive a ela.** O saldo começa em zero em toda
 run, é gasto na loja que fecha aquela run, e o que não for gasto é
@@ -628,29 +620,31 @@ reserva sozinho quando a aba morre, sem prazo nenhum.
 aparelho que morreu segurando o nome, mas só depois de correr inteiro, e
 quem está diante da tela em geral sabe que o outro está fechado. O botão
 toma o nome imediatamente; o aparelho que o tinha para em segundos, no meio
-da run se for o caso, e perde o que ainda não tinha gravado — a run
-interrompida não conta, não paga e não chega à loja. É por isso que só um botão
-faz isso, e nunca acontece sozinho: só quem está olhando sabe que o outro
-lado pode ser interrompido.
+da run se for o caso — e só a run interrompida se perde: ela não conta, não
+paga e não chega à loja, e tudo antes dela já estava no servidor. É por isso
+que só um botão faz isso, e nunca acontece sozinho: só quem está olhando sabe
+que o outro lado pode ser interrompido.
 
-**O save sobe de tempos em tempos, e ao fechar a aba** — não a cada run. O
-navegador continua gravando toda run; o que é espaçado é a subida. A
-consequência é honesta e pequena: trocar de aparelho pode custar as últimas
-runs.
+**O servidor é o jogo; o navegador é uma cópia dele.** Toda run sobe inteira
+— o resultado e o que a loja comprou — antes de a run seguinte começar, e a
+página não segue enquanto o servidor não confirmar. Nunca existe uma run
+contada num aparelho que o servidor não tenha: é isso, e só isso, que torna
+impossível dois aparelhos com duas histórias do mesmo nome. Uma cópia local
+que o servidor não conhece só pode ser a run cuja subida ainda está sendo
+tentada, e essa run se reproduz idêntica a partir da cópia do servidor.
 
 **Quem perde a reserva para.** Se o nome foi tomado por outro aparelho, a aba
 diz isso e encerra ali, em vez de seguir jogando runs que nenhum save vai
 guardar.
 
-**Sem servidor, o jogo continua.** Fora do ar ou sem rede, tudo é jogado e
-gravado só naquele aparelho, e o cabeçalho marca que nada está
-sincronizando. De tempos em tempos a aba tenta de novo sozinha — quando a
-rede volta, a marca some e o jogo volta a subir sem ninguém recarregar nada.
-
-**O que foi jogado sem rede só vale se ninguém tiver jogado no lugar.** Se
-ao voltar o nome estiver com outro aparelho, ou o save de lá tiver andado,
-as runs jogadas sozinhas são descartadas e a aba para pedindo recarregar —
-juntar as duas histórias faria uma terceira, que ninguém jogou.
+**Sem servidor, o jogo espera.** Fora do ar ou sem rede, a página mostra que
+está sem conexão e não joga — nem começa, nem passa para a próxima run — até
+o servidor responder. Ela tenta de novo sozinha, a cada poucos segundos, e
+volta a rodar sem ninguém recarregar nada. Esse é o preço da regra acima, e
+foi escolhido de olhos abertos: jogar sem rede era exatamente o que produzia
+duas histórias (`docs/project/decisions.md`, «A subida espaçada»). Só uma
+página cujo serviço nem está configurado (um fork sem servidor) joga e grava
+só localmente, como antes de o servidor existir.
 
 **O que a página lembra, ela lembra entre visitas.** Refresh não começa outra
 sessão. O número da run, o histórico dos últimos resultados, o placar e a
@@ -659,6 +653,13 @@ guardados, recordes, feitos, herói escolhido, ordem da loja e a personalidade
 do bot — sorteada na primeira visita e, dali em diante, o que o jogador
 deixou nos dials do Lab: mover um dial de comportamento reescreve a
 personalidade guardada, não é um ajuste só daquela visita.
+
+**Um feito ainda trancado mostra o quão perto alguma run já chegou dele** —
+a menor vida em que o Butcher ficou, o máximo que uma run pagou contra o
+preço do machado, o andar mais fundo alcançado. É só mostrador: não destrava
+nada, não tem recibo, e some quando o feito é conquistado
+(`docs/project/feitos-progresso.md`). Recomeçar apaga esses recordes junto
+com os feitos.
 
 **A sessão é gravada no instante em que a run é contada.** Antes disso a run
 não tocou em nada guardado, então uma interrupção no meio dela a faz ser

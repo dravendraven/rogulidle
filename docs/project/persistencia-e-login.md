@@ -153,11 +153,17 @@ o repositório**: um serviço hospedado, com conta, com teto de uso e com
 possibilidade de cair. Não existe versão disto sem essa peça; GitHub Pages
 não guarda nada de ninguém.
 
-Recomendação: **Cloudflare Worker + KV.** Um arquivo de umas sessenta linhas,
-editável pelo painel no navegador (sem CLI, sem npm), plano gratuito. As
-alternativas foram descartadas por peso (Firebase/Supabase trazem SDK e um
-modelo de autenticação que não queremos) ou por não terem trava (gist/jsonbin
-não têm escrita condicional).
+Recomendação: **Cloudflare Worker**, um arquivo editável pelo painel no
+navegador (sem CLI, sem npm), plano gratuito. As alternativas foram
+descartadas por peso (Firebase/Supabase trazem SDK e um modelo de
+autenticação que não queremos) ou por não terem trava (gist/jsonbin não têm
+escrita condicional). O armazenamento começou em KV e passou a **um Durable
+Object por nome** quando cada run passou a subir: o teto gratuito do KV
+(mil escritas por dia na conta inteira) virou o teto de runs por dia de
+todos os jogadores juntos — `docs/project/decisions.md`, «A subida
+espaçada». O Durable Object custou uma exceção ao «sem CLI»: o painel não
+cria o namespace, então o primeiro deploy da classe passa pelo `wrangler`,
+uma vez (`server/wrangler.jsonc`); depois disso o painel volta a servir.
 
 Três rotas, e a trava é uma delas:
 
@@ -171,10 +177,11 @@ Três rotas, e a trava é uma delas:
   `pagehide` manda por `sendBeacon`
 
 O arquivo é `server/save-worker.js`, e ele roda aqui também:
-`node tools/save-server.mjs` sobe o MESMO arquivo com um KV falso na porta
-8142, para curlar as rotas antes de existir conta em lugar nenhum. É por isso
-que o worker não usa nada além de `Request`, `Response` e duas chamadas de
-KV — o harness é encanamento, não uma segunda implementação.
+`node tools/save-server.mjs` sobe o MESMO arquivo com objetos falsos na
+porta 8142, para curlar as rotas antes de existir conta em lugar nenhum. É
+por isso que o worker não usa nada além de `Request`, `Response` e um
+storage com `get` e `put` — o harness é encanamento, não uma segunda
+implementação.
 
 **A trava é um arrendamento, não um cadeado.** Quem tem o token é o dono por
 um tempo, e cada `PUT` renova esse tempo. Um aparelho que fechou direito
@@ -188,22 +195,22 @@ que o dono pediu é a metade visível de um mecanismo que precisa existir de
 qualquer forma.
 
 **O orçamento de escrita é uma restrição de projeto, não um detalhe.** O
-plano gratuito tem teto diário de escritas, e uma run dura poucos minutos:
-gravar a cada run, com alguns amigos jogando horas, estoura. Por isso a
-gravação remota é **estrangulada** — no máximo uma a cada poucos minutos,
-sempre no limite de uma run, mais a do `pagehide`. O `localStorage` continua
-gravando toda run; o que é raro é a subida. O preço disso é conhecido e
-pequeno: mudar de aparelho pode custar as últimas runs.
+plano gratuito tem teto diário de escritas, e uma run dura poucos minutos.
+Este plano propôs **estrangular** a subida (uma a cada poucos minutos) para
+caber no teto, aceitando que mudar de aparelho custasse as últimas runs. Isso
+foi construído, produziu duas histórias do mesmo nome, e foi desfeito: hoje
+toda run sobe, e o teto é um custo do plano de hospedagem, não uma regra do
+jogo — `docs/rules.md` §9 e `docs/project/decisions.md`, «A subida
+espaçada».
 
 ## 7. Peça 5 — o cliente
 
 Ao entrar o nome: `claim`. Se vier `409`, a tela do nome mostra o recado e
 não deixa entrar (e diz há quanto tempo o outro aparelho deu sinal). Se vier
-`200`, o save remoto é adotado — mas **só quando ele está à frente**: o
-documento guarda a revisão do servidor a que ele corresponde (fatia `sync`),
-e adotar é a resposta quando a revisão de lá é maior. Igual ou menor significa
-que a cópia daqui é o mesmo jogo ou um mais novo, e a próxima subida ordinária
-a leva.
+`200`, o save remoto é adotado sempre que existir. (O plano original
+comparava revisões para decidir quem estava à frente; isso saiu junto com a
+subida espaçada — `docs/project/decisions.md`, «A subida espaçada».) Um nome
+que o servidor nunca viu sobe na hora, a partir da cópia do navegador.
 
 Depois disso o jogo roda como sempre; a sincronização é um efeito de borda do
 ponto de salvamento que a Peça 2 já criou.
@@ -239,23 +246,11 @@ seria mais para explicar do que vale.
 
 ## 8. Peça 6 — quando a rede falha
 
-Rede fora não pode parar o jogo: ele grava local, mostra um selo discreto de
-«sem sincronizar» e tenta de novo no próximo ponto de salvamento.
-
-**Tentar de novo é metade da peça, e é a metade que faltava.** Um selo
-sozinho espera que alguém recarregue, e num jogo feito para ficar rodando
-isso quer dizer nunca. Então toda tentativa passa pelo mesmo ponto de
-salvamento, espaçada como as subidas: a aba bate na porta, e quando ela abre
-o jogo volta a sincronizar sem ninguém tocar em nada.
-
-**O órfão é descartado, e é aqui que ele aparece.** Ao voltar, se o nome
-estiver com outro aparelho, ou se o save de lá tiver andado, as runs jogadas
-sozinhas foram jogadas numa cópia que não é mais o jogo. Elas são
-descartadas: a aba para, diz o que houve, e recarregar traz o save de lá
-inteiro. Costurar as duas histórias faria uma terceira, que ninguém jogou.
-
-Se nada tiver acontecido enquanto ela esteve fora, é o contrário — esta cópia
-É o jogo, e sobe na hora em vez de esperar a próxima janela.
+Esta peça propunha que rede fora não parasse o jogo: gravar local, mostrar um
+selo de «sem sincronizar», descartar o «órfão» ao voltar se outro aparelho
+tivesse jogado no meio. Foi construída assim e foi o que produziu o caso que
+a derrubou. O que vale hoje está em `docs/rules.md` §9 («Sem servidor, o jogo
+espera») e o porquê em `docs/project/decisions.md`, «A subida espaçada».
 
 ## 9. O que este plano não faz
 
@@ -275,8 +270,9 @@ produto — não de persistência.
 1. **Rodar ausente entra ou não?** (§9). Recomendação: não agora. É a única
    pergunta deste estudo que segue em aberto — as outras três foram
    respondidas e estão no código.
-2. ~~**Onde hospedar?**~~ — respondido: Cloudflare Worker + KV. Falta só a
-   conta e o deploy, que são do dono: o arquivo está escrito e testado.
+2. ~~**Onde hospedar?**~~ — respondido: Cloudflare Worker, hoje com um
+   Durable Object por nome (§6). O deploy é do dono: o arquivo está escrito
+   e testado.
 3. ~~**Takeover**~~ — respondido DUAS vezes, e a segunda pelo uso. Primeiro:
    quando o prazo vence, o segundo aparelho entra sozinho. Depois, no
    primeiro dia de uso de verdade, o dono fechou o navegador do PC, o aviso
@@ -296,9 +292,9 @@ Cada uma vale sozinha e dá para ver se funcionou.
 | T1 ✔ | `save.js`: documento único, sete módulos portados, chaves antigas migradas | o jogo se comporta igual; o devtools mostra uma chave só, com o progresso antigo dentro |
 | T2 ✔ | fatia `session`, gravada quando a run é contada | refresh mantém «recent runs» e o número da run, e a contagem continua de onde estava |
 | T3 ✔ | tela do nome, save por nome, «trocar de jogador» | dois nomes no mesmo browser = dois jogos independentes |
-| T4 ✔ | Worker + KV com as três rotas | responde por `curl`, antes de a página saber que ele existe |
-| T5 ✔ | cliente: claim, adoção do save remoto, sync estrangulado, perda de trava | dois browsers: o segundo é recusado com o recado certo |
-| T6 ✔ | falha de rede: selo, jogo local, retomada sozinha e descarte do órfão | subir o serviço com a aba já rodando sem ele: ela volta a sincronizar sem recarregar |
+| T4 ✔ | Worker com as três rotas (KV, depois Durable Object) | responde por `curl`, antes de a página saber que ele existe |
+| T5 ✔ | cliente: claim, adoção do save remoto, perda de trava | dois browsers: o segundo é recusado com o recado certo |
+| T6 ✔ | falha de rede — feito como «selo, jogo local, descarte do órfão» e depois refeito como «toda run sobe; sem servidor, espera» | desligar a rede com a aba rodando: a tela de espera aparece no fim da run e some sozinha quando a rede volta |
 
 T1–T3 não dependem de decisão nenhuma e resolvem o problema relatado.
 T4–T6 dependem das respostas 2 e 3 do §10.

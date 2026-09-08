@@ -82,12 +82,11 @@ const VENDOR_SHA256 = '0123bd2a96d26cadb328c986885e7e0e58e35a267b6fc87efac2e9b5a
 
 // Pure generation: `newGame(seed, floorPlan(level))` on an unplayed state.
 //
-// Re-recorded three times on 2026-08-31 and back where it started: the coin
-// PILE consumed placement draws and moved s1 twice; the coin CHEST that
-// replaced it consumes none (its pick is the max of a BFS), so the spawn
-// stream is the pre-coin stream again and these rosters are the original
-// recordings — read off a RELOADED page all the same, because the earlier
-// stale-cache misread is the reason the rite exists.
+// Re-recorded three times on 2026-08-31 and back where it started: a coin
+// PILE consumed placement draws and moved s1 twice, and the coin CHEST that
+// replaced it (since removed) consumed none, so these rosters are the
+// original recordings — read off a RELOADED page all the same, because the
+// earlier stale-cache misread is the reason the rite exists.
 const GENERATION = {
   's1L1': {
     mapHash: '154f1525',
@@ -157,11 +156,9 @@ const GENERATION = {
 // price in the game moved, so this anchor had to; generation did not, and the
 // four checks above are what say so. Read off a RELOADED page, for the reason
 // the note above gives.
-// Re-recorded for coin chests (2026-08-31). Generation did not move — the
-// coin rides the SAME single content draw, and the four generation checks
-// above stayed byte-identical — but what chests hold changed, so the runs
-// played differently (the one clear in this tiny sample became a death).
-// Read off a freshly served page, per the rule above.
+// Re-recorded for coin chests (2026-08-31), and these values SURVIVED the
+// chest's removal (2026-09-04) — the selftest still passes on them, so no
+// re-record. Read off a freshly served page, per the rule above.
 const MEASUREMENT = {
   call: { module: 'check', fn: 'tripwires', args: { runs: 3, firstSeed: 500000 } },
   values: [0, 0.333, 0.333, 0, 0.333, 1, 1],
