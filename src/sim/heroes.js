@@ -63,9 +63,11 @@ export const DEFAULT_PERSONA = {
   // original had (removed, rules.md §4): this never moves inside a run. It
   // is a behaviour dial in disguise — the fight gate is a share of hp plus
   // armour, so a bigger bar accepts fights a smaller one refuses, and the
-  // book fills to whatever the bar is. The owner's split (2026-09-09):
-  // force heroes carry more, information heroes carry less, the base stays
-  // at ten because every measurement is read against it.
+  // book fills to whatever the bar is. Only pawa sets it (owner, 2026-09-09):
+  // 8 on the information heroes was measured and refused — two hp off the
+  // bar is an OPENING nerf (deaths by floor 3 up 8-9 points, unarmed against
+  // the first rats), and the "fragile hero who farms" it was meant to create
+  // never appeared. +2 on pawa is a mild opening buff and stays.
   hpMax: null,
 };
 
@@ -149,8 +151,8 @@ export const HEROES = {
     name: 'papazito',
     title: 'o erudito',
     emoji: '🧙',
-    blurb: 'Enxerga o andar inteiro. Uma vez por descida, para cinco turnos para ler e volta inteiro. Só oito de vida: o que sabe, paga em pele.',
-    persona: { sightRadius: SIGHT_WHOLE_MAP, kit: ['book'], hpMax: 8 },
+    blurb: 'Enxerga o andar inteiro. Uma vez por descida, para cinco turnos para ler e volta inteiro.',
+    persona: { sightRadius: SIGHT_WHOLE_MAP, kit: ['book'] },
     bot: {},
   },
   // The opposite trade: ordinary reach, deeper knowledge of what is already
@@ -160,8 +162,8 @@ export const HEROES = {
     name: 'ricardo',
     title: 'o gênio',
     emoji: '👨‍🔬',
-    blurb: 'Sabe o que tem no baú antes de abrir. Passa reto pelos vazios e não comenta. Só oito de vida: o que sabe, paga em pele.',
-    persona: { revealLoot: true, hpMax: 8 },
+    blurb: 'Sabe o que tem no baú antes de abrir. Passa reto pelos vazios e não comenta.',
+    persona: { revealLoot: true },
     bot: {},
   },
   // The engineer. Every floor he finishes, the coin it paid buys armour on

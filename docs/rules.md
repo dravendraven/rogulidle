@@ -259,9 +259,10 @@ reverteu a adoção registrada em `decisions.md`.
 fixa na run: o herói começa toda run com a barra dele e o livro o enche até
 ela. Quem carrega mais vida aceita duelos que o outro recusa, porque o
 portão da luta é uma fração de vida mais armadura (`bot.md`); quem carrega
-menos vira, pela mesma conta, o que recusa. Os valores estão em
-`src/sim/heroes.js`; o herói base fica na barra de sempre, que é a régua de
-toda medição.
+menos morre antes de decidir qualquer coisa: dois pontos a menos foram
+medidos e recusados porque caem inteiros na abertura, desarmado. Os valores
+estão em `src/sim/heroes.js`; o herói base fica na barra de sempre, que é a
+régua de toda medição.
 
 **Não existe regeneração passiva.** Divergência: o original curava com o
 tempo, o que dá para acampar.

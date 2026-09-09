@@ -1334,8 +1334,9 @@ test('a hero starts every run at his own bar, and keeps it down the stairs', () 
   assertEq(at(HEROES.vito).hpMax, PLAYER_HP, 'vito was meant to stay at the default');
   assertEq(at(HEROES.pawa).hpMax, 12, 'pawa is the tank');
   assertEq(at(HEROES.pawa).hp, 12, 'pawa did not START full');
-  assertEq(at(HEROES.ricardo).hpMax, 8, 'ricardo carries less');
-  assertEq(at(HEROES.papazito).hpMax, 8, 'papazito carries less');
+  // 8 on these two was measured and refused (decisions.md, 2026-09-09).
+  assertEq(at(HEROES.ricardo).hpMax, PLAYER_HP, 'ricardo was meant to stay at the default');
+  assertEq(at(HEROES.papazito).hpMax, PLAYER_HP, 'papazito was meant to stay at the default');
 
   // Down the stairs the bar travels with him; the persona is not re-applied
   // over a carry, the same order the kit follows.
@@ -1345,12 +1346,12 @@ test('a hero starts every run at his own bar, and keeps it down the stairs', () 
   assertEq(next.player.hpMax, 12, 'the carried bar was overwritten');
 
   // And the whole run reports the hero's own bar on floor 1, not the default.
-  const run = playDungeon(4242, () => (() => 'rest'), { hero: HEROES.papazito, maxTurns: 3, traversals: 1 });
-  assertEq(run.levels[0].arrivedWith.hpMax, 8, 'the run record still says ten for an eight-hp hero');
+  const run = playDungeon(4242, () => (() => 'rest'), { hero: HEROES.pawa, maxTurns: 3, traversals: 1 });
+  assertEq(run.levels[0].arrivedWith.hpMax, 12, 'the run record still says ten for a twelve-hp hero');
 });
 
-test('the book fills papazito to HIS bar, not to ten', () => {
-  const state = newGame(515, { ...floorPlan(3), persona: HEROES.papazito.persona });
+test('the book fills the reader to HIS bar, not to ten', () => {
+  const state = newGame(515, { ...floorPlan(3), persona: { ...HEROES.papazito.persona, hpMax: 8 } });
   state.player.hp = 2;
   let s = state;
   for (let i = 0; i < READ_TURNS; i++) s = step(s, 'read').state;

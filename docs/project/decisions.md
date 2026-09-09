@@ -2110,6 +2110,34 @@ value of the ONE potion in `ITEM_TABLE`, so it moves every chest and vault
 potion, not the shop's; and with a mean balance of ~7 coins the dagger takes
 the visit and shield-versus-potion decides one or two coins of change.
 
+## HP base por herói — Pawa 12 fica, 8 nos frágeis foi medido e recusado — 2026-09-09
+
+Ideia do dono (Battlerite: heróis com mais ou menos vida base). O campo é
+`hpMax` na persona; o interesse era que ele age no PORTÃO da luta (fração de
+vida mais armadura), então mais vida aceita duelos que menos vida recusa —
+um dial de comportamento disfarçado. Proposta: Pawa 12, Vito 10 (para não
+mover a seringa), Ricardo e Papazito 8 (força vs informação; Papazito era
+dominante).
+
+Medido no chain, 24 chains × 30 runs por herói, barra antiga vs nova,
+seeds pareadas:
+
+| herói | profundidade | mortes na abertura | mortes por dano | porco morto |
+|---|---|---|---|---|
+| Pawa 10→12 | 4,00 → 4,23 (z 1,7) | 23,5 → 19,7% (z −3,1) | 39 → 36% (z −2,7) | 5,4 → 8,3% (z 1,3) |
+| Ricardo 10→8 | 3,97 → 3,74 (z −4,4) | 18,5 → 26,7% (z +5,9) | 38 → 43% (z +2,9) | 3,6 → 1,4% |
+| Papazito 10→8 | 4,15 → 3,89 (z −3,0) | 12,1 → 21,4% (z +5,6) | 29 → 36% (z +3,2) | 6,0 → 3,3% |
+
+**Hp é o gargalo da abertura e de mais nada** (o mesmo que a poção mostrou
+em U6g). Dois pontos a menos caem inteiros nos andares 1–3, desarmado
+contra os primeiros ratos, antes de o herói ter qualquer luta para recusar;
+o "frágil que farma" não aparece porque farmar exige sobreviver a isso. A
+taxa de morte pelo porco de Pawa não muda: ele não entra mais corajoso, só
+chega mais vezes. A média do elenco cai (o nerf pesa mais que o buff).
+
+**Decisão do dono:** todos em 10, só Pawa em 12. O campo fica na persona;
+`PLAYER_HP` continua o default e a régua.
+
 ## The achievement that looked like a lie
 
 Reported as a bug: the Butcher row said earned on "run 3", and run 3 in the
