@@ -60,6 +60,14 @@ export function newGame(seed, counts = {}) {
   });
   populate(state, state.map, counts);
 
+  // The hero's own bar (heroes.js `hpMax`). Set here, before `carry` below,
+  // so floor 1 starts at it and every later floor keeps what came down the
+  // stairs — the same order the kit and the purchases follow.
+  if (state.persona.hpMax) {
+    state.player.hp = state.persona.hpMax;
+    state.player.hpMax = state.persona.hpMax;
+  }
+
   // The return climbs back through the hole it went down. On an ascent
   // traversal the hero emerges where this floor's shrine stood, and the way
   // out is where the hero originally entered — a swap AFTER generation, so

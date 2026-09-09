@@ -255,6 +255,14 @@ alternativa mediu está em `docs/project/decisions.md`.
 **O hp máximo não cresce com as mortes.** Idem: removido, com a medição que
 reverteu a adoção registrada em `decisions.md`.
 
+**Mas o hp máximo pode ser diferente por herói.** É configuração da persona,
+fixa na run: o herói começa toda run com a barra dele e o livro o enche até
+ela. Quem carrega mais vida aceita duelos que o outro recusa, porque o
+portão da luta é uma fração de vida mais armadura (`bot.md`); quem carrega
+menos vira, pela mesma conta, o que recusa. Os valores estão em
+`src/sim/heroes.js`; o herói base fica na barra de sempre, que é a régua de
+toda medição.
+
 **Não existe regeneração passiva.** Divergência: o original curava com o
 tempo, o que dá para acampar.
 

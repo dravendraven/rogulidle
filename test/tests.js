@@ -1326,6 +1326,37 @@ test('the default persona is the game that shipped without one', () => {
     'the default persona did not hand the item back untouched');
 });
 
+test('a hero starts every run at his own bar, and keeps it down the stairs', () => {
+  // rules.md §4 — hpMax is a persona field, fixed for the run. Force
+  // carries more, information carries less, the base stays at ten.
+  const at = (hero) => newGame(4242, { ...floorPlan(1), persona: hero.persona }).player;
+  assertEq(at(HEROES.base).hpMax, PLAYER_HP, 'the base hero moved off the shipped bar');
+  assertEq(at(HEROES.vito).hpMax, PLAYER_HP, 'vito was meant to stay at the default');
+  assertEq(at(HEROES.pawa).hpMax, 12, 'pawa is the tank');
+  assertEq(at(HEROES.pawa).hp, 12, 'pawa did not START full');
+  assertEq(at(HEROES.ricardo).hpMax, 8, 'ricardo carries less');
+  assertEq(at(HEROES.papazito).hpMax, 8, 'papazito carries less');
+
+  // Down the stairs the bar travels with him; the persona is not re-applied
+  // over a carry, the same order the kit follows.
+  const carry = { hp: 5, hpMax: 12, armour: 0, xp: 3, inventory: [], kills: [], xpEarned: 0, coinsFound: 0 };
+  const next = newGame(4243, { ...floorPlan(2), persona: HEROES.pawa.persona, carry });
+  assertEq(next.player.hp, 5, 'the carried hp was overwritten');
+  assertEq(next.player.hpMax, 12, 'the carried bar was overwritten');
+
+  // And the whole run reports the hero's own bar on floor 1, not the default.
+  const run = playDungeon(4242, () => (() => 'rest'), { hero: HEROES.papazito, maxTurns: 3, traversals: 1 });
+  assertEq(run.levels[0].arrivedWith.hpMax, 8, 'the run record still says ten for an eight-hp hero');
+});
+
+test('the book fills papazito to HIS bar, not to ten', () => {
+  const state = newGame(515, { ...floorPlan(3), persona: HEROES.papazito.persona });
+  state.player.hp = 2;
+  let s = state;
+  for (let i = 0; i < READ_TURNS; i++) s = step(s, 'read').state;
+  assertEq(s.player.hp, 8, 'the read healed past or short of his own bar');
+});
+
 test('papazito sees the whole floor, and the base hero does not', () => {
   const state = newGame(7311, floorPlan(5));
   const seesAll = observe(state, HEROES.papazito.persona);

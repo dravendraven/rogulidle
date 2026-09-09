@@ -68,7 +68,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | `ROOM_MIN_SIDE` | 3 | the floor under `ROOM_SCALE` — narrower than this and a room is a corridor with a label on it |
 | `CORRIDOR_SPAN` | 2 | the WIDTH of the corridor-length draw. `CORRIDOR_LENGTH` is derived: `[CORRIDOR_MIN, CORRIDOR_MIN + CORRIDOR_SPAN]`. The minimum is the dial above; this is the shape of the draw and stays put |
 | `VISIBLE_DIST` / `CLEAR_DIST` | 9 / 7 | FAITHFUL — `VISIBLE_DIST` is now the DEFAULT reach, which a persona may override (`HEROES` below) |
-| `PLAYER_HP` / `PLAYER_XP` | 10 / 3 | FAITHFUL — and neither ever grows in play |
+| `PLAYER_HP` / `PLAYER_XP` | 10 / 3 | FAITHFUL — and neither ever grows in play. `PLAYER_HP` is the DEFAULT bar: a hero's persona may set its own `hpMax` (`HEROES` below — pawa 12, ricardo and papazito 8, owner's split 2026-09-09; base and vito stay at the default) |
 | `HIT_CHANCE` | 5/6 | FAITHFUL |
 | `MONSTER_SKIP_CHANCE` | 0.10 | FAITHFUL |
 | `MONSTER_DIFFICULTY_SCALE` | 0.75 | FAITHFUL single-floor default |

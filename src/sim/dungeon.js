@@ -321,10 +321,11 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
     // What the hero brought DOWN THE STAIRS, and what this floor actually
     // held. Both are needed to read net challenge: the floor's cost is only
     // meaningful against the hero who walked into it.
+    const baseHp = (hero && hero.persona && hero.persona.hpMax) || PLAYER_HP;
     const arrivedWith = carry
       ? { hp: carry.hp, hpMax: carry.hpMax, armour: carry.armour, xp: carry.xp,
         inventory: carry.inventory.map((i) => ({ ...i })), kills: carry.kills.slice() }
-      : { hp: PLAYER_HP, hpMax: PLAYER_HP, armour: 0, xp: PLAYER_XP,
+      : { hp: baseHp, hpMax: baseHp, armour: 0, xp: PLAYER_XP,
         inventory: [], kills: [] };
 
     // hpMax and xp survive a monster's death, so the roster can be read back
