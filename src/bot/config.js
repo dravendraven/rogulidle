@@ -199,6 +199,26 @@ export const CURIOSITY_LAST_RESORT = 0.25;
 // open, answered by giving its panel slot to `curiosity`.
 export const EXPOSURE_STEPS = 9.6;
 
+// What one tile inside the reach of a DEADLY creature costs, in hp — and the
+// one place Pressa changes the SHAPE of a route (docs/project/fuga.md,
+// addendum). Deadly means awake-and-faster-than-the-hero AND refused by the
+// fight gate: a creature that cannot be outrun and cannot be beaten, so
+// stepping into its radius is not exposure, it is the duel. The danger
+// field prices every other tile as `stepCost × exposure`, both halves
+// scaling with Pressa, so the ratio is constant and no band ever detours
+// (C1 §1). This term does NOT scale: it is the centre band's own price for
+// one creature-turn, frozen. So Pressa mínima (step 0.005) walks around the
+// radius for nothing and Pressa máxima (0.195) pays to cross it — the
+// owner's rule, "mais pressa atravessa, menos pressa contorna", carried by
+// the dial that already exists rather than a new one. Flat over the whole
+// radius, no falloff: for a creature that returns no distance the edge tile
+// is as fatal as the one beside it.
+//
+// Derived, not chosen: `STEP_COST × EXPOSURE_STEPS`, which is what the centre
+// band pays today for a tile adjacent to any creature. If it needs to be a
+// number of its own, the measurement by Pressa band is where that comes from.
+export const DEADLY_TILE_COST = STEP_COST * EXPOSURE_STEPS;
+
 // How much of a creature's menace SURVIVES each tile of distance when
 // pricing a tile: at 0.5 a wolf two tiles away charges a quarter of its
 // bite, at 0.95 it still charges nine tenths.

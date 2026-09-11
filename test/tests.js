@@ -15,7 +15,7 @@ import {
 } from '../src/sim/game.js';
 import { step, ACTIONS, grantArmour } from '../src/sim/step.js';
 import { observe, emptyBelief, foldBelief } from '../src/sim/observe.js';
-import { DEFAULT_PERSONA, HEROES, heroItem } from '../src/sim/heroes.js';
+import { DEFAULT_PERSONA, HEROES, SIGHT_WHOLE_MAP, heroItem, resolvePersona } from '../src/sim/heroes.js';
 import {
   weaponDamage, weaponMinDamage, armourValue, effectiveHp, expectedDamage,
 } from '../src/sim/combat.js';
@@ -2015,6 +2015,54 @@ test('the bot flees the Butcher when the duel is refused, and never a fight it w
     stayed++;
   }
   assert(fled >= 6 && stayed >= 6, 'too few seeds placed a hero beside the Butcher');
+});
+
+test('Pressa decides whether a route crosses a deadly radius — and only this term makes it so', () => {
+  // docs/project/fuga.md addendum. A ring: the short way to the hole runs
+  // past an alcove holding a creature the hero can neither outrun (speed 2)
+  // nor beat (unarmed); the long way round costs twelve more steps. With the
+  // deadly term, Pressa mínima (a step at 0.005) walks round for nothing and
+  // Pressa máxima (0.195) pays to cross; with it off, every band crosses,
+  // because every other term scales with the step and the shape never moves.
+  const map = tinyMap([
+    '#############',
+    '#-----------#',
+    '#-###-#####-#',
+    '#-###-#####-#',
+    '#-#########-#',
+    '#-#########-#',
+    '#-#########-#',
+    '#-----------#',
+    '#############',
+  ]);
+  const bands = biasBands();
+  const traits = {
+    lo: { stepCost: DEFAULT_HERO.stepCost * bands[0], curiosity: bands[bands.length - 1] },
+    hi: { stepCost: DEFAULT_HERO.stepCost * bands[bands.length - 1], curiosity: bands[0] },
+  };
+  const crossed = (trait, deadlyTileCost) => {
+    const state = makeState({
+      map, playerPos: [1, 1], shrine: { id: 's', emoji: '⛩️', pos: [11, 1] },
+      // Two steps below the corridor with activation 4: the one corridor
+      // tile it wakes for is [5,1], the tile right above it.
+      monsters: [dummy('wolf', [5, 3], { activation: 4, speed: 2, hp: 12, hpMax: 12, xp: 5 })],
+    });
+    state.persona = resolvePersona({ sightRadius: SIGHT_WHOLE_MAP });
+    const bot = makeBot({
+      monsterCount: 1, chestCount: 0, threatAhead: 1, floorsAhead: 1, hero: trait,
+      ...(deadlyTileCost === undefined ? {} : { deadlyTileCost }),
+    });
+    let stepped = false;
+    driveTurns(state, bot, {
+      maxTurns: 60,
+      onTurn: ({ state: s }) => { if (s.player.pos[0] === 5 && s.player.pos[1] === 1) stepped = true; return undefined; },
+    });
+    return stepped;
+  };
+  assert(!crossed(traits.lo), 'Pressa mínima crossed the deadly tile instead of walking round');
+  assert(crossed(traits.hi), 'Pressa máxima walked round instead of paying to cross');
+  assert(crossed(traits.lo, 0) && crossed(traits.hi, 0),
+    'with the term off the two bands should walk the same short way (C1 §1)');
 });
 
 test('the bot never flees a creature it can simply walk away from', () => {
