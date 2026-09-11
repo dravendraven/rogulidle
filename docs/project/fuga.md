@@ -1,9 +1,11 @@
 # A fuga
 
-**Status: desenho, nada construído.** Escrito antes de qualquer código, no
-fim de uma sessão que mediu escudo contra poção na loja e concluiu que
+**Status: passos 1–3 construídos e medidos; reprovado nesta forma; o
+conserto está desenhado abaixo e não construído.** Escrito antes do código,
+no fim de uma sessão que mediu escudo contra poção na loja e concluiu que
 nenhum preço e nenhum valor de cura os torna uma escolha. Este é o item que
-sobrou da conversa, com o que o dono decidiu e o que ainda está aberto.
+sobrou da conversa, com o que o dono decidiu e o que ainda está aberto. O
+addendum no fim registra o que a construção e o sweep ensinaram.
 
 Leitura relacionada: `items.md` (🌀 e 🔮 são "os únicos itens que respondem
 a um objetivo primário diretamente"), `vault-irrecusavel.md` (a sala é um
@@ -157,3 +159,61 @@ sigma. E o item tem que ser **visto** — uma fuga do vault com `?dev=1&hold=`
 4. O protocolo acima. O preço final sai dele.
 5. Só então: `rules.md` §5 e §9, `bot.md`, a linha em `balance.md`, e a
    decisão sobre baú/desbloqueio.
+
+---
+
+## Addendum — construído, medido, reprovado, e o conserto — 2026-09-08/11
+
+**O que foi construído** (commit "A fuga: ação, item e gatilho"): a ação
+`flee` no motor (turno gasto, destino fora do raio de ativação de toda
+criatura viva, sorteado no stream de combate, falha se não há tile), o item
+🌀 sem estatística e fora de todo sorteio, e o gatilho no bot: foge de uma
+criatura **acordada e mais rápida** cujo duelo o portão recusa. Isso fecha
+os pontos 1, 2 e 3 da seção "aberto": a velocidade entra só para "consigo
+sair" (o mesmo lugar do B18), o destino falha em vez de improvisar, e cada
+andar registra as fugas no traço. O item não está na prateleira.
+
+**O sweep**, 7 bandas × prateleira {sem, 4, 8} × 24 chains × 30 runs,
+pareado por chain:
+
+- **A 8 nunca é comprado** (0,01/run). Inerte por preço.
+- **A 4 falha nos três critérios.** Mortes pelo porco caem 5–9 pontos em
+  toda banda (z 4–9) — o item funciona como mecanismo — mas "chegou ao
+  andar 5" não sobe em banda nenhuma, e moedas e profundidade caem em toda
+  banda porque as 4 moedas saem da adaga e do escudo. Média cai (a), sinal
+  igual em todas (b), usado mas não resgata (c).
+- **Coragem alta compra e nunca usa** (0,00/run): o corajoso não recusa o
+  duelo, o gatilho nunca dispara. **Ganância baixa nunca entra no vault** e
+  paga por nada.
+
+**Por que não resgata** (sonda, 80 fugas no centro): em 71% o porco
+reencontra o herói em 10–60 turnos e o mata no mesmo andar; 12% saem do
+andar. A fuga compra turnos, não distância: ativação 10 e velocidade 2
+cobrem boa parte do andar 4, e o bot, que recusa o porco pelo portão mas
+precifica o raio dele como caro-e-atravessável, volta a passar por dentro a
+caminho do que quer. **O defeito é o que o bot faz depois, não o item.**
+
+**O conserto, e é do dono.** A primeira proposta foi uma parede: o raio de
+uma criatura inescapável e recusada vira intransponível. O dono perguntou se
+a Pressa não podia decidir isso — mais pressa atravessa, menos pressa
+contorna. Hoje ela não pode: o preço de um tile é `stepCost + stepCost ×
+exposição`, os dois termos multiplicam a Pressa, e a razão perigo/passo é
+constante em toda banda (C1 §1 — a rota não muda de forma). A versão que
+funciona é uma linha: para essa classe de criatura, o raio custa um valor
+**absoluto em hp**, sem multiplicar `stepCost`. Aí Pressa mínima (passo a
+0,005) contorna de graça e Pressa máxima (0,195) atravessa porque o desvio é
+caro. É significado novo de um parâmetro existente, não dial novo; mantém o
+vault como pedágio para o apressado e recusável para o cauteloso — o "farm
+build vs kill build" que o E2 pede; e não precisa de decisão sobre mudar o
+bot para todo mundo, porque a mudança fica encaixada no dial.
+
+**Riscos declarados antes de medir:** as pontas são absolutas (±95%), então
+a banda de cima provavelmente atravessa sempre e a de baixo nunca — o que
+interessa é se as duas do meio decidem algo. E `CROWD_PENALTY`, o outro termo
+achatado do campo, foi medido inerte três vezes (por quase nunca disparar);
+é o precedente que a medição tem que afastar.
+
+**Ordem revista:** (1) o termo absoluto, medido por banda de Pressa **sem o
+item**, com aceite próprio — taxa de entrada no vault cai com Pressa baixa e
+fica com Pressa alta, média geral parada; (2) só então o re-sweep da fuga a
+2 e 4 por banda, pelo critério original; (3) preço ou gaveta.
