@@ -1,7 +1,8 @@
 # A fuga
 
-**Status: passos 1–3 construídos e medidos; reprovado nesta forma; o
-conserto está desenhado abaixo e não construído.** Escrito antes do código,
+**Status: construído, medido duas vezes, reprovado duas vezes; na gaveta.
+O conserto (o raio mortal) foi construído e ficou por mérito próprio; a
+fuga não.** Escrito antes do código,
 no fim de uma sessão que mediu escudo contra poção na loja e concluiu que
 nenhum preço e nenhum valor de cura os torna uma escolha. Este é o item que
 sobrou da conversa, com o que o dono decidiu e o que ainda está aberto. O
@@ -217,3 +218,26 @@ achatado do campo, foi medido inerte três vezes (por quase nunca disparar);
 item**, com aceite próprio — taxa de entrada no vault cai com Pressa baixa e
 fica com Pressa alta, média geral parada; (2) só então o re-sweep da fuga a
 2 e 4 por banda, pelo critério original; (3) preço ou gaveta.
+
+## Addendum 2 — o raio mortal construído, e a fuga reprovada de novo — 2026-09-11
+
+O termo foi construído e medido sozinho (`decisions.md`, "O raio mortal"):
+a 0,96 é buff plano em toda banda, a 0,2 tem a forma de dial, e ficou em
+0,195 — um passo do herói mais apressado, derivado de `BIAS_SPREAD`. Passou
+no critério próprio e fica, independente da fuga.
+
+**Com o termo em 0,195, o re-sweep da fuga (7 bandas × {sem, 2, 4}) repete
+o resultado anterior.** A 4: mortes pelo porco caem 4–8 pontos em toda
+banda, "chegou ao andar 5" não sobe em nenhuma, moedas e profundidade caem
+(na pressa máxima, −1,1 moeda e −7,5 pontos de andar 5, z 3–5). O item é
+usado (0,11–0,21 por run) e não resgata: 0,195 por tile não basta para o
+bot sair do raio do porco depois de fugir; 0,96 bastaria, e 0,96 é o buff
+que o critério recusou. **A 2 nunca é comprado:** empata com o escudo, e a
+ordem derivada dos preços resolve o empate pela ordem da tabela, escudo
+antes. Não é medição, é construção — um item a 2 não existe na loja de quem
+nunca reordenou.
+
+**Gaveta.** O que precisaria mudar para ela voltar não é preço: é o bot
+depois da fuga sair do andar em vez de voltar ao vault, e a única versão
+medida disso (0,96) muda o jogo para todo mundo. Se um dia o E2 pedir "pular
+o porco tem que pagar mais", o par (0,96 + fuga a 4) é o candidato medido.
