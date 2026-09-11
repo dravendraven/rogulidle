@@ -2110,6 +2110,65 @@ value of the ONE potion in `ITEM_TABLE`, so it moves every chest and vault
 potion, not the shop's; and with a mean balance of ~7 coins the dagger takes
 the visit and shield-versus-potion decides one or two coins of change.
 
+## O raio mortal — 0,96 é buff plano, 0,2 é dial; a fuga por trás disso — 2026-09-11
+
+`docs/project/fuga.md` (addendum) tem o caminho até aqui: a fuga foi
+construída, medida e reprovada porque o bot voltava a passar dentro do raio
+do porco depois de fugir (71% reencontrado). O conserto do dono: em vez de
+uma parede, um custo **absoluto** no raio de uma criatura mais rápida e
+recusada, sem multiplicar `stepCost`, para a Pressa decidir o desvio.
+
+Medido no chain, 24 chains × 30 runs por célula, termo desligado contra
+ligado, seeds pareadas, cinco bandas de Pressa. "Engajou" é o porco ter
+perdido vida ou morrido, sobre as runs que chegaram ao andar 4.
+
+**A primeira derivação (0,96 hp/tile, o preço do centro por um turno de
+criatura) é um buff plano:**
+
+| Pressa | engajou o porco | morte pelo porco | chegou ao 5 | porco morto |
+|---|---|---|---|---|
+| mínima | 66 → 41% (z −9) | 50 → 31% | 3,5 → 5,4% | 3,5 → 4,0% |
+| centro | 64 → 38% (z −10) | 57 → 34% | 7 → 26% (z 10) | igual |
+| máxima | 29 → 14% (z −9) | 28 → 10% | 32 → 48% (z 9) | 1,7 → 3,1% |
+
+Toda banda desvia na mesma proporção; a máxima não atravessa mais que a
+mínima, porque até o passo mais caro (0,195) prefere contornar cinco vezes
+o caminho a pagar 0,96 por tile. Clears seguem em zero, o porco morto não
+se move (a régua do E2 fica), mas a média geral muda muito — reprovado
+pelo critério do dono (mudança por banda, média parada).
+
+**O sweep de valor (0,2 / 0,5 / 0,96, nas pontas e no centro):**
+
+| valor | mínima: engajou | centro: engajou | máxima: engajou | centro: chegou ao 5 |
+|---|---|---|---|---|
+| 0 | 66% | 64% | 29% | 6,7% |
+| 0,2 | 48% (z −7,4) | 61% (z −2,6) | 24% (z −3,2) | 7,6% (z 2,1) |
+| 0,5 | 44% | 55% | 20% | 11,4% |
+| 0,96 | 41% | 38% | 14% | 25,8% |
+
+**A 0,2 o termo tem a forma pedida:** a banda de baixo desvia 18 pontos, o
+centro e a de cima 3–5, e a média quase não se move. É o valor onde a
+pressa máxima é indiferente por construção — um tile mortal custa um passo
+dela — e foi por isso que o valor final é DERIVADO do próprio dial:
+`STEP_COST × (1 + BIAS_SPREAD)` = 0,195. Não é um número escolhido; é o que
+faz a ponta de cima ser o pivô.
+
+**Duas coisas que a medição ensinou e o desenho não sabia:**
+
+- **O termo é invisível na ENTRADA do vault.** Os baús ficam dentro do
+  raio e não há desvio para um objetivo dentro dele; a entrada é decisão de
+  valor (Ganância, `vault-irrecusavel.md`), não de rota. O que o termo move
+  é a rota para o buraco quando o raio está no caminho, e é isso que a
+  tabela mede.
+- **`CROWD_PENALTY` não é precedente.** O outro termo achatado do campo era
+  inerte por quase nunca disparar; este dispara em toda run que chega ao
+  andar 4, e a 0,2 já passa de 7 sigma na banda de baixo.
+
+**O que fica aberto:** se 0,195 basta para a fuga deixar de ser reencontrada
+— o re-sweep do item é o próximo passo, e a 0,96 ele ajudaria mais. O dono
+escolheu o critério de banda sobre o buff; se um dia a régua do E2 pedir
+"pular o porco tem que pagar mais", 0,96 é o valor medido para isso.
+
 ## HP base por herói — Pawa 12 fica, 8 nos frágeis foi medido e recusado — 2026-09-09
 
 Ideia do dono (Battlerite: heróis com mais ou menos vida base). O campo é

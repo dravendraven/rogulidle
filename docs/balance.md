@@ -143,12 +143,12 @@ not a player's trade — and the survival spread it once showed was a
 per-tile uncertainty bug, not the dial (`config.js` documents both).
 
 `DEADLY_TILE_COST` is the one route term that does NOT scale with Pressa —
-derived, `STEP_COST × EXPOSURE_STEPS` (0.96 hp per tile), flat over the reach
-of a creature that is faster than the hero and refused by the fight gate. It
-exists so Pressa can decide whether a route goes round such a creature or
-through it (`docs/project/fuga.md`, addendum); `config.js` says why it is
-derived rather than chosen, and the measurement by Pressa band is where a
-value of its own would come from.
+derived, `STEP_COST × (1 + BIAS_SPREAD)` (0.195 hp per tile: one step of the
+most hurried hero), flat over the reach of a creature that is faster than the
+hero and refused by the fight gate. It exists so Pressa can decide whether a
+route goes round such a creature or through it (`docs/project/fuga.md`,
+addendum). The first derivation, 0.96, was measured as a flat buff across
+every band and refused; the sweep is in `decisions.md` (2026-09-11).
 
 **It is no longer what a visitor plays.** Each one gets a band ROLLED per
 dial on their first session (`src/ui/dials.js`), kept from then on — so

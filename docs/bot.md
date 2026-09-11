@@ -313,8 +313,9 @@ sabe. Qualquer herói pode ser covarde ou ganancioso.
    é mais rápida que o herói E cujo duelo o portão recusa — não dá para
    fugir nem vencer, então entrar no raio dela é o duelo, não exposição.
    Esse termo é o único do preço da rota que **não multiplica** `stepCost`:
-   é o preço do centro por um turno de criatura, congelado, plano no raio
-   inteiro. É o que faz a Pressa mudar a FORMA da rota pela primeira vez —
+   vale um passo do herói mais apressado, plano no raio inteiro — para a
+   pressa máxima um tile mortal é um passo a mais, para a mínima são
+   trinta e nove. É o que faz a Pressa mudar a FORMA da rota pela primeira vez —
    pressa mínima contorna de graça, pressa máxima paga para atravessar
    (regra do dono). Precificado, não bloqueado, pelo motivo do B26: uma
    parede tornaria o vault inalcançável em vez de caro.

@@ -199,25 +199,6 @@ export const CURIOSITY_LAST_RESORT = 0.25;
 // open, answered by giving its panel slot to `curiosity`.
 export const EXPOSURE_STEPS = 9.6;
 
-// What one tile inside the reach of a DEADLY creature costs, in hp — and the
-// one place Pressa changes the SHAPE of a route (docs/project/fuga.md,
-// addendum). Deadly means awake-and-faster-than-the-hero AND refused by the
-// fight gate: a creature that cannot be outrun and cannot be beaten, so
-// stepping into its radius is not exposure, it is the duel. The danger
-// field prices every other tile as `stepCost × exposure`, both halves
-// scaling with Pressa, so the ratio is constant and no band ever detours
-// (C1 §1). This term does NOT scale: it is the centre band's own price for
-// one creature-turn, frozen. So Pressa mínima (step 0.005) walks around the
-// radius for nothing and Pressa máxima (0.195) pays to cross it — the
-// owner's rule, "mais pressa atravessa, menos pressa contorna", carried by
-// the dial that already exists rather than a new one. Flat over the whole
-// radius, no falloff: for a creature that returns no distance the edge tile
-// is as fatal as the one beside it.
-//
-// Derived, not chosen: `STEP_COST × EXPOSURE_STEPS`, which is what the centre
-// band pays today for a tile adjacent to any creature. If it needs to be a
-// number of its own, the measurement by Pressa band is where that comes from.
-export const DEADLY_TILE_COST = STEP_COST * EXPOSURE_STEPS;
 
 // How much of a creature's menace SURVIVES each tile of distance when
 // pricing a tile: at 0.5 a wolf two tiles away charges a quarter of its
@@ -335,6 +316,32 @@ export function biasBands(spread = BIAS_SPREAD, count = 4) {
   const step = (2 * spread) / (count - 1);
   return Array.from({ length: count }, (_, i) => +(lo + i * step).toFixed(3));
 }
+
+// What one tile inside the reach of a DEADLY creature costs, in hp — and the
+// one place Pressa changes the SHAPE of a route (docs/project/fuga.md,
+// addendum). Deadly means faster-than-the-hero AND refused by the fight
+// gate: a creature that cannot be outrun and cannot be beaten, so stepping
+// into its radius is not exposure, it is the duel. The danger field prices
+// every other tile as `stepCost × exposure`, both halves scaling with
+// Pressa, so the ratio is constant and no band ever detours (C1 §1). This
+// term does NOT scale, and that is what lets the dial decide.
+//
+// DERIVED FROM THE DIAL'S OWN SPREAD: one deadly tile costs one STEP of the
+// most hurried hero (`STEP_COST × (1 + BIAS_SPREAD)`, 0.195). So Pressa
+// máxima is indifferent by construction — a deadly tile is one more step —
+// and Pressa mínima (a step at 0.005) reads the same tile as thirty-nine
+// steps of detour. "Mais pressa atravessa, menos pressa contorna" (owner)
+// carried by the dial that exists rather than a new one. Flat over the
+// whole radius, no falloff: for a creature that returns no distance the
+// edge tile is as fatal as the one beside it.
+//
+// MEASURED (decisions.md, 2026-09-11) before this value was chosen: at 0.96
+// (the centre's price for a creature-turn, the first derivation) every band
+// avoided the Butcher by the same ~25 points — a flat buff, not a dial —
+// and reaching floor 5 quadrupled at the centre. At 0.2 the bottom band
+// avoids him by 18 points and the centre and top by 3–5: the shape asked
+// for. `settings.deadlyTileCost` overrides it, which is how the sweep ran.
+export const DEADLY_TILE_COST = STEP_COST * (1 + BIAS_SPREAD);
 
 // ***** B21/M47 — what an unopened chest is worth, in hp *****
 //
