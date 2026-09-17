@@ -1510,15 +1510,25 @@ test('pawa arrives on the next floor wearing what the last one paid for', () => 
   // and one did: the seed this test was written against stopped paying, and
   // the failure said "pawa bought nothing" rather than "the sample is no
   // longer a sample". Scanning says which of the two actually happened.
+  //
+  // And BOTH heroes have to reach floor 2, because the comparison below
+  // reads floor 2 of each. Pawa has more hp than the base hero, so a seed
+  // where pawa buys and descends is not yet a seed where the base hero
+  // descends — the value gate's approach fix (the creature's own menace
+  // no longer charged on the walk to it) reshuffled which floor-1 fights
+  // the base hero takes, and the first seed pawa passed became one the
+  // base hero died on.
   let pawa = null;
   let base = null;
   for (let seed = 6100; seed < 6200 && !pawa; seed++) {
     const run = play(seed, HEROES.pawa);
     if (run.levels.length < 2 || !run.levels[0].spent) continue;
+    const other = play(seed, HEROES.base);
+    if (other.levels.length < 2) continue;
     pawa = run;
-    base = play(seed, HEROES.base);
+    base = other;
   }
-  assert(pawa, 'no seed in this sample had a floor 1 that paid for a shield');
+  assert(pawa, 'no seed in this sample had a floor 1 that paid for a shield and both heroes descending');
 
   // Floor 1 is identical for both — nothing has been bought yet — so any
   // difference on arrival at floor 2 is the purchase and nothing else.
