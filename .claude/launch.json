@@ -36,6 +36,15 @@
         "8148"
       ],
       "port": 8148
+    },
+    {
+      "name": "rogulidle-rats",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "tools/dev-server.py",
+        "8153"
+      ],
+      "port": 8153
     }
   ]
 }
