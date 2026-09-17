@@ -113,6 +113,30 @@ function atTheStairs(carry, hero, coins, purchases) {
   return { spent: bought * deal.price, bought: { emoji: template.emoji, count: bought } };
 }
 
+// What survives a CLEAR — the items the NEXT run starts holding (rules.md
+// §9). Not the shop's purchase list: what the hero actually ends with.
+// Weapons and undrunk potions travel as the items they are. Armour travels
+// as the POINTS still on the bar, folded into one shield — a shield whose
+// three points were taken is spent, and does not come back to be credited
+// again. The first version of the wallet kept the purchase list and so
+// re-credited every bought shield on every run after a win; the pile of a
+// winning streak was mostly that.
+//
+// The book and the syringe are a hero's KIT and re-enter by that door
+// every run; carrying one here would duplicate it. Everything else that is
+// not armour travels: weapons, potions, an unused flight.
+const KIT_KINDS = ['book', 'syringe'];
+export function heldAfterClear(player) {
+  const held = player.inventory
+    .filter((item) => !item.armour && !KIT_KINDS.includes(item.kind))
+    .map(({ id, pos, ...item }) => ({ ...item }));
+  if (player.armour > 0) {
+    const shield = ITEM_TABLE.find((item) => item.armour);
+    held.push({ ...shield, armour: player.armour });
+  }
+  return held;
+}
+
 // What survives the stairs.
 function carryFrom(player) {
   return {
@@ -297,10 +321,11 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
     // What the hero brought DOWN THE STAIRS, and what this floor actually
     // held. Both are needed to read net challenge: the floor's cost is only
     // meaningful against the hero who walked into it.
+    const baseHp = (hero && hero.persona && hero.persona.hpMax) || PLAYER_HP;
     const arrivedWith = carry
       ? { hp: carry.hp, hpMax: carry.hpMax, armour: carry.armour, xp: carry.xp,
         inventory: carry.inventory.map((i) => ({ ...i })), kills: carry.kills.slice() }
-      : { hp: PLAYER_HP, hpMax: PLAYER_HP, armour: 0, xp: PLAYER_XP,
+      : { hp: baseHp, hpMax: baseHp, armour: 0, xp: PLAYER_XP,
         inventory: [], kills: [] };
 
     // hpMax and xp survive a monster's death, so the roster can be read back
@@ -328,6 +353,13 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
       .filter((e) => e.type === 'attack' && e.target === 'player')
       .map((e) => e.damage);
     const damage = blowsTaken.reduce((sum, d) => sum + d, 0);
+    // docs/project/fuga.md — the flights this floor saw, for the reading
+    // that decides whether the item is a choice: how many, from what, at
+    // what hp, and whether the jump found a tile (`to` null = spent for
+    // nothing).
+    const flights = run.state.log
+      .filter((e) => e.type === 'flee')
+      .map((e) => ({ turn: e.turn, from: e.from, to: e.to }));
 
     const player = run.state.player;
     levels.push({
@@ -349,6 +381,7 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
       // damage is 0..xp-1, so a single roll at the top of the table can take
       // most of a 10 hp hero, and a mean hides that completely.
       blowsTaken,
+      flights,
       hp: player.hp,
       armour: player.armour,
       xp: player.xp,
@@ -407,5 +440,7 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
   // R1 — VICTORY IS COMPLETING THE LAST TRAVERSAL. Reaching the bottom is
   // the halfway point and clears nothing on its own; the loop above simply
   // keeps going, which is why there is no "turn" branch anywhere here.
-  return { seed, cleared: true, depth, levels, killedBy: null };
+  // `carry` is the last traversal's `carryFrom(player)` — the hero as the
+  // run ended, which is what `held` reads.
+  return { seed, cleared: true, depth, levels, killedBy: null, held: heldAfterClear(carry) };
 }

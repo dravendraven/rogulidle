@@ -34,7 +34,7 @@ import {
 } from '../sim/balance.js';
 import {
   CHEST_VALUE_HP, CROWD_PENALTY, CURIOSITY_LAST_RESORT, DANGER_PERSISTENCE,
-  DEFAULT_CHEST_COUNT, DEFAULT_MONSTER_COUNT, DEFAULT_HERO, EXPOSURE_STEPS,
+  DEADLY_TILE_COST, DEFAULT_CHEST_COUNT, DEFAULT_MONSTER_COUNT, DEFAULT_HERO, EXPOSURE_STEPS,
   FIGHT_VALUE, GOAL_STICKINESS, LOOT_VALUE, READ_AT,
   XP_VALUE_HP,
 } from './config.js';
@@ -703,6 +703,30 @@ function rageWouldSave(belief, hero, goalId) {
   return false;
 }
 
+// THE FLIGHT (docs/project/fuga.md): the verb for leaving a fight already
+// joined, which until now did not exist — surrounded, the bot had no move at
+// all. It fires on exactly one shape: a creature that is AWAKE AND FASTER
+// than the hero (the one thing the gate below calls inescapable, and the one
+// place this bot reads `speed`) whose duel, read with the blows already
+// landed discounted, the fight gate refuses. Anything slower can be walked
+// away from for free (rules.md §4), so spending the item on it would be
+// spending it on nothing; anything the gate still accepts is a fight he
+// takes. The bar is the fight gate's own, so "refused" means the same thing
+// here as everywhere else.
+function fleeWouldSave(belief, hero) {
+  if (!belief.player.inventory.some((i) => i.kind === 'flight')) return false;
+  const [px, py] = belief.player.pos;
+  const bar = hero.fightMargin * effectiveHp(belief.player);
+  for (const m of belief.monsters.values()) {
+    if (m.dead) continue;
+    if ((m.speed ?? 1) <= 1) continue;
+    const away = Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py);
+    if (!isAwakeAt(m, away)) continue;
+    if (duelCost(belief.player, m, hero.bravery).hpLost > bar) return true;
+  }
+  return false;
+}
+
 function safeToStandStill(belief) {
   const [px, py] = belief.player.pos;
   for (const m of belief.monsters.values()) {
@@ -752,6 +776,9 @@ export function makeBot(options = {}) {
     stickiness: options.stickiness ?? GOAL_STICKINESS,
     persistence: options.persistence ?? DANGER_PERSISTENCE,
     crowdPenalty: options.crowdPenalty ?? CROWD_PENALTY,
+    // The deadly radius's price (docs/project/fuga.md addendum); 0 is the
+    // bot before it, which is what a sweep compares against.
+    deadlyTileCost: options.deadlyTileCost ?? DEADLY_TILE_COST,
     // Debug hook: one entry per decision, so the spectator can show what
     // the bot was aiming at when a move looks odd.
     trace: options.trace,
@@ -772,6 +799,11 @@ export function makeBot(options = {}) {
     if (potion && belief.player.hpMax - belief.player.hp >= potion.heal) {
       return 'drink';
     }
+
+    // Objective 1, the flight: out of a fight he is losing to something he
+    // cannot outrun. Reactive like the drink — a real action, no goal — and
+    // ahead of the goal search because there is nothing to search for.
+    if (fleeWouldSave(belief, hero)) return 'flee';
 
     // Objective 1, the scholar's version. Same shape as the potion above —
     // a threshold on numbers already in hand, no lookahead — but the second
@@ -856,6 +888,26 @@ export function makeBot(options = {}) {
       duelAt.set(key(monster.pos), duelCost(belief.player, monster, hero.bravery).hpLost);
     }
 
+    // THE DEADLY RADIUS (docs/project/fuga.md, addendum). Every tile a
+    // creature that is FASTER than the hero and REFUSED by the fight gate
+    // could wake for costs `DEADLY_TILE_COST` on top of the field — an
+    // absolute price, the one term here that does not scale with Pressa, so
+    // that Pressa decides whether the route goes around it or through it.
+    // The bar is the fight gate's own (below), read here once; refused means
+    // what it means everywhere else. Priced, not blocked, for the same
+    // reason a creature's own tile is priced (B26): a wall would make the
+    // vault unreachable rather than dear, and the room is a toll by design.
+    const ehp = effectiveHp(belief.player);
+    const fightBar = hero.fightMargin * ehp;
+    const deadly = new Set();
+    for (const monster of liveMonsters(belief)) {
+      if ((monster.speed ?? 1) <= 1) continue;
+      if (duelCost(belief.player, monster, hero.bravery).hpLost <= fightBar) continue;
+      const dist = danger.reach.get(monster.id);
+      if (!dist) continue;
+      for (const [tile, d] of dist) if (isAwakeAt(monster, d)) deadly.add(tile);
+    }
+
     // `Math.max(0, ...)` is Dijkstra's precondition, not decoration: a
     // negative tile price makes revisiting a tile cheaper every time round
     // and the search never terminates — the page hangs rather than throws.
@@ -863,9 +915,11 @@ export function makeBot(options = {}) {
     // menace's sign), so the router refuses one here rather than trusting
     // every caller.
     const field = dijkstra(belief.player.pos, passable, (x, y) => {
-      const duel = duelAt.get(x + ',' + y);
+      const tile = x + ',' + y;
+      const duel = duelAt.get(tile);
       if (duel !== undefined) return duel;
-      return Math.max(0, hero.stepCost + danger.priceAt(x, y));
+      return Math.max(0, hero.stepCost + danger.priceAt(x, y)
+        + (deadly.has(tile) ? settings.deadlyTileCost : 0));
     }, shrineSink(belief));
 
     // WHAT A JOURNEY TO `pos` OPENS, in hp, paid ONCE. C1 §10, third form and
@@ -913,8 +967,6 @@ export function makeBot(options = {}) {
       persistence: settings.persistence ?? DANGER_PERSISTENCE,
     };
 
-    const ehp = effectiveHp(belief.player);
-    const fightBar = hero.fightMargin * ehp;
     // C1 §7 — the BAR is risk, not greed. This is the one line the split
     // moved: `riskAppetite` and `sideAppetite` are both born at 1, so the
     // change is an exact no-op until one of them is turned. Everything below

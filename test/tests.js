@@ -15,19 +15,19 @@ import {
 } from '../src/sim/game.js';
 import { step, ACTIONS, grantArmour } from '../src/sim/step.js';
 import { observe, emptyBelief, foldBelief } from '../src/sim/observe.js';
-import { DEFAULT_PERSONA, HEROES, heroItem } from '../src/sim/heroes.js';
+import { DEFAULT_PERSONA, HEROES, SIGHT_WHOLE_MAP, heroItem, resolvePersona } from '../src/sim/heroes.js';
 import {
   weaponDamage, weaponMinDamage, armourValue, effectiveHp, expectedDamage,
 } from '../src/sim/combat.js';
 import {
-  findPath, generateMap, isWalkable, playerPassable, posKey, tileAt,
+  findPath, generateMap, isWalkable, playerPassable, posKey, samePos, tileAt,
 } from '../src/sim/mapgen.js';
 import { drawLogUniform, drawWeighted, hashSeeds, makeRng } from '../src/sim/rng.js';
 import { classifyRooms, spineShare } from '../src/sim/spine.js';
 import { inVault, layoutOf, pillarsOf } from '../src/sim/vault.js';
 import { itemWeights, monsterWeightsAround } from '../src/sim/spawn.js';
 import {
-  floorOfTraversal, floorPlan, playDungeon, LEVELS, TRAVERSALS,
+  floorOfTraversal, floorPlan, heldAfterClear, playDungeon, LEVELS, TRAVERSALS,
 } from '../src/sim/dungeon.js';
 import {
   expectedFloorMass, floorParams, floorStrength, layoutFor, makeFloorPlan,
@@ -57,7 +57,7 @@ import {
 } from '../src/ui/shop.js';
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
 import { playOne } from '../src/analysis/check.js';
-import saveWorker, { LEASE_MS } from '../server/save-worker.js';
+import saveWorker, { LEASE_MS, SaveRoom } from '../server/save-worker.js';
 import { balanceOf, playChain, seedOf, spend } from '../src/analysis/chain.js';
 
 // ***** tiny test harness ***** //
@@ -1326,6 +1326,38 @@ test('the default persona is the game that shipped without one', () => {
     'the default persona did not hand the item back untouched');
 });
 
+test('a hero starts every run at his own bar, and keeps it down the stairs', () => {
+  // rules.md §4 — hpMax is a persona field, fixed for the run. Force
+  // carries more, information carries less, the base stays at ten.
+  const at = (hero) => newGame(4242, { ...floorPlan(1), persona: hero.persona }).player;
+  assertEq(at(HEROES.base).hpMax, PLAYER_HP, 'the base hero moved off the shipped bar');
+  assertEq(at(HEROES.vito).hpMax, PLAYER_HP, 'vito was meant to stay at the default');
+  assertEq(at(HEROES.pawa).hpMax, 12, 'pawa is the tank');
+  assertEq(at(HEROES.pawa).hp, 12, 'pawa did not START full');
+  // 8 on these two was measured and refused (decisions.md, 2026-09-09).
+  assertEq(at(HEROES.ricardo).hpMax, PLAYER_HP, 'ricardo was meant to stay at the default');
+  assertEq(at(HEROES.papazito).hpMax, PLAYER_HP, 'papazito was meant to stay at the default');
+
+  // Down the stairs the bar travels with him; the persona is not re-applied
+  // over a carry, the same order the kit follows.
+  const carry = { hp: 5, hpMax: 12, armour: 0, xp: 3, inventory: [], kills: [], xpEarned: 0, coinsFound: 0 };
+  const next = newGame(4243, { ...floorPlan(2), persona: HEROES.pawa.persona, carry });
+  assertEq(next.player.hp, 5, 'the carried hp was overwritten');
+  assertEq(next.player.hpMax, 12, 'the carried bar was overwritten');
+
+  // And the whole run reports the hero's own bar on floor 1, not the default.
+  const run = playDungeon(4242, () => (() => 'rest'), { hero: HEROES.pawa, maxTurns: 3, traversals: 1 });
+  assertEq(run.levels[0].arrivedWith.hpMax, 12, 'the run record still says ten for a twelve-hp hero');
+});
+
+test('the book fills the reader to HIS bar, not to ten', () => {
+  const state = newGame(515, { ...floorPlan(3), persona: { ...HEROES.papazito.persona, hpMax: 8 } });
+  state.player.hp = 2;
+  let s = state;
+  for (let i = 0; i < READ_TURNS; i++) s = step(s, 'read').state;
+  assertEq(s.player.hp, 8, 'the read healed past or short of his own bar');
+});
+
 test('papazito sees the whole floor, and the base hero does not', () => {
   const state = newGame(7311, floorPlan(5));
   const seesAll = observe(state, HEROES.papazito.persona);
@@ -1906,6 +1938,154 @@ test('vito injects one step from the melee, never inside it', () => {
   }
   // Otherwise the loop above proves nothing and passes anyway.
   assert(injections > 0, 'no syringe was used in the whole sample');
+});
+
+// ***** the flight — docs/project/fuga.md ***** //
+
+const flightItem = () => ({ ...ITEM_TABLE.find((i) => i.name === 'flight') });
+
+// A floor-4 state with the hero standing beside the Butcher, holding the
+// flight. The one shape the item exists for: awake, faster, unwinnable.
+function besideTheButcher(seed, hp) {
+  const state = newGame(seed, { ...floorPlan(VAULT_LEVEL), startingItems: [flightItem()] });
+  const boss = state.monsters.find((m) => m.vault);
+  if (!boss) return null;
+  const [bx, by] = boss.pos;
+  const spot = [[bx + 1, by], [bx - 1, by], [bx, by + 1], [bx, by - 1]]
+    .find(([x, y]) => isWalkable(state.map, x, y)
+      && !state.monsters.some((m) => !m.dead && m.pos[0] === x && m.pos[1] === y));
+  if (!spot) return null;
+  state.player.pos = spot;
+  state.player.hp = hp;
+  return state;
+}
+
+test('fleeing lands outside every live creature\'s reach, and the same seed lands in the same place', () => {
+  let checked = 0;
+  for (let seed = 0; seed < 8; seed++) {
+    const state = besideTheButcher(880000 + seed, 3);
+    if (!state) continue;
+    checked++;
+    const turn = state.turn;
+    const a = step(state, 'flee').state;
+    const b = step(state, 'flee').state;
+    assertEq(a.player.pos.join(','), b.player.pos.join(','), 'the flight is not deterministic');
+    assert(a.turn > turn, 'the flight did not spend the turn');
+    assert(!a.player.inventory.some((i) => i.kind === 'flight'), 'the item survived its own use');
+    assert(!samePos(a.player.pos, state.player.pos), 'the hero did not move');
+    // No creature wakes for the tile he landed on: measured as monsters.js
+    // measures it, a path (creature's own tile included) shorter than its
+    // activation. `a` is the state AFTER the creatures acted on it, so the
+    // Butcher having moved would already show as a blow or a step.
+    for (const m of state.monsters) {
+      if (m.dead) continue;
+      const path = findPath(m.pos, a.player.pos, playerPassable(state.map));
+      assert(path.length === 0 || path.length >= m.activation,
+        `seed ${seed}: landed ${path.length - 1} steps from a creature with activation ${m.activation}`);
+    }
+    assert(a.player.hp === 3, `seed ${seed}: took a blow on the turn he fled`);
+  }
+  assert(checked >= 6, 'too few seeds placed a hero beside the Butcher');
+});
+
+test('fleeing without the item passes no turn, like drinking without a potion', () => {
+  const state = newGame(4242, floorPlan(1));
+  const after = step(state, 'flee').state;
+  assertEq(after.turn, state.turn, 'a flight he does not have cost a turn');
+  assertEq(after.player.pos.join(','), state.player.pos.join(','), 'he moved without an item');
+});
+
+test('the bot flees the Butcher when the duel is refused, and never a fight it would take', () => {
+  let fled = 0;
+  let stayed = 0;
+  for (let seed = 0; seed < 8; seed++) {
+    const state = besideTheButcher(880000 + seed, 3);
+    if (!state) continue;
+    const bot = makeBot({ monsterCount: 5, chestCount: 6, threatAhead: 1, floorsAhead: 6 });
+    const belief = foldBelief(emptyBelief(), observe(state));
+    assertEq(bot(belief), 'flee', `seed ${seed}: beside the Butcher at 3 hp he did not flee`);
+    fled++;
+
+    // Same spot, a bar the Butcher's duel fits under: armour to spare.
+    const rich = besideTheButcher(880000 + seed, 10);
+    rich.player.armour = 60;
+    const calm = makeBot({ monsterCount: 5, chestCount: 6, threatAhead: 1, floorsAhead: 6 });
+    assert(calm(foldBelief(emptyBelief(), observe(rich))) !== 'flee',
+      `seed ${seed}: fled a fight the gate accepts`);
+    stayed++;
+  }
+  assert(fled >= 6 && stayed >= 6, 'too few seeds placed a hero beside the Butcher');
+});
+
+test('Pressa decides whether a route crosses a deadly radius — and only this term makes it so', () => {
+  // docs/project/fuga.md addendum. A ring: the short way to the hole runs
+  // past an alcove holding a creature the hero can neither outrun (speed 2)
+  // nor beat (unarmed); the long way round costs twelve more steps. With the
+  // deadly term, Pressa mínima (a step at 0.005) walks round for nothing and
+  // Pressa máxima (0.195) pays to cross; with it off, every band crosses,
+  // because every other term scales with the step and the shape never moves.
+  const map = tinyMap([
+    '#############',
+    '#-----------#',
+    '#-###-#####-#',
+    '#-###-#####-#',
+    '#-#########-#',
+    '#-#########-#',
+    '#-#########-#',
+    '#-----------#',
+    '#############',
+  ]);
+  const bands = biasBands();
+  const traits = {
+    lo: { stepCost: DEFAULT_HERO.stepCost * bands[0], curiosity: bands[bands.length - 1] },
+    hi: { stepCost: DEFAULT_HERO.stepCost * bands[bands.length - 1], curiosity: bands[0] },
+  };
+  const crossed = (trait, deadlyTileCost) => {
+    const state = makeState({
+      map, playerPos: [1, 1], shrine: { id: 's', emoji: '⛩️', pos: [11, 1] },
+      // Two steps below the corridor with activation 4: the one corridor
+      // tile it wakes for is [5,1], the tile right above it.
+      monsters: [dummy('wolf', [5, 3], { activation: 4, speed: 2, hp: 12, hpMax: 12, xp: 5 })],
+    });
+    state.persona = resolvePersona({ sightRadius: SIGHT_WHOLE_MAP });
+    const bot = makeBot({
+      monsterCount: 1, chestCount: 0, threatAhead: 1, floorsAhead: 1, hero: trait,
+      ...(deadlyTileCost === undefined ? {} : { deadlyTileCost }),
+    });
+    let stepped = false;
+    driveTurns(state, bot, {
+      maxTurns: 60,
+      onTurn: ({ state: s }) => { if (s.player.pos[0] === 5 && s.player.pos[1] === 1) stepped = true; return undefined; },
+    });
+    return stepped;
+  };
+  assert(!crossed(traits.lo), 'Pressa mínima crossed the deadly tile instead of walking round');
+  assert(crossed(traits.hi), 'Pressa máxima walked round instead of paying to cross');
+  assert(crossed(traits.lo, 0) && crossed(traits.hi, 0),
+    'with the term off the two bands should walk the same short way (C1 §1)');
+});
+
+test('the bot never flees a creature it can simply walk away from', () => {
+  // A speed-1 creature adjacent with the duel refused: leaving is free
+  // (rules.md §4), so the item is not spent on it.
+  let checked = 0;
+  for (let seed = 0; seed < 20; seed++) {
+    const state = newGame(881000 + seed, { ...floorPlan(6), startingItems: [flightItem()] });
+    const slow = state.monsters.find((m) => !m.dead && (m.speed ?? 1) <= 1);
+    if (!slow) continue;
+    const [mx, my] = slow.pos;
+    const spot = [[mx + 1, my], [mx - 1, my], [mx, my + 1], [mx, my - 1]]
+      .find(([x, y]) => isWalkable(state.map, x, y)
+        && !state.monsters.some((m) => !m.dead && m.pos[0] === x && m.pos[1] === y));
+    if (!spot) continue;
+    state.player.pos = spot;
+    state.player.hp = 1;
+    const bot = makeBot({ monsterCount: 5, chestCount: 6, threatAhead: 1, floorsAhead: 4 });
+    assert(bot(foldBelief(emptyBelief(), observe(state))) !== 'flee',
+      `seed ${seed}: spent the flight on a creature he could outwalk`);
+    checked++;
+  }
+  assert(checked >= 10, 'too few seeds produced the scenario');
 });
 
 // ***** map design: the spine and its detours ***** //
@@ -4552,17 +4732,28 @@ test('the first name adopts the save that had no name, and only the first', () =
 // transport. `tools/save-server.mjs` is the same file behind a real port for
 // anyone who wants to curl it.
 
+// What Cloudflare binds as `env.SAVES`: a namespace of one object per name,
+// each with a storage of `get` and `put`. The same fake `tools/save-server.mjs`
+// builds, and the same two calls the worker is written against.
 function fakeKv() {
-  const store = new Map();
+  const rooms = new Map();
+  const stores = new Map();
   return {
-    store,
+    // The record behind a name, for the tests that age a lease by hand.
+    record: (name) => stores.get(name).get('record'),
     SAVES: {
-      async get(key, options) {
-        const raw = store.get(key);
-        if (raw === undefined) return null;
-        return options && options.type === 'json' ? JSON.parse(raw) : raw;
+      idFromName: (name) => name,
+      get(id) {
+        if (!rooms.has(id)) {
+          const store = new Map();
+          stores.set(id, store);
+          rooms.set(id, new SaveRoom({ storage: {
+            async get(key) { return store.get(key); },
+            async put(key, value) { store.set(key, value); },
+          } }));
+        }
+        return rooms.get(id);
       },
-      async put(key, value) { store.set(key, String(value)); },
     },
   };
 }
@@ -4650,10 +4841,9 @@ test('a lease nobody renewed lets the next device in by itself', async () => {
   const env = fakeKv();
   const first = await call(env, 'POST', 'claim', { name: 'vito', device: 'a' });
 
-  const record = JSON.parse(env.store.get('save:vito'));
+  const record = env.record('vito');
   record.lease.until = Date.now() - 1;
   record.lease.at = Date.now() - LEASE_MS - 1;
-  env.store.set('save:vito', JSON.stringify(record));
 
   const second = await call(env, 'POST', 'claim', { name: 'vito', device: 'b' });
   assertEq(second.status, 200, 'an expired lease still locked the name');
@@ -4670,9 +4860,7 @@ test('a release that arrives late unlocks nobody', async () => {
   // that replaced it.
   const env = fakeKv();
   const first = await call(env, 'POST', 'claim', { name: 'vito', device: 'a' });
-  const record = JSON.parse(env.store.get('save:vito'));
-  record.lease.until = Date.now() - 1;
-  env.store.set('save:vito', JSON.stringify(record));
+  env.record('vito').lease.until = Date.now() - 1;
   await call(env, 'POST', 'claim', { name: 'vito', device: 'b' });
 
   const late = await call(env, 'POST', 'release', { name: 'vito', token: first.body.token });
@@ -4819,6 +5007,37 @@ test('run 1 of a chain is the run the naked instrument measures', () => {
   assert(seedOf(500000, 2) !== seedOf(500001, 2), 'two chains share a second run');
 });
 
+test('a clear keeps what the hero ENDS with: weapons, undrunk potions, the armour left', () => {
+  // rules.md §9. Ten shields picked up and nearly all spent leave TWO points
+  // on the bar — the next run starts with those two points, not ten fresh
+  // shields. The wallet used to keep the purchase list and re-credit every
+  // bought shield on every run after a win.
+  const axe = ITEM_TABLE.find((i) => i.name === 'axe');
+  const shield = ITEM_TABLE.find((i) => i.name === 'shield');
+  const potion = ITEM_TABLE.find((i) => i.name === 'health');
+  const player = {
+    armour: 2,
+    inventory: [
+      { ...axe, id: 7 }, { ...shield, id: 8 }, { ...shield, id: 9 }, { ...potion, id: 10 },
+      { ...ITEM_TABLE.find((i) => i.name === 'book'), id: 11 },
+      { ...ITEM_TABLE.find((i) => i.name === 'flight'), id: 12 },
+    ],
+  };
+  const held = heldAfterClear(player);
+  assertEq(held.map((i) => i.name).sort().join(','), 'axe,flight,health,shield',
+    'held should be the weapon, the potion, the unused flight, and ONE shield for the bar');
+  assertEq(held.find((i) => i.name === 'shield').armour, 2, 'the shield carries the points left, not 3');
+  assert(held.every((i) => i.id === undefined), 'ids are minted by the next run, not carried');
+  assert(!held.some((i) => i.name === 'book'), 'a stat-less kit item re-enters by the kit, not the wallet');
+
+  // With the bar empty, no shield at all — and the next run credits EXACTLY
+  // what was carried, through the same starting-items door as a purchase.
+  assertEq(heldAfterClear({ armour: 0, inventory: [{ ...shield, id: 1 }] }).length, 0,
+    'a spent shield must not come back');
+  const next = newGame(4242, { startingItems: held });
+  assertEq(next.player.armour, 2, 'the next run should start with the two points, not six');
+});
+
 test('a death empties the pile, and the purchase made after it survives', () => {
   // The order of the two rules at a run's end, which is not interchangeable
   // (spectator.js): the death rule fires first, the shop opens after. So a
@@ -4841,13 +5060,30 @@ test('a death empties the pile, and the purchase made after it survives', () => 
   assert(runs.some((r) => r.carried > 0), 'no run in the chain was armed at all');
 });
 
-test('a clear keeps the pile, and the next purchase adds to it', () => {
-  const { runs } = playChain(7, 3, { dials: EMPTY_DUNGEON });
+test('a clear keeps what the run ENDED with, and the next purchase adds to it', () => {
+  // rules.md §9, and the instrument has to play the same rule as the page or
+  // it measures a session nobody plays. `held` is the engine's own reading
+  // of the hero at the end: weapons, undrunk potions, and ONE shield for the
+  // points left on the bar. The first version kept the purchase list itself,
+  // which re-credited every bought shield on every run of a streak.
+  const collect = [];
+  const { runs } = playChain(7, 3, { dials: EMPTY_DUNGEON, collect });
   assert(runs.every((r) => r.cleared), 'the empty dungeon stopped being clearable');
 
+  const counts = (items) => {
+    const out = {};
+    for (const item of items) out[item.name] = (out[item.name] ?? 0) + 1;
+    return JSON.stringify(Object.entries(out).sort());
+  };
   for (let i = 1; i < runs.length; i++) {
-    assertEq(runs[i].carried, runs[i - 1].carried + runs[i - 1].bought.length,
-      `run ${i + 1} did not keep what run ${i} cleared with`);
+    const run = collect[i - 1];
+    const bar = run.levels[run.levels.length - 1].armour;
+    const shields = run.held.filter((item) => item.name === 'shield');
+    assertEq(shields.length, bar > 0 ? 1 : 0, `run ${i}: one shield iff the bar has points`);
+    if (bar > 0) assertEq(shields[0].armour, bar, `run ${i}: the shield carries the bar`);
+    const expected = counts([...run.held, ...runs[i - 1].bought.map((name) => ({ name }))]);
+    assertEq(JSON.stringify(Object.entries(runs[i].pile).sort()), expected,
+      `run ${i + 1} did not start holding run ${i}'s held plus its purchase`);
     assertEq(runs[i].streak, i, 'the streak did not count consecutive clears');
   }
 });

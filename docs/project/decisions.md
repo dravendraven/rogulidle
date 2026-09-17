@@ -2080,6 +2080,123 @@ axe against the Butcher.
 a player who reorders the shelf in the Lab has a different economy from the
 one measured.
 
+## The wallet kept the receipt, not the hero — 2026-09-04
+
+Found while measuring shield against potion in the shop. `heldItems` was
+the PURCHASE LIST: it grew at every buy and was emptied by a death, and
+nothing ever reconciled it with what the hero ended a run holding. So after
+a clear every bought shield was credited its 3 armour again on the next run,
+and every drunk potion came back — a session's pile was mostly re-credited
+purchases. The chain instrument played the same rule (`kept = pile`), so
+U6h's session table and every chain reading before this date describe that
+game, not the one the owner specified.
+
+**The rule now (rules.md §9):** a clear carries the hero's final inventory —
+weapons and undrunk potions as items, the armour still on the bar folded
+into one shield with that many points — and the shop adds to it. Death
+still empties the wallet. One engine function (`heldAfterClear`,
+`src/sim/dungeon.js`) feeds both the page and `chain.js`, so the two cannot
+drift.
+
+**What the defect did to the shield-versus-potion question.** Four chain
+A/Bs were run on the broken rule before it was found (24 chains × 30 runs,
+paired seeds): potion-first against shield-first at shipped prices, the
+same with the dagger skipped, and `heal` 5 and 6 at price 2. All four had
+the shield winning or tying, and at heal 6 the shield-first arm reached a
+25.7% clear rate on an 11-item mean pile. None of those numbers survive the
+fix; they are recorded here only as the reason the fix exists. Two things
+from them DO survive, because they do not depend on the carry: `heal` is a
+value of the ONE potion in `ITEM_TABLE`, so it moves every chest and vault
+potion, not the shop's; and with a mean balance of ~7 coins the dagger takes
+the visit and shield-versus-potion decides one or two coins of change.
+
+## O raio mortal — 0,96 é buff plano, 0,2 é dial; a fuga por trás disso — 2026-09-11
+
+`docs/project/fuga.md` (addendum) tem o caminho até aqui: a fuga foi
+construída, medida e reprovada porque o bot voltava a passar dentro do raio
+do porco depois de fugir (71% reencontrado). O conserto do dono: em vez de
+uma parede, um custo **absoluto** no raio de uma criatura mais rápida e
+recusada, sem multiplicar `stepCost`, para a Pressa decidir o desvio.
+
+Medido no chain, 24 chains × 30 runs por célula, termo desligado contra
+ligado, seeds pareadas, cinco bandas de Pressa. "Engajou" é o porco ter
+perdido vida ou morrido, sobre as runs que chegaram ao andar 4.
+
+**A primeira derivação (0,96 hp/tile, o preço do centro por um turno de
+criatura) é um buff plano:**
+
+| Pressa | engajou o porco | morte pelo porco | chegou ao 5 | porco morto |
+|---|---|---|---|---|
+| mínima | 66 → 41% (z −9) | 50 → 31% | 3,5 → 5,4% | 3,5 → 4,0% |
+| centro | 64 → 38% (z −10) | 57 → 34% | 7 → 26% (z 10) | igual |
+| máxima | 29 → 14% (z −9) | 28 → 10% | 32 → 48% (z 9) | 1,7 → 3,1% |
+
+Toda banda desvia na mesma proporção; a máxima não atravessa mais que a
+mínima, porque até o passo mais caro (0,195) prefere contornar cinco vezes
+o caminho a pagar 0,96 por tile. Clears seguem em zero, o porco morto não
+se move (a régua do E2 fica), mas a média geral muda muito — reprovado
+pelo critério do dono (mudança por banda, média parada).
+
+**O sweep de valor (0,2 / 0,5 / 0,96, nas pontas e no centro):**
+
+| valor | mínima: engajou | centro: engajou | máxima: engajou | centro: chegou ao 5 |
+|---|---|---|---|---|
+| 0 | 66% | 64% | 29% | 6,7% |
+| 0,2 | 48% (z −7,4) | 61% (z −2,6) | 24% (z −3,2) | 7,6% (z 2,1) |
+| 0,5 | 44% | 55% | 20% | 11,4% |
+| 0,96 | 41% | 38% | 14% | 25,8% |
+
+**A 0,2 o termo tem a forma pedida:** a banda de baixo desvia 18 pontos, o
+centro e a de cima 3–5, e a média quase não se move. É o valor onde a
+pressa máxima é indiferente por construção — um tile mortal custa um passo
+dela — e foi por isso que o valor final é DERIVADO do próprio dial:
+`STEP_COST × (1 + BIAS_SPREAD)` = 0,195. Não é um número escolhido; é o que
+faz a ponta de cima ser o pivô.
+
+**Duas coisas que a medição ensinou e o desenho não sabia:**
+
+- **O termo é invisível na ENTRADA do vault.** Os baús ficam dentro do
+  raio e não há desvio para um objetivo dentro dele; a entrada é decisão de
+  valor (Ganância, `vault-irrecusavel.md`), não de rota. O que o termo move
+  é a rota para o buraco quando o raio está no caminho, e é isso que a
+  tabela mede.
+- **`CROWD_PENALTY` não é precedente.** O outro termo achatado do campo era
+  inerte por quase nunca disparar; este dispara em toda run que chega ao
+  andar 4, e a 0,2 já passa de 7 sigma na banda de baixo.
+
+**O que fica aberto:** se 0,195 basta para a fuga deixar de ser reencontrada
+— o re-sweep do item é o próximo passo, e a 0,96 ele ajudaria mais. O dono
+escolheu o critério de banda sobre o buff; se um dia a régua do E2 pedir
+"pular o porco tem que pagar mais", 0,96 é o valor medido para isso.
+
+## HP base por herói — Pawa 12 fica, 8 nos frágeis foi medido e recusado — 2026-09-09
+
+Ideia do dono (Battlerite: heróis com mais ou menos vida base). O campo é
+`hpMax` na persona; o interesse era que ele age no PORTÃO da luta (fração de
+vida mais armadura), então mais vida aceita duelos que menos vida recusa —
+um dial de comportamento disfarçado. Proposta: Pawa 12, Vito 10 (para não
+mover a seringa), Ricardo e Papazito 8 (força vs informação; Papazito era
+dominante).
+
+Medido no chain, 24 chains × 30 runs por herói, barra antiga vs nova,
+seeds pareadas:
+
+| herói | profundidade | mortes na abertura | mortes por dano | porco morto |
+|---|---|---|---|---|
+| Pawa 10→12 | 4,00 → 4,23 (z 1,7) | 23,5 → 19,7% (z −3,1) | 39 → 36% (z −2,7) | 5,4 → 8,3% (z 1,3) |
+| Ricardo 10→8 | 3,97 → 3,74 (z −4,4) | 18,5 → 26,7% (z +5,9) | 38 → 43% (z +2,9) | 3,6 → 1,4% |
+| Papazito 10→8 | 4,15 → 3,89 (z −3,0) | 12,1 → 21,4% (z +5,6) | 29 → 36% (z +3,2) | 6,0 → 3,3% |
+
+**Hp é o gargalo da abertura e de mais nada** (o mesmo que a poção mostrou
+em U6g). Dois pontos a menos caem inteiros nos andares 1–3, desarmado
+contra os primeiros ratos, antes de o herói ter qualquer luta para recusar;
+o "frágil que farma" não aparece porque farmar exige sobreviver a isso. A
+taxa de morte pelo porco de Pawa não muda: ele não entra mais corajoso, só
+chega mais vezes. A média do elenco cai (o nerf pesa mais que o buff).
+
+**Decisão do dono:** todos em 10, só Pawa em 12. O campo fica na persona;
+`PLAYER_HP` continua o default e a régua.
+
 ## The achievement that looked like a lie
 
 Reported as a bug: the Butcher row said earned on "run 3", and run 3 in the
@@ -2112,6 +2229,73 @@ at a run that has fallen off the end of a twelve-chip strip. The stamp shows
 identified where it can actually be looked at — a green chip with a trophy on
 it, in the strip, for as long as that run is still in it.
 
+## A subida espaçada — removed, and why "play on alone" had to go with it
+
+Reported on 2026-09-04: the owner's name was open in one browser at run
+710. Typing the same name into a second browser opened it at run 559.
+
+**What the service actually held was run 558.** The first browser had gone
+on for a hundred and fifty runs (and the session's only clear) without one
+of them reaching the server; its lease lapsed, the name fell free, and the
+second browser took it and was handed the last copy that had gone up. Not a
+rollback — the server was never told. Why the first browser stopped
+reaching the service is not known and does not matter: the design allowed a
+page to keep playing, and counting, for hours after its last upload.
+
+**Two decisions of the study (§6, §8) made that possible together:**
+
+- **The rationed upload.** One trip every five minutes to fit the free
+  plan's daily write cap, with the stated price "changing device can lose
+  the last few runs". The price was stated for a page that uploads on
+  schedule; it was never bounded for one whose uploads fail.
+- **Play on alone.** A page that could not reach the service kept playing
+  and marked the header. The mark is a signal nobody acts on in a game
+  meant to be left running — and the runs it played were real to the
+  player and invisible to the server.
+
+**The fix is the invariant the study never stated: nothing counted here is
+missing from the server.** Every run goes up, after the shop, before the
+next run starts; a page whose upload fails shows it and waits, retrying on
+its own. The "orphan" branch, the reconnect-on-schedule, the ⚠-and-carry-on
+— all deleted, because the state they handled can no longer arise. What a
+displaced page loses is at most the run in progress, which never counted.
+What a page that dies mid-upload loses is nothing: it comes back to the
+server's copy and replays that run identically from the same seed.
+
+**Why not merge, or "whoever has more runs wins".** A history stitched from
+two copies is a third one nobody watched; and a longer copy is not a truer
+one — the second browser's 559 was the copy the server vouched for. The
+comparison the claim makes (server revision against the revision this
+browser last sent) stays, because with the invariant it is only ever
+deciding between identical copies.
+
+**What this costs, said plainly.** One write per run against a per-day cap
+on the free tier. A service that is down, or over its cap, now holds every
+page on a "waiting" screen instead of letting them play — that is the
+guarantee working, not a bug, and the owner chose it. The cap is a hosting
+decision (paid plan, or a store with a bigger allowance), not a game rule,
+and the game will not be bent back to fit it.
+
+**The store moved the same day: Workers KV → one Durable Object per name.**
+KV's free plan allows a thousand writes a day across the account, which
+with one write per run is a thousand runs a day for every player together.
+A SQLite-backed Durable Object allows a hundred thousand rows a day for
+free, and runs each name's requests one at a time inside that name's
+object — so "read the lock, then write" cannot interleave with another
+device's, which KV, being eventually consistent, never promised. The
+worker's routes did not change; what changed is that they run inside the
+object (`SaveRoom`) and the front door only finds the name.
+
+**And the claim stopped comparing revisions.** The page used to keep the
+server revision its copy corresponded to and adopt the server's copy only
+when the server was ahead. A store that starts over empty is exactly what
+that comparison gets wrong: a browser holding an old, high revision would
+keep its copy over a newer one uploaded since the reset, and its next
+write — at the new, low revision — would overwrite it. With every run
+uploaded before the next, there is nothing to weigh: the server's copy wins
+whenever there is one, and a name the server has never seen is refilled
+from the browser on its first claim. That upload is also the whole of the
+migration: nothing was copied out of KV.
 ## O baú da moeda — construído, nerfado até a irrelevância, removido
 
 **Status: removido (2026-09-04). Antes de reintroduzir uma segunda renda,

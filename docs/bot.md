@@ -15,6 +15,14 @@ Tudo que o bot faz é um desses três aplicado. A política inteira, em seis
 frases:
 
 - **Bebe** uma poção assim que o hp que falta cobre a cura inteira.
+- **Foge** quando está diante de uma criatura **acordada e mais rápida** que
+  ele cujo duelo, lido com os golpes já dados descontados, o portão da luta
+  recusa. Só essa forma: criatura mais lenta se deixa para trás de graça
+  (`rules.md` §4), e luta que o portão aceita ele toma. É o único verbo do
+  bot para sair de uma luta já começada, e o segundo lugar onde ele lê
+  `velocidade` — nos dois, para responder "consigo sair", nunca "quanto
+  custa entrar" (M44). `docs/project/fuga.md` tem o desenho e o que ainda
+  está aberto.
 - **Lê o livro** quando o hp que falta passa de uma fração da barra **e**
   nada acordado o alcança nos cinco turnos parados (`rules.md` §5). A segunda
   metade é exata, não chute: criatura fora do raio de ativação não anda, e
@@ -280,7 +288,7 @@ shamble e a grade de protecao.
 | `sideAppetite` | chegar rico | **quanto uma coisa vale para este herói.** Multiplica o valor esperado de um baú, e decide quão tarde livro e seringa são gastos. As duas direções são opostas de propósito: valorizar muito é **adquirir mais e consumir menos** |
 | `curiosity` | chegar rico | **quanto o desconhecido vale a caminhada.** Espelhado como a coragem — `(2 − curiosity)` multiplica o custo de abrir mapa novo (`opening`), entao 1,16 le o escuro 16% mais barato. Mexe no PRECO do objetivo, nao no portao da fronteira nem no campo de perigo (`EXPOSURE_STEPS`) — e abaixo de `CURIOSITY_LAST_RESORT` a fronteira sai do pool inteira: o escuro vira literalmente o ultimo recurso |
 | `riskAppetite` | sobreviver | **constante decidida em 1, nao e faixa.** Quanto custo incerto ele aceita pagar, como múltiplo da barra que ele já aplica a uma luta comum — o guardião de um baú ou item, e o perigo no caminho até o escuro. Mesma família da coragem, população diferente: a coragem é a atitude perante a incerteza sobre criatura **à vista**, esta sobre o que ele **não viu** |
-| `stepCost` | poucos passos | **a Pressa** — quanto vale um passo em hp. Exposicao e escuro escalam JUNTO com ele (os termos multiplicam `stepCost`), entao a rota nao muda de forma; o que muda e quanto andar custa contra duelo, bau e barra — o raio do que vale a caminhada. A frase antiga "nao e bem pressa" descrevia o tempo em que o perigo NAO escalava junto; desde C1 §1 escala |
+| `stepCost` | poucos passos | **a Pressa** — quanto vale um passo em hp. Exposicao e escuro escalam JUNTO com ele (os termos multiplicam `stepCost`), entao a rota nao muda de forma; o que muda e quanto andar custa contra duelo, bau e barra — o raio do que vale a caminhada. A frase antiga "nao e bem pressa" descrevia o tempo em que o perigo NAO escalava junto; desde C1 §1 escala. **Uma excecao, desde 2026-09-11:** o raio de uma criatura mortal (`DEADLY_TILE_COST`, passo 1 acima) nao escala, entao ali a Pressa decide o desvio — minima contorna, maxima atravessa |
 
 Um herói covarde, ganancioso ou apressado é **outro objeto de config, nunca
 outro código**.
@@ -300,7 +308,17 @@ sabe. Qualquer herói pode ser covarde ou ganancioso.
 1. **Campo de perigo**: cada tile dentro do raio de perseguição de uma
    criatura custa a mordida esperada dela, decaindo com a distância
    (`DANGER_FALLOFF`); tile alcançável por duas de uma vez leva
-   `CROWD_PENALTY`.
+   `CROWD_PENALTY`. **E o raio de uma criatura mortal custa à parte**
+   (`DEADLY_TILE_COST`, `docs/project/fuga.md` addendum): mortal é a que
+   é mais rápida que o herói E cujo duelo o portão recusa — não dá para
+   fugir nem vencer, então entrar no raio dela é o duelo, não exposição.
+   Esse termo é o único do preço da rota que **não multiplica** `stepCost`:
+   vale um passo do herói mais apressado, plano no raio inteiro — para a
+   pressa máxima um tile mortal é um passo a mais, para a mínima são
+   trinta e nove. É o que faz a Pressa mudar a FORMA da rota pela primeira vez —
+   pressa mínima contorna de graça, pressa máxima paga para atravessar
+   (regra do dono). Precificado, não bloqueado, pelo motivo do B26: uma
+   parede tornaria o vault inalcançável em vez de caro.
 2. **Dijkstra** sobre o Belief, preço = `stepCost` + perigo. O buraco é
    **sumidouro**: entra-se, não se sai — pisar nele encerra o andar, então
    rota "através" dele não existe a preço nenhum.

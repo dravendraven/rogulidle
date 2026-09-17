@@ -58,6 +58,17 @@ export const DEFAULT_PERSONA = {
   // (rules.md §5). A hero's kit, not the run's: what the shop bought arrives
   // by the other door and the two add up rather than replacing each other.
   kit: null,
+  // The hero's own hp bar — the size he starts EVERY run at and heals back
+  // to. null is `PLAYER_HP`, the shipped ten. Not the growth-by-kills the
+  // original had (removed, rules.md §4): this never moves inside a run. It
+  // is a behaviour dial in disguise — the fight gate is a share of hp plus
+  // armour, so a bigger bar accepts fights a smaller one refuses, and the
+  // book fills to whatever the bar is. Only pawa sets it (owner, 2026-09-09):
+  // 8 on the information heroes was measured and refused — two hp off the
+  // bar is an OPENING nerf (deaths by floor 3 up 8-9 points, unarmed against
+  // the first rats), and the "fragile hero who farms" it was meant to create
+  // never appeared. +2 on pawa is a mild opening buff and stays.
+  hpMax: null,
 };
 
 export function resolvePersona(persona) {
@@ -182,8 +193,8 @@ export const HEROES = {
     name: 'pawa',
     title: 'o engenheiro',
     emoji: '👨‍🔧',
-    blurb: 'Todo andar que ele fecha, o troco já virou chapa de metal.',
-    persona: {},
+    blurb: 'Todo andar que ele fecha, o troco já virou chapa de metal. Aguenta doze de vida, quando todo mundo aguenta dez.',
+    persona: { hpMax: 12 },
     bot: {},
     stairs: { buy: 'shield', price: 2, maxPerFloor: 1 },
   },

@@ -255,6 +255,15 @@ alternativa mediu está em `docs/project/decisions.md`.
 **O hp máximo não cresce com as mortes.** Idem: removido, com a medição que
 reverteu a adoção registrada em `decisions.md`.
 
+**Mas o hp máximo pode ser diferente por herói.** É configuração da persona,
+fixa na run: o herói começa toda run com a barra dele e o livro o enche até
+ela. Quem carrega mais vida aceita duelos que o outro recusa, porque o
+portão da luta é uma fração de vida mais armadura (`bot.md`); quem carrega
+menos morre antes de decidir qualquer coisa: dois pontos a menos foram
+medidos e recusados porque caem inteiros na abertura, desarmado. Os valores
+estão em `src/sim/heroes.js`; o herói base fica na barra de sempre, que é a
+régua de toda medição.
+
 **Não existe regeneração passiva.** Divergência: o original curava com o
 tempo, o que dá para acampar.
 
@@ -351,6 +360,14 @@ mínimo. Multiplica em vez de somar de propósito: um bônus fixo seria enorme
 num herói desarmado e irrelevante num equipado, e um fator vale o mesmo nos
 dois. Ele continua agindo normalmente enquanto dura; não há nada a esperar.
 
+**E existe um item que se usa para sair de uma luta.** Ninguém começa com
+ele; só a loja o vende, e ainda não a preço decidido (`docs/project/fuga.md`).
+Usado, custa o turno e o herói **reaparece num tile onde nenhuma criatura
+viva o alcança** — fora do raio de ativação de todas, sorteado pela run, então
+a mesma seed foge para o mesmo lugar. Não é a escada: aparecer no buraco
+seria pular o andar, que é outro item. Se o andar não tem tile assim, o item
+é gasto e nada acontece; quem o usa aposta por Belief e pode errar.
+
 **Quanto um item vale pode depender de quem o carrega.** O mundo larga
 sempre o mesmo item; o que muda é a mão. Um herói pode tirar de uma arma ou
 de um escudo mais — ou menos — do que outro tira do mesmo objeto, e isso
@@ -391,6 +408,11 @@ depois do herói, o turno gasto bebendo é um turno em que quem persegue
 alcança — e §4 diz o que isso significa: o golpe é pago exatamente quando o
 herói deixa de aumentar a distância. Beber sem ninguém atrás custa zero;
 beber encurralado custa um golpe. Quem escolhe o momento é o bot.
+
+**Fugir custa o turno, e é o único movimento que ganha distância de quem é
+mais rápido.** Uma criatura de velocidade 2 nunca é deixada para trás a pé
+(§4); a fuga a deixa, uma vez, e o turno gasto não custa golpe porque o herói
+já não está ao alcance de ninguém quando elas agem.
 
 **As criaturas agem depois do herói.**
 
@@ -532,8 +554,16 @@ vai para a loja do mesmo jeito.
 
 **Morrer perde o que o herói estava carregando.** O item que ele começou a
 run segurando — comprado na loja anterior — é perdido junto com a run.
-Concluir a run o mantém, e a compra seguinte SOMA ao que já estava guardado:
-runs concluídas em sequência acumulam itens iniciais.
+
+**Concluir a run guarda o que o herói TERMINOU com, não o que comprou.** A
+run seguinte começa com as armas e as poções não bebidas do inventário
+final, como itens, e com a armadura que ainda estava na barra, como pontos —
+dez escudos apanhados e quase todos gastos deixam dois pontos, e é com dois
+pontos que a próxima run começa, não com dez escudos. Escudo gasto não volta;
+poção bebida não volta. A compra seguinte SOMA a isso. (Até 2026-09-04 a
+carteira guardava a lista de compras e re-creditava cada escudo comprado em
+toda run depois de uma vitória; a pilha de uma sequência de vitórias era em
+boa parte isso.)
 
 **Um herói pode gastar antes de a run acabar.** Existe herói para quem cada
 andar concluído já é uma compra: a moeda que aquele andar pagou vira item na
@@ -612,29 +642,31 @@ reserva sozinho quando a aba morre, sem prazo nenhum.
 aparelho que morreu segurando o nome, mas só depois de correr inteiro, e
 quem está diante da tela em geral sabe que o outro está fechado. O botão
 toma o nome imediatamente; o aparelho que o tinha para em segundos, no meio
-da run se for o caso, e perde o que ainda não tinha gravado — a run
-interrompida não conta, não paga e não chega à loja. É por isso que só um botão
-faz isso, e nunca acontece sozinho: só quem está olhando sabe que o outro
-lado pode ser interrompido.
+da run se for o caso — e só a run interrompida se perde: ela não conta, não
+paga e não chega à loja, e tudo antes dela já estava no servidor. É por isso
+que só um botão faz isso, e nunca acontece sozinho: só quem está olhando sabe
+que o outro lado pode ser interrompido.
 
-**O save sobe de tempos em tempos, e ao fechar a aba** — não a cada run. O
-navegador continua gravando toda run; o que é espaçado é a subida. A
-consequência é honesta e pequena: trocar de aparelho pode custar as últimas
-runs.
+**O servidor é o jogo; o navegador é uma cópia dele.** Toda run sobe inteira
+— o resultado e o que a loja comprou — antes de a run seguinte começar, e a
+página não segue enquanto o servidor não confirmar. Nunca existe uma run
+contada num aparelho que o servidor não tenha: é isso, e só isso, que torna
+impossível dois aparelhos com duas histórias do mesmo nome. Uma cópia local
+que o servidor não conhece só pode ser a run cuja subida ainda está sendo
+tentada, e essa run se reproduz idêntica a partir da cópia do servidor.
 
 **Quem perde a reserva para.** Se o nome foi tomado por outro aparelho, a aba
 diz isso e encerra ali, em vez de seguir jogando runs que nenhum save vai
 guardar.
 
-**Sem servidor, o jogo continua.** Fora do ar ou sem rede, tudo é jogado e
-gravado só naquele aparelho, e o cabeçalho marca que nada está
-sincronizando. De tempos em tempos a aba tenta de novo sozinha — quando a
-rede volta, a marca some e o jogo volta a subir sem ninguém recarregar nada.
-
-**O que foi jogado sem rede só vale se ninguém tiver jogado no lugar.** Se
-ao voltar o nome estiver com outro aparelho, ou o save de lá tiver andado,
-as runs jogadas sozinhas são descartadas e a aba para pedindo recarregar —
-juntar as duas histórias faria uma terceira, que ninguém jogou.
+**Sem servidor, o jogo espera.** Fora do ar ou sem rede, a página mostra que
+está sem conexão e não joga — nem começa, nem passa para a próxima run — até
+o servidor responder. Ela tenta de novo sozinha, a cada poucos segundos, e
+volta a rodar sem ninguém recarregar nada. Esse é o preço da regra acima, e
+foi escolhido de olhos abertos: jogar sem rede era exatamente o que produzia
+duas histórias (`docs/project/decisions.md`, «A subida espaçada»). Só uma
+página cujo serviço nem está configurado (um fork sem servidor) joga e grava
+só localmente, como antes de o servidor existir.
 
 **O que a página lembra, ela lembra entre visitas.** Refresh não começa outra
 sessão. O número da run, o histórico dos últimos resultados, o placar e a

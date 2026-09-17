@@ -41,7 +41,7 @@ import {
   clearSlice, getPlayer, readSave, readSlice, replaceSave, setPlayer, writeSlice,
 } from './save.js';
 import {
-  claimName, pushSave, reconnect, releaseSave, serverRevision, stillOurs,
+  claimName, pushSave, releaseSave, stillOurs,
   syncEnabled, syncing,
 } from './sync.js';
 import { sleep } from './clock.js';
@@ -195,16 +195,15 @@ function saveSession() {
   });
 }
 
-// WHICH SERVER REVISION THIS BROWSER'S SAVE CORRESPONDS TO — the sync's own
-// slice, and the one number that lets a claim decide who is ahead. Zero, or
-// absent, means this save has never been up.
+// The slice an earlier version kept the server revision in, to decide at
+// claim time whether the copy here or the copy there was ahead. Nothing
+// decides that any more (see connectSave); the slice is cleared so an old
+// document stops carrying a number nobody reads.
 const SYNC_SLICE = 'sync';
 
-const syncedRev = () => Number((readSlice(SYNC_SLICE) || {}).rev) || 0;
-
-// TAKE THE NAME, AND FIND OUT WHO IS AHEAD. Runs after the name is known and
-// before a single slice is read, for the same reason the name itself does:
-// what comes back may replace the whole document.
+// TAKE THE NAME, AND ADOPT WHAT THE SERVER HOLDS. Runs after the name is
+// known and before a single slice is read, for the same reason the name
+// itself does: what comes back replaces the whole document.
 //
 // Three ways out, and only one of them starts the game on this device.
 async function connectSave() {
@@ -270,20 +269,49 @@ async function connectSave() {
     }
 
     if (got.state === 'ok') {
-      // WHOEVER IS AHEAD WINS, and the comparison is against what THIS
-      // browser last managed to send up. A higher revision on the server
-      // means another device played since; anything else means the copy here
-      // is the same game or a newer one, and the next ordinary push carries
-      // it up.
-      if (got.save && got.rev > syncedRev()) replaceSave(got.save);
-      writeSlice(SYNC_SLICE, { rev: got.rev });
+      // THE SERVER'S COPY WINS WHENEVER THERE IS ONE. There is nothing to
+      // weigh: every run goes up before the next starts, so the only thing
+      // the copy here can hold that the server lacks is a run whose upload
+      // was still being retried — and that run replays identically from the
+      // server's copy. An older version compared revisions to decide, and
+      // a comparison is exactly what a store that starts over (the move to
+      // Durable Objects) would have fooled: a browser holding a high old
+      // revision would have kept its copy over a newer one uploaded since.
+      if (got.save) replaceSave(got.save);
+      // After the adoption, not before: the copy that comes down may carry
+      // the slice itself, uploaded by an older page.
+      clearSlice(SYNC_SLICE);
+      // A NAME THE SERVER HAS NEVER SEEN goes up now, not at the end of the
+      // first run: from this line on the server has everything, and that is
+      // the invariant every other line relies on. It is also the whole of
+      // the migration to an empty store — each browser refills it with the
+      // game it holds.
+      if (!got.save) await uploadSave();
+      hideNotice(el.playerGate);
+      return;
     }
 
-    // 'offline' falls through here too: the service is unreachable and the
-    // game plays locally, which is what it did before any of this existed.
-    hideNotice(el.playerGate);
-    return;
+    // 'offline': the service is unreachable. The page does NOT play on
+    // alone — every run it played would be one the server does not have,
+    // which is the one thing this whole module exists to make impossible.
+    // It waits, and knocks again by itself.
+    await waitForServer('o jogo só começa quando o servidor responder, para nada ser jogado só neste aparelho.');
   }
+}
+
+// THE SCREEN FOR A SERVICE THAT IS NOT ANSWERING. Retries by itself on a
+// short clock; the button is for the person who has just fixed the wifi and
+// does not want to wait it out. A failed request costs nothing, so the clock
+// can be short.
+const RETRY_MS = 15000;
+
+async function waitForServer(text) {
+  const pressed = showNotice(el.playerGate, {
+    title: 'sem conexão com o servidor',
+    text: `${text} tentando de novo sozinho…`,
+    buttons: [{ id: 'retry', label: 'tentar agora' }],
+  });
+  await Promise.race([pressed, sleep(RETRY_MS)]);
 }
 
 // "há 9 minutos", from a timestamp. Rounded down and deliberately coarse —
@@ -322,9 +350,9 @@ function stopForOtherDevice(text) {
 // a run at ordinary speed can be several minutes away. A promise that the
 // other device stops has to be kept while somebody is looking at it.
 //
-// A READ, so it is free against the write budget the uploads are rationed
-// by, and it is the only thing in this file that runs on a timer rather than
-// on the game's own rhythm.
+// A READ, so it costs nothing against the daily write budget the uploads
+// spend, and it is the only thing in this file that runs on a timer rather
+// than on the game's own rhythm.
 const WATCH_MS = 20000;
 
 function watchTheName() {
@@ -336,64 +364,40 @@ function watchTheName() {
   }, WATCH_MS);
 }
 
-// ONE RUN'S WORTH OF SYNCING, at the save point and nowhere else.
+// THE SAVE GOES UP, AND THE PAGE DOES NOT GO ON UNTIL IT HAS. Called once
+// per run, after the shop, and once for a name the server has never seen.
 //
-// Three states, and the third is the one T6 exists for: holding the lock and
-// reaching the service, holding it and not reaching it, and having no lock
-// at all — a page that opened while the network was down. That last one used
-// to stay alone until somebody reloaded, which in a game meant to be left
-// running is the same as never.
+// This is the whole guarantee against two histories, so it is worth saying
+// what it costs: a service that is down holds the game here, on a screen
+// that says so, until it answers. It used to be the other way — play on
+// alone, upload every few minutes, sort it out later — and "later" was a
+// browser with a hundred and fifty runs the server never had, while another
+// took the name (`docs/project/decisions.md`, "A subida espaçada").
 //
 // Returns false when the page must stop.
-async function syncAfterRun() {
+async function uploadSave() {
   if (!syncEnabled()) return true;
 
-  const sent = await pushSave(readSave());
-  if (sent === 'lost') {
-    stopForOtherDevice('esta aba parou aqui. o que ela já tinha gravado está guardado.');
-    return false;
-  }
-  // WHAT WENT UP IS RECORDED HERE. Without this the stored revision stays at
-  // whatever the claim returned while the server moves on, and the next load
-  // reads its own uploads as somebody else being ahead — throwing away
-  // exactly the runs that had not been sent yet.
-  if (sent === 'ok') writeSlice(SYNC_SLICE, { rev: serverRevision() });
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    // Displaced by the watch below while this was waiting: its notice is on
+    // screen, and nothing here may paint over it.
+    if (session.stopped) return false;
 
-  if (sent === 'offline') {
-    const back = await reconnect();
-
-    // THE ORPHAN. Coming back to find the name taken, or the save moved on
-    // without us, means the runs played alone were played into a copy that
-    // is no longer the game. They are dropped rather than merged: choosing
-    // which of two histories is the real one has no good answer, and a
-    // history stitched from both would be a third one nobody played.
-    if (back && back.state === 'active') {
-      stopForOtherDevice('outro aparelho está com este nome agora. o que esta aba jogou sem rede fica por aqui.');
+    const sent = await pushSave(readSave());
+    if (sent === 'ok') {
+      hideNotice(el.playerGate);
+      if (session.paintPlayer) session.paintPlayer();
+      return true;
+    }
+    if (sent === 'lost') {
+      stopForOtherDevice('esta aba parou aqui. tudo o que ela contou já estava no servidor; só a run em curso, se havia uma, não conta.');
       return false;
     }
-    if (back && back.state === 'ok' && back.save && back.rev > syncedRev()) {
-      // The lock was taken to ask the question, and the answer is that this
-      // page is the wrong copy — so it hands the name straight back, with
-      // nothing attached. Holding it would lock the reload out of its own
-      // game, and uploading would put the discarded history over the real
-      // one.
-      releaseSave();
-      stopForOtherDevice('outro aparelho jogou enquanto esta aba estava sem rede. recarregue para continuar de lá.');
-      return false;
-    }
-
-    // Back, and nothing happened while we were away: this copy IS the game,
-    // so it goes up at once rather than waiting out the next window.
-    if (back && back.state === 'ok') {
-      if (await pushSave(readSave(), { force: true }) === 'ok') {
-        writeSlice(SYNC_SLICE, { rev: serverRevision() });
-      }
-    }
+    // 'offline': the run is counted in this browser and goes up the moment
+    // the service answers. Nothing else happens until then.
+    await waitForServer('a última run está guardada aqui e sobe assim que o servidor responder. até lá o jogo espera, para nada existir só neste aparelho.');
   }
-
-  // The mark in the header follows all of it, including the good news.
-  if (session.paintPlayer) session.paintPlayer();
-  return true;
 }
 
 // True when a session was restored. False for a fresh visitor, for a broken
@@ -883,6 +887,12 @@ function tallyDescent(run, finalState, heroName, receipt) {
   const lastFloor = run.levels[run.levels.length - 1];
   if (run.cleared) {
     session.cleared++;
+    // What the next run starts holding is what THIS one ended with (rules.md
+    // §9) — the engine's own `held`: weapons, undrunk potions, and the armour
+    // still on the bar. The shop below adds to it. The wallet used to keep
+    // the purchase list instead, so a bought shield was credited again on
+    // every run after a win.
+    setHeldItems(run.held);
     // U4's lifetime score keeps a background record even though nothing
     // displays it any more; award() is cheap to leave running in case the
     // display ever comes back.
@@ -1173,10 +1183,6 @@ async function runDescentForever() {
     tallyDescent(run, finalState, hero.name, receipt);
     // The run is counted, and this is the whole save point — see saveSession.
     saveSession();
-    // …and the only place the save goes up, or the connection is tried
-    // again. Rationed inside `sync.js`, so most runs cost nothing but the
-    // localStorage write above.
-    if (!await syncAfterRun()) return;
     await showDescentSummary(run, finalState);
     // No seed any more: the no-input purchase used to be a weighted draw and
     // is now the player's declared order (src/ui/shop.js), so the shop is
@@ -1185,6 +1191,15 @@ async function runDescentForever() {
     // everybody — and diverges for anyone who did, exactly as the Lab's
     // dials already do.
     await showShop(receipt);
+    // …and then the whole of it — the run and what the shop bought — goes
+    // up, and the next run does not start until it has. After the shop
+    // rather than before it so a run is ONE trip: the write budget is per
+    // day, and this is the one place a run spends it.
+    //
+    // A page that dies between the count and this line comes back to the
+    // server's copy, which is the one before this run — and replays it,
+    // identically, from the same seed and number. Nothing diverges.
+    if (session.persist && !await uploadSave()) return;
   }
 }
 
@@ -1198,14 +1213,14 @@ async function runDescentForever() {
 // exist for one button.
 function wirePlayerButton() {
   if (!el.player) return;
-  // The ⚠ is the whole of the offline signal: the game is playing and being
-  // saved, just not anywhere but here. A banner would be shouting about a
-  // state the player can do nothing about.
+  // The ⚠ says the page does not hold the name right now — it is waiting
+  // for the service, or has been stopped — and the overlay is already
+  // saying which. A page that is playing always holds it.
   const paint = () => {
     const alone = syncEnabled() && !syncing();
     el.player.textContent = `👤 ${getPlayer() || ''}${alone ? ' ⚠' : ''}`;
     el.player.title = alone
-      ? 'sem sincronizar — o jogo está sendo salvo só neste aparelho'
+      ? 'sem conexão com o servidor — o jogo espera, nada é jogado só aqui'
       : 'trocar de jogador';
   };
   paint();

@@ -68,7 +68,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | `ROOM_MIN_SIDE` | 3 | the floor under `ROOM_SCALE` — narrower than this and a room is a corridor with a label on it |
 | `CORRIDOR_SPAN` | 2 | the WIDTH of the corridor-length draw. `CORRIDOR_LENGTH` is derived: `[CORRIDOR_MIN, CORRIDOR_MIN + CORRIDOR_SPAN]`. The minimum is the dial above; this is the shape of the draw and stays put |
 | `VISIBLE_DIST` / `CLEAR_DIST` | 9 / 7 | FAITHFUL — `VISIBLE_DIST` is now the DEFAULT reach, which a persona may override (`HEROES` below) |
-| `PLAYER_HP` / `PLAYER_XP` | 10 / 3 | FAITHFUL — and neither ever grows in play |
+| `PLAYER_HP` / `PLAYER_XP` | 10 / 3 | FAITHFUL — and neither ever grows in play. `PLAYER_HP` is the DEFAULT bar: a hero's persona may set its own `hpMax` (`HEROES` below — only pawa, at 12; 8 on ricardo and papazito was measured and refused the same day, decisions.md) |
 | `HIT_CHANCE` | 5/6 | FAITHFUL |
 | `MONSTER_SKIP_CHANCE` | 0.10 | FAITHFUL |
 | `MONSTER_DIFFICULTY_SCALE` | 0.75 | FAITHFUL single-floor default |
@@ -81,6 +81,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | `ITEM_TABLE.book` | 📜 | the scholar's, and the only item with no stat at all — what it does is the `read` action (rules.md §5) |
 | `READ_TURNS` | 5 | turns a read costs, standing still, with the creatures acting in every one |
 | `ITEM_TABLE.adrenaline` | 💉 | the warrior's, and stat-less for the same reason the book is — what it does is the `rage` action |
+| `ITEM_TABLE.flight` | 🌀 | stat-less like the two above — what it does is the `flee` action (rules.md §5). In no chest or drop pool and NOT on the shop's shelf: `SHOP_PRICES` has no row for it until the measurement in `docs/project/fuga.md` decides a price, so the shipped game does not contain it yet |
 | `RAGE_TURNS` / `RAGE_MULT` | 3 / 2.5 | attacking turns the syringe lasts, and what it multiplies the damage die's TOP by. A multiplier, not a bonus: it means the same to a bare hero and an armed one. Shorter and harder since B32 |
 | `ITEM_TABLE.axe.dmgMin` | 1 | the axe raises the damage die's FLOOR, not just its top — worth twice a point of `dmg` (rules.md §4) |
 
@@ -140,6 +141,14 @@ creature-turn of exposure is worth. The old fused dial measured depth
 rising-then-flat across its bands with **deaths 1.00 flat** — calibration,
 not a player's trade — and the survival spread it once showed was a
 per-tile uncertainty bug, not the dial (`config.js` documents both).
+
+`DEADLY_TILE_COST` is the one route term that does NOT scale with Pressa —
+derived, `STEP_COST × (1 + BIAS_SPREAD)` (0.195 hp per tile: one step of the
+most hurried hero), flat over the reach of a creature that is faster than the
+hero and refused by the fight gate. It exists so Pressa can decide whether a
+route goes round such a creature or through it (`docs/project/fuga.md`,
+addendum). The first derivation, 0.96, was measured as a flat buff across
+every band and refused; the sweep is in `decisions.md` (2026-09-11).
 
 **It is no longer what a visitor plays.** Each one gets a band ROLLED per
 dial on their first session (`src/ui/dials.js`), kept from then on — so

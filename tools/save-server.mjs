@@ -3,12 +3,12 @@
 //     node tools/save-server.mjs [port]      # 8142 by default
 //
 // SAME FILE, faked storage. `server/save-worker.js` is written against two
-// things only — the web `Request`/`Response` pair and two KV calls — so this
-// harness is thirty lines of plumbing and not a second implementation. What
-// gets curled here is what gets deployed there.
+// things only — the web `Request`/`Response` pair and a storage with `get`
+// and `put` — so this harness is thirty lines of plumbing and not a second
+// implementation. What gets curled here is what gets deployed there.
 //
-// The store is a Map: it dies with the process. That is the point — this is
-// for seeing the routes work, not for keeping anything.
+// The store is a Map per name: it dies with the process. That is the point —
+// this is for seeing the routes work, not for keeping anything.
 //
 //     curl -s localhost:8142/claim -d '{"name":"vito","device":"curl"}'
 //     curl -s 'localhost:8142/state?name=vito'
@@ -17,21 +17,26 @@
 //     curl -s localhost:8142/release -d '{"name":"vito","token":"<token>"}'
 
 import http from 'node:http';
-import worker from '../server/save-worker.js';
+import worker, { SaveRoom } from '../server/save-worker.js';
 
 const PORT = Number(process.argv[2] || process.env.PORT || 8142);
 
-// What Cloudflare binds as `env.SAVES`. Only the two calls the worker makes.
-const store = new Map();
+// What Cloudflare binds as `env.SAVES`: a namespace that turns a name into
+// an id and an id into the one object that answers for it. Only the calls
+// the worker makes.
+const rooms = new Map();
 const env = {
   SAVES: {
-    async get(key, options) {
-      const raw = store.get(key);
-      if (raw === undefined) return null;
-      return options && options.type === 'json' ? JSON.parse(raw) : raw;
-    },
-    async put(key, value) {
-      store.set(key, String(value));
+    idFromName: (name) => name,
+    get(id) {
+      if (!rooms.has(id)) {
+        const store = new Map();
+        rooms.set(id, new SaveRoom({ storage: {
+          async get(key) { return store.get(key); },
+          async put(key, value) { store.set(key, value); },
+        } }));
+      }
+      return rooms.get(id);
     },
   },
 };

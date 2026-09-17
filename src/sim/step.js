@@ -6,6 +6,7 @@
 
 import { RAGE_TURNS, READ_TURNS } from './balance.js';
 import { isWalkable, samePos } from './mapgen.js';
+import { drawPick } from './rng.js';
 import { playerAttacks } from './combat.js';
 import { updateMonsters } from './monsters.js';
 import { observe } from './observe.js';
@@ -33,7 +34,7 @@ import { heroItem } from './heroes.js';
 // commitment — a search that cannot see past turn one would price it as
 // "stand still once, heal nothing" and fire it at absurd moments. It reaches
 // the engine from a top-level reactive rule instead, the way drinking does.
-export const ACTIONS = ['up', 'down', 'left', 'right', 'rest', 'drink'];
+export const ACTIONS = ['up', 'down', 'left', 'right', 'rest', 'drink', 'flee'];
 
 const DIRECTIONS = {
   up: [0, -1],
@@ -257,6 +258,70 @@ function startReading(state) {
   return readOneTurn(state);
 }
 
+// The flight (docs/project/fuga.md): out of the fight, to a tile no awake
+// creature can reach this turn — outside EVERY live creature's activation
+// radius, measured the way monsters.js measures it (steps + 1 < activation
+// wakes it), over the same walkable tiles. The tile is drawn from the
+// combat stream, so the same seed flees to the same place.
+//
+// Not the stairs: appearing on the hole would skip the floor, which is a
+// stronger item with a different question. And when no cold tile exists
+// (a floor packed to the walls) the flight FAILS — the item is spent, the
+// turn passes, the hero stays. The bot prices the flight from Belief and
+// can be wrong about that; a bet that cannot lose is not a bet.
+//
+// The turn is spent: creatures act after the jump, which is what makes
+// "outside every radius" the whole guarantee — nothing wakes, nothing moves.
+function coldTiles(state) {
+  const map = state.map;
+  const hot = new Set();
+  for (const monster of state.monsters) {
+    if (monster.dead) continue;
+    // Breadth-first from the creature, marking every tile it would wake
+    // for: `activation - 1` steps or fewer (monsters.js's `path.length >=
+    // activation` breaks, and a path counts the creature's own tile).
+    const reach = monster.activation - 1;
+    const start = monster.pos[0] + ',' + monster.pos[1];
+    const dist = new Map([[start, 0]]);
+    const queue = [monster.pos];
+    hot.add(start);
+    while (queue.length) {
+      const [x, y] = queue.shift();
+      const d = dist.get(x + ',' + y);
+      if (d >= reach) continue;
+      for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+        const nx = x + dx; const ny = y + dy;
+        const k = nx + ',' + ny;
+        if (dist.has(k) || !isWalkable(map, nx, ny)) continue;
+        dist.set(k, d + 1);
+        hot.add(k);
+        queue.push([nx, ny]);
+      }
+    }
+  }
+  const cold = [];
+  for (let y = 0; y < map.h; y++) {
+    for (let x = 0; x < map.w; x++) {
+      if (!isWalkable(map, x, y) || hot.has(x + ',' + y)) continue;
+      if (samePos([x, y], state.player.pos)) continue;
+      cold.push([x, y]);
+    }
+  }
+  return cold;
+}
+
+function flee(state) {
+  const index = state.player.inventory.findIndex((i) => i.kind === 'flight');
+  if (index < 0) return false;
+  state.player.inventory.splice(index, 1);
+  const from = state.player.pos.slice();
+  const cold = coldTiles(state);
+  const to = cold.length ? drawPick(state, 'combat', cold) : null;
+  if (to) state.player.pos = to;
+  state.log.push({ type: 'flee', from, to, turn: state.turn });
+  return true;
+}
+
 function drinkPotion(state) {
   const index = state.player.inventory.findIndex((i) => i.heal > 0);
   if (index < 0) return false;
@@ -275,6 +340,7 @@ function resolvePlayerAction(state, action) {
   if (action === 'drink') return drinkPotion(state);
   if (action === 'read') return startReading(state);
   if (action === 'rage') return startRage(state);
+  if (action === 'flee') return flee(state);
 
   const dir = DIRECTIONS[action];
   if (!dir) throw new Error('unknown action: ' + action);
