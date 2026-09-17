@@ -1,0 +1,59 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "rogulidle-tests",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "tools/dev-server.py",
+        "8141"
+      ],
+      "port": 8141
+    },
+    {
+      "name": "rogulidle-ach",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "tools/dev-server.py",
+        "8146"
+      ],
+      "port": 8146
+    },
+    {
+      "name": "rogulidle-progress",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "tools/dev-server.py",
+        "8152"
+      ],
+      "port": 8152
+    },
+    {
+      "name": "rogulidle-cave",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "tools/dev-server.py",
+        "8148"
+      ],
+      "port": 8148
+    },
+    {
+      "name": "rogulidle-sync",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "tools/dev-server.py",
+        "8150"
+      ],
+      "port": 8150
+    },
+    {
+      "name": "rogulidle-rats",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "tools/dev-server.py",
+        "8153"
+      ],
+      "port": 8153
+    }
+  ]
+}
