@@ -56,7 +56,7 @@ import {
   DEFAULT_ORDER, SHOP_ITEMS, getShopOrder, nextPurchase, setShopOrder,
 } from '../src/ui/shop.js';
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
-import { playOne } from '../src/analysis/check.js';
+import { playOne, runWires } from '../src/analysis/check.js';
 import saveWorker, { LEASE_MS, SaveRoom } from '../server/save-worker.js';
 import { balanceOf, playChain, seedOf, spend } from '../src/analysis/chain.js';
 
@@ -5015,6 +5015,24 @@ test('run 1 of a chain is the run the naked instrument measures', () => {
   assertEq(seedOf(500000, 1), 500000, 'run 1 did not use the chain seed itself');
   assertEq(seedOf(500000, 2), hashSeeds(500000, 2), 'run 2 is not derived from the chain seed');
   assert(seedOf(500000, 2) !== seedOf(500001, 2), 'two chains share a second run');
+});
+
+test('"nothing gets deep" reads halfway off the run it was handed, not off nineteen', () => {
+  // With the return off a run is ten traversals, and halfway is floor 5 —
+  // the floor every reading in decisions.md calls "deep". Read against the
+  // nineteen of a full run, halfway was floor 10, i.e. the clear, and the
+  // wire fired exactly when `wins too rare` did.
+  const fake = (depth, traversals) => ({
+    cleared: false, depth, traversals, killedBy: 'x',
+    levels: [{ outcome: 'died', chests: [] }],
+  });
+  const deep = (plays) => runWires(plays).wires.find((w) => w.name === 'nothing gets deep');
+  assertEq(deep([fake(5, LEVELS)]).value, 1, 'floor 5 of a ten-traversal run is halfway');
+  assertEq(deep([fake(4, LEVELS)]).value, 0, 'floor 4 of a ten-traversal run is not');
+  assertEq(deep([fake(5, TRAVERSALS)]).value, 0, 'traversal 5 of nineteen is not halfway');
+  assert(deep([fake(4, LEVELS)]).fires, 'the wire fires when nothing gets there');
+  const real = playOne(500000);
+  assertEq(real.traversals, LEVELS, 'the instrument plays the plain descent, and the run says so');
 });
 
 test('a clear keeps what the hero ENDS with: weapons, undrunk potions, the armour left', () => {

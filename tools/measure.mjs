@@ -159,9 +159,16 @@ const GENERATION = {
 // Re-recorded for coin chests (2026-08-31), and these values SURVIVED the
 // chest's removal (2026-09-04) — the selftest still passes on them, so no
 // re-record. Read off a freshly served page, per the rule above.
+// Re-recorded 2026-09-17, after the bot stopped charging a creature's own
+// danger on the trip to it (docs/bot.md): the one run of three that cleared
+// on code defaults no longer does, so both win wires fell to 0. Generation
+// did not move — the four checks above never did. Same day, `nothing gets
+// deep` started reading halfway off the run's own traversal count; its
+// value here is unchanged by coincidence (one run reaches floor 5). Read off
+// a freshly served page, per the rule above.
 const MEASUREMENT = {
   call: { module: 'check', fn: 'tripwires', args: { runs: 3, firstSeed: 500000 } },
-  values: [0, 0.333, 0.333, 0, 0.333, 1, 1],
+  values: [0, 0, 0, 0, 0.333, 1, 1],
 };
 
 // The exact snippet that produced GENERATION, for re-recording in a browser

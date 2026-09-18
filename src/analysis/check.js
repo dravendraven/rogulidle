@@ -17,7 +17,7 @@
 // modelled costs. The modelled instruments were retired for pricing the
 // fight they imagined instead of the one that happened (decisions.md).
 
-import { playDungeon, LEVELS, TRAVERSALS } from '../sim/dungeon.js';
+import { playDungeon, LEVELS } from '../sim/dungeon.js';
 import { makeFloorPlan } from '../sim/difficulty.js';
 import { newGame } from '../sim/game.js';
 import { makeBot } from '../bot/bot.js';
@@ -106,7 +106,11 @@ export function runWires(plays) {
   for (const run of plays) {
     if (run.cleared) clears++;
     if (!run.cleared && run.depth <= 3) opening++;
-    if (run.depth >= TRAVERSALS / 2) reachedTurn++;
+    // Half of the traversals THIS run had, not of the nineteen a full run
+    // has: with the return off a run is ten, and reading it against
+    // nineteen made "halfway" mean floor 10 — the clear — so this wire
+    // fired exactly when `wins too rare` did and said nothing of its own.
+    if (run.depth >= run.traversals / 2) reachedTurn++;
     const last = run.levels[run.levels.length - 1];
     if (!run.cleared && last.outcome === 'timeout') timeouts++;
     for (const level of run.levels) {

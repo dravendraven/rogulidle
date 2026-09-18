@@ -419,7 +419,10 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
       // same number, so every instrument reading this is unchanged; on a full
       // run "died on traversal 14" says something "died on floor 7" cannot,
       // namely which crossing of floor 7 it was.
-      return { seed, cleared: false, depth: traversal, levels,
+      // `traversals` is how many this run HAD — pinned to LEVELS on a plain
+      // descent, nineteen on a full run — so a reader of `depth` can say
+      // "halfway" without knowing which of the two it is looking at.
+      return { seed, cleared: false, depth: traversal, traversals: depth, levels,
         killedBy: run.state.killedBy || null };
     }
     carry = carryFrom(player);
@@ -442,5 +445,6 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
   // keeps going, which is why there is no "turn" branch anywhere here.
   // `carry` is the last traversal's `carryFrom(player)` — the hero as the
   // run ended, which is what `held` reads.
-  return { seed, cleared: true, depth, levels, killedBy: null, held: heldAfterClear(carry) };
+  return { seed, cleared: true, depth, traversals: depth, levels, killedBy: null,
+    held: heldAfterClear(carry) };
 }

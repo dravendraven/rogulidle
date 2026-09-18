@@ -54,6 +54,15 @@
         "8153"
       ],
       "port": 8153
+    },
+    {
+      "name": "rogulidle-roadmap",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "tools/dev-server.py",
+        "8154"
+      ],
+      "port": 8154
     }
   ]
 }
