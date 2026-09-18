@@ -676,6 +676,14 @@ do bot — sorteada na primeira visita e, dali em diante, o que o jogador
 deixou nos dials do Lab: mover um dial de comportamento reescreve a
 personalidade guardada, não é um ajuste só daquela visita.
 
+**Os feitos abrem o elenco, em dois degraus.** Só o herói comum está
+disponível de saída; o porco do andar 4 caído abre Pawa e Ricardo, e a
+primeira run limpa abre Vito e Papazito — o par mais forte fica atrás da
+chave mais dura. Um herói trancado é visível e diz por quê, mas não pode
+ser escolhido; uma escolha guardada que o degrau ainda não permite joga
+como o herói comum até ele ser conquistado, e volta a valer sozinha nesse
+dia.
+
 **Um feito ainda trancado mostra o quão perto alguma run já chegou dele** —
 a menor vida em que o Butcher ficou, o máximo que uma run pagou contra o
 preço do machado, o andar mais fundo alcançado. É só mostrador: não destrava

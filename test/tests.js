@@ -46,9 +46,9 @@ import { depthTheme } from '../src/ui/depth-theme.js';
 import { playRun } from '../src/ui/run.js';
 import {
   earnedBy, earnedByPurchase, getProgress, isEarned, recordProgress,
-  verifyAchievements, HERO_GATE,
+  verifyAchievements, HERO_GATES, heroGate,
 } from '../src/ui/achievements.js';
-import { getChosenHero, setChosenHero } from '../src/ui/roster.js';
+import { getChosenHero, heroOpen, setChosenHero } from '../src/ui/roster.js';
 import {
   getPlayer, normalisePlayerName, readSlice, reloadSave, setPlayer, writeSlice,
 } from '../src/ui/save.js';
@@ -4421,9 +4421,9 @@ test('only an axe purchase earns the shop achievement', () => {
 
 test('a hand-written achievement flag unlocks nothing', () => {
   withStores(() => {
-    writeSlice('achievements', { [HERO_GATE]: { run: 1, at: 0 } });
+    writeSlice('achievements', { [HERO_GATES.pawa]: { run: 1, at: 0 } });
     verifyAchievements();
-    assert(!isEarned(HERO_GATE),
+    assert(!isEarned(HERO_GATES.pawa),
       'a flag typed into the console counted as earned — the gate is a boolean again');
   });
 });
@@ -4536,7 +4536,7 @@ test('a refused receipt is ignored, never deleted', () => {
   // those apart — so a change that broke them must be revertible with every
   // unlock intact.
   withStores(() => {
-    const written = { [HERO_GATE]: { run: 1, at: 0, seed: 7, config: {} } };
+    const written = { [HERO_GATES.pawa]: { run: 1, at: 0, seed: 7, config: {} } };
     writeSlice('achievements', written);
     verifyAchievements();
     assertEq(JSON.stringify(readSlice('achievements')), JSON.stringify(written),
@@ -4552,6 +4552,31 @@ test('with the gate shut, a hero picked earlier reads as the base hero', () => {
     assertEq(getChosenHero(), '', 'the gate let an unearned hero through');
     assertEq(readSlice('hero'), 'vito',
       'the gate erased the pick instead of merely refusing it');
+  });
+});
+
+test('two rungs: the pig opens pawa and ricardo, the first clear opens vito and papazito', () => {
+  // docs/backlog.md item 3. A legacy-stamped receipt (version 0) is accepted
+  // without a replay, which is what lets this test earn one rung and not the
+  // other without finding a run that did either.
+  const legacy = { run: 1, at: 0, seed: 7, config: {}, version: 0 };
+  assertEq(heroGate('base'), '', 'the ordinary hero has a gate');
+  withStores(() => {
+    writeSlice('achievements', { butcher: legacy });
+    verifyAchievements();
+    assert(heroOpen('pawa') && heroOpen('ricardo'), 'the pig did not open its pair');
+    assert(!heroOpen('vito') && !heroOpen('papazito'), 'the pig opened the strong pair');
+    setChosenHero('papazito');
+    assertEq(getChosenHero(), '', 'a hero behind the clear was let through on the pig');
+    setChosenHero('ricardo');
+    assertEq(getChosenHero(), 'ricardo', 'a hero the pig opened was refused');
+  });
+  withStores(() => {
+    writeSlice('achievements', { bottom: legacy });
+    verifyAchievements();
+    assert(heroOpen('vito') && heroOpen('papazito'), 'the clear did not open its pair');
+    assert(!heroOpen('pawa') && !heroOpen('ricardo'),
+      'the clear opened the pig pair — the rungs are separate keys, not a ladder of one');
   });
 });
 

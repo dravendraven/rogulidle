@@ -24,7 +24,8 @@ Headless: `node tools/measure.mjs --selftest` first, then e.g.
 
 A ten-floor dungeon with fog of war, a bot that fights and loots its way
 down, a shop between runs, a vault on floor 4 with a mini-boss (the
-Butcher), an achievement that unlocks on the first kill, and a dial panel
+Butcher), achievements that unlock the cast in two rungs (the pig, then
+the first clear), and a dial panel
 where the visitor's rolled settings shape how the bot plays.
 
 `?seed=anything` on the URL reproduces a session. `?dev=1` opens the lab

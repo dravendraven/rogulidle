@@ -17,13 +17,14 @@
 // directions. Nothing here is read by the engine and nothing here changes
 // what a run does.
 //
-// WHAT AN ACHIEVEMENT NOW DOES. Both rows used to be pure record — earned,
-// displayed, inert. `butcher` is the first rung of the ladder in
-// `docs/project/candidates.md` (U11): until the pig on floor 4 is down, the
-// rail offers no hero but the base one. The gate's key and the sentence
-// that explains it therefore both live in this file — a gate whose id is in
-// one file and whose reason is in another drifts the first time the reason
-// is reworded.
+// WHAT AN ACHIEVEMENT NOW DOES. The rows used to be pure record — earned,
+// displayed, inert. `butcher` and `bottom` are the two rungs of the ladder
+// in `docs/project/candidates.md` (U11): until the pig on floor 4 is down
+// the rail offers no hero but the base one, and until a run is cleared it
+// offers only the pair the pig opened. The gates' keys and the sentences
+// that explain them therefore both live in this file — a gate whose id is
+// in one file and whose reason is in another drifts the first time the
+// reason is reworded.
 //
 // AND SO A FLAG IS NO LONGER ENOUGH. The moment an achievement unlocks
 // something, `{"butcher": true}` typed into the console is the whole feature
@@ -98,9 +99,24 @@ export const ACHIEVEMENTS = [
 // number this file needs from the shop, and it must be the shop's own.
 const AXE_PRICE = SHOP_ITEMS.find((entry) => entry.item.name === 'axe').price;
 
-// The one gate that exists today. Named rather than spelled 'butcher' at
-// the rail, so the day a second gate appears the pattern is already here.
-export const HERO_GATE = 'butcher';
+// THE LADDER, two rungs (docs/backlog.md item 3, owner 2026-08-20): the pig
+// opens the pair the chained analysis measured as the WEAKER one, and the
+// first clear opens the strong pair — Papazito was dominant there
+// (information beats force on the themed maps), so he and Vito sit behind
+// the harder key. Keyed by hero name so the rail asks one question per
+// face; a hero absent from this table is open, which is how `base` stays
+// free without a rule of its own.
+export const HERO_GATES = {
+  pawa: 'butcher',
+  ricardo: 'butcher',
+  vito: 'bottom',
+  papazito: 'bottom',
+};
+
+// The rung a hero stands behind, or '' when he is free.
+export function heroGate(name) {
+  return HERO_GATES[name] || '';
+}
 
 function load() {
   const parsed = readSlice(SLICE);

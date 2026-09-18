@@ -21,16 +21,17 @@
 
 import { HEROES, heroLabel } from '../sim/heroes.js';
 import { tileSvg } from './tiles.js';
-import { HERO_GATE, isEarned, lockedReason } from './achievements.js';
+import { heroGate, isEarned, lockedReason } from './achievements.js';
 import { clearSlice, readSlice, writeSlice } from './save.js';
 
 // One slice of the save document (src/ui/save.js), which owns the storage
 // and the failure cases this used to carry itself.
 const SLICE = 'hero';
 
-// THE GATE. Choosing a hero is earned, not given: until `butcher` is down
-// the cast is visible but shut, which is the first rung of the ladder in
-// `docs/project/candidates.md` (U11). Visible-but-shut rather than hidden on
+// THE GATES. Choosing a hero is earned, not given: each face stands behind
+// one achievement (`HERO_GATES`, src/ui/achievements.js) — the pig opens
+// two, the first clear opens the other two — and until its rung is earned
+// the face is visible but shut. Visible-but-shut rather than hidden on
 // purpose — a locked face with a reason under it is the thing that tells a
 // spectator there is something to play FOR, and a picker that grew from one
 // chip to five overnight would just look like a bug.
@@ -40,12 +41,13 @@ const SLICE = 'hero';
 // stay able to ship any hero; today it ships none, so a clean browser lands
 // on the base hero through the ordinary default path rather than through a
 // second rule that says so.
-export function heroesUnlocked() {
-  return isEarned(HERO_GATE);
+export function heroOpen(name) {
+  const gate = heroGate(name);
+  return !gate || isEarned(gate);
 }
 
-export function heroLockReason() {
-  return lockedReason(HERO_GATE);
+export function heroLockReason(name) {
+  return lockedReason(heroGate(name));
 }
 
 // The whole line, in ONE place, because two call sites print it — the card's
@@ -56,14 +58,14 @@ export function heroLockReason() {
 // sentence: that sentence is shared with the achievements strip
 // (src/ui/render.js), where the row is already visibly unearned and saying
 // "blocked" under it would be describing the row rather than the gate.
-function lockLine() {
-  return `🔒bloqueado - ${heroLockReason()}`;
+function lockLine(name) {
+  return `🔒bloqueado - ${heroLockReason(name)}`;
 }
 
-// `base` is stored as '' — see setChosenHero's callers — so both spellings
-// of the ordinary hero pass the gate.
+// `base` is stored as '' — see setChosenHero's callers — and has no gate,
+// so both spellings of the ordinary hero pass.
 function allowed(name) {
-  return heroesUnlocked() || name === '' || name === 'base';
+  return heroOpen(name === '' ? 'base' : name);
 }
 
 // null means NEVER CHOSE, which is not the same as chose the ordinary hero:
@@ -219,12 +221,11 @@ export function buildRoster(container, { onPick, onRestart, onPreview } = {}) {
 
     // Re-read on every call rather than once at build: the Butcher can fall
     // during the run being watched, and `show` is called again as the next
-    // one is built — so the cast opens by itself, with no reload.
-    const open = heroesUnlocked();
-    // The gate opening ends any browsing: what was a locked face is now a
-    // real choice, and leaving the card in preview would show a hero the
-    // player could have picked but has not.
-    if (open) preview = null;
+    // one is built — so a face opens by itself, with no reload.
+    // A gate opening ends any browsing of the face behind it: what was a
+    // locked face is now a real choice, and leaving the card in preview
+    // would show a hero the player could have picked but has not.
+    if (preview && allowed(preview)) preview = null;
 
     // The card shows the PREVIEW when there is one, otherwise who plays
     // next. `showing` is the hero on the card; `next` is still the one the
@@ -239,7 +240,7 @@ export function buildRoster(container, { onPick, onRestart, onPreview } = {}) {
       // card, which is the whole change.
       chip.classList.toggle('locked', shut);
       chip.title = shut
-        ? `${heroLabel(HEROES[key])} — ${lockLine()}`
+        ? `${heroLabel(HEROES[key])} — ${lockLine(key)}`
         : heroLabel(HEROES[key]);
       // `playing` and `queued` follow the RUN, never the card. That is what
       // keeps the ordinary hero lit while a locked face is being read: he
@@ -259,7 +260,7 @@ export function buildRoster(container, { onPick, onRestart, onPreview } = {}) {
     // eye already is, and describing a hero the player cannot use reads as
     // an offer.
     const shutHero = !allowed(showing);
-    blurb.textContent = shutHero ? lockLine() : hero.blurb;
+    blurb.textContent = shutHero ? lockLine(showing) : hero.blurb;
     blurb.classList.toggle('locked', shutHero);
 
     // Nothing is queued and nothing can be restarted while browsing: there
