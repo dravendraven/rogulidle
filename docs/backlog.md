@@ -10,6 +10,38 @@ thing the item is for, and update the doc the change made stale
 
 ## Order
 
+Reordered 2026-09-17 with the owner, after a month of side quests (the
+flight, hp per hero, the coin chest, progress bars) and a re-read of every
+doc. The 2026-08-20 order below still holds — E1/E2 done, item 3 done
+this day — and what changed is the reading of what comes next: the
+chain instrument on the shipped dials shows 0 clears in 360 runs, which
+is the E2 target working, and it means the second hero rung and the
+inferno are reached about once a day. Nothing downstream can be judged by
+playing; it is watched with `?dev=1&hold=` or a forged receipt.
+
+1. **Assistir.** ~20 runs on the shipped build, and the progress pips on
+   the locked achievements — built 2026-09-04 and never seen on a real
+   screen. Zero risk, and the method.
+2. **Colheita ao voltar** — `idle-retention.md` names it as the loose end
+   no doc designed: reopening the page pays nothing visible. A summary of
+   the absence (runs, deepest floor, achievements, the pig's record) read
+   off what already persists. UI only. **Needs the owner's yes.**
+3. **U11 fatia 1** — the portal on floor 10 and a second `model.floors`
+   for 11–30, nothing else (no coin, no daily seed, no board). Done when a
+   hell descent can be WATCHED with `hold=`.
+4. U11 in slices: infernal coin on the shelf → barrier bosses → daily
+   seed → board on the save service.
+5. **The return** — R2, R3, R4, after.
+
+Owner decisions parked, not blocking: T5 (`feitos-progresso.md`); the
+Pawa 2→1 buff (`claude/pawa-power-animation-446ee3`, unmeasured, stale
+base); the per-creature weapon curve (`claude/e2-loot-income-bridge-7eeb83`,
+inert by default: accept ~1h to the first pig, recalibrate, or delete).
+`claude/achievement-ui-reposition-f06464` is obsolete (main solved it
+another way on 2026-09-04) — delete.
+
+### The order of 2026-08-20
+
 Reordered 2026-08-20 with the owner, after the chained-session analysis
 (`decisions.md`, "Stamina, measured over chains") found the difficulty in
 the wrong place: the pig falls in minutes while the strategy loop the game
@@ -48,11 +80,11 @@ stacks on it.
    - **The shallow loot cut (floors 1–3) is probably dial-overrides
      ONLY** — `chestLootChance` / `weaponScarcity` on the `from:1` anchor
      of `model.floors` — no new code. Try that path first.
-3. **Hero gates, two rungs** — pig unlocks pawa/ricardo; the FIRST CLEAR
-   unlocks vito/papazito. The chained analysis measured papazito dominant
-   (information beats force on the themed maps), so the strong pair moves
-   behind the harder key. Cheap, self-contained, UI/achievements front —
-   a session of its own, only meaningful after E2.
+3. **Hero gates, two rungs — DONE 2026-09-17.** Pig unlocks pawa/ricardo;
+   the FIRST CLEAR unlocks vito/papazito (`HERO_GATES`,
+   `src/ui/achievements.js`; rules.md §9). The chained analysis measured
+   papazito dominant (information beats force on the themed maps), so the
+   strong pair sits behind the harder key.
 4. **The inferno (U11)** — its own session, reading U11 fresh: the design
    is complete there (daily seed, barrier bosses, the infernal coin, the
    wallet-cap question). Downstream of E2 by its own arithmetic.
