@@ -112,7 +112,7 @@ persistem: uma frase dizendo que o melhor aproximação a cada um persiste
 junto e é só mostrador. Vai no mesmo commit de T2/T3, como manda o
 `CLAUDE.md`.
 
-**T5 (decisão do dono) · "conquistado na run N".** Guardar `run:
+**T5 (FEITO 2026-10-03, decisão do dono) · "conquistado na run N".** Guardar `run:
 session.runNumber` no recibo de novo e mostrá-lo no cartão conquistado, com
 a entrada de `decisions.md` ganhando um parágrafo: a objeção era o contador
 por reload, e ele não existe mais. Risco específico: uma sessão aberta com

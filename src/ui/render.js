@@ -345,6 +345,12 @@ export function renderAchievements(element, list, earned, justEarned = null, pro
     const title = document.createElement('span');
     title.className = 'ach-title';
     title.textContent = a.title;
+    if (got && Number.isFinite(earned[a.id].runNo)) {
+      const when = document.createElement('span');
+      when.className = 'ach-run';
+      when.textContent = `run ${earned[a.id].runNo}`;
+      title.append(' ', when);
+    }
     const sub = document.createElement('span');
     sub.className = 'ach-sub';
     if (pips) {

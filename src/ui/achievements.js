@@ -233,25 +233,21 @@ export function lockedReason(id) {
 // the page just watched it happen, and re-running it would only prove that
 // the same code gives the same answer twice.
 //
-// THE RUN NUMBER IS NOT STORED, and used to be. `session.runNumber` is a
-// per-page-load counter (src/ui/spectator.js) written into a store that
-// outlives the page, so an achievement earned on run 3 of one sitting kept
-// saying "run 3" over the NEXT sitting's run 3, which is a different run
-// with a different ending. Reported as a bug, and it read like one: the
-// history strip beside it showed that run dying to a boar. Nothing was
-// wrong with the claim — `earnedBy` only ever reports the pig dead when the
-// hero landed the blow — only with the label, so the label is gone. `at`
-// is a real instant and the strip's own green chip says which run it was,
-// for as long as that run is still in the strip to point at.
-//
-// Entries written before this still carry `run`; nothing reads it, and it
-// is left alone rather than migrated — `isReceipt` never asked for it, so
-// an old entry keeps verifying and nobody's unlock re-locks.
-export function earn(id, receipt) {
+// THE RUN NUMBER IS STORED AGAIN, under a new key (`runNo`). It was dropped
+// once because `session.runNumber` was a per-page-load counter, so "run 3"
+// of one sitting was written over the next sitting's run 3. The counter is
+// now part of the saved session (src/ui/spectator.js), so it names one run
+// of one chain. Entries written in the meantime still carry the old `run`
+// key; nothing reads it, so those cards stay without a number rather than
+// show one that was never true. `runNo` is `null` when the page does not
+// persist (`?seed=`): that count is not the player's, so none is written.
+// Display only — `isReceipt` never asks for it, so no unlock depends on it.
+export function earn(id, receipt, runNo = null) {
   const data = load();
   if (data[id]) return false;
   data[id] = {
     at: Date.now(),
+    ...(Number.isFinite(runNo) ? { runNo } : {}),
     seed: receipt.seed,
     config: receipt.config,
     // The engine that recorded it — what decides, on every future load,

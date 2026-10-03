@@ -2229,6 +2229,15 @@ at a run that has fallen off the end of a twelve-chip strip. The stamp shows
 identified where it can actually be looked at — a green chip with a trophy on
 it, in the strip, for as long as that run is still in it.
 
+**The run number is back (T5, owner's yes 2026-10-03).** The objection was
+the per-reload counter, and it is gone: `session.runNumber` now lives in the
+saved session, so it names one run of one chain. Stored under a NEW key
+(`runNo`) — entries written meanwhile carry the old `run`, which was never
+true, and stay without a number instead of showing it. Not written at all
+when the page does not persist (`?seed=`), whose count is not the player's.
+A reset restarts the chain at 0, so a number is only comparable inside one
+chain; the card shows it as a faint grey label and the tooltip keeps the date.
+
 ## A subida espaçada — removed, and why "play on alone" had to go with it
 
 Reported on 2026-09-04: the owner's name was open in one browser at run
