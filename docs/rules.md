@@ -375,9 +375,10 @@ modo dev. Enquanto ele é carregado, **todo ataque acerta todas as criaturas
 vivas ao lado do herói** (as quatro direções, cada uma com seu próprio dado)
 e **custa mais de um turno**: depois do golpe, o herói fica parado enquanto as
 criaturas agem de novo, e a ação que chegar nesses turnos é descartada, como
-na leitura. Sozinho contra uma criatura ele bate devagar e apanha mais; com
-duas ao lado empata; cercado, ganha. Não soma dano nenhum — as outras armas
-da mão continuam somando como sempre.
+na leitura. O dado dele soma como o de qualquer arma, com o piso do machado e
+um topo mais alto; o que muda é o ritmo. Sozinho contra uma criatura ele faz
+menos por turno que o machado e apanha mais; com duas ao lado já passa dele;
+cercado, ganha longe.
 
 **Quanto um item vale pode depender de quem o carrega.** O mundo larga
 sempre o mesmo item; o que muda é a mão. Um herói pode tirar de uma arma ou

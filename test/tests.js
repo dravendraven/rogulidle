@@ -1937,11 +1937,18 @@ test('a flail swing costs FLAIL_TURNS turns, and the action after it is discarde
   assert(s.log.slice(before).some((e) => e.type === 'attack' && e.by === 'player'), 'the next swing never came');
 });
 
+test('the flail rolls 1-6 on the opening hero', () => {
+  const hero = { xp: PLAYER_XP, inventory: [flailItem()] };
+  assertEq(weaponMinDamage(hero), 1, 'the flail lost the axe floor');
+  assertEq(PLAYER_XP + weaponDamage(hero) - 1, 6, 'the top of the flail die moved');
+});
+
 test('the bot pays for the slow swing in a duel', () => {
   const wolf = { ...MONSTER_TABLE.find((m) => m.name === 'wolf') };
-  const bare = { xp: PLAYER_XP, hp: 10, armour: 0, inventory: [] };
-  const flail = { ...bare, inventory: [flailItem()] };
-  assert(duelCost(flail, wolf).hpLost > duelCost(bare, wolf).hpLost, 'the flail duel was priced as cheap as a bare one');
+  // Against the axe, the weapon it trades with: a taller die, half the pace.
+  const axe = { xp: PLAYER_XP, hp: 10, armour: 0, inventory: [{ ...ITEM_TABLE.find((i) => i.name === 'axe') }] };
+  const flail = { ...axe, inventory: [flailItem()] };
+  assert(duelCost(flail, wolf).hpLost > duelCost(axe, wolf).hpLost, 'the flail duel was priced as cheap as the axe');
 });
 
 test('raging without a syringe passes no turn at all', () => {

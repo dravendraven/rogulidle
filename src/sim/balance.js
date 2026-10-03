@@ -293,13 +293,15 @@ export const ITEM_TABLE = [
   // chest or creature (its kind is in no source's list); it reaches the
   // hero only by the shop, and only once a price is decided.
   { name: 'flight', emoji: '🌀', value: 5, kind: 'flight' },
-  // The flail (U11's hell shelf, before it exists). Stat-less like the
-  // three above: what it does is change the BLOW — while it is carried,
-  // every attack lands on every creature beside the hero, and costs
-  // `FLAIL_TURNS` turns. Strong in a crowd, weak in a duel, and visible
-  // either way. In no chest, drop or shop row; it reaches a run only
+  // The flail (U11's hell shelf, before it exists). A weapon whose die sums
+  // like any other — 1-6 on the opening hero, the axe's floor and a taller
+  // top — and whose BLOW is different: while it is carried, every attack
+  // lands on every creature beside the hero, and costs `FLAIL_TURNS` turns.
+  // About 70% of the axe per turn in a duel, past it from two neighbours
+  // on, and in the game as shipped 93% of blows are duels (owner,
+  // 2026-10-03). In no chest, drop or shop row; it reaches a run only
   // through `startingItems` (`?dev=1&hold=flail`).
-  { name: 'flail', emoji: '⛓️', value: 5, kind: 'flail' },
+  { name: 'flail', emoji: '⛓️', value: 5, dmg: 4, dmgMin: 1, kind: 'flail' },
 ];
 
 // How many turns one swing of the flail costs: the blow, then the
