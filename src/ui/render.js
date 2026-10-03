@@ -345,11 +345,12 @@ export function renderAchievements(element, list, earned, justEarned = null, pro
     const title = document.createElement('span');
     title.className = 'ach-title';
     title.textContent = a.title;
+    let runTag = null;
     if (got && Number.isFinite(earned[a.id].runNo)) {
       const when = document.createElement('span');
       when.className = 'ach-run';
       when.textContent = `run ${earned[a.id].runNo}`;
-      title.append(' ', when);
+      runTag = when;
     }
     const sub = document.createElement('span');
     sub.className = 'ach-sub';
@@ -372,6 +373,7 @@ export function renderAchievements(element, list, earned, justEarned = null, pro
     if (got) row.title = stampDate(earned[a.id].at);
 
     row.append(icon, text);
+    if (runTag) row.append(runTag);
     element.append(row);
   }
 }
