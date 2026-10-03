@@ -7,7 +7,7 @@
 import { RAGE_TURNS, READ_TURNS } from './balance.js';
 import { isWalkable, samePos } from './mapgen.js';
 import { drawPick } from './rng.js';
-import { playerAttacks } from './combat.js';
+import { playerAttacks, swingTurns } from './combat.js';
 import { updateMonsters } from './monsters.js';
 import { observe } from './observe.js';
 import { heroItem } from './heroes.js';
@@ -116,7 +116,8 @@ function resolveEncounters(state, pos) {
 
   // A live monster: the player attacks it and stays put. Corpses are inert.
   if (monster) {
-    playerAttacks(state, monster);
+    if (swingTurns(state.player) > 1) swing(state, monster);
+    else playerAttacks(state, monster);
     blocked = true;
   }
 
@@ -233,6 +234,31 @@ function readOneTurn(state) {
   const before = player.hp;
   player.hp = player.hpMax;
   state.log.push({ type: 'read', healed: player.hp - before, turn: state.turn });
+  return true;
+}
+
+// The flail: the blow lands on EVERY live creature beside the hero — the
+// others in roster order, then the one walked into — a fixed order, so the
+// combat stream is drawn the same way every replay. Each is its own roll.
+// Then the hero owes `FLAIL_TURNS - 1` turns of recovery, spent like a read
+// (`step` discards the action that arrives), which is the whole price.
+function swing(state, target) {
+  const [x, y] = state.player.pos;
+  const beside = state.monsters.filter((m) => !m.dead && m !== target
+    && Math.abs(m.pos[0] - x) + Math.abs(m.pos[1] - y) === 1);
+  // `state.blow` (src/sim/combat.js) names one creature, so the target keeps
+  // it and the rest ride beside it in `swept`; the bot subtracts both.
+  const swept = beside.map((m) => ({ id: m.id, damage: playerAttacks(state, m).damage }));
+  const first = playerAttacks(state, target);
+  state.blow = { id: target.id, damage: first.damage };
+  state.swept = swept;
+  state.player.recovering = swingTurns(state.player) - 1;
+  state.log.push({ type: 'swing', hit: 1 + beside.length, turn: state.turn });
+}
+
+function recoverOneTurn(state) {
+  state.player.recovering -= 1;
+  if (state.player.recovering <= 0) delete state.player.recovering;
   return true;
 }
 
@@ -380,9 +406,10 @@ export function step(state, action) {
   // not spend one of its own turns: the syringe costs the turn it is used
   // on, and the ones that follow are the ones that hit harder.
   const wasRaging = next.player.raging > 0;
-  const turnPasses = next.player.reading > 0
-    ? readOneTurn(next)
-    : resolvePlayerAction(next, action);
+  let turnPasses;
+  if (next.player.reading > 0) turnPasses = readOneTurn(next);
+  else if (next.player.recovering > 0) turnPasses = recoverOneTurn(next);
+  else turnPasses = resolvePlayerAction(next, action);
 
   if (!next.outcome && turnPasses) {
     next.turn++;

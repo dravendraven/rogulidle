@@ -26,7 +26,7 @@
 // makeBot — same code, other numbers. See src/bot/config.js.
 
 import {
-  effectiveHp, expectedDamage, rageMultiplier, weaponDamage, weaponMinDamage,
+  effectiveHp, expectedDamage, rageMultiplier, swingTurns, weaponDamage, weaponMinDamage,
 } from '../sim/combat.js';
 import {
   expectedHpFor, MAP_SIZE, MONSTER_SKIP_CHANCE, RAGE_TURNS, READ_TURNS,
@@ -143,8 +143,15 @@ export function duelCost(player, monster, bravery = 1) {
   const theirs = expectedDamage(monster.xp, 0);
   if (mine <= 0) return { hpLost: Infinity, turns: Infinity };
 
-  const turns = assumedHp(monster, bravery) / mine;
-  const hpLost = (1 - MONSTER_SKIP_CHANCE) * Math.max(0, turns - 1) * theirs;
+  // The flail's slow swing IS priced, unlike a creature's `speed`: it is the
+  // hero's own weapon, and between two of his blows the creature acts
+  // `swingTurns` times. Counted in turns too, so a flail duel is longer. The
+  // crowd half — the same swing landing on the others — is NOT priced: each
+  // duel is still read alone, so the bot plays the flail pessimistically.
+  const pace = swingTurns(player);
+  const blows = assumedHp(monster, bravery) / mine;
+  const turns = blows * pace;
+  const hpLost = (1 - MONSTER_SKIP_CHANCE) * Math.max(0, blows - 1) * pace * theirs;
   return { hpLost, turns };
 }
 

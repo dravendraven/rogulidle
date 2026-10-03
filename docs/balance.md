@@ -82,6 +82,8 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | `READ_TURNS` | 5 | turns a read costs, standing still, with the creatures acting in every one |
 | `ITEM_TABLE.adrenaline` | 💉 | the warrior's, and stat-less for the same reason the book is — what it does is the `rage` action |
 | `ITEM_TABLE.flight` | 🌀 | stat-less like the two above — what it does is the `flee` action (rules.md §5). In no chest or drop pool and NOT on the shop's shelf: `SHOP_PRICES` has no row for it until the measurement in `docs/project/fuga.md` decides a price, so the shipped game does not contain it yet |
+| `ITEM_TABLE.flail` | ⛓️ | stat-less — while carried, every attack lands on every creature beside the hero (rules.md §5). In no chest, drop or shop row: it reaches a run only through `startingItems` (`?dev=1&hold=flail`), waiting for U11's hell shelf |
+| `FLAIL_TURNS` | 2 | turns one flail swing costs; the creatures act in every one. Break-even at two adjacent creatures |
 | `RAGE_TURNS` / `RAGE_MULT` | 3 / 2.5 | attacking turns the syringe lasts, and what it multiplies the damage die's TOP by. A multiplier, not a bonus: it means the same to a bare hero and an armed one. Shorter and harder since B32 |
 | `ITEM_TABLE.axe.dmgMin` | 1 | the axe raises the damage die's FLOOR, not just its top — worth twice a point of `dmg` (rules.md §4) |
 

@@ -3,7 +3,7 @@
 // The blow always goes attacker -> defender and there is NO counter-attack:
 // only whoever moved gets to hit. A duel is therefore strictly alternating.
 
-import { HIT_CHANCE, RAGE_MULT } from './balance.js';
+import { FLAIL_TURNS, HIT_CHANCE, RAGE_MULT } from './balance.js';
 import { drawChance, drawInt } from './rng.js';
 
 // Monsters have no inventory at all, so they never get a weapon bonus — the
@@ -84,6 +84,14 @@ export function applyDamage(defender, damage) {
 // underestimating its own damage for the whole rage and nothing fails.
 export function rageMultiplier(entity) {
   return entity && entity.raging > 0 ? RAGE_MULT : 1;
+}
+
+// How many turns one of this entity's blows costs: `FLAIL_TURNS` while the
+// flail is carried (src/sim/step.js), 1 otherwise. Here for the same reason
+// `rageMultiplier` is: the engine's swing and the bot's price are one rule.
+export function swingTurns(entity) {
+  return entity && entity.inventory && entity.inventory.some((i) => i.kind === 'flail')
+    ? FLAIL_TURNS : 1;
 }
 
 export function expectedDamage(attackerXp, weapons = 0, minDamage = 0, topMult = 1) {

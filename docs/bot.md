@@ -337,6 +337,14 @@ sabe. Qualquer herói pode ser covarde ou ganancioso.
    O campo **viaja no Belief** e poderia ser lido; nada o lê. Corrigir isso
    é um ato deliberado, não uma faxina — `decisions.md`, M44.
 
+   **`duelCost` lê o mangual, e essa é a diferença para a velocidade.** É
+   a arma do próprio herói, não uma propriedade escondida da criatura: com
+   ele, entre dois golpes seus a criatura age `FLAIL_TURNS` vezes, e o preço
+   sobe na mesma proporção. Só a metade ruim é precificada — o mesmo golpe
+   acertando as vizinhas não entra, porque cada duelo continua lido sozinho.
+   O bot carrega o mangual pessimista: recusa duelos que um herói de mão
+   vazia aceitaria, e não procura grupos.
+
    **`duelCost` desconta os golpes que o próprio bot já deu.** O Belief soma
    por criatura quanto ele tirou dela (`rules.md` §7), então o palpite cai
    durante o duelo e terminar algo meio morto é precificado como meio. É o

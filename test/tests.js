@@ -5,7 +5,7 @@ import {
   CHEST_GUARD_RADIUS, CHEST_TABLE,
   EARLY_CHEST_QUALITY_BOOST, GAME_VERSION, ITEM_TABLE,
   MIN_ROSTER_FOR_SIDE, MONSTER_TABLE, OUT_OF_DEPTH_CHANCE_CAP,
-  PLAYER_HP, PLAYER_XP, RAGE_MULT, RAGE_TURNS, READ_TURNS, ROOM_HEIGHT,
+  FLAIL_TURNS, PLAYER_HP, PLAYER_XP, RAGE_MULT, RAGE_TURNS, READ_TURNS, ROOM_HEIGHT,
   ROOM_WIDTH, SHRINE_DISTANCE_SHARE,
   STARTING_ITEMS, TURN_BUDGET, VAULT_BOSS, VAULT_BOSS_DROP, VAULT_CHEST_ITEMS, VAULT_LEVEL,
   VAULT_SIZE, VISIBLE_DIST, WEAPON_AXE_MIN_TIER,
@@ -1900,6 +1900,48 @@ test('the syringe lasts five ATTACKING turns, and the injection is not one', () 
     state = step(state, 'rest').state;
   }
   assert(!state.player.raging, 'the rage outlasted its five turns');
+});
+
+// The flail (rules.md §5): one swing lands on every creature beside the hero
+// and costs FLAIL_TURNS turns, the extra ones owned by the engine.
+const flailItem = () => ({ ...ITEM_TABLE.find((i) => i.name === 'flail'), id: 8 });
+
+test('the flail hits every creature beside the hero, and none further off', () => {
+  const map = tinyMap(['#####', '#...#', '#...#', '#...#', '#####']);
+  const monsters = [
+    dummy('ogre', [2, 1], { id: 'n' }), dummy('ogre', [3, 2], { id: 'e' }),
+    dummy('ogre', [2, 3], { id: 's' }), dummy('ogre', [3, 3], { id: 'diag' }),
+  ];
+  const state = makeState({ map, playerPos: [2, 2], monsters, xp: 6, inventory: [flailItem()] });
+  const out = step(state, 'up');
+  const hits = out.state.log.filter((e) => e.type === 'attack' && e.by === 'player');
+  assertEq(hits.length, 3, 'the swing missed a neighbour or reached the diagonal');
+  assertEq(out.observation.blow.id, 'n', 'the blow did not name the creature walked into');
+  assertEq(out.observation.swept.map((b) => b.id).sort().join(','), 'e,s', 'the other blows did not reach the Observation');
+});
+
+test('a flail swing costs FLAIL_TURNS turns, and the action after it is discarded', () => {
+  const map = tinyMap(['#####', '#...#', '#####']);
+  const state = makeState({ map, playerPos: [1, 1], monsters: [dummy('ogre', [2, 1])], xp: 2, inventory: [flailItem()] });
+  let s = step(state, 'right').state;
+  for (let i = 1; i < FLAIL_TURNS; i++) {
+    const before = s.log.length;
+    s = step(s, 'right').state;
+    assert(!s.log.slice(before).some((e) => e.type === 'attack' && e.by === 'player'),
+      `the hero swung again on recovery turn ${i}`);
+  }
+  assertEq(s.turn, FLAIL_TURNS, 'the swing did not cost its turns');
+  assert(!s.player.recovering, 'the recovery outlived the swing');
+  const before = s.log.length;
+  s = step(s, 'right').state;
+  assert(s.log.slice(before).some((e) => e.type === 'attack' && e.by === 'player'), 'the next swing never came');
+});
+
+test('the bot pays for the slow swing in a duel', () => {
+  const wolf = { ...MONSTER_TABLE.find((m) => m.name === 'wolf') };
+  const bare = { xp: PLAYER_XP, hp: 10, armour: 0, inventory: [] };
+  const flail = { ...bare, inventory: [flailItem()] };
+  assert(duelCost(flail, wolf).hpLost > duelCost(bare, wolf).hpLost, 'the flail duel was priced as cheap as a bare one');
 });
 
 test('raging without a syringe passes no turn at all', () => {

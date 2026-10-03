@@ -180,6 +180,8 @@ export function observe(state, options = {}) {
     // `cloneState`, so this is null on every other turn without anything
     // having to clear it.
     blow: state.blow ?? null,
+    // The flail's other blows, the same shape and the same one-turn life.
+    swept: state.swept ?? [],
     visible,
     tiles,
     monsters: state.monsters.filter(seen).map((m) => copyEntity(m,
@@ -283,9 +285,10 @@ export function foldBelief(belief, obs) {
   // from this turn's sighting, so a blow folded first would be overwritten by
   // it. Silently, and only in the case where the creature is visible — which
   // is every case that matters.
-  if (obs.blow) {
-    const m = b.monsters.get(obs.blow.id);
-    if (m) b.monsters.set(obs.blow.id, { ...m, hurt: (m.hurt || 0) + obs.blow.damage });
+  for (const blow of [obs.blow, ...(obs.swept || [])]) {
+    if (!blow) continue;
+    const m = b.monsters.get(blow.id);
+    if (m) b.monsters.set(blow.id, { ...m, hurt: (m.hurt || 0) + blow.damage });
   }
 
   if (obs.shrine) b.shrine = { ...obs.shrine, lastSeenTurn: obs.turn };

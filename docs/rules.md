@@ -368,6 +368,17 @@ a mesma seed foge para o mesmo lugar. Não é a escada: aparecer no buraco
 seria pular o andar, que é outro item. Se o andar não tem tile assim, o item
 é gasto e nada acontece; quem o usa aposta por Belief e pode errar.
 
+**E existe uma arma que muda o golpe, não o dano: o mangual.** Ninguém
+começa com ele e nada o larga ou vende ainda — é o primeiro item da loja do
+inferno (`candidates.md`, U11), e hoje só chega a uma run pelo `hold=` do
+modo dev. Enquanto ele é carregado, **todo ataque acerta todas as criaturas
+vivas ao lado do herói** (as quatro direções, cada uma com seu próprio dado)
+e **custa mais de um turno**: depois do golpe, o herói fica parado enquanto as
+criaturas agem de novo, e a ação que chegar nesses turnos é descartada, como
+na leitura. Sozinho contra uma criatura ele bate devagar e apanha mais; com
+duas ao lado empata; cercado, ganha. Não soma dano nenhum — as outras armas
+da mão continuam somando como sempre.
+
 **Quanto um item vale pode depender de quem o carrega.** O mundo larga
 sempre o mesmo item; o que muda é a mão. Um herói pode tirar de uma arma ou
 de um escudo mais — ou menos — do que outro tira do mesmo objeto, e isso
