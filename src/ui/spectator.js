@@ -21,6 +21,7 @@ import {
   recordProgress, resetAchievements, verifyAchievements,
 } from './achievements.js';
 import { tileSvg } from './tiles.js';
+import { harvestRows, noteFirsts, noteRun, takeHarvest } from './harvest.js';
 import { award, resetScore } from './score.js';
 import { resetOnDeath, getHeldItems, addHeldItem, setHeldItems } from './wallet.js';
 // Only for `?dev=1&hold=` below, which names items the way the shop does.
@@ -159,7 +160,7 @@ function grab() {
     'coins', 'coinPopup', 'damage', 'debugInfo', 'app', 'lab', 'dials',
     'shop', 'shopBalance', 'shopItems', 'shopSkip', 'shopTimerBar', 'shopOrder',
     'achievements', 'roster', 'highscores', 'mapDials', 'simDials', 'dialButtons', 'bossBar',
-    'player', 'playerGate',
+    'player', 'playerGate', 'harvest', 'harvestBody', 'harvestOk',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -684,6 +685,7 @@ async function showShop(receipt) {
   const tallyPurchase = (item) => {
     const firsts = earnedByPurchase(item.name).filter((id) => earn(id, receipt));
     if (!firsts.length) return;
+    noteFirsts(firsts);
     if (el.achievements) {
       renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), firsts[0],
         getProgress(getHighscores()));
@@ -964,8 +966,37 @@ function tallyDescent(run, finalState, heroName, receipt) {
     // two facts finally sitting on the same object.
     earned: firsts,
   });
+  // What played unseen, for the card the return shows (src/ui/harvest.js).
+  noteRun(run, session.unbankedCoins, firsts);
+
   if (session.history.length > HISTORY_LEN) session.history.length = HISTORY_LEN;
   if (el.history) renderHistory(el.history, session.history, ACHIEVEMENTS);
+}
+
+// THE HARVEST, collected once: on load, and every time the tab comes back.
+// Nothing here pauses the game — the card sits over the board until it is
+// clicked away, and the run underneath keeps playing.
+function showHarvest() {
+  if (!el.harvest) return;
+  const t = takeHarvest();
+  if (!t) return;
+  el.harvestBody.innerHTML = '';
+  for (const [label, value] of harvestRows(t, LEVELS, ACHIEVEMENTS)) {
+    const row = document.createElement('div');
+    row.className = 'summary-row';
+    row.innerHTML = `<span>${label}</span><b>${value}</b>`;
+    el.harvestBody.append(row);
+  }
+  el.harvest.classList.add('shown');
+}
+
+function wireHarvest() {
+  if (!el.harvest) return;
+  el.harvestOk.addEventListener('click', () => el.harvest.classList.remove('shown'));
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) showHarvest();
+  });
+  showHarvest();
 }
 
 async function showDescentSummary(run, finalState) {
@@ -1461,6 +1492,9 @@ export async function start() {
   // and nothing at all for a visitor who has earned nothing yet; the grid is
   // already on screen while it happens.
   verifyAchievements();
+  // After the save is the right one (connectSave above), so the harvest a
+  // closed tab left behind is the one this visit collects.
+  wireHarvest();
   // Drawn before the first run so the board reads as "two things to do"
   // rather than appearing out of nowhere the moment one is done.
   if (el.achievements) {

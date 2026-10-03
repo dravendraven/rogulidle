@@ -112,6 +112,10 @@ com o que retém, e que as duas pontas soltas são (a) o intervalo entre
 chefes-barreira (parede sem novidade = churn) e (b) o momento de colheita na
 volta de uma ausência, que nenhum doc desenhou ainda.
 
+**(b) construída em 2026-10-03** (`src/ui/harvest.js`): o cartão "enquanto
+você estava fora" na volta, com o que terminou com a aba escondida. Só mostra
+o que de fato jogou — página fechada continua não jogando nada.
+
 ## Fontes
 
 - Machinations — [How to design idle games](https://machinations.io/articles/idle-games-and-how-to-design-them)

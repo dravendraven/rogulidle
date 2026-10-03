@@ -22,10 +22,11 @@ playing; it is watched with `?dev=1&hold=` or a forged receipt.
 1. **Assistir.** ~20 runs on the shipped build, and the progress pips on
    the locked achievements — built 2026-09-04 and never seen on a real
    screen. Zero risk, and the method.
-2. **Colheita ao voltar** — `idle-retention.md` names it as the loose end
-   no doc designed: reopening the page pays nothing visible. A summary of
-   the absence (runs, deepest floor, achievements, the pig's record) read
-   off what already persists. UI only. **Needs the owner's yes.**
+2. **Colheita ao voltar — DONE 2026-10-03, owner's yes.** A card on
+   return — runs, deepest floor, best coins, the pig, new achievements —
+   for the runs that ENDED while the tab was hidden (`src/ui/harvest.js`).
+   Kept in the save, so a hidden tab that was closed hands it to the next
+   visit. A closed page still plays nothing; catching up is not this.
 3. **U11 fatia 1** — the portal on floor 10 and a second `model.floors`
    for 11–30, nothing else (no coin, no daily seed, no board). Done when a
    hell descent can be WATCHED with `hold=`.

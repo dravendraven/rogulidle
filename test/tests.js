@@ -45,9 +45,10 @@ import { tileSvg } from '../src/ui/tiles.js';
 import { depthTheme } from '../src/ui/depth-theme.js';
 import { playRun } from '../src/ui/run.js';
 import {
-  earnedBy, earnedByPurchase, getProgress, isEarned, recordProgress,
+  ACHIEVEMENTS, earnedBy, earnedByPurchase, getProgress, isEarned, recordProgress,
   verifyAchievements, HERO_GATES, heroGate,
 } from '../src/ui/achievements.js';
+import { blankTally, foldFirsts, foldRun, harvestRows } from '../src/ui/harvest.js';
 import { getChosenHero, heroOpen, setChosenHero } from '../src/ui/roster.js';
 import {
   getPlayer, normalisePlayerName, readSlice, reloadSave, setPlayer, writeSlice,
@@ -4383,6 +4384,28 @@ test('the Butcher record keeps the lowest hp and never climbs back', () => {
     assert(!recordProgress({ levels: [{ roster: [{ vault: false, dead: false, hp: 3, hpLeft: 1 }] }] }),
       'an ordinary creature stood in for the Butcher');
   });
+});
+
+// src/ui/harvest.js — what played unseen, folded run by run. The pure half
+// only; the hidden-tab gate needs a document and is watched, not tested.
+test('the harvest keeps the best of the absence, and the pig at its lowest', () => {
+  const pigAt = (hpLeft, dead = false) => ({ vault: true, dead, hp: 12, hpLeft });
+  let t = blankTally();
+  t = foldRun(t, { depth: 3, cleared: false, levels: [{ roster: [pigAt(12)] }] }, 4);
+  t = foldRun(t, { depth: 6, cleared: false, levels: [{ roster: [pigAt(5)] }] }, 2);
+  t = foldRun(t, { depth: 4, cleared: false, levels: [{ roster: [pigAt(9)] }] }, 7);
+  assertEq(t.runs, 3);
+  assertEq(t.deepest, 6, 'deepest is the best run, not the last');
+  assertEq(t.bestCoins, 7);
+  assertEq(t.pigLow.hpLeft, 5, 'the pig is remembered at its lowest');
+  t = foldRun(t, { depth: 10, cleared: true, levels: [{ roster: [pigAt(0, true)] }] }, 9);
+  assertEq(t.cleared, 1);
+  assertEq(t.pigKills, 1, 'a dead pig is a kill, not a wound');
+  t = foldFirsts(foldFirsts(t, ['butcher']), ['butcher', 'axe']);
+  assertEq(t.firsts.join(','), 'butcher,axe', 'an achievement is listed once');
+  const rows = harvestRows(t, 10, ACHIEVEMENTS);
+  assert(rows.some(([l, v]) => l === 'porco' && v.includes('1')), 'the kill reads instead of the wound');
+  assertEq(rows.find(([l]) => l === 'feitos novos')[1], '🐷 🪓');
 });
 
 test('depth and coin progress are the best of the highscore rows', () => {

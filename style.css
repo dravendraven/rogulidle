@@ -427,6 +427,11 @@ main {
    the plain end-of-run card never needed to be interactive. */
 #shop.shown { pointer-events: auto; }
 
+/* The harvest sits above the end-of-run card and the shop: it is the one
+   card that arrives while you were not there, and it waits for a click. */
+.harvest { z-index: 4; }
+#harvest.shown { pointer-events: auto; }
+
 .shop-balance { color: var(--dim); font-size: .85rem; }
 
 .shop-items { display: flex; gap: .6rem; }
