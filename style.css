@@ -950,6 +950,38 @@ footer {
 }
 .event-float.raging span { margin-left: .15rem; }
 
+/* The flail's recovery turn, the same pulse: the hero standing still after a
+   swing is the item's price, and it must be readable as that. */
+.event-float.recovering {
+  color: #5a6470;
+  animation: event-read 620ms ease-in-out forwards;
+}
+.event-float.recovering span { margin-left: .15rem; }
+
+/* The flail's swing: the chain itself, one tile out from the hero, swung
+   once round him with a short fading trail, then gone. The ring is only the
+   turning frame; the links sit on its top edge, each a few degrees behind
+   the one before. */
+.event-swing {
+  position: absolute;
+  transform: translate(-50%, -50%) rotate(0deg);
+  animation: event-swing 420ms ease-out forwards;
+}
+.event-swing-link {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(var(--behind)) translateY(-110%);
+  filter: drop-shadow(0 0 2px var(--floor));
+}
+.event-swing-link svg { width: 100%; height: 100%; display: block; }
+
+@keyframes event-swing {
+  from { opacity: 1; transform: translate(-50%, -50%) rotate(0deg); }
+  80%  { opacity: 1; }
+  to   { opacity: 0; transform: translate(-50%, -50%) rotate(360deg); }
+}
+
 @keyframes event-read {
   from { opacity: 0; transform: translate(-50%, 0) scale(.85); }
   35%  { opacity: 1; transform: translate(-50%, -3px) scale(1.08); }

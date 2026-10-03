@@ -70,7 +70,10 @@ function signalsFor(entry, state) {
   const here = { col: CENTRE, row: CENTRE };
 
   if (entry.type === 'attack' && entry.by === 'player') {
-    const at = targetCell(state, entry.target);
+    // `at` is the tile the blow landed on (src/sim/combat.js); the flail hits
+    // several creatures in one turn, often of one name, so the name alone
+    // would pile every number onto the first of them.
+    const at = entry.at ? cellOf(entry.at, state.player.pos) : targetCell(state, entry.target);
     if (!entry.damage) return [{ html: '✗', kind: 'miss', ...at }];
     const out = [{ html: `−${entry.damage}`, kind: 'deal', ...at }];
     if (entry.killed) out.push({ html: glyph('💀'), kind: 'deal', ...at });
@@ -115,6 +118,13 @@ function signalsFor(entry, state) {
       : [{ html: `${glyph('📦')}✗`, kind: 'miss', ...here }];
   }
 
+  if (entry.type === 'swing') {
+    // The flail's area, drawn as the chain swung once round the hero — over
+    // the four tiles it reached, so the eye reads "all of them" rather than
+    // one more number. Its own element, not a float (see `show`).
+    return [{ ring: true, ...here }];
+  }
+
   return [];                                  // 'ascend' — the floor change says it
 }
 
@@ -148,20 +158,25 @@ export function makeEventLayer(stage, grid, { enabled = true, signalMs = null } 
       // first and not the second.
       const reading = state.player.reading || 0;
       const raging = state.player.raging || 0;
+      // The flail's recovery: the turn the hero owes after a swing, the
+      // weakness of the item, so it is shown like the read rather than left
+      // as a hero standing still for no reason.
+      const recovering = state.player.recovering || 0;
       const fresh = log.length > shown ? log.slice(shown) : [];
       shown = log.length;
-      if (!fresh.length && !reading && !raging) return;
+      if (!fresh.length && !reading && !raging && !recovering) return;
 
       const size = grid.clientWidth / VIEW;
       const life = signalMs ? signalMs() : null;
-      let stacked = 0;
+      let liveCount = 0;
 
       // Both live states pulse the same way and for the same reason: they
       // last several turns, so a signal that rises once and fades would
       // announce the start and then leave the viewer watching nothing.
       const live = reading
         ? { kind: 'reading', emoji: '📜', left: reading }
-        : (raging ? { kind: 'raging', emoji: '💉', left: raging } : null);
+        : (raging ? { kind: 'raging', emoji: '💉', left: raging }
+          : (recovering ? { kind: 'recovering', emoji: '⛓️', left: recovering } : null));
 
       if (live) {
         const float = document.createElement('div');
@@ -172,13 +187,44 @@ export function makeEventLayer(stage, grid, { enabled = true, signalMs = null } 
         if (life) float.style.animationDuration = `${life}ms`;
         float.addEventListener('animationend', () => float.remove());
         layer.append(float);
-        stacked++;
+        liveCount++;
       }
 
+      // Stacked PER TILE: a flail turn puts a number on several tiles at
+      // once, and one shared count would lift each a row above the last.
+      const perCell = new Map();
       for (const entry of fresh) {
         for (const signal of signalsFor(entry, state)) {
           if (signal.col < 0 || signal.col >= VIEW) continue;
           if (signal.row < 0 || signal.row >= VIEW) continue;
+
+          if (signal.ring) {
+            const ring = document.createElement('div');
+            ring.className = 'event-swing';
+            ring.style.width = ring.style.height = `${size * 3}px`;
+            // The chain itself, one tile out from the hero, carried round by
+            // the ring's turn — the flail swung, not an abstract arc. The
+            // three links behind it are the trail, fading.
+            for (let link = 0; link < 4; link++) {
+              const chain = document.createElement('div');
+              chain.className = 'event-swing-link';
+              chain.innerHTML = glyph('⛓️');
+              chain.style.width = chain.style.height = `${size * 0.9}px`;
+              chain.style.setProperty('--behind', `${-link * 28}deg`);
+              chain.style.opacity = String(1 - link * 0.28);
+              ring.append(chain);
+            }
+            ring.style.left = `${grid.offsetLeft + (signal.col + 0.5) * size}px`;
+            ring.style.top = `${grid.offsetTop + (signal.row + 0.5) * size}px`;
+            if (life) ring.style.animationDuration = `${Math.round(life / 2)}ms`;
+            ring.addEventListener('animationend', () => ring.remove());
+            layer.append(ring);
+            continue;
+          }
+
+          const cell = `${signal.col},${signal.row}`;
+          const stacked = (perCell.get(cell) ?? (cell === `${CENTRE},${CENTRE}` ? liveCount : 0));
+          perCell.set(cell, stacked + 1);
 
           const float = document.createElement('div');
           float.className = 'event-float ' + signal.kind;
@@ -188,7 +234,6 @@ export function makeEventLayer(stage, grid, { enabled = true, signalMs = null } 
           // the pickup that follows — so they stack upward instead of
           // landing on top of each other.
           float.style.top = `${grid.offsetTop + (signal.row - 0.35) * size - stacked * 14}px`;
-          stacked++;
           if (life) float.style.animationDuration = `${life}ms`;
           float.addEventListener('animationend', () => float.remove());
           layer.append(float);

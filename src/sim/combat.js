@@ -178,7 +178,7 @@ export function playerAttacks(state, monster) {
   state.blow = { id: monster.id, damage: result.damage };
 
   state.log.push({
-    type: 'attack', by: 'player', target: monster.name,
+    type: 'attack', by: 'player', target: monster.name, at: monster.pos.slice(),
     damage: result.damage, killed: result.killed, turn: state.turn,
   });
   return result;
