@@ -448,6 +448,14 @@ main {
   opacity: .4;
   cursor: not-allowed;
 }
+/* Behind an achievement: the locked hero's own treatment (.roster-chip.locked),
+   so a shut item and a shut hero read as the same rule. */
+.shop-items button.locked,
+.shop-order-row.locked .shop-order-icon {
+  opacity: .25;
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
 
 /* WHAT THE TIMER WOULD TAKE. The Lab's order (src/ui/shop-order.js) acts
    once, thirty seconds after the shop opens, and only when nobody touches

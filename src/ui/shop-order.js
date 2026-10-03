@@ -18,7 +18,8 @@
 // the scrolling drawer: in dev mode the drawer holds thirty rows of map
 // dials, and a control buried under all of them is one nobody finds.
 
-import { SHOP_ITEMS, getShopOrder, setShopOrder } from './shop.js';
+import { SHOP_HINTS, SHOP_ITEMS, getShopOrder, setShopOrder } from './shop.js';
+import { shopItemOpen, shopLockLine } from './achievements.js';
 import { tileSvg } from './tiles.js';
 
 const entryOf = (name) => SHOP_ITEMS.find((e) => e.item.name === name);
@@ -73,6 +74,12 @@ export function buildShopOrder(container, { onChange } = {}) {
 
       const row = document.createElement('div');
       row.className = 'shop-order-row';
+      // A shut item keeps its place in the order — the order is the plan
+      // for when it opens — but reads as shut, like it does on the shelf.
+      const open = shopItemOpen(name);
+      row.classList.toggle('locked', !open);
+      const lines = [SHOP_HINTS[name], open ? null : shopLockLine(name)].filter(Boolean);
+      if (lines.length) row.title = lines.join('\n');
 
       const rank = document.createElement('span');
       rank.className = 'shop-order-rank';

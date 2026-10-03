@@ -45,7 +45,7 @@ import { tileSvg } from '../src/ui/tiles.js';
 import { depthTheme } from '../src/ui/depth-theme.js';
 import { playRun } from '../src/ui/run.js';
 import {
-  ACHIEVEMENTS, earnedBy, earnedByPurchase, getProgress, isEarned, recordProgress,
+  ACHIEVEMENTS, earnedBy, earnedByPurchase, getProgress, isEarned, recordProgress, shopOpenGiven,
   verifyAchievements, HERO_GATES, heroGate,
 } from '../src/ui/achievements.js';
 import { blankTally, foldFirsts, foldRun, harvestRows } from '../src/ui/harvest.js';
@@ -1937,10 +1937,27 @@ test('a flail swing costs FLAIL_TURNS turns, and the action after it is discarde
   assert(s.log.slice(before).some((e) => e.type === 'attack' && e.by === 'player'), 'the next swing never came');
 });
 
-test('the flail rolls 1-6 on the opening hero', () => {
+test('the flail rolls the axe die, and a found axe still adds to it', () => {
   const hero = { xp: PLAYER_XP, inventory: [flailItem()] };
-  assertEq(weaponMinDamage(hero), 1, 'the flail lost the axe floor');
-  assertEq(PLAYER_XP + weaponDamage(hero) - 1, 6, 'the top of the flail die moved');
+  assertEq(`${weaponMinDamage(hero)}-${PLAYER_XP + weaponDamage(hero) - 1}`, '1-4', 'the flail die moved');
+  const axe = { ...ITEM_TABLE.find((i) => i.name === 'axe') };
+  const both = { xp: PLAYER_XP, inventory: [flailItem(), axe] };
+  assertEq(`${weaponMinDamage(both)}-${PLAYER_XP + weaponDamage(both) - 1}`, '2-6', 'a found axe did not add to the flail');
+});
+
+test('the flail is off the shelf until the Lenhador, and the axe wins the tie', () => {
+  const shut = (name) => shopOpenGiven(name, new Set());
+  const open = (name) => shopOpenGiven(name, new Set(['axe']));
+  assertEq(nextPurchase(12, ['flail', 'axe'], shut).item.name, 'axe', 'a locked flail was bought');
+  assertEq(nextPurchase(12, ['flail', 'axe'], open).item.name, 'flail', 'an open flail was skipped by an order naming it first');
+  assert(DEFAULT_ORDER.indexOf('axe') < DEFAULT_ORDER.indexOf('flail'), 'the default order reaches for the flail before the axe');
+  // The default drain never picks the flail at all — same price, axe first.
+  assertEq(spend(24, DEFAULT_ORDER, new Set()).bought.map((i) => i.name).join(','), 'axe,axe',
+    'the default order bought a flail nobody asked for');
+  // An order naming it first gets it — but only once the first axe opened it,
+  // which can happen inside the same drain.
+  assertEq(spend(24, ['flail', 'axe'], new Set()).bought.map((i) => i.name).join(','), 'axe,flail',
+    'the first axe did not open the flail within the same drain');
 });
 
 test('the bot pays for the slow swing in a duel', () => {

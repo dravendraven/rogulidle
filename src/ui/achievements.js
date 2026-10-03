@@ -118,6 +118,31 @@ export function heroGate(name) {
   return HERO_GATES[name] || '';
 }
 
+// The same ladder for the shop's shelf: an item named here is not offered,
+// nor bought by the unattended drain, until its achievement is earned. The
+// Lenhador — the first axe bought — opens the flail (owner, 2026-10-03).
+export const SHOP_GATES = {
+  flail: 'axe',
+};
+
+// Whether an item is on the shelf, given the ids earned so far. Pure, so
+// the chain instrument can ask it with a session's own earnings instead of
+// this browser's (src/analysis/chain.js).
+export function shopOpenGiven(name, earned) {
+  const gate = SHOP_GATES[name];
+  return !gate || earned.has(gate);
+}
+
+export function shopItemOpen(name) {
+  return shopOpenGiven(name, new Set(Object.keys(getAchievements())));
+}
+
+// The lock line a shut shelf item shows, worded exactly like a shut hero's
+// (src/ui/roster.js) so the two read as one rule.
+export function shopLockLine(name) {
+  return `🔒bloqueado - ${lockedReason(SHOP_GATES[name])}`;
+}
+
 function load() {
   const parsed = readSlice(SLICE);
   return (parsed && typeof parsed === 'object') ? parsed : {};

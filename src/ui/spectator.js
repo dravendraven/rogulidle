@@ -18,7 +18,7 @@ import {
 } from './render.js';
 import {
   ACHIEVEMENTS, earn, earnedBy, earnedByPurchase, getAchievements, getProgress,
-  recordProgress, resetAchievements, verifyAchievements,
+  recordProgress, resetAchievements, shopItemOpen, shopLockLine, verifyAchievements,
 } from './achievements.js';
 import { tileSvg } from './tiles.js';
 import { harvestRows, noteFirsts, noteRun, takeHarvest } from './harvest.js';
@@ -26,7 +26,7 @@ import { award, resetScore } from './score.js';
 import { resetOnDeath, getHeldItems, addHeldItem, setHeldItems } from './wallet.js';
 // Only for `?dev=1&hold=` below, which names items the way the shop does.
 import { ITEM_TABLE } from '../sim/balance.js';
-import { SHOP_ITEMS, getShopOrder, nextPurchase } from './shop.js';
+import { SHOP_HINTS, SHOP_ITEMS, getShopOrder, nextPurchase } from './shop.js';
 import { buildShopOrder } from './shop-order.js';
 import { buildDialPanel, resolvedDefaults } from './dials.js';
 import { buildRoster, clearChosenHero, getChosenHero } from './roster.js';
@@ -633,16 +633,23 @@ async function showCoinPopup(coins, bought) {
 // clearest way to watch a drain happen.
 function renderShopItems(balance, order) {
   el.shopItems.innerHTML = '';
-  const next = nextPurchase(balance, order);
+  const next = nextPurchase(balance, order, shopItemOpen);
   for (const entry of SHOP_ITEMS) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.dataset.item = entry.item.name;
-    const affordable = entry.price <= balance;
+    // An item behind an achievement is SHOWN, shut — the same pattern as a
+    // locked hero (src/ui/roster.js): the face says what is there to earn,
+    // the tooltip what it does and what opens it.
+    const open = shopItemOpen(entry.item.name);
+    const affordable = open && entry.price <= balance;
     btn.disabled = !affordable;
-    btn.classList.toggle('unaffordable', !affordable);
+    btn.classList.toggle('locked', !open);
+    btn.classList.toggle('unaffordable', open && !affordable);
     btn.classList.toggle('auto-next', entry === next);
-    if (entry === next) btn.title = 'a loja pega este sozinha se ninguém clicar';
+    const lines = [SHOP_HINTS[entry.item.name], open ? null : shopLockLine(entry.item.name),
+      entry === next ? 'a loja pega este sozinha se ninguém clicar' : null];
+    if (lines.some(Boolean)) btn.title = lines.filter(Boolean).join('\n');
     btn.innerHTML =
       `${tileSvg(entry.item.emoji) || ''}<span>${entry.item.name} · ${entry.price}🪙</span>`;
     el.shopItems.append(btn);
@@ -714,7 +721,7 @@ async function showShop(receipt) {
   // is affordable has to be re-read after every buy — this is the whole of
   // multi-buy. The HUD's coin count follows the same number down, so the
   // spend is visible where the earnings were.
-  const canAfford = () => SHOP_ITEMS.some((entry) => entry.price <= balance);
+  const canAfford = () => SHOP_ITEMS.some((entry) => shopItemOpen(entry.item.name) && entry.price <= balance);
   const showBalance = () => {
     if (el.shopBalance) el.shopBalance.textContent = `balance: ${balance} 🪙`;
     renderShopItems(balance, order);
@@ -765,7 +772,7 @@ async function showShop(receipt) {
       // would overrule it — the skip button is there for exactly that, and
       // so is the shop's own close when nothing is affordable.
       if (purchases === 0) {
-        let auto = nextPurchase(balance, order);
+        let auto = nextPurchase(balance, order, shopItemOpen);
         while (auto) {
           balance -= auto.price;
           addHeldItem(auto.item);
@@ -779,7 +786,7 @@ async function showShop(receipt) {
           // notion of "long enough to read".
           await waitWhilePaused();
           await sleep(signalMs());
-          auto = nextPurchase(balance, order);
+          auto = nextPurchase(balance, order, shopItemOpen);
         }
       }
       break;

@@ -368,17 +368,17 @@ a mesma seed foge para o mesmo lugar. Não é a escada: aparecer no buraco
 seria pular o andar, que é outro item. Se o andar não tem tile assim, o item
 é gasto e nada acontece; quem o usa aposta por Belief e pode errar.
 
-**E existe uma arma que muda o golpe, não o dano: o mangual.** Ninguém
-começa com ele e nada o larga ou vende ainda — é o primeiro item da loja do
-inferno (`candidates.md`, U11), e hoje só chega a uma run pelo `hold=` do
-modo dev. Enquanto ele é carregado, **todo ataque acerta todas as criaturas
+**E existe uma arma que muda o golpe: o mangual.** Ninguém começa com ele e
+nada o larga; a loja o vende ao preço do machado, depois que o primeiro
+machado da loja foi comprado (o feito Lenhador). Enquanto ele é carregado, **todo ataque acerta todas as criaturas
 vivas ao lado do herói** (as quatro direções, cada uma com seu próprio dado)
 e **custa mais de um turno**: depois do golpe, o herói fica parado enquanto as
 criaturas agem de novo, e a ação que chegar nesses turnos é descartada, como
-na leitura. O dado dele soma como o de qualquer arma, com o piso do machado e
-um topo mais alto; o que muda é o ritmo. Sozinho contra uma criatura ele faz
-menos por turno que o machado e apanha mais; com duas ao lado já passa dele;
-cercado, ganha longe.
+na leitura. **Ele é um modificador, não uma troca:** o dado dele é o do
+machado e soma com o de qualquer arma, e o machado ou a adaga achados na run
+continuam aumentando o dano. O que muda é o ritmo. Com um machado junto, um
+duelo rende menos por turno que o machado sozinho e custa mais golpes
+levados; com duas criaturas ao lado, rende mais.
 
 **Quanto um item vale pode depender de quem o carrega.** O mundo larga
 sempre o mesmo item; o que muda é a mão. Um herói pode tirar de uma arma ou
@@ -608,6 +608,14 @@ olhando continua comprando no botão. Quem nunca mexe nela recebe a ordem **do
 mais caro para o mais barato**, que não é valor escrito em lugar nenhum: é a
 tabela de preços lida de trás para frente. Item que a ordem não nomeia entra
 no fim dela, então a lista nunca deixa de cobrir a prateleira inteira.
+
+**Um item pode estar na prateleira trancado.** Ele aparece desde o começo,
+apagado, com o que faz e o que o abre — o mesmo desenho dos heróis trancados
+— e não é comprado nem pelo clique nem pela compra automática até o feito
+dele existir. A ordem pode nomeá-lo antes; ela vale quando ele abrir. Hoje é
+um só: o mangual, aberto pelo Lenhador. Com o mesmo preço do machado, a ordem
+padrão empata os dois e fica com o machado, então o mangual só é comprado
+sozinho por quem o subir na ordem.
 
 **Cara-primeiro é a ordem que menos infla o herói**, e é por isso que ela é a
 padrão: o troco só desce para o barato depois que o caro não cabe mais, então

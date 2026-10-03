@@ -22,6 +22,7 @@
 import { playOne, runWires, wire } from './check.js';
 import { hashSeeds } from '../sim/rng.js';
 import { DEFAULT_ORDER, nextPurchase } from '../ui/shop.js';
+import { earnedBy, earnedByPurchase, shopOpenGiven } from '../ui/achievements.js';
 import { heroByName } from '../sim/heroes.js';
 
 // What the shop gets to spend when a run ends.
@@ -56,14 +57,21 @@ export function balanceOf(run) {
 // row across every run of a chain would be an invention of this file, and
 // the kind that stays invisible until something downstream writes to an
 // item.
-export function spend(balance, order = DEFAULT_ORDER) {
+//
+// `earned` is the session's own achievements (a Set of ids), so an item
+// behind one (SHOP_GATES) stays off the shelf until THIS chain opened it —
+// the page reads the browser's instead. A purchase that earns one, the first
+// axe, opens its gate for the rest of the same drain, as on the page.
+export function spend(balance, order = DEFAULT_ORDER, earned = new Set()) {
   const bought = [];
   let left = balance;
-  let entry = nextPurchase(left, order);
+  const open = (name) => shopOpenGiven(name, earned);
+  let entry = nextPurchase(left, order, open);
   while (entry) {
     left -= entry.price;
     bought.push({ ...entry.item });
-    entry = nextPurchase(left, order);
+    for (const id of earnedByPurchase(entry.item.name)) earned.add(id);
+    entry = nextPurchase(left, order, open);
   }
   return { bought, spent: balance - left, left };
 }
@@ -108,7 +116,8 @@ export function playChain(chainSeed, length, options = {}) {
   // them. `buy(balance, keptPile)` returns `{ bought, spent }`; the
   // policies live with whoever is measuring (tools/e2-sweep.mjs), so this
   // file never grows a second copy of the default one.
-  const buy = options.buy ?? ((balance) => spend(balance, order));
+  const earned = new Set();
+  const buy = options.buy ?? ((balance) => spend(balance, order, earned));
   const dials = options.dials;
   // A NAME or the entry itself, the same two callers `check.js` serves for
   // the same reason: JSON on a command line can only carry the name.
@@ -134,6 +143,7 @@ export function playChain(chainSeed, length, options = {}) {
     const run = playOne(seed, dials, hero, pile);
     if (plays) plays.push(run);
     const balance = balanceOf(run);
+    for (const id of earnedBy(run)) earned.add(id);
     // A clear keeps what the hero ENDS with (`held`, rules.md §9) — not the
     // pile it started with. A spent shield stays spent; a drunk potion stays
     // drunk. The first version kept `pile` itself, which re-credited every

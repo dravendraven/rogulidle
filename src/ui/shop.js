@@ -12,7 +12,7 @@
 // on a chest pickup (.dmg/.armour/.emoji), so reusing the real table is
 // what keeps a shop purchase indistinguishable from a chest find.
 
-import { ITEM_TABLE, SHOP_PRICES } from '../sim/balance.js';
+import { FLAIL_TURNS, ITEM_TABLE, SHOP_PRICES } from '../sim/balance.js';
 import { readSlice, writeSlice } from './save.js';
 
 const byName = (name) => ITEM_TABLE.find((item) => item.name === name);
@@ -54,6 +54,13 @@ const byName = (name) => ITEM_TABLE.find((item) => item.name === name);
 export const SHOP_ITEMS = Object.entries(SHOP_PRICES).map(
   ([name, price]) => ({ item: byName(name), price }),
 );
+
+// What an item DOES, for the shelf's tooltip, in a few words and glyphs —
+// only for the item whose name does not already say it. The number comes
+// from balance.js rather than being written here.
+export const SHOP_HINTS = {
+  flail: `🎯 acerta todos ao lado · 🐢 ${FLAIL_TURNS} turnos por golpe`,
+};
 
 // ***** what the shop buys when nobody is watching *****
 //
@@ -130,12 +137,14 @@ export function setShopOrder(names) {
 // how long a drained coin stays on screen — belongs to whoever is drawing,
 // which is why this returns a single entry rather than the whole basket.
 //
-// It is also a pure function of its two arguments, so a test can ask it
-// what an order buys without touching localStorage or a clock.
-export function nextPurchase(balance, order) {
+// It is also a pure function of its arguments, so a test can ask it what
+// an order buys without touching localStorage or a clock. `open(name)` says
+// whether an item is on the shelf yet — one an achievement has not opened
+// (SHOP_GATES, src/ui/achievements.js) is skipped, never bought.
+export function nextPurchase(balance, order, open = () => true) {
   for (const name of sanitiseOrder(order)) {
     const entry = SHOP_ITEMS.find((e) => e.item.name === name);
-    if (entry && entry.price <= balance) return entry;
+    if (entry && open(name) && entry.price <= balance) return entry;
   }
   return null;
 }

@@ -293,15 +293,15 @@ export const ITEM_TABLE = [
   // chest or creature (its kind is in no source's list); it reaches the
   // hero only by the shop, and only once a price is decided.
   { name: 'flight', emoji: '🌀', value: 5, kind: 'flight' },
-  // The flail (U11's hell shelf, before it exists). A weapon whose die sums
-  // like any other — 1-6 on the opening hero, the axe's floor and a taller
-  // top — and whose BLOW is different: while it is carried, every attack
-  // lands on every creature beside the hero, and costs `FLAIL_TURNS` turns.
-  // About 70% of the axe per turn in a duel, past it from two neighbours
-  // on, and in the game as shipped 93% of blows are duels (owner,
-  // 2026-10-03). In no chest, drop or shop row; it reaches a run only
-  // through `startingItems` (`?dev=1&hold=flail`).
-  { name: 'flail', emoji: '⛓️', value: 5, dmg: 4, dmgMin: 1, kind: 'flail' },
+  // The flail — the area MODIFIER (owner, 2026-10-03). Its die sums like any
+  // weapon's, the axe's own 1-4, and the axe or dagger found in the run
+  // still adds to it; what it changes is the BLOW: while it is carried,
+  // every attack lands on every creature beside the hero, and costs
+  // `FLAIL_TURNS` turns. With one axe beside it a duel runs at ~80% of the
+  // axe alone and two neighbours at ~160% — a trade, never an upgrade. In
+  // no chest or drop pool; the shop sells it once the Lenhador is earned
+  // (src/ui/achievements.js, SHOP_GATES).
+  { name: 'flail', emoji: '⛓️', value: 5, dmg: 2, dmgMin: 1, kind: 'flail' },
 ];
 
 // How many turns one swing of the flail costs: the blow, then the
@@ -582,4 +582,7 @@ export const GAME_VERSION = 3;
 // economics read them: `XP_VALUE_HP` (src/bot/config.js) converts xp to hp
 // through the best hp-per-coin on this shelf, and a bot module importing
 // the UI to learn a price would be the dependency pointing backwards.
-export const SHOP_PRICES = { health: 1, shield: 2, dagger: 6, axe: 12 };
+// The flail is listed AFTER the axe on purpose: the default order sorts by
+// price and keeps table order on a tie, so the unattended shop reaches for
+// the axe first and the flail is a choice made by reordering.
+export const SHOP_PRICES = { health: 1, shield: 2, dagger: 6, axe: 12, flail: 12 };
