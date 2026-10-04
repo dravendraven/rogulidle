@@ -58,9 +58,9 @@ import {
   DEFAULT_ORDER, SHOP_ITEMS, getShopOrder, nextPurchase, setShopOrder,
 } from '../src/ui/shop.js';
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
-import { playOne, runWires } from '../src/analysis/check.js';
+import { planOf, playOne, runWires } from '../src/analysis/check.js';
 import saveWorker, { LEASE_MS, SaveRoom } from '../server/save-worker.js';
-import { DUNGEONS, STRETCHES, dungeonIcons, dungeonModel } from '../src/sim/dungeons.js';
+import { DUNGEONS, DUNGEON_ORDER, STRETCHES, dungeonIcons, dungeonModel, dungeonName } from '../src/sim/dungeons.js';
 import { balanceOf, playChain, seedOf, spend } from '../src/analysis/chain.js';
 
 // ***** tiny test harness ***** //
@@ -5627,4 +5627,21 @@ test('every dungeon generates all ten floors, playable, the same twice, the Butc
       }
     }
   }
+});
+
+test('a dungeon reaches a run by name or by the Lab index, and replays exactly', () => {
+  assertEq(dungeonName(DUNGEON_ORDER.indexOf('tumba')), 'tumba', 'the Lab index missed');
+  assertEq(dungeonName('tumba'), 'tumba');
+  assertEq(dungeonName(99), 'masmorra', 'a stale index did not fall back');
+  assertEq(DUNGEON_ORDER[0], 'masmorra', 'the shipped dungeon is no longer index 0');
+  assertEq(DUNGEON_ORDER.length, Object.keys(DUNGEONS).length, 'a dungeon is missing from the order');
+  // The instruments and the page build the same plan from the same config.
+  assertEq(planOf({ model: {}, run: { dungeon: 'cofres' } })(1).layout, 'rogue', 'planOf ignored the dungeon');
+  const config = { dials: { model: {}, run: { dungeon: DUNGEON_ORDER.indexOf('covil') } } };
+  const a = playRun(hashSeeds(7070, 1), config);
+  const b = playRun(hashSeeds(7070, 1), config);
+  assertEq(JSON.stringify(a.levels.map((l) => [l.turns, l.outcome])),
+    JSON.stringify(b.levels.map((l) => [l.turns, l.outcome])), 'a dungeon run did not replay');
+  const plain = playRun(hashSeeds(7070, 1), { dials: { model: {} } });
+  assert(JSON.stringify(plain.levels) !== JSON.stringify(a.levels), 'the dungeon changed nothing');
 });

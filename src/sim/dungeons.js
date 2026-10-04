@@ -162,11 +162,25 @@ export const DUNGEONS = {
 
 export const DEFAULT_DUNGEON = 'masmorra';
 
+// The Lab's selector stores a NUMBER (every dial is a number), and a run's
+// config — receipts included — carries it. So this order is APPEND-ONLY:
+// reordering it would replay every stored run in a different dungeon.
+export const DUNGEON_ORDER = [
+  'masmorra', 'minas', 'esgoto', 'arena', 'ossario', 'floresta', 'covil', 'cofres', 'tumba',
+];
+
+// A dungeon from either spelling — the name a command line types, or the
+// index the Lab stores. Anything else is the shipped dungeon.
+export function dungeonName(value) {
+  if (typeof value === 'number') return DUNGEON_ORDER[Math.round(value)] || DEFAULT_DUNGEON;
+  return DUNGEONS[value] ? value : DEFAULT_DUNGEON;
+}
+
 // Unknown or missing names are the shipped dungeon, the same forgiving rule
 // `heroByName` uses: a stale name in a stored config plays the game rather
 // than breaking it.
 export function dungeonByName(name) {
-  return DUNGEONS[name] || DUNGEONS[DEFAULT_DUNGEON];
+  return DUNGEONS[dungeonName(name)];
 }
 
 // The three glyphs a dungeon is read by, in axis order. Empty for the

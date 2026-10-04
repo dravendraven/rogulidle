@@ -19,6 +19,23 @@
 
 import { playDungeon, LEVELS } from '../sim/dungeon.js';
 import { makeFloorPlan } from '../sim/difficulty.js';
+import { dungeonModel } from '../sim/dungeons.js';
+
+// The floor plan a configuration plays — the dungeon applied to the model,
+// in ONE place, so the instruments and the page (src/ui/run.js) cannot
+// disagree about what a dungeon is. No dials and no dungeon is undefined,
+// which playDungeon reads as the code defaults, as before.
+export function planOf(dials) {
+  if (!dials || (!dials.model && !(dials.run && dials.run.dungeon))) return undefined;
+  return makeFloorPlan(dungeonModel(dials.model, dials.run && dials.run.dungeon));
+}
+
+// `{"dungeon": "tumba"}` on a command line, laid onto the dials the reading
+// was handed — the one way into a dungeon from tools/measure.mjs.
+export function withDungeon(dials, dungeon) {
+  if (dungeon === undefined) return dials;
+  return { ...(dials || {}), run: { ...((dials && dials.run) || {}), dungeon } };
+}
 import { newGame } from '../sim/game.js';
 import { makeBot } from '../bot/bot.js';
 import { heroByName } from '../sim/heroes.js';
@@ -52,7 +69,7 @@ import { heroByName } from '../sim/heroes.js';
 // "an empty list changes nothing" is a fact the wires can check instead of
 // a property of how this function was written.
 export function playOne(seed, dials, hero, startingItems = []) {
-  const plan = dials && dials.model ? makeFloorPlan(dials.model) : undefined;
+  const plan = planOf(dials);
   return playDungeon(seed, (floor) => makeBot({
     monsterCount: floor.monsterCount,
     chestCount: floor.chests,
@@ -175,7 +192,7 @@ export function tripwires(options = {}) {
   const runs = options.runs ?? 24;
   const firstSeed = options.firstSeed ?? 500000;
   // What the game actually ships on. See playOne.
-  const dials = options.dials;
+  const dials = withDungeon(options.dials, options.dungeon);
   // Which hero played it. Same discipline as `shipped` below: a reading of
   // one hero and a reading of another are not the same game either.
   //
@@ -200,7 +217,7 @@ export function tripwires(options = {}) {
   // corridor tile crossing an empty region kills the window — so this is
   // the one wire the MAP's shape can break on its own, without anything
   // about creatures or the bot changing.
-  const shape = dials && dials.model ? makeFloorPlan(dials.model) : makeFloorPlan();
+  const shape = planOf(dials) || makeFloorPlan();
   const vaultLevel = shape(1).vaultLevel;
   let vaultBuilt = 0;
   let vaultSeen = 0;

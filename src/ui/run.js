@@ -14,6 +14,7 @@
 
 import { playDungeonSteps, LEVELS } from '../sim/dungeon.js';
 import { makeFloorPlan } from '../sim/difficulty.js';
+import { dungeonModel } from '../sim/dungeons.js';
 import { makeBot } from '../bot/bot.js';
 import { heroByName } from '../sim/heroes.js';
 
@@ -103,7 +104,10 @@ export function* playRunSteps(seed, config, onFloorTrace = null) {
     // dungeon.js clamps it and explains what it costs.
     startFloor: dials.run && dials.run.startFloor,
     startingItems: config.startingItems || [],
-    floorPlan: makeFloorPlan(dials.model),
+    // Which dungeon (src/sim/dungeons.js) — carried in the run's config, so a
+    // receipt replays in the dungeon it was earned in. Unset is the shipped
+    // one, whose model comes back untouched.
+    floorPlan: makeFloorPlan(dungeonModel(dials.model, dials.run && dials.run.dungeon)),
     // Who is playing (src/ui/roster.js). Unset resolves to the shipped hero,
     // so a visitor who never picks gets exactly the run they got before
     // heroes existed.
