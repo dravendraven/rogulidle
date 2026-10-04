@@ -837,6 +837,103 @@ rotação no clear com o orçamento conferido por teste → o degrau igual à
 recompensa → as recompensas situacionais, uma por vez, cada uma com o bot
 sabendo usá-la.
 
+#### As 8 masmorras — eixos, nomes, curvas e valores (dono, 2026-10-04)
+
+**Três eixos binários, sem meio** — o pilar 3 de `trade-offs.md` aplicado à
+masmorra. Cada polo redistribui o orçamento em vez de somar, e cada eixo
+existe para mover escolhas que hoje não têm contexto que varie:
+
+| eixo | polo A | polo B | escolhas que ele move |
+|---|---|---|---|
+| criaturas | 🐺 **Matilha** — muitas fracas, em bando | 🐉 **Fera** — poucas fortes, sozinhas | mangual, Coragem |
+| baús | 📦 **Fartura** — muito baú fraco | 💎 **Relíquia** — pouco baú bom | Ganância, ordem da loja |
+| luz | ☀️ **Claro** — vê longe | 🌑 **Breu** — vê pouco | Papazito, Pressa |
+
+Recusados no caminho: **aberto × fechado** (o formato do mapa já é uma
+progressão fixa por trecho no `dial-overrides.json`, e medido mexe pouco nas
+lutas); **rápidas × lentas** (o dono não quer mexer na velocidade das
+criaturas — e ela é a única propriedade que o bot não precifica, então
+quebraria o orçamento); **fôlego × dano** como eixo próprio (é resultado dos
+outros; a versão com atributo seria vida × golpe das criaturas, guardada).
+
+**Os nomes vêm dos ramos e portais do Dungeon Crawl Stone Soup**
+(`crawl-ref/source/branch-data.h`), uma palavra cada. Na tela: o nome e os
+três ícones ("**Tumba** 🐉💎🌑"), o tooltip explicando cada ícone.
+
+| # | ícones | nome | no DCSS | em uma linha |
+|---|---|---|---|---|
+| 1 | 🐺📦☀️ | **Minas** | Orcish Mines | Hordas de orcs em túneis iluminados, equipamento por todo canto. |
+| 2 | 🐺📦🌑 | **Esgoto** | Sewer | Ratos e pragas no escuro, entulho em cada canto. |
+| 3 | 🐺💎☀️ | **Arena** | Arena (de Okawaru) | Onda atrás de onda, por um prêmio só. |
+| 4 | 🐺💎🌑 | **Ossário** | Ossuary | Mortos aos montes no breu, guardando as últimas relíquias. |
+| 5 | 🐉📦☀️ | **Floresta** | Enchanted Forest | Feras grandes ao ar livre, coisa espalhada pelo caminho. |
+| 6 | 🐉📦🌑 | **Covil** | Lair of Beasts | Algo grande dorme no escuro, cercado de restos. |
+| 7 | 🐉💎☀️ | **Cofres** | Vaults | Salas trancadas e iluminadas, guardiões fortes, o melhor saque. |
+| 8 | 🐉💎🌑 | **Tumba** | Tomb of the Ancients | Poucos e antigos no breu, sentados sobre tesouros. |
+
+**Valores de DESENHO, não calibrados.** A dificuldade de cada masmorra é
+calculada depois (decisão do dono); estes números dizem o tema, e o teste de
+orçamento vai movê-los. "Atual" é o `dial-overrides.json` de 2026-10-04.
+
+**Curva de formato, 1 a 10** — os mesmos cinco trechos da curva atual, só o
+`mapTheme` de cada um muda. O andar 4 continua o do porco em todas: a sala
+dele é carimbada em qualquer tema (há teste).
+
+| masmorra | 1–3 | 4 (porco) | 5–7 | 8–9 | 10 | a ideia |
+|---|---|---|---|---|---|---|
+| **atual** | caverna | grade | cripta | central | anel | — |
+| **Minas** | caverna | grade | caverna | caverna | central | túneis do começo ao fim; no fundo, o salão da fortaleza orc |
+| **Esgoto** | padrão | grade | padrão | cripta | anel | corredores longos e apertados; no fundo, a rede de canos fecha em ciclo |
+| **Arena** | central | grade | central | anel | central | sempre um salão no meio onde tudo converge |
+| **Ossário** | cripta | grade | cripta | cripta | central | câmaras funerárias em fila; no fundo, a câmara dos ossos |
+| **Floresta** | caverna | caverna | caverna | anel | caverna | aberta do começo ao fim, clareiras ligadas por trilhas |
+| **Covil** | caverna | caverna | caverna | caverna | central | mais caverna que o normal; no fundo, a toca da fera |
+| **Cofres** | grade | grade (grande cofre) | anel | central | anel | salas trancadas em grade; depois, cofres maiores em ciclo |
+| **Tumba** | cripta | grade | cripta | anel | central | ordenada e silenciosa; no fundo, a câmara do ancião |
+
+**Os eixos em valores**, aplicados em todo trecho:
+
+| eixo | dial | atual (1–3 / 4 / 5–7 / 8–9 / 10) | 🐺 Matilha | 🐉 Fera |
+|---|---|---|---|---|
+| criaturas | `monstersBase` | 5 / 6 / 6 / 7 / 7 | 8 / 10 / 10 / 11 / 11 | 3 / 3 / 3 / 4 / 4 |
+| | `clusterSize` | 6 | 12 | 1 |
+| | `strength` | a curva atual | ×0,75 | ×1,3 (teto 1) |
+
+| eixo | dial | atual | 📦 Fartura | 💎 Relíquia |
+|---|---|---|---|---|
+| baús | `chests` | 6 | 10 | 3 |
+| | `chestLootChance` | 0,5 | 0,35 | 0,95 |
+
+**☀️ Claro × 🌑 Breu não tem dial**: o raio de visão é fixo no motor
+(`VISIBLE_DIST`). Esse eixo pede código — um dial de visão por trecho — e é
+o único dos três que pede.
+
+**Formato e sabor, por masmorra**, iguais em todo trecho salvo onde dito.
+Atual: `dugPercentage` 0,25 · `mapSize` 32 · `roomScale` 1,0 · `roomBias` 3 ·
+`corridorMin` 2 · `shrineDistanceShare` 0,6 · `spineThreatShare` 0,3 ·
+`sideChestBias` 8 · `chestMix` 0,5 (a fração de poção num baú cheio).
+
+| masmorra | `dugPercentage` | `mapSize` | `roomScale` | `roomBias` | `corridorMin` | `shrineDistanceShare` | `spineThreatShare` | `sideChestBias` | `chestMix` | o porquê |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **Minas** | 0,30 | 34 | 0,8 | 2 | 3 | 0,7 | 0,4 | 6 | 0,3 | túneis escavados, orcs na passagem, armadura de orc |
+| **Esgoto** | 0,20 | 34 | 0,6 | 1 | 5 | 0,8 | 0,5 | 4 | 0,7 | canos longos e apertados, tudo no caminho |
+| **Arena** | 0,30 | 30 | 1,4 | 6 | 1 | 0,4 | 0,6 | 2 | 0,5 | salões grandes, tudo converge; `hubBranches` 6, `hubRings` 2 |
+| **Ossário** | 0,22 | 32 | 0,8 | 4 | 2 | 0,6 | 0,3 | 10 | 0,6 | câmaras em fila, relíquias nas laterais |
+| **Floresta** | 0,35 | 40 | 1,5 | 5 | 1 | 0,9 | 0,2 | 5 | 0,6 | vasta e aberta, feras longe da trilha, caminhada longa |
+| **Covil** | 0,30 | 30 | 1,2 | 4 | 2 | 0,5 | 0,2 | 9 | 0,4 | a fera dorme fora da rota, com o saque junto |
+| **Cofres** | 0,22 | 36 | 1,3 | 6 | 3 | 0,7 | 0,2 | 10 | 0,3 | salas grandes e trancadas, tesouro nos cofres laterais; `hubBranches` 4, `hubRings` 2 |
+| **Tumba** | 0,18 | 28 | 1,0 | 4 | 4 | 1,0 | 0,2 | 10 | 0,5 | pequena e silenciosa, corredores longos, o buraco no ponto mais fundo |
+
+**Não mexidos, de propósito:** a economia (`weaponScarcity`, `dropChance` —
+o par calibrado do E2) e a curva de tier (piso, folga, cauda rara, sorteio
+do andar), que é a dificuldade a calcular depois.
+
+**Nem todo tema lê todo dial.** `roomBias` e `corridorMin` mexem no tema
+padrão (e o tamanho de sala também na cripta); `hubBranches`/`hubRings` só no
+central; caverna, grade e anel têm parâmetros próprios. Onde o tema não lê,
+o valor fica escrito e inerte — inofensivo. Tamanho do mapa, quantidades e a
+distribuição de ameaça e baús valem para todos.
+
 ## Archived
 
 ### The count→strength route — UNARCHIVED, see M7
