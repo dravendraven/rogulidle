@@ -265,7 +265,15 @@ main {
 }
 .hp svg { width: 18px; height: 18px; }
 
+/* THE UNKNOWN IS BLACK (owner, 2026-10-04). The board is dark and every
+   cell carries the floor colour itself, so a cell the hero has never seen
+   (opacity 0) shows the dark, a remembered one (opacity .3) a dim floor,
+   and one in sight the full floor — seen, remembered, unknown, the way a
+   roguelike reads. It used to be the other way round: the cream showed
+   through every cell, so the unknown looked lit. */
+.grid { background: #14100b; }
 .cell {
+  background: var(--floor);
   position: relative;
   transition: opacity .12s linear;
 }

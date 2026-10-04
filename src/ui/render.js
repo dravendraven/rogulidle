@@ -71,9 +71,10 @@ export function buildGrid(container) {
 
 let torch = null;
 
-// The light falls off over the last cell of the reach and is dark beyond it.
-// Drawn on top of the board rather than by repainting cells, so the memory
-// under it still shows — dimmed — the way a remembered room would.
+// The light falls off over the last cell of the reach and is dark beyond it
+// — dark enough that the memory under it is all but gone (owner: "que não
+// dê pra ver mesmo"). Drawn on top of the board rather than by repainting
+// cells, so the edge stays a soft ring instead of a staircase of tiles.
 function paintTorch(reach) {
   if (!torch) return;
   const dark = reach < VISIBLE_DIST;
@@ -84,8 +85,8 @@ function paintTorch(reach) {
   const r = (reach + 0.5) * cellPx;
   torch.style.background = `radial-gradient(circle ${r + cellPx}px at ${centre}, `
     + `rgba(255, 176, 72, .14) 0, rgba(255, 176, 72, .06) ${r * 0.6}px, `
-    + `rgba(14, 10, 6, 0) ${r - cellPx * 0.6}px, rgba(14, 10, 6, .72) ${r + cellPx * 0.4}px, `
-    + `rgba(14, 10, 6, .8) ${r + cellPx}px)`;
+    + `rgba(14, 10, 6, 0) ${r - cellPx * 0.6}px, rgba(14, 10, 6, .94) ${r + cellPx * 0.3}px, `
+    + `rgba(14, 10, 6, .98) ${r + cellPx}px)`;
 }
 
 // Everything the bot believes is at each position, keyed by "x,y".
@@ -228,8 +229,11 @@ export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYP
         const menace = debug.danger.menace.get(key) || 0;
         const heat = Math.min(1, menace / 2);
         const crowded = (debug.danger.crowd.get(key) || 0) >= 2;
+        // Over the floor colour, not instead of it: the cell's own background
+        // IS the floor now (style.css), and a bare tint would show the dark.
+        const tint = `rgba(${crowded ? 255 : 200}, ${crowded ? 40 : 70}, 60, ${0.12 + 0.55 * heat})`;
         cell.style.background = menace > 0
-          ? `rgba(${crowded ? 255 : 200}, ${crowded ? 40 : 70}, 60, ${0.12 + 0.55 * heat})`
+          ? `linear-gradient(${tint}, ${tint}), var(--floor)`
           : '';
         cell.classList.toggle('goal', key === goalKey);
         // Only the winner is labelled, because only the winner is in the
