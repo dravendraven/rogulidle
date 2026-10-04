@@ -428,6 +428,10 @@ export function generateMap(mapSeed, size = MAP_SIZE, options = {}) {
   }
 
   const map = { w: size, h: size, tiles, rooms };
+  // Which shape was actually dug — after sorteio's draw and the hub's
+  // fallback to the Digger. Read by the board only (src/ui/render.js): a
+  // cave has no built walls, so there its rock IS the wall.
+  map.layout = authored ? layout : 'digger';
   // M50 — the ring layout PROMISES a second hero-to-hole route, and this
   // flag is how spine.js knows to go looking for it. Derived maps (Digger,
   // hub) never set it: a loop the Digger happens to dig is an accident,

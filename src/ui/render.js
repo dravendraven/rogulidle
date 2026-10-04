@@ -160,6 +160,10 @@ export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYP
   const reachSq = reach * reach;
   paintTorch(reach);
   const truth = trueAt(state);
+  // A cave has no built walls — its rock is the wall, drawn with the wall's
+  // own glyph. A built floor (crypt, grid, halls) has real walls round its
+  // rooms, and the rock behind them keeps a colour of its own.
+  const caveRock = state.map.layout === 'cave';
   const memory = believedAt(belief);
   const goalKey = debug && debug.goal && debug.goal.pos ? posKey(debug.goal.pos) : null;
   const goalNet = debug ? goalScore(debug.goal) : null;
@@ -187,7 +191,7 @@ export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYP
         opacity = away > CLEAR_SQ ? 0.75 : 1;
         const tile = tileAt(state.map, x, y);
         rock = tile === null;
-        text = tileGlyph(tile);
+        text = rock && caveRock ? theme.wall : tileGlyph(tile);
         const top = topmost(truth.get(key) || []);
         if (top) {
           text = top.kind === 'corpse' ? CORPSE_GLYPH : top.entity.emoji;
@@ -199,7 +203,7 @@ export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYP
         opacity = 0.3;
         known = false;
         rock = belief.tiles.get(key) === null;
-        text = tileGlyph(belief.tiles.get(key));
+        text = rock && caveRock ? theme.wall : tileGlyph(belief.tiles.get(key));
         const top = topmost(memory.get(key) || []);
         if (top) {
           text = top.entity.emoji;
@@ -228,7 +232,7 @@ export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYP
       badge.textContent = sub;
       cell.style.opacity = opacity;
       cell.classList.toggle('remembered', !known && opacity > 0);
-      cell.classList.toggle('rock', rock && !(x === player[0] && y === player[1]));
+      cell.classList.toggle('rock', rock && !caveRock && !(x === player[0] && y === player[1]));
 
       if (debug) {
         // Redder means the bot expects to lose more hp per turn spent here.
