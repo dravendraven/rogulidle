@@ -61,6 +61,31 @@ export function buildGrid(container) {
     container.append(cell);
     cells.push({ cell, glyph, badge, net });
   }
+  // The dark (🌑, src/sim/dungeons.js): a torch-lit circle over the board,
+  // its edge where the hero's eyes stop. Out of the grid's flow (absolute),
+  // so it takes no cell; hidden whenever the hero sees the shipped distance.
+  torch = document.createElement('div');
+  torch.className = 'torch';
+  container.append(torch);
+}
+
+let torch = null;
+
+// The light falls off over the last cell of the reach and is dark beyond it.
+// Drawn on top of the board rather than by repainting cells, so the memory
+// under it still shows — dimmed — the way a remembered room would.
+function paintTorch(reach) {
+  if (!torch) return;
+  const dark = reach < VISIBLE_DIST;
+  torch.hidden = !dark;
+  if (!dark) return;
+  const cellPx = torch.clientWidth / VIEW;
+  const centre = `${(VISIBLE_DIST + 0.5) * cellPx}px ${(VISIBLE_DIST + 0.5) * cellPx}px`;
+  const r = (reach + 0.5) * cellPx;
+  torch.style.background = `radial-gradient(circle ${r + cellPx}px at ${centre}, `
+    + `rgba(255, 176, 72, .14) 0, rgba(255, 176, 72, .06) ${r * 0.6}px, `
+    + `rgba(14, 10, 6, 0) ${r - cellPx * 0.6}px, rgba(14, 10, 6, .72) ${r + cellPx * 0.4}px, `
+    + `rgba(14, 10, 6, .8) ${r + cellPx}px)`;
 }
 
 // Everything the bot believes is at each position, keyed by "x,y".
@@ -132,6 +157,7 @@ export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYP
   const reach = Math.min(VISIBLE_DIST,
     (state.persona && state.persona.sightRadius) ?? state.sight ?? VISIBLE_DIST);
   const reachSq = reach * reach;
+  paintTorch(reach);
   const truth = trueAt(state);
   const memory = believedAt(belief);
   const goalKey = debug && debug.goal && debug.goal.pos ? posKey(debug.goal.pos) : null;

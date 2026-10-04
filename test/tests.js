@@ -43,7 +43,7 @@ import {
 } from '../src/bot/config.js';
 import { tileSvg } from '../src/ui/tiles.js';
 import { depthTheme } from '../src/ui/depth-theme.js';
-import { playRun } from '../src/ui/run.js';
+import { playRun, playRunSteps } from '../src/ui/run.js';
 import {
   ACHIEVEMENTS, earn, earnedBy, earnedByPurchase, getProgress, isEarned, recordProgress,
   shopOpenGiven,
@@ -5723,4 +5723,21 @@ test('a dungeon keeps the shipped threat mass on every stretch', () => {
       }
     }
   }
+});
+
+// The dark reached the plan and the state but not a real run: dungeon.js
+// builds each floor's counts field by field and dropped `sight`. Checked
+// through the path a watched run takes, not by building a state by hand.
+test('a dark dungeon run is dark on the board the player watches', () => {
+  const firstFrame = (dungeon) => {
+    const steps = playRunSteps(hashSeeds(8080, 1), { dials: { model: {}, run: { dungeon } } });
+    for (let step = steps.next(); !step.done; step = steps.next()) {
+      if (step.value.turn) return step.value.turn;
+    }
+    return null;
+  };
+  const dark = firstFrame('tumba');
+  assert(dark.state.sight > 0 && dark.state.sight < VISIBLE_DIST, 'the tomb is not dark in play');
+  assertEq(dark.observation.sight, dark.state.sight, 'the hero was not told how far he sees');
+  assertEq(firstFrame('cofres').state.sight, null, 'a lit dungeon went dark');
 });
