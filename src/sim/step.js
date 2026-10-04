@@ -73,6 +73,8 @@ function cloneState(state) {
     // to be listed here explicitly — this function is an allow-list, and a
     // field left out silently vanishes one step into the run.
     persona: state.persona,
+    // The floor's sight (src/sim/game.js). Read-only config, like persona.
+    sight: state.sight,
     // M50 — the route-tile sets. Shared by reference like `map`, and for
     // the same reason: written once at spawn, never after.
     routes: state.routes,

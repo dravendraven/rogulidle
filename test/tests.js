@@ -5647,3 +5647,29 @@ test('a dungeon reaches a run by name or by the Lab index, and replays exactly',
   const plain = playRun(hashSeeds(7070, 1), { dials: { model: {} } });
   assert(JSON.stringify(plain.levels) !== JSON.stringify(a.levels), 'the dungeon changed nothing');
 });
+
+// The dark (U14, 🌑): a floor's own sight radius, below the shipped fog.
+test('in the dark the hero sees less, and the scholar still sees it all', () => {
+  const rows = Array.from({ length: 21 }, (_, y) => (y === 0 || y === 20 ? '#'.repeat(21) : '#' + '.'.repeat(19) + '#'));
+  const map = tinyMap(rows);
+  const near = dummy('ogre', [10, 14], { id: 'near' });   // 4 away
+  const far = dummy('ogre', [10, 17], { id: 'far' });     // 7 away
+  const lit = makeState({ map, playerPos: [10, 10], monsters: [near, far] });
+  assertEq(observe(lit).monsters.length, 2, 'the shipped fog stopped seeing seven tiles away');
+  assertEq(observe(lit).sight, VISIBLE_DIST);
+  const dark = { ...lit, sight: 5 };
+  assertEq(observe(dark).monsters.map((m) => m.id).join(','), 'near', 'the dark showed what is beyond it');
+  assertEq(observe(dark).sight, 5, 'the hero was not told how far he sees');
+  const scholar = observe(dark, { sightRadius: SIGHT_WHOLE_MAP });
+  assertEq(scholar.monsters.length, 2, 'the dark blinded the hero who sees the whole floor');
+  assertEq(scholar.sight, VISIBLE_DIST, 'a whole-floor hero read differently from the shipped fog');
+  assertEq(step(dark, 'rest').state.sight, 5, 'the dark did not survive a step');
+});
+
+test('only a dark dungeon sets the floor sight', () => {
+  for (const [name, d] of Object.entries(DUNGEONS)) {
+    const sight = makeFloorPlan(dungeonModel({}, name))(2).sight;
+    if (d.light === 'dark') assert(sight > 0 && sight < VISIBLE_DIST, `${name}: not dark`);
+    else assertEq(sight, null, `${name}: changed the sight without being dark`);
+  }
+});

@@ -12,9 +12,9 @@
 //   chests     📦 plenty — many poor chests        💎 relic — few rich ones
 //   light      ☀️ clear  — today's sight           🌑 dark  — less sight
 //
-// `light` is recorded and does NOTHING yet: the sight radius is fixed in the
-// engine (VISIBLE_DIST), and the dial that would read this is its own piece
-// of work (U14's plan, step 5).
+// `light` is the floor's `sight` (src/sim/game.js): dark sets it, clear
+// leaves the shipped fog. A persona's own sight still wins, so the scholar
+// sees the whole floor in the dark — which is what makes him worth it there.
 //
 // THE VALUES ARE DESIGN, NOT CALIBRATION. The owner's call (2026-10-04): the
 // difficulty of each dungeon is computed later, and the budget test that
@@ -63,6 +63,12 @@ const AXES = {
   chests: {
     plenty: { chests: 10, chestLootChance: 0.35 },
     relic: { chests: 3, chestLootChance: 0.95 },
+  },
+  // Clear is the shipped fog and sets nothing — the viewport is exactly the
+  // shipped reach, so seeing FARTHER than today would need a bigger board.
+  light: {
+    clear: {},
+    dark: { sight: 5 },
   },
 };
 
@@ -217,12 +223,14 @@ export function dungeonModel(model = {}, name = DEFAULT_DUNGEON) {
 
   const creatures = AXES.creatures[d.creatures];
   const chests = AXES.chests[d.chests];
+  const light = AXES.light[d.light];
   const floors = STRETCHES.map((from) => {
     const base = anchorAt(model, from);
     return {
       ...base,
       ...d.map,
       ...chests,
+      ...light,
       monstersBase: creatures.monstersBase[from],
       clusterSize: creatures.clusterSize,
       strength: Math.min(1, base.strength * creatures.strengthMult),

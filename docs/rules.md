@@ -445,6 +445,12 @@ outro — até o andar inteiro de uma vez. O que muda é quanto entra na
 `Observation`; a névoa continua existindo como mecanismo, e para quem não tem
 o traço ela é exatamente a de sempre.
 
+**E o andar pode ser escuro.** Uma masmorra no breu encurta o alcance de
+todos os andares dela, abaixo do de sempre — o herói, o tabuleiro e a
+`Observation` param no mesmo raio. O alcance do herói ainda vence: quem
+enxerga o andar inteiro enxerga no escuro também. O quanto o herói enxerga
+atravessa para o bot, porque é o olho dele e não um segredo do andar.
+
 **A regra é do canal, não do leitor.** Um campo que carregue resposta ainda
 não revelada já a vazou, mesmo que ninguém o leia — foi por isso que o item
 já sorteado de uma criatura saiu do Belief. O que atravessa é lista

@@ -217,7 +217,10 @@ export function isAwakeAt(monster, distance) {
 // A summed-area table over the unknown mask, so a window costs O(1) and the
 // whole thing is one pass over a 32×32 grid per turn.
 function darkFraction(belief) {
-  const n = MAP_SIZE;
+  // The map the hero is on, not the shipped size: a dungeon may draw 28 or
+  // 40, and a fixed 32 counted off-map tiles as dark or never saw the edge.
+  const n = belief.w ?? MAP_SIZE;
+  const reach = belief.sight ?? VISIBLE_DIST;
   const w = n + 1;
   const pre = new Int32Array(w * w);
   for (let y = 0; y < n; y++) {
@@ -233,10 +236,10 @@ function darkFraction(belief) {
   // `observe` uses: the corners it adds are the same corners for every tile,
   // so the ORDER of tiles is untouched and a disc would cost a real scan.
   return (x, y) => {
-    const x0 = Math.max(0, x - VISIBLE_DIST);
-    const x1 = Math.min(n - 1, x + VISIBLE_DIST);
-    const y0 = Math.max(0, y - VISIBLE_DIST);
-    const y1 = Math.min(n - 1, y + VISIBLE_DIST);
+    const x0 = Math.max(0, x - reach);
+    const x1 = Math.min(n - 1, x + reach);
+    const y0 = Math.max(0, y - reach);
+    const y1 = Math.min(n - 1, y + reach);
     const area = (x1 - x0 + 1) * (y1 - y0 + 1);
     const sum = pre[(y1 + 1) * w + (x1 + 1)] - pre[y0 * w + (x1 + 1)]
       - pre[(y1 + 1) * w + x0] + pre[y0 * w + x0];

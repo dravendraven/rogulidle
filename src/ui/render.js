@@ -12,7 +12,6 @@ import { tileSvg } from './tiles.js';
 import { depthTheme } from './depth-theme.js';
 
 const VIEW = VISIBLE_DIST * 2;                 // 18 cells across
-const VISIBLE_SQ = VISIBLE_DIST * VISIBLE_DIST;
 const CLEAR_SQ = CLEAR_DIST * CLEAR_DIST;
 
 const PLAYER_GLYPH = '🧝';
@@ -128,6 +127,11 @@ const signed = (n) => (n > 0 ? '+' : '') + n.toFixed(1);
 // whichever emoji is on top of it. Unset is the hero the game shipped with.
 export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYPH) {
   const player = state.player.pos;
+  // How far the hero sees here — the same rule observe() uses, capped at the
+  // viewport, so the board darkens exactly where the hero's eyes stop.
+  const reach = Math.min(VISIBLE_DIST,
+    (state.persona && state.persona.sightRadius) ?? state.sight ?? VISIBLE_DIST);
+  const reachSq = reach * reach;
   const truth = trueAt(state);
   const memory = believedAt(belief);
   const goalKey = debug && debug.goal && debug.goal.pos ? posKey(debug.goal.pos) : null;
@@ -141,7 +145,7 @@ export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYP
       const { cell, glyph, badge, net } = cells[row * VIEW + column];
 
       const away = distSq(player, [x, y]);
-      const inSight = away <= VISIBLE_SQ;
+      const inSight = away <= reachSq;
       const remembered = belief.tiles.has(key);
 
       let text = '';
