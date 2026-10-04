@@ -7,7 +7,7 @@
 
 import { CLEAR_DIST, TURN_BUDGET, monsterEmoji, VISIBLE_DIST } from '../sim/balance.js';
 import { weaponDamage, weaponMinDamage } from '../sim/combat.js';
-import { distSq, posKey } from '../sim/mapgen.js';
+import { distSq, posKey, tileAt } from '../sim/mapgen.js';
 import { tileSvg } from './tiles.js';
 import { depthTheme } from './depth-theme.js';
 
@@ -179,10 +179,15 @@ export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYP
       let sub = '';
       let opacity = 0;
       let known = true;
+      // Undug ground — the rock the map was carved out of. `null` in the
+      // tiles (src/sim/mapgen.js), and it used to draw exactly like floor.
+      let rock = false;
 
       if (inSight) {
         opacity = away > CLEAR_SQ ? 0.75 : 1;
-        text = tileGlyph(state.map.tiles[y * state.map.w + x]);
+        const tile = tileAt(state.map, x, y);
+        rock = tile === null;
+        text = tileGlyph(tile);
         const top = topmost(truth.get(key) || []);
         if (top) {
           text = top.kind === 'corpse' ? CORPSE_GLYPH : top.entity.emoji;
@@ -193,6 +198,7 @@ export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYP
         // wandered off since — see docs/rogule-spec.md §12.2.
         opacity = 0.3;
         known = false;
+        rock = belief.tiles.get(key) === null;
         text = tileGlyph(belief.tiles.get(key));
         const top = topmost(memory.get(key) || []);
         if (top) {
@@ -222,6 +228,7 @@ export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYP
       badge.textContent = sub;
       cell.style.opacity = opacity;
       cell.classList.toggle('remembered', !known && opacity > 0);
+      cell.classList.toggle('rock', rock && !(x === player[0] && y === player[1]));
 
       if (debug) {
         // Redder means the bot expects to lose more hp per turn spent here.
