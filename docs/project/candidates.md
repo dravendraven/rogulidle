@@ -729,6 +729,114 @@ down rather than left as a consequence. With accounts dropped the server is a
 table with an insert policy and a select; the re-simulation that would have
 been needed for trust is optional, and worth keeping only for replay.
 
+### U14 · A escada de masmorras — cada clear abre outra, um degrau mais pesada
+
+`owner idea` · **UNSCHEDULED** · desenhado em conversa, 2026-10-04. Parte de
+`docs/project/trade-offs.md`: uma escolha só vale o que o contexto oferece,
+então o investimento vai primeiro no CONTEXTO, e só depois no efeito das
+escolhas.
+
+**Contexto primeiro.** No CS2, correr ou andar só é uma escolha interessante
+porque o mapa, o tempo de rodada e o som criam situações diferentes a cada
+momento. Aqui o contexto quase não varia — quase todo golpe é um duelo, em
+andares parecidos entre si — e por isso escolhas justas no papel viram
+upgrades disfarçados (o mangual é o caso medido). Ajustar o efeito de uma
+escolha só troca qual é a resposta certa permanente; variar o contexto faz a
+resposta certa mudar.
+
+**Cada clear abre uma masmorra diferente.** Os dez andares ganham uma
+VARIAÇÃO — matilhas, escuridão, tesouro escondido, feras solitárias — que
+vale até o próximo clear. Três coisas boas, cada uma uma frase de
+`objectives.md`:
+
+- *"Uma premissa diferente, não um resultado diferente"* é o que faz começar
+  outra run: vencer abre um problema novo.
+- **Legível sem ser previsível.** Entre dois clears o jogador SABE em que
+  masmorra está (como se sabe que se está na Dust2) e ajusta herói, dials e
+  loja a ela; o mapa de cada run continua sorteado. É o pilar 1 de
+  `trade-offs.md` na medida.
+- **Freio da bola de neve sem dial.** A pilha montada para a masmorra
+  anterior pode não servir para a próxima.
+
+A primeira masmorra é o jogo de hoje — calibração e tutorial. A variação
+aparece na tela o tempo todo (o nome da masmorra) e o clear anuncia a
+próxima.
+
+**Cada variação gasta o mesmo orçamento de dificuldade, redistribuído.** É a
+forma de `trade-offs.md` (manter `v/b`) aplicada à masmorra: matilha = o
+dobro de criaturas de tier mais baixo; tesouro escondido = menos baús, mais
+ricos; escuridão = menos visão, menos criaturas; feras = mais fortes e mais
+raras. O gerador já mede a massa de ameaça de um andar (`expectedFloorMass`)
+e um teste confere o orçamento — cada variação pode ser obrigada a caber
+nele. **Isto não é detalhe:** clears são raros, e uma variação mais dura que
+as outras prende o jogador justamente nela, por mais tempo. A conferência
+final é por medição, e como clears são raros demais para comparar, por
+profundidade e porcos mortos. Cada variação é um conjunto de valores em
+`model.floors` ("a harder dungeon tier is a model", CLAUDE.md); só os eixos
+que hoje não existem (ex.: "a matilha acorda junto") pedem código.
+
+**E cada clear paga um poder que persiste — e sobe a régua do mesmo
+tamanho.** A recompensa vale X em média; a próxima masmorra fica X mais
+pesada. O acúmulo, que é o que `objectives.md` proíbe ("o invariante é o
+acúmulo, não a permanência"), é anulado por construção, e o clear fica raro
+para sempre porque a régua sobe junto. Só vencer paga o que persiste — "o que
+uma derrota deve".
+
+- **O coeficiente não é inventado, é derivado:** o degrau É o valor da
+  recompensa, na mesma unidade. As duas réguas em hp já existem — o preço da
+  loja mede um item em hp, `expectedFloorMass` mede um andar em hp. Começa em
+  1 para 1 (o clear mantém a raridade); um fator acima de 1, se o dono quiser
+  cada clear mais difícil que o anterior, é decisão dele.
+- **Não atrelar o degrau ao que se coletou dentro da run** (moedas, pilha):
+  isso pune jogar bem.
+
+**A armadilha é a esteira** — +10% de dano contra +10% de vida e nada muda,
+o problema dos inimigos que sobem de nível com o jogador. O que a desarma é o
+TIPO de poder: o ganho é **situacional** (o mangual, o livro em qualquer
+herói), a dificuldade é **geral**. Nominalmente os dois valem X; na prática a
+recompensa vale de X/2 a 2X conforme o build, e cabe ao jogador achar o build
+que a leva a 2X — que é a condição de `objectives.md` para poder permanente
+("situacional, nunca um multiplicador puro").
+
+**O que impede o build de 2X de virar resposta decorada:** o multiplicador
+depende do build E do contexto, nunca do build sozinho. Quatro condições:
+
+1. **Nenhum build é 2X sempre** — cada um é 2X em algumas masmorras e X/2 em
+   outras.
+2. **O contexto muda a cada clear** — a descoberta é refeita; a pergunta é
+   sempre "qual o melhor build PARA ESTA masmorra".
+3. **Saber a masmorra não dá certeza** — o tipo é conhecido, o mapa da run
+   não; o build certo ainda perde runs, e a escolha segue sendo aposta.
+4. **Especializar paga mais que equilibrar** — o build generalista que rende
+   pouco acima de X em todo lugar é o neutro proibido pelo pilar 3. O ganho
+   tem de ser convexo: duas peças que combinam valem mais que a soma.
+
+O espaço cresce sozinho: o build é herói + dials + ordem da loja + toda
+recompensa já ganha, e cada clear soma uma peça — "variedade destravada
+adiciona um eixo".
+
+**A divisão de trabalho:** o efeito de cada peça fica SIMPLES (o mangual é
+só "área × ritmo"), legível na tela; a riqueza vem do contexto vezes o build.
+
+**O risco específico deste jogo: quem extrai o 2X é o bot.** Se o build certo
+existe e o bot não sabe usá-lo, o jogador escolheu certo e perdeu por um
+motivo que não controla — a atribuição quebra. Toda recompensa nova vem com o
+bot sabendo explorá-la (o mangual ainda não: o bot não procura grupos).
+
+**A decisão que isto força, antes de construir qualquer um dos dois: a escada
+e o inferno (U11) se sobrepõem.** Uma masmorra que sobe a cada clear, sem
+fim, já é o ciclo longo e o "ralo infinito de poder" que U11 dava ao inferno.
+Ou o inferno vira outra coisa (o desafio diário com placar), ou a escada É o
+inferno — a masmorra N é o N-ésimo nível. A nota do dono no mesmo dia
+("idealizo o inferno como o próximo nível destravado depois do clear")
+aponta para a segunda.
+
+**Ordem sugerida, cada passo verificável sozinho:** um eixo de contexto só
+(matilhas, que fecha o caso do mangual) com o nome da masmorra na tela → a
+rotação no clear com o orçamento conferido por teste → o degrau igual à
+recompensa → as recompensas situacionais, uma por vez, cada uma com o bot
+sabendo usá-la.
+
 ## Archived
 
 ### The count→strength route — UNARCHIVED, see M7
