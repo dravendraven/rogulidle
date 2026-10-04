@@ -292,7 +292,7 @@ main {
 .cell.remembered { filter: grayscale(.85); }
 /* Undug rock: its own colour between the floor and the walls, so a room
    reads as a carved space and not as more floor (owner, 2026-10-04). */
-.cell.rock { background: #9a8f80; }
+.cell.rock { background: #6c6459; }
 
 /* The dark — the torch circle render.js draws over the board in a 🌑
    dungeon. The grid is its positioning box; the gradient is set per frame
