@@ -169,18 +169,31 @@ function uniformLayout(size, options) {
   return { dug, rooms: rotRooms(uniform) };
 }
 
+// How much smaller than its cell a Rogue room must be; see rogueLayout. ONE,
+// the loosest margin that never threw — swept over map sizes 24-44, room
+// scales 0.5-1.5 and 200 seeds each — and loose enough that the shipped
+// floor 4 (32 tiles, scale 1) is never clamped, so its maps are unchanged.
+const CELL_MARGIN = 1;
+
 // GRADE — ROT's Rogue: the original Rogue's 3x3 sectors, one room each,
 // connected to grid neighbours. Loops by construction, so several real
 // ways across — the closest shape to a Diablo floor the shelf has.
 function rogueLayout(size, options) {
+  const cells = options.rogueCells ?? 3;
+  // ROT's Rogue throws (inside `_getWallPosition`) when a room does not fit
+  // its cell. A big `roomScale` on a small map —
+  // the Arena's floor 4 (src/sim/dungeons.js) — asked for exactly that, so
+  // the range is clamped to the cell instead of trusted.
+  const roomMax = Math.max(3, Math.floor((size - 2) / cells) - CELL_MARGIN);
+  const fit = ([lo, hi]) => [Math.min(lo, roomMax), Math.min(hi, roomMax)];
   const rogue = new ROT.Map.Rogue(size, size, {
-    cellWidth: options.rogueCells ?? 3,
-    cellHeight: options.rogueCells ?? 3,
+    cellWidth: cells,
+    cellHeight: cells,
     // Owner, 2026-08-18: the shelter floor reads AMPLE — big rooms, wide
     // halls — in contrast with the cave above it. Rooms near the cell
     // ceiling instead of ROT's smaller default.
-    roomWidth: options.roomWidth ?? [6, 8],
-    roomHeight: options.roomHeight ?? [5, 7],
+    roomWidth: fit(options.roomWidth ?? [6, 8]),
+    roomHeight: fit(options.roomHeight ?? [5, 7]),
   });
   const dug = new Set();
   rogue.create((x, y, value) => {

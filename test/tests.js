@@ -60,6 +60,7 @@ import {
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
 import { playOne, runWires } from '../src/analysis/check.js';
 import saveWorker, { LEASE_MS, SaveRoom } from '../server/save-worker.js';
+import { DUNGEONS, STRETCHES, dungeonIcons, dungeonModel } from '../src/sim/dungeons.js';
 import { balanceOf, playChain, seedOf, spend } from '../src/analysis/chain.js';
 
 // ***** tiny test harness ***** //
@@ -5581,4 +5582,49 @@ test('a heroChanges entry lands at its turn and the receipt replays exactly', ()
   const replayed = playRun(seed, JSON.parse(JSON.stringify(config)));
   assertEq(shape(replayed), shape(changed),
     'the same heroChanges config did not reproduce the run — receipts would rot');
+});
+
+// U14 — the dungeons (src/sim/dungeons.js). A dungeon is a model, so what is
+// tested is the model it makes and the floors that model generates.
+test('the shipped dungeon hands the model back untouched', () => {
+  const model = { monstersBase: 5, floors: [{ from: 1, mapTheme: 3 }] };
+  assert(dungeonModel(model, 'masmorra') === model, 'masmorra rewrote the shipped model');
+  assert(dungeonModel(model, 'no-such-place') === model, 'an unknown name did not fall back to masmorra');
+  assertEq(dungeonIcons('masmorra').length, 0, 'the shipped dungeon claimed an axis');
+});
+
+test('each dungeon draws its own theme on every stretch, and its axes', () => {
+  for (const [name, d] of Object.entries(DUNGEONS)) {
+    if (!d.themes) continue;
+    const plan = makeFloorPlan(dungeonModel({}, name));
+    for (let level = 1; level <= 10; level++) {
+      const from = STRETCHES.filter((f) => f <= level).pop();
+      const want = layoutFor(level, dungeonModel({}, name).floors.find((f) => f.from === from).mapTheme);
+      assertEq(plan(level).layout, want, `${name} floor ${level}: wrong theme`);
+    }
+    const one = plan(1);
+    if (d.creatures === 'pack') assert(one.clusterSize > 6 && one.monsters >= 8, `${name}: not a pack`);
+    else assert(one.clusterSize === 1 && one.monsters <= 3, `${name}: not a beast`);
+    if (d.chests === 'plenty') assert(one.chests > 6, `${name}: not plenty`);
+    else assert(one.chests < 6 && one.chestLootChance > 0.9, `${name}: not relic`);
+    assertEq(dungeonIcons(name).length, 3, `${name}: not three icons`);
+  }
+});
+
+test('every dungeon generates all ten floors, playable, the same twice, the Butcher on 4', () => {
+  for (const [name, d] of Object.entries(DUNGEONS)) {
+    if (!d.themes) continue;
+    const plan = makeFloorPlan(dungeonModel({}, name));
+    for (let level = 1; level <= 10; level++) {
+      for (const seed of [601, 602]) {
+        const a = newGame(hashSeeds(seed, level), plan(level));
+        const b = newGame(hashSeeds(seed, level), plan(level));
+        const where = `${name} floor ${level} seed ${seed}`;
+        assertEq(JSON.stringify(a.map.tiles), JSON.stringify(b.map.tiles), `${where}: differs between identical seeds`);
+        const path = findPath(a.player.pos, a.shrine.pos, (x, y) => isWalkable(a.map, x, y));
+        assert(path.length > 0, `${where}: no path from hero to hole`);
+        assertEq(a.monsters.some((m) => m.vault), level === 4, `${where}: the Butcher is on the wrong floor`);
+      }
+    }
+  }
 });
