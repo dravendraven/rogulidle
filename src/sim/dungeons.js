@@ -70,6 +70,16 @@ const ICON = {
   pack: '🐺', beast: '🐉', plenty: '📦', relic: '💎', clear: '☀️', dark: '🌑',
 };
 
+// What each pole means, in a few words, for the tooltip beside the name.
+const MEANING = {
+  pack: 'muitas criaturas fracas, em bando',
+  beast: 'poucas criaturas fortes, sozinhas',
+  plenty: 'muito baú, pouco em cada',
+  relic: 'pouco baú, quase sempre bom',
+  clear: 'vê longe',
+  dark: 'vê pouco',
+};
+
 export const DUNGEONS = {
   masmorra: {
     name: 'masmorra',
@@ -188,6 +198,12 @@ export function dungeonByName(name) {
 export function dungeonIcons(name) {
   const d = dungeonByName(name);
   return [d.creatures, d.chests, d.light].filter(Boolean).map((pole) => ICON[pole]);
+}
+
+// `[glyph, meaning]` per axis, for the HUD's tooltip.
+export function dungeonLegend(name) {
+  const d = dungeonByName(name);
+  return [d.creatures, d.chests, d.light].filter(Boolean).map((pole) => [ICON[pole], MEANING[pole]]);
 }
 
 // The shipped model, turned into this dungeon's. One anchor per stretch,

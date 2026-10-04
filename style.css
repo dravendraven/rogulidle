@@ -236,6 +236,11 @@ main {
 }
 .floor-label { grid-column: 2; text-align: center; }
 
+/* The dungeon, left edge of the same row — the mirror of the coins on the
+   right: the run's PLACE beside the run's money, the floor between them. */
+.dungeon-hud { grid-column: 1; justify-self: start; white-space: nowrap; cursor: help; }
+.dungeon-hud svg { width: 15px; height: 15px; vertical-align: -2px; margin-left: 1px; }
+
 /* The coin chip, right edge of the same row: what the run has banked and
    what this traversal is projecting. Same weight and colour as the floor so
    the two read as one reading, not a title and a badge. Moved here from the

@@ -60,7 +60,7 @@ import {
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
 import { planOf, playOne, runWires } from '../src/analysis/check.js';
 import saveWorker, { LEASE_MS, SaveRoom } from '../server/save-worker.js';
-import { DUNGEONS, DUNGEON_ORDER, STRETCHES, dungeonIcons, dungeonModel, dungeonName } from '../src/sim/dungeons.js';
+import { DUNGEONS, DUNGEON_ORDER, STRETCHES, dungeonIcons, dungeonLegend, dungeonModel, dungeonName } from '../src/sim/dungeons.js';
 import { balanceOf, playChain, seedOf, spend } from '../src/analysis/chain.js';
 
 // ***** tiny test harness ***** //
@@ -4043,6 +4043,8 @@ test('every glyph the game can draw has a sprite', () => {
     // too) and this list did not know walls existed.
     ...[1, 5, 9].flatMap((level) => [depthTheme(level).wall, depthTheme(level).door]),
     '⬜', '⚡', '🟥',
+    // The dungeon axes (src/sim/dungeons.js), drawn in the floor bar.
+    ...Object.keys(DUNGEONS).flatMap((name) => dungeonLegend(name).map(([g]) => g)),
   ];
   for (const glyph of glyphs) {
     assert(tileSvg(glyph),
