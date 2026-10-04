@@ -404,6 +404,12 @@ async function uploadSave() {
 // True when a session was restored. False for a fresh visitor, for a broken
 // slice, and for a slice with no seed in it — all three want a new chain,
 // which the caller draws.
+// The run number an achievement is stamped with: only a persisted session's
+// count belongs to the player (a `?seed=` page never saves it).
+function runNoToStore() {
+  return session.persist ? session.runNumber : null;
+}
+
 function loadSession() {
   const saved = readSlice(SESSION_SLICE);
   if (!saved || typeof saved !== 'object') return false;
@@ -690,7 +696,7 @@ async function showShop(receipt) {
   // real (src/ui/achievements.js). `earn` reports only the first time, so
   // the hundredth axe is as silent as the hundredth Butcher.
   const tallyPurchase = (item) => {
-    const firsts = earnedByPurchase(item.name).filter((id) => earn(id, receipt));
+    const firsts = earnedByPurchase(item.name).filter((id) => earn(id, receipt, runNoToStore()));
     if (!firsts.length) return;
     noteFirsts(firsts);
     if (el.achievements) {
@@ -933,7 +939,7 @@ function tallyDescent(run, finalState, heroName, receipt) {
   // that could disagree about which run it was.
   const firsts = [];
   for (const id of earnedBy(run)) {
-    if (earn(id, receipt)) firsts.push(id);
+    if (earn(id, receipt, runNoToStore())) firsts.push(id);
   }
 
   // U-highscores — src/ui/highscores.js. `session.unbankedCoins` is read

@@ -45,7 +45,8 @@ import { tileSvg } from '../src/ui/tiles.js';
 import { depthTheme } from '../src/ui/depth-theme.js';
 import { playRun } from '../src/ui/run.js';
 import {
-  ACHIEVEMENTS, earnedBy, earnedByPurchase, getProgress, isEarned, recordProgress, shopOpenGiven,
+  ACHIEVEMENTS, earn, earnedBy, earnedByPurchase, getProgress, isEarned, recordProgress,
+  shopOpenGiven,
   verifyAchievements, HERO_GATES, heroGate,
 } from '../src/ui/achievements.js';
 import { blankTally, foldFirsts, foldRun, harvestRows } from '../src/ui/harvest.js';
@@ -4506,6 +4507,19 @@ test('only an axe purchase earns the shop achievement', () => {
     assertEq(earnedByPurchase(entry.item.name).length, 0,
       `buying a ${entry.item.name} claimed an achievement`);
   }
+});
+
+test('an achievement keeps the run number it was earned on, when one is given', () => {
+  withStores(() => {
+    writeSlice('achievements', {});
+    const r = aRunThatEarned();
+    assert(earn(r.id, { seed: r.seed, config: r.config }, 7), 'first earn reports true');
+    assertEq(readSlice('achievements')[r.id].runNo, 7, 'the run number was not stored');
+    writeSlice('achievements', {});
+    earn(r.id, { seed: r.seed, config: r.config }, null);
+    assert(!('runNo' in readSlice('achievements')[r.id]),
+      'a page that does not persist wrote a run number anyway');
+  });
 });
 
 test('a hand-written achievement flag unlocks nothing', () => {

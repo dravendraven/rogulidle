@@ -1067,6 +1067,7 @@ footer {
 
 .ach-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
 .ach-title { font-weight: 600; color: var(--muted, #7a8595); }
+.ach > .ach-run { position: absolute; top: .25rem; right: .45rem; font-size: .7em; color: var(--muted, #7a8595); opacity: .45; }
 .ach-sub { font-size: .8em; color: var(--muted, #7a8595); opacity: .75; }
 
 /* docs/project/feitos-progresso.md — a locked row that some run came close

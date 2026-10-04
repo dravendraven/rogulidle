@@ -704,6 +704,10 @@ ser escolhido; uma escolha guardada que o degrau ainda não permite joga
 como o herói comum até ele ser conquistado, e volta a valer sozinha nesse
 dia.
 
+**Um feito conquistado guarda o número da run que o ganhou** e o mostra,
+em cinza bem fraco, no cartão. É só mostrador, não entra no recibo, e não é
+gravado numa página que não persiste (`?seed=`). Recomeçar zera a contagem.
+
 **Um feito ainda trancado mostra o quão perto alguma run já chegou dele** —
 a menor vida em que o Butcher ficou, o máximo que uma run pagou contra o
 preço do machado, o andar mais fundo alcançado. É só mostrador: não destrava
