@@ -30,7 +30,7 @@ import {
   floorOfTraversal, floorPlan, heldAfterClear, playDungeon, LEVELS, TRAVERSALS,
 } from '../src/sim/dungeon.js';
 import {
-  expectedFloorMass, floorParams, floorStrength, layoutFor, makeFloorPlan,
+  expectedFloorMass, floorParams, floorStrength, layoutFor, makeFloorPlan, massOfPlan,
   monstersAt, outOfDepthChanceAt, saturatedAt, threatMass,
   CLUSTER_SIZE, MONSTERS_BASE, MONSTER_GROWTH,
   MONSTER_STRENGTH, POTION_SCARCITY, WEAPON_SCARCITY,
@@ -5605,8 +5605,10 @@ test('each dungeon draws its own theme on every stretch, and its axes', () => {
       assertEq(plan(level).layout, want, `${name} floor ${level}: wrong theme`);
     }
     const one = plan(1);
-    if (d.creatures === 'pack') assert(one.clusterSize > 6 && one.monsters >= 8, `${name}: not a pack`);
-    else assert(one.clusterSize === 1 && one.monsters <= 3, `${name}: not a beast`);
+    const four = plan(4);
+    const shipped4 = makeFloorPlan({})(4);
+    if (d.creatures === 'pack') assert(one.clusterSize > 6 && four.monsters > shipped4.monsters, `${name}: not a pack`);
+    else assert(one.clusterSize === 1 && four.monsters < shipped4.monsters, `${name}: not a beast`);
     if (d.chests === 'plenty') assert(one.chests > 6, `${name}: not plenty`);
     else assert(one.chests < 6 && one.chestLootChance > 0.9, `${name}: not relic`);
     assertEq(dungeonIcons(name).length, 3, `${name}: not three icons`);
@@ -5671,5 +5673,54 @@ test('only a dark dungeon sets the floor sight', () => {
     const sight = makeFloorPlan(dungeonModel({}, name))(2).sight;
     if (d.light === 'dark') assert(sight > 0 && sight < VISIBLE_DIST, `${name}: not dark`);
     else assertEq(sight, null, `${name}: changed the sight without being dark`);
+  }
+});
+
+// The dungeon redistributes the SHIPPED budget (owner, 2026-10-04): weapons
+// only come from dead creatures, so creatures × drop chance holds, and the
+// threat mass of each stretch holds — both derived from the declared count.
+// Checked on the code defaults and on a curve in pieces like the shipped one.
+const SHIPPED_LIKE = { floors: [
+  { from: 1, monstersBase: 5, strength: 0.22, strengthGrowth: 1.2, weaponScarcity: 16 },
+  { from: 4, monstersBase: 6, strength: 0.38, strengthGrowth: 1.2, tierFloorStart: 0.3, tierSlackStart: 0.6 },
+  { from: 5, monstersBase: 6, strength: 0.456, strengthGrowth: 1.2, tierFloorStart: 0.4, tierSlackStart: 0.8 },
+  { from: 8, monstersBase: 7, strength: 0.788, strengthGrowth: 1.2, tierFloorStart: 0.5, tierSlackStart: 1 },
+  { from: 10, monstersBase: 7, strength: 1, strengthGrowth: 1.2, tierFloorStart: 0.5, tierSlackStart: 1 },
+] };
+
+test('a dungeon keeps the shipped weapons per floor: creatures × drop chance', () => {
+  for (const model of [{}, SHIPPED_LIKE]) {
+    const today = makeFloorPlan(model);
+    for (const [name, d] of Object.entries(DUNGEONS)) {
+      if (!d.themes) continue;
+      const plan = makeFloorPlan(dungeonModel(model, name));
+      for (const from of STRETCHES) {
+        const want = today(from).monsters * today(from).dropChance;
+        const got = plan(from).monsters * plan(from).dropChance;
+        assert(Math.abs(got - want) < 1e-9, `${name} floor ${from}: ${got.toFixed(2)} weapon rolls against ${want.toFixed(2)}`);
+        assertEq(plan(from).weaponScarcity, today(from).weaponScarcity, `${name} floor ${from}: E2's scarcity moved`);
+      }
+    }
+  }
+});
+
+// Mass on the shipped-like curve only: the code defaults are a game nobody
+// plays, and on floor 1 every creature is already the weakest tier — the
+// pack's six fit the shipped five, not the defaults' lighter floor.
+test('a dungeon keeps the shipped threat mass on every stretch', () => {
+  for (const model of [SHIPPED_LIKE]) {
+    const today = makeFloorPlan(model);
+    for (const [name, d] of Object.entries(DUNGEONS)) {
+      if (!d.themes) continue;
+      const plan = makeFloorPlan(dungeonModel(model, name));
+      for (const from of STRETCHES) {
+        const want = massOfPlan(today(from));
+        const got = massOfPlan(plan(from));
+        // The count is whole and the mass climbs in table rows, so close —
+        // not equal — is what the search can reach.
+        assert(Math.abs(got - want) / want < 0.06,
+          `${name} floor ${from}: mass ${got.toFixed(1)} against ${want.toFixed(1)}`);
+      }
+    }
   }
 });

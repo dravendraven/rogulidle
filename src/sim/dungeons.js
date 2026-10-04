@@ -26,7 +26,9 @@
 // file existed. Same rule as `HEROES.base`.
 
 import { MAP_THEME_LAYOUTS } from './balance.js';
-import { anchorAt } from './difficulty.js';
+import {
+  anchorAt, floorStrength, makeFloorPlan, massOfPlan, monstersAt, tierFloorShare, tierSlack,
+} from './difficulty.js';
 
 // The theme names the owner uses, onto MAP_THEME_LAYOUTS' indices — so a
 // curve below reads as words, and a reordering of that table cannot silently
@@ -47,17 +49,24 @@ const THEME = {
 export const STRETCHES = [1, 4, 5, 8, 10];
 
 // The two creature poles, per stretch where the value moves with depth.
+//
+// ONLY THE COUNT IS DECLARED (owner, 2026-10-04): a dungeon redistributes
+// the shipped budget, for loot too. The drop chance and the strength are
+// DERIVED from the count in `dungeonModel` — weapons per floor and threat
+// mass per stretch stay the shipped ones. Two counts sit at the edge of
+// what that allows, because the creature table has ends: on floor 1 every
+// creature is already the weakest tier, so a pack of more than six cannot
+// weigh as little as today's five; on floor 10 every creature is already
+// the strongest, so a beast floor cannot hold fewer than today's seven.
 const AXES = {
   creatures: {
     pack: {
-      monstersBase: { 1: 8, 4: 10, 5: 10, 8: 11, 10: 11 },
+      monstersBase: { 1: 6, 4: 10, 5: 10, 8: 11, 10: 11 },
       clusterSize: 12,
-      strengthMult: 0.75,
     },
     beast: {
-      monstersBase: { 1: 3, 4: 3, 5: 3, 8: 4, 10: 4 },
+      monstersBase: { 1: 3, 4: 3, 5: 3, 8: 4, 10: 7 },
       clusterSize: 1,
-      strengthMult: 1.3,
     },
   },
   chests: {
@@ -224,19 +233,48 @@ export function dungeonModel(model = {}, name = DEFAULT_DUNGEON) {
   const creatures = AXES.creatures[d.creatures];
   const chests = AXES.chests[d.chests];
   const light = AXES.light[d.light];
+  const today = makeFloorPlan(model);
   const floors = STRETCHES.map((from) => {
     const base = anchorAt(model, from);
+    const count = creatures.monstersBase[from];
+    const shipped = today(from);
     return {
       ...base,
       ...d.map,
       ...chests,
       ...light,
-      monstersBase: creatures.monstersBase[from],
+      monstersBase: count,
       clusterSize: creatures.clusterSize,
-      strength: Math.min(1, base.strength * creatures.strengthMult),
+      // Weapons come only from dead creatures, so the drop chance carries
+      // the ratio the count changed: creatures × chance stays the shipped
+      // product. `weaponScarcity` is untouched — it is E2's pair.
+      dropChance: Math.min(1,
+        shipped.dropChance * shipped.monsters / monstersAt(count, base.monsterGrowth, 0)),
+      strength: strengthFor({ ...base, monstersBase: count }, massOfPlan(shipped)),
       mapTheme: THEME[d.themes[from]],
       from,
     };
   });
   return { ...model, floors };
+}
+
+// The strength that makes this anchor's floor weigh what the shipped floor
+// weighs (`massOfPlan`, the generator's own measure). A plain search over
+// the share in thousandths — the mass climbs in steps as the tier ceiling
+// crosses table rows, so there is no closed form, and the closest step is
+// the answer. Lowest on a tie, so the result never drifts between runs.
+function strengthFor(anchor, target) {
+  const massAt = (strength) => massOfPlan({
+    monsters: monstersAt(anchor.monstersBase, anchor.monsterGrowth, 0),
+    difficultyScale: floorStrength(0, { ...anchor, strength }),
+    tierFloorShare: tierFloorShare(0, anchor),
+    tierSlack: tierSlack(0, anchor),
+  });
+  let best = 0;
+  let bestGap = Infinity;
+  for (let i = 0; i <= 1000; i++) {
+    const gap = Math.abs(massAt(i / 1000) - target);
+    if (gap < bestGap) { best = i / 1000; bestGap = gap; }
+  }
+  return best;
 }
