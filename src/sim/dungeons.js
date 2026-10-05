@@ -77,7 +77,7 @@ const AXES = {
   // shipped reach, so seeing FARTHER than today would need a bigger board.
   light: {
     clear: {},
-    dark: { sight: 5 },
+    dark: { sight: 7 },
   },
 };
 

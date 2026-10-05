@@ -83,10 +83,12 @@ function paintTorch(reach) {
   const cellPx = torch.clientWidth / VIEW;
   const centre = `${(VISIBLE_DIST + 0.5) * cellPx}px ${(VISIBLE_DIST + 0.5) * cellPx}px`;
   const r = (reach + 0.5) * cellPx;
+  // A falloff, not a wall (owner, 2026-10-05): clear only round the hero,
+  // dimming steadily across the lit area, near black at the reach's edge.
   torch.style.background = `radial-gradient(circle ${r + cellPx}px at ${centre}, `
-    + `rgba(255, 176, 72, .14) 0, rgba(255, 176, 72, .06) ${r * 0.6}px, `
-    + `rgba(14, 10, 6, 0) ${r - cellPx * 0.6}px, rgba(14, 10, 6, .94) ${r + cellPx * 0.3}px, `
-    + `rgba(14, 10, 6, .98) ${r + cellPx}px)`;
+    + `rgba(255, 176, 72, .12) 0, rgba(14, 10, 6, 0) ${r * 0.3}px, `
+    + `rgba(14, 10, 6, .25) ${r * 0.6}px, rgba(14, 10, 6, .6) ${r * 0.85}px, `
+    + `rgba(14, 10, 6, .92) ${r + cellPx * 0.3}px, rgba(14, 10, 6, .98) ${r + cellPx}px)`;
 }
 
 // Everything the bot believes is at each position, keyed by "x,y".
