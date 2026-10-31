@@ -60,6 +60,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | `startFloor` | 1 | LAB ONLY, and it has no constant — a run option the panel sets, so the floor you want to look at is on screen without watching the ones above it. The hero arrives EMPTY-HANDED, so it shows a floor's shape and lies about its cost: measured, ~39 turns on floor 4 against ~77 on floor 1, and it clears floor 4 7% of the time against 97% on floor 1 |
 | `RETURN_ENABLED` | false | whether the run the pages ask for includes the climb back out; off is a plain ten-traversal descent (rules.md §1) |
 | `CLASS_LADDER_ENABLED` | false | whether the cast opens as the class ladder (rules.md §9) instead of `HERO_GATES`; off is today's two-rung gate. The run dial `classLadder` (dev Lab, `dial-overrides.json`) carries it. The ladder's order and its feats are `CLASS_LADDER` in `src/ui/achievements.js` — a list, not values |
+| `OFICINA_FLOORS` / `FARO_CHESTS` / `SANGUE_FLOORS` / `SANGUE_DAMAGE` / `LEITURA_HEAL` | 8 / 10 / 3 / 5 / 9 | the ladder feats' bars (`src/ui/achievements.js`): floors whose stairs bought Pawa a plate; full chests Ricardo opens before the first empty; floors Vito clears taking at most that much damage in all; hp one of Papazito's reads restores on a floor he survives. Each set so a naked run of its class reaches it roughly one time in six to twenty, never needing a clear |
 
 ## Fixed / faithful
 

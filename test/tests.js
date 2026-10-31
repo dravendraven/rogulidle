@@ -50,6 +50,7 @@ import {
   shopOpenGiven,
   verifyAchievements, HERO_GATES, heroGate,
   CLASS_LADDER, CLASS_LADDER_ENABLED, forcedHeroGiven, heroLockGiven, ladderRungGiven, lockedReason,
+  LADDER_FEATS, setClassLadder, shownAchievements,
 } from '../src/ui/achievements.js';
 import { blankTally, foldFirsts, foldRun, harvestRows } from '../src/ui/harvest.js';
 import { getChosenHero, heroOpen, setChosenHero } from '../src/ui/roster.js';
@@ -4722,6 +4723,45 @@ test('the class ladder: one obligatory class per level, each feat opens the next
     earned.add(feat);
   }
 });
+
+test('switched off, the strip shows the three rows it always did', () => {
+  setClassLadder(false);
+  assertEq(shownAchievements().map((a) => a.id).join(','), 'butcher,axe,bottom',
+    'the ladder feats leak onto the strip with the switch off');
+  setClassLadder(true);
+  assertEq(shownAchievements().length, ACHIEVEMENTS.length, 'the ladder feats are missing with it on');
+  setClassLadder(CLASS_LADDER_ENABLED);
+});
+
+test('every ladder rung after the first has a feat, a row, and a sprite', () => {
+  for (const { feat } of CLASS_LADDER.slice(1)) {
+    assert(LADDER_FEATS[feat], `${feat} has no measure`);
+    const row = ACHIEVEMENTS.find((a) => a.id === feat);
+    assert(row && row.ladder, `${feat} has no ladder row`);
+    assert(tileSvg(row.emoji), `${feat}'s emoji has no sprite`);
+  }
+});
+
+// Each feat FOUND on a real run of its class rather than written down, then
+// asked of the same run under every other name: a ladder feat belongs to its
+// class, or a lucky run of the wrong hero would skip a rung.
+for (const { hero, feat } of CLASS_LADDER.slice(1)) {
+  test(`the ${feat} feat is earned by a real ${hero} run, and by nobody else's`, () => {
+    let found = null;
+    for (let i = 1; i <= 120 && !found; i++) {
+      const run = playRun(hashSeeds(20261101, i), { heroName: hero });
+      if (earnedBy(run, hero).includes(feat)) found = run;
+    }
+    assert(found, `no ${hero} run in 120 earned ${feat} — the threshold is out of reach`);
+    const value = LADDER_FEATS[feat].measure(found);
+    const { target, lower } = LADDER_FEATS[feat];
+    assert(lower ? value <= target : value >= target, `${feat} was reported below its own bar`);
+    for (const other of Object.keys(HEROES).filter((h) => h !== hero)) {
+      assert(!earnedBy(found, other).includes(feat), `${feat} counted for ${other}`);
+    }
+    assert(!earnedBy(found).includes(feat), `${feat} counted with no hero named`);
+  });
+}
 
 // ***** the shop's no-input purchase (rules.md §9) ***** //
 //

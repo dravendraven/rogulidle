@@ -68,6 +68,17 @@ import { LEVELS } from '../sim/dungeon.js';
 // and the failure cases this used to carry itself.
 const SLICE = 'achievements';
 
+// THE LADDER FEATS' THRESHOLDS — values, so their row is in docs/balance.md.
+// Each was set by playing naked runs of its class (no shop) and taking a
+// value roughly one run in six to twenty reaches: an hour's watching at
+// most, and never a clear. The class's own trait is what moves each one —
+// the other heroes measured at or near zero on the same bar.
+export const OFICINA_FLOORS = 8;   // floors whose stairs bought Pawa a plate
+export const FARO_CHESTS = 10;     // full chests opened before the first empty
+export const SANGUE_FLOORS = 3;    // floors cleared…
+export const SANGUE_DAMAGE = 5;    // …taking at most this much damage in all
+export const LEITURA_HEAL = 9;     // hp one read restored, on a floor survived
+
 // `emoji` has to be a glyph `src/ui/tiles.js` carries a sprite for — the
 // renderer draws Twemoji SVGs, not system emoji, and returns nothing for a
 // glyph it does not know. That is how the Butcher shipped invisible.
@@ -93,7 +104,48 @@ export const ACHIEVEMENTS = [
     locked: 'dez andares. ninguém chegou ainda',
     earned: 'desceu até onde não há mais escada',
   },
+  // THE CLASS LADDER'S FEATS (front B) — one per class above the first, each
+  // read off the run result by `LADDER_FEATS` below. `ladder: true` keeps
+  // them off the strip and unearned while the switch is off, so off the
+  // page shows the three rows it always did.
+  {
+    id: 'oficina',
+    emoji: '🛡️',
+    ladder: true,
+    title: 'Oficina',
+    locked: `o Pawa ainda não vestiu chapa nova em ${OFICINA_FLOORS} andares de uma run`,
+    earned: `vestiu chapa nova em ${OFICINA_FLOORS} andares de uma só run`,
+  },
+  {
+    id: 'faro',
+    emoji: '📦',
+    ladder: true,
+    title: 'Faro',
+    locked: `o Ricardo ainda não abriu ${FARO_CHESTS} baús cheios antes do primeiro vazio`,
+    earned: `abriu ${FARO_CHESTS} baús cheios antes de abrir um vazio`,
+  },
+  {
+    id: 'sangue',
+    emoji: '🗡️',
+    ladder: true,
+    title: 'Sangue frio',
+    locked: `o Vito ainda não chegou ao andar ${SANGUE_FLOORS + 1} levando ${SANGUE_DAMAGE} de dano ou menos`,
+    earned: `chegou ao andar ${SANGUE_FLOORS + 1} levando ${SANGUE_DAMAGE} de dano ou menos`,
+  },
+  {
+    id: 'leitura',
+    emoji: '📜',
+    ladder: true,
+    title: 'Leitura de risco',
+    locked: `o Papazito ainda não leu o livro curando ${LEITURA_HEAL} de vida e saiu vivo do andar`,
+    earned: `leu o livro curando ${LEITURA_HEAL} de vida, e saiu vivo do andar`,
+  },
 ];
+
+// The rows the page shows: the ladder's only while the ladder is on.
+export function shownAchievements() {
+  return ACHIEVEMENTS.filter((a) => !a.ladder || ladderOn);
+}
 
 // The axe's price, read off the shelf rather than restated here — the one
 // number this file needs from the shop, and it must be the shop's own.
@@ -285,14 +337,67 @@ function coinsBanked(runResult) {
     sum + (level.outcome === 'ascended' ? level.coins - (level.spent ?? 0) : 0), 0);
 }
 
+// How far a run got on each ladder feat, and the bar it has to reach. One
+// measure per feat, read off the run result alone so a replay reproduces
+// it; `null` when the run said nothing about it. `lower` marks the one
+// feat where less is better (damage).
+export const LADDER_FEATS = {
+  oficina: {
+    measure: (run) => run.levels.filter((l) => l.bought).length,
+    target: OFICINA_FLOORS,
+  },
+  faro: {
+    measure: (run) => {
+      let full = 0;
+      for (const level of run.levels) {
+        for (const c of level.chests) {
+          if (!c.opened || c.vault) continue;
+          if (!c.full) return full;
+          full += 1;
+        }
+      }
+      return full;
+    },
+    target: FARO_CHESTS,
+  },
+  sangue: {
+    measure: (run) => {
+      const early = run.levels.slice(0, SANGUE_FLOORS);
+      if (early.length < SANGUE_FLOORS || early.some((l) => l.outcome !== 'ascended')) return null;
+      return early.reduce((sum, l) => sum + l.damage, 0);
+    },
+    target: SANGUE_DAMAGE,
+    lower: true,
+  },
+  leitura: {
+    measure: (run) => Math.max(0, ...run.levels
+      .filter((l) => l.outcome === 'ascended' && l.reads)
+      .flatMap((l) => l.reads)),
+    target: LEITURA_HEAL,
+  },
+};
+
+function featMet(id, value) {
+  const feat = LADDER_FEATS[id];
+  if (value === null) return false;
+  return feat.lower ? value <= feat.target : value >= feat.target;
+}
+
+// The class whose feat `id` is, or null for the original three rows.
+function featHero(id) {
+  const rung = CLASS_LADDER.find((r) => r.feat === id);
+  return rung && LADDER_FEATS[id] ? rung.hero : null;
+}
+
 // Whether a replayed receipt proves its achievement. The run-produced pair
 // is read straight off the result (`earnedBy`); the axe's receipt is the
 // run whose coins paid for it, and the replayable half of that claim is
 // that the balance really covered the price — the header says why the
-// click itself is not, and cannot be, part of the proof.
-function receiptProves(id, runResult) {
+// click itself is not, and cannot be, part of the proof. A ladder feat's
+// receipt must also be its own class's run, read off the stored config.
+function receiptProves(id, runResult, config) {
   if (id === 'axe') return coinsBanked(runResult) >= AXE_PRICE;
-  return earnedBy(runResult).includes(id);
+  return earnedBy(runResult, config.heroName).includes(id);
 }
 
 // Re-run every stored receipt and keep only the ones that produce the
@@ -327,7 +432,7 @@ export function verifyAchievements() {
       // either, and there is nothing here that can tell them apart.
       continue;
     }
-    if (receiptProves(a.id, run)) out[a.id] = entry;
+    if (receiptProves(a.id, run, entry.config)) out[a.id] = entry;
   }
   verified = out;
   return out;
@@ -388,7 +493,12 @@ export function resetAchievements() {
 //
 // The vault's occupant is the roster row tagged `vault` (src/sim/spawn.js);
 // `dead` is set by the engine when the hero lands the killing blow.
-export function earnedBy(runResult) {
+//
+// A ladder feat counts only for ITS class (`heroName`, the run's hero):
+// otherwise Pawa's lucky low-damage run would close Vito's level before
+// Vito ever played it, and the ladder would skip a rung. Without a hero
+// name — the chain instrument — no ladder feat is ever reported.
+export function earnedBy(runResult, heroName = null) {
   const out = [];
   if (runResult.cleared) out.push('bottom');
   for (const level of runResult.levels) {
@@ -396,6 +506,10 @@ export function earnedBy(runResult) {
       out.push('butcher');
       break;
     }
+  }
+  for (const id of Object.keys(LADDER_FEATS)) {
+    if (heroName && featHero(id) === heroName
+      && featMet(id, LADDER_FEATS[id].measure(runResult))) out.push(id);
   }
   return out;
 }
@@ -430,7 +544,8 @@ const PROGRESS = 'progress';
 // The Butcher's remaining hp at the end of the vault floor, kept only when
 // this run left him lower than any before it. A run that killed him records
 // nothing — that is the achievement's own job, and the bar is gone by then.
-export function recordProgress(runResult) {
+export function recordProgress(runResult, heroName = null) {
+  recordLadderProgress(runResult, heroName);
   let lowest = null;
   for (const level of runResult.levels) {
     for (const m of level.roster) {
@@ -447,6 +562,58 @@ export function recordProgress(runResult) {
   return true;
 }
 
+// The ladder feats' bars: the best this class has done against each one,
+// kept per feat in the same PROGRESS record. Only the feat's own class
+// writes it, for the same reason only it can earn it.
+function recordLadderProgress(runResult, heroName) {
+  const data = load();
+  const progress = { ...(data[PROGRESS] || {}) };
+  let changed = false;
+  for (const [id, feat] of Object.entries(LADDER_FEATS)) {
+    if (!heroName || featHero(id) !== heroName) continue;
+    const value = feat.measure(runResult);
+    if (value === null) continue;
+    const best = progress[id];
+    if (!Number.isFinite(best) || (feat.lower ? value < best : value > best)) {
+      progress[id] = value;
+      changed = true;
+    }
+  }
+  if (!changed) return false;
+  data[PROGRESS] = progress;
+  save(data);
+  return true;
+}
+
+// The ladder rows' pips. Damage is drawn red, as what it cost, the way the
+// Butcher's pips are what he kept; the others fill toward the target. The
+// label carries the number either way.
+const LADDER_PIPS = {
+  oficina: { glyph: '🛡️', text: (v) => `a melhor run vestiu chapa nova em ${v} de ${OFICINA_FLOORS} andares` },
+  faro: { glyph: '🟨', text: (v) => `a melhor run abriu ${v} de ${FARO_CHESTS} baús cheios antes do primeiro vazio` },
+  sangue: { glyph: '🟥', text: (v) => `a melhor chegada ao andar ${SANGUE_FLOORS + 1} custou ${v} de dano — o feito pede ${SANGUE_DAMAGE}` },
+  leitura: { glyph: '🟩', text: (v) => `a melhor leitura curou ${v} de ${LEITURA_HEAL}` },
+};
+
+function ladderProgress(stored) {
+  const out = {};
+  for (const [id, feat] of Object.entries(LADDER_FEATS)) {
+    const value = stored && stored[id];
+    if (!Number.isFinite(value)) continue;
+    const { glyph, text } = LADDER_PIPS[id];
+    const total = feat.lower ? Math.max(value, feat.target * 2) : feat.target;
+    out[id] = {
+      fraction: feat.lower ? Math.min(1, feat.target / Math.max(value, 1)) : Math.min(1, value / feat.target),
+      text: text(value),
+      filled: Math.min(value, total),
+      total,
+      glyph,
+      label: feat.lower ? `${value} dano` : `${value}/${feat.target}`,
+    };
+  }
+  return out;
+}
+
 // `{ [id]: { fraction, text, filled, total, glyph, label } }` for every row
 // that has something to show; a row absent here shows its `locked`
 // sentence. `fraction` is 0..1 of the way to the threshold; `filled` of
@@ -461,8 +628,8 @@ export function recordProgress(runResult) {
 // harmless — nobody has to decode a direction to read "9 hp".
 // `highscores` is `getHighscores()`'s result.
 export function getProgress(highscores = {}) {
-  const out = {};
   const stored = load()[PROGRESS];
+  const out = ladderProgress(stored);
   const pig = stored && stored.butcher;
   if (pig && Number.isFinite(pig.hpLeft) && pig.hpMax > 0) {
     out.butcher = {

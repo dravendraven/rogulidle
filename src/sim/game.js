@@ -259,6 +259,9 @@ export function* playGameSteps(seed, policy, options = {}) {
     // 0.26 and the wire reads as a defect that is not there.
     chests: state.chests.map((c) => ({
       id: c.id, side: c.side, edge: c.edge, vault: !!c.vault,
+      // Whether it held anything — the ladder's Faro asks what an opened
+      // chest WAS, and an opened chest is gone from the state.
+      full: Boolean(c.drop),
     })),
     monsters: state.monsters.map((m) => ({
       id: m.id, side: m.side, edge: m.edge, xp: m.xp, hp: m.hpMax,

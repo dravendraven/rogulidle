@@ -360,6 +360,11 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
     const flights = run.state.log
       .filter((e) => e.type === 'flee')
       .map((e) => ({ turn: e.turn, from: e.from, to: e.to }));
+    // Front B — what each read of the book healed, for the scholar's ladder
+    // feat (src/ui/achievements.js). A record, not a rule.
+    const reads = run.state.log
+      .filter((e) => e.type === 'read')
+      .map((e) => e.healed);
 
     const player = run.state.player;
     levels.push({
@@ -390,6 +395,9 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
       // on one-route floors rather than zeroed, so a reader can tell "no
       // choice existed" from "chose neither".
       ...(player.routeVisits ? { routeVisits: player.routeVisits } : {}),
+      // Absent on floors with no read, like routeVisits — a floor that read
+      // nothing has nothing to say.
+      ...(reads.length ? { reads } : {}),
       arrivedWith,
       roster,
       chests,

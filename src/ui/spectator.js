@@ -18,6 +18,7 @@ import {
 } from './render.js';
 import {
   ACHIEVEMENTS, earn, earnedBy, earnedByPurchase, getAchievements, getProgress, setClassLadder,
+  classLadderOn, shownAchievements,
   recordProgress, resetAchievements, shopItemOpen, shopLockLine, verifyAchievements,
 } from './achievements.js';
 import { tileSvg } from './tiles.js';
@@ -700,7 +701,7 @@ async function showShop(receipt) {
     if (!firsts.length) return;
     noteFirsts(firsts);
     if (el.achievements) {
-      renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), firsts[0],
+      renderAchievements(el.achievements, shownAchievements(), getAchievements(), firsts[0],
         getProgress(getHighscores()));
     }
     // The FUNDING run's chip takes the trophy — history[0], tallied just
@@ -938,7 +939,10 @@ function tallyDescent(run, finalState, heroName, receipt) {
   // strip and the achievement row are written from one answer instead of two
   // that could disagree about which run it was.
   const firsts = [];
-  for (const id of earnedBy(run)) {
+  // The ladder's feats only while the ladder is on: off, the page earns and
+  // records exactly the three rows it always did.
+  const ladderHero = classLadderOn() ? receipt.config.heroName : null;
+  for (const id of earnedBy(run, ladderHero)) {
     if (earn(id, receipt, runNoToStore())) firsts.push(id);
   }
 
@@ -956,9 +960,9 @@ function tallyDescent(run, finalState, heroName, receipt) {
 
   // The third bar — how low this run left the Butcher — has no highscore
   // row to live in, so the achievements module keeps it itself.
-  recordProgress(run);
+  recordProgress(run, ladderHero);
   if (el.achievements) {
-    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(), firsts[0] || null,
+    renderAchievements(el.achievements, shownAchievements(), getAchievements(), firsts[0] || null,
       getProgress(getHighscores()));
   }
 
@@ -1359,7 +1363,7 @@ function wireControls() {
     // gate re-shuts the instant the receipts go (`resetAchievements` clears
     // the verified cache), and a rail still showing an open cast would be
     // lying until the run on screen happened to end.
-    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(),
+    renderAchievements(el.achievements, shownAchievements(), getAchievements(),
       null, getProgress(getHighscores()));
     // The strip goes with them. A green chip is the record of an achievement,
     // and a reset that wipes the achievement and leaves its trophy standing
@@ -1514,7 +1518,7 @@ export async function start() {
   // Drawn before the first run so the board reads as "two things to do"
   // rather than appearing out of nowhere the moment one is done.
   if (el.achievements) {
-    renderAchievements(el.achievements, ACHIEVEMENTS, getAchievements(),
+    renderAchievements(el.achievements, shownAchievements(), getAchievements(),
       null, getProgress(getHighscores()));
   }
   events = makeEventLayer(el.stage, el.grid, { enabled: eventsEnabled(), signalMs });
@@ -1533,6 +1537,13 @@ export async function start() {
   // rather than breaking the page.
   const overrides = await loadDialOverrides();
   session.shippedDials = resolvedDefaults(overrides);
+  // The class ladder is known only now, after the strip was first drawn; on,
+  // it adds rows, so the strip is drawn again with them.
+  setClassLadder(session.shippedDials.run.classLadder);
+  if (el.achievements && classLadderOn()) {
+    renderAchievements(el.achievements, shownAchievements(), getAchievements(),
+      null, getProgress(getHighscores()));
+  }
   const devMode = params.get('dev') === '1';
   wireLab(overrides, devMode);
 
@@ -1570,7 +1581,6 @@ export async function start() {
   // load is the hero the first run will actually use rather than a guess it
   // has to correct a moment later.
   if (el.roster) {
-    setClassLadder(session.shippedDials.run.classLadder);
     session.roster = buildRoster(el.roster, {
       // A pick QUEUES: the run on screen keeps the hero it started with,
       // because a run is reproducible from its seed AND its hero and

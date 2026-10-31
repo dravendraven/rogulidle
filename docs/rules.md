@@ -714,6 +714,16 @@ traço dela e nunca depende de uma run limpa; fechá-lo abre o seguinte. O
 cartão do herói diz o nível e o feito que falta. A escolha guardada não é
 apagada: volta a valer quando a escada fecha.
 
+Os níveis, em ordem: **Aurélio** fecha derrubando o porco (o feito que já
+existia); **Pawa**, vestindo chapa comprada na escada em muitos andares de
+uma mesma run; **Ricardo**, abrindo uma sequência de baús cheios antes do
+primeiro vazio; **Vito**, chegando ao andar 4 tendo levado pouco dano nos
+três primeiros; **Papazito**, lendo o livro quase sem vida e saindo vivo
+daquele andar. Um feito de classe só conta numa run DAQUELA classe, e o
+recibo que o prova guarda o herói junto. Cada um mostra, enquanto trancado,
+o melhor que a classe já fez contra a meta. Desligada a escada, esses feitos
+não aparecem e não são ganhos.
+
 **Um feito conquistado guarda o número da run que o ganhou** e o mostra,
 em cinza bem fraco, no cartão. É só mostrador, não entra no recibo, e não é
 gravado numa página que não persiste (`?seed=`). Recomeçar zera a contagem.
