@@ -10,6 +10,14 @@ thing the item is for, and update the doc the change made stale
 
 ## Order
 
+**Reordered 2026-10-31 with the owner — four new fronts, in
+`docs/project/plano-2026-11.md`:** A · chefes (fera × matilha) and B ·
+escada de classes in parallel, then C · item do herói, then D · inferno
+diário (which replaces the floor-10 portal of U11 fatia 1 below: hell is a
+button, once a day, opened by the first clear). Every change ships behind a
+switch, OFF. U14 stays valid as the context ladder. The order below is
+history.
+
 Reordered 2026-09-17 with the owner, after a month of side quests (the
 flight, hp per hero, the coin chest, progress bars) and a re-read of every
 doc. The 2026-08-20 order below still holds — E1/E2 done, item 3 done
