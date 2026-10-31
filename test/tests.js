@@ -61,6 +61,7 @@ import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
 import { playOne, runWires } from '../src/analysis/check.js';
 import saveWorker, { LEASE_MS, SaveRoom } from '../server/save-worker.js';
 import { balanceOf, playChain, seedOf, spend } from '../src/analysis/chain.js';
+import { arenaDuel, bossTable } from '../src/analysis/bosses.js';
 
 // ***** tiny test harness ***** //
 
@@ -5581,4 +5582,26 @@ test('a heroChanges entry lands at its turn and the receipt replays exactly', ()
   const replayed = playRun(seed, JSON.parse(JSON.stringify(config)));
   assertEq(shape(replayed), shape(changed),
     'the same heroChanges config did not reproduce the run — receipts would rot');
+});
+
+// A1 — docs/project/plano-2026-11.md. The boss arena (src/analysis/bosses.js)
+// is an instrument, so what is tested is that it measures the real fight:
+// reproducible from the seed, and a band of three costing more than one of
+// its members — the property the Fera × Matilha equivalence is built on.
+
+test('the boss arena replays from its seed and fights to the end', () => {
+  const wolves = [0, 1, 2].map(() => MONSTER_TABLE.find((m) => m.name === 'wolf'));
+  const a = arenaDuel(41, wolves, 'dagger');
+  const b = arenaDuel(41, wolves, 'dagger');
+  assertEq(JSON.stringify(a), JSON.stringify(b), 'same seed, different duel');
+  assert(a.finished, 'a three-wolf duel with a dagger did not end inside the cap');
+  assert(a.hpLost > 0, 'three wolves landed nothing — the arena is not fighting');
+});
+
+test('a band of three that arrives together costs more than one of them', () => {
+  const { table } = bossTable({ duels: 60, units: ['wolf', '3 wolf', '3 wolf apart'], weapons: ['axe'] });
+  const cost = Object.fromEntries(table.map((r) => [r.unit, r.hpLost]));
+  assert(cost['3 wolf'] > cost.wolf * 2, `3 wolves ${cost['3 wolf']} vs one ${cost.wolf}`);
+  assert(cost['3 wolf'] > cost['3 wolf apart'],
+    `a band fought together (${cost['3 wolf']}) should cost more than one at a time (${cost['3 wolf apart']})`);
 });
