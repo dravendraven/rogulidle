@@ -21,7 +21,7 @@
 
 import { HEROES, heroLabel } from '../sim/heroes.js';
 import { tileSvg } from './tiles.js';
-import { heroGate, isEarned, lockedReason } from './achievements.js';
+import { forcedHero, heroLock, ladderLine } from './achievements.js';
 import { clearSlice, readSlice, writeSlice } from './save.js';
 
 // One slice of the save document (src/ui/save.js), which owns the storage
@@ -42,12 +42,13 @@ const SLICE = 'hero';
 // on the base hero through the ordinary default path rather than through a
 // second rule that says so.
 export function heroOpen(name) {
-  const gate = heroGate(name);
-  return !gate || isEarned(gate);
+  return heroLock(name) === '';
 }
 
+// The class ladder (src/ui/achievements.js) answers both questions when it
+// is switched on; off, `heroLock` is HERO_GATES' answer, unchanged.
 export function heroLockReason(name) {
-  return lockedReason(heroGate(name));
+  return heroLock(name);
 }
 
 // The whole line, in ONE place, because two call sites print it — the card's
@@ -79,6 +80,11 @@ function allowed(name) {
 // base until the pig falls. The stored value is NOT erased, so the day it
 // does fall their old pick is simply theirs again.
 export function getChosenHero() {
+  // THE LADDER OVERRIDES THE PICK. While it climbs, the current class is
+  // obligatory, so who plays is not a choice at all — the stored pick is
+  // left alone and comes back the moment the ladder closes.
+  const forced = forcedHero();
+  if (forced !== null) return forced === 'base' ? '' : forced;
   const stored = read();
   return stored !== null && !allowed(stored) ? '' : stored;
 }
@@ -200,7 +206,12 @@ export function buildRoster(container, { onPick, onRestart, onPreview } = {}) {
   // card's own blurb slot already says why the cast is shut whenever a
   // locked face is being read, and the line repeated it under the ordinary
   // hero where nothing was being asked. One fact, one place.
-  container.append(row, pending);
+  // The ladder's own line: which level this is and what is still missing.
+  // Hidden whenever the ladder forces nobody, so off it costs nothing.
+  const ladder = document.createElement('div');
+  ladder.className = 'roster-ladder';
+  ladder.hidden = true;
+  container.append(row, ladder, pending);
 
   const restart = document.createElement('button');
   restart.type = 'button';
@@ -266,6 +277,10 @@ export function buildRoster(container, { onPick, onRestart, onPreview } = {}) {
     // Nothing is queued and nothing can be restarted while browsing: there
     // is no pick behind either button, so offering them would promise a
     // change that will not happen.
+    const ladderText = ladderLine();
+    ladder.hidden = !ladderText;
+    ladder.textContent = ladderText;
+
     pending.hidden = !waiting || browsing;
     pending.textContent = (waiting && !browsing) ? '⏭ entra na próxima run' : '';
     restart.hidden = !waiting || browsing;

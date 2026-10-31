@@ -41,6 +41,7 @@ import {
 import {
   BIAS_SPREAD, DANGER_PERSISTENCE, DEFAULT_HERO, LOOT_VALUE, biasBands,
 } from '../src/bot/config.js';
+import { resolvedDefaults } from '../src/ui/dials.js';
 import { tileSvg } from '../src/ui/tiles.js';
 import { depthTheme } from '../src/ui/depth-theme.js';
 import { playRun } from '../src/ui/run.js';
@@ -48,6 +49,7 @@ import {
   ACHIEVEMENTS, earn, earnedBy, earnedByPurchase, getProgress, isEarned, recordProgress,
   shopOpenGiven,
   verifyAchievements, HERO_GATES, heroGate,
+  CLASS_LADDER, CLASS_LADDER_ENABLED, forcedHeroGiven, heroLockGiven, ladderRungGiven, lockedReason,
 } from '../src/ui/achievements.js';
 import { blankTally, foldFirsts, foldRun, harvestRows } from '../src/ui/harvest.js';
 import { getChosenHero, heroOpen, setChosenHero } from '../src/ui/roster.js';
@@ -4681,6 +4683,44 @@ test('two rungs: the pig opens pawa and ricardo, the first clear opens vito and 
     assert(!heroOpen('pawa') && !heroOpen('ricardo'),
       'the clear opened the pig pair — the rungs are separate keys, not a ladder of one');
   });
+});
+
+// ***** the class ladder (plano-2026-11.md, front B) ***** //
+//
+// Pure functions with the earned ids handed in, so these run headless —
+// the stateful wrappers are the same calls with this browser's receipts.
+
+test('the class ladder ships switched off, and off it is HERO_GATES word for word', () => {
+  assertEq(CLASS_LADDER_ENABLED, false, 'the ladder ships switched on');
+  assertEq(resolvedDefaults({}).run.classLadder, false, 'the run dial does not default to off');
+  const ids = ['butcher', 'bottom', 'axe'];
+  const subsets = [[], ['butcher'], ['bottom'], ['butcher', 'bottom'], ids];
+  for (const subset of subsets) {
+    const earned = new Set(subset);
+    assertEq(forcedHeroGiven(earned, false), null, 'switched off, the ladder forced a hero');
+    for (const name of Object.keys(HEROES)) {
+      const gate = heroGate(name);
+      const want = gate && !earned.has(gate) ? lockedReason(gate) : '';
+      assertEq(heroLockGiven(name, earned, false), want,
+        `switched off, ${name} with [${subset}] is not locked as HERO_GATES says`);
+    }
+  }
+});
+
+test('the class ladder: one obligatory class per level, each feat opens the next', () => {
+  assertEq(CLASS_LADDER.length, Object.keys(HEROES).length, 'a hero is missing from the ladder');
+  const earned = new Set();
+  for (let i = 0; i < CLASS_LADDER.length; i++) {
+    const { hero, feat } = CLASS_LADDER[i];
+    assertEq(ladderRungGiven(earned), i, `the ladder is not on level ${i + 1}`);
+    assertEq(forcedHeroGiven(earned, true), hero, `level ${i + 1} does not force ${hero}`);
+    for (const rung of CLASS_LADDER) {
+      const open = heroLockGiven(rung.hero, earned, true) === '';
+      assertEq(open, rung.hero === hero,
+        `on level ${i + 1}, ${rung.hero} is ${open ? 'open' : 'shut'}`);
+    }
+    earned.add(feat);
+  }
 });
 
 // ***** the shop's no-input purchase (rules.md §9) ***** //

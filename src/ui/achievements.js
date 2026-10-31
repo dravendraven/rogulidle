@@ -118,6 +118,98 @@ export function heroGate(name) {
   return HERO_GATES[name] || '';
 }
 
+// THE CLASS LADDER (docs/project/plano-2026-11.md, front B). Each class is a
+// level: the player plays the current one and ONLY it, and its feat opens
+// the next. Every rung closed, the whole cast is free. Ordered from the
+// weakest class measured to the strongest; each feat exercises the class's
+// own trait and never needs a clear (a clear is too rare to gate on).
+//
+// Behind a switch that ships OFF, and off it is HERO_GATES above, untouched.
+// The switch is a run dial (`classLadder`, src/ui/dials.js) so
+// dial-overrides.json can ship it and the Lab can flip it; the page hands
+// its value to `setClassLadder` before anything asks who may play.
+export const CLASS_LADDER_ENABLED = false;
+
+export const CLASS_LADDER = [
+  { hero: 'base', feat: 'butcher' },
+  { hero: 'pawa', feat: 'oficina' },
+  { hero: 'ricardo', feat: 'faro' },
+  { hero: 'vito', feat: 'sangue' },
+  { hero: 'papazito', feat: 'leitura' },
+];
+
+let ladderOn = CLASS_LADDER_ENABLED;
+
+export function setClassLadder(on) {
+  ladderOn = Boolean(on);
+}
+
+export function classLadderOn() {
+  return ladderOn;
+}
+
+// Which rung the player stands on, given the ids earned: the first whose
+// feat is missing. `CLASS_LADDER.length` means the ladder is closed. Pure,
+// like `shopOpenGiven`, so it can be asked without a browser.
+export function ladderRungGiven(earned) {
+  const index = CLASS_LADDER.findIndex((rung) => !earned.has(rung.feat));
+  return index === -1 ? CLASS_LADDER.length : index;
+}
+
+// The hero the ladder forces, or null when it forces nobody — switched off,
+// or closed (B4: every class free).
+export function forcedHeroGiven(earned, on) {
+  if (!on) return null;
+  const rung = CLASS_LADDER[ladderRungGiven(earned)];
+  return rung ? rung.hero : null;
+}
+
+// Why `name` cannot be played, '' when he can. Off, this is HERO_GATES'
+// answer word for word; on and still climbing, everyone but the current
+// rung's hero is shut — the ones below it as well, because the current
+// class is OBLIGATORY, not merely available.
+export function heroLockGiven(name, earned, on) {
+  const forced = forcedHeroGiven(earned, on);
+  if (forced === null) {
+    if (on) return '';
+    const gate = heroGate(name);
+    return gate && !earned.has(gate) ? lockedReason(gate) : '';
+  }
+  if (name === forced) return '';
+  const index = CLASS_LADDER.findIndex((rung) => rung.hero === name);
+  const current = ladderRungGiven(earned);
+  return index < current
+    ? `nível ${index + 1} da escada, já fechado — agora é a vez do nível ${current + 1}`
+    : `nível ${index + 1} da escada — abre quando o nível ${index} fechar o feito dele`;
+}
+
+function earnedSet() {
+  return new Set(Object.keys(getAchievements()));
+}
+
+export function ladderRung() {
+  return ladderRungGiven(earnedSet());
+}
+
+export function forcedHero() {
+  return forcedHeroGiven(earnedSet(), ladderOn);
+}
+
+export function heroLock(name) {
+  return heroLockGiven(name, earnedSet(), ladderOn);
+}
+
+// The sentence the roster prints under the card while the ladder climbs:
+// which level this is and what is still missing to leave it. '' when the
+// ladder forces nobody.
+export function ladderLine() {
+  if (forcedHero() === null) return '';
+  const index = ladderRung();
+  const feat = ACHIEVEMENTS.find((a) => a.id === CLASS_LADDER[index].feat);
+  const missing = feat ? `${feat.emoji} ${feat.title} — ${feat.locked}` : 'feito ainda por construir';
+  return `nível ${index + 1} de ${CLASS_LADDER.length} · falta: ${missing}`;
+}
+
 // The same ladder for the shop's shelf: an item named here is not offered,
 // nor bought by the unattended drain, until its achievement is earned. The
 // Lenhador — the first axe bought — opens the flail (owner, 2026-10-03).

@@ -195,6 +195,12 @@ main {
   margin-top: .35rem;
 }
 .roster-now { font-size: .7rem; margin-top: .35rem; }
+/* The class ladder's level and the feat still missing (src/ui/roster.js). */
+.roster-ladder {
+  font-size: 10px;
+  color: var(--muted, #666);
+  margin-top: .35rem;
+}
 
 /* ***** the dungeon ***** */
 

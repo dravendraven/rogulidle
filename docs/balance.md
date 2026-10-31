@@ -59,6 +59,7 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | `DEFAULT_ORDER` | — | the order the shop spends an unattended balance in (rules.md §9), and the one dial-shaped thing here with NO value of its own: it is the price row above sorted downwards, computed in `src/ui/shop.js`. Written that way on purpose — a hand-kept list would be a second copy of the prices, free to drift the day one moves. The player may reorder it in the Lab; nothing ships an override |
 | `startFloor` | 1 | LAB ONLY, and it has no constant — a run option the panel sets, so the floor you want to look at is on screen without watching the ones above it. The hero arrives EMPTY-HANDED, so it shows a floor's shape and lies about its cost: measured, ~39 turns on floor 4 against ~77 on floor 1, and it clears floor 4 7% of the time against 97% on floor 1 |
 | `RETURN_ENABLED` | false | whether the run the pages ask for includes the climb back out; off is a plain ten-traversal descent (rules.md §1) |
+| `CLASS_LADDER_ENABLED` | false | whether the cast opens as the class ladder (rules.md §9) instead of `HERO_GATES`; off is today's two-rung gate. The run dial `classLadder` (dev Lab, `dial-overrides.json`) carries it. The ladder's order and its feats are `CLASS_LADDER` in `src/ui/achievements.js` — a list, not values |
 
 ## Fixed / faithful
 

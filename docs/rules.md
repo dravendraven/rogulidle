@@ -704,6 +704,16 @@ ser escolhido; uma escolha guardada que o degrau ainda não permite joga
 como o herói comum até ele ser conquistado, e volta a valer sozinha nesse
 dia.
 
+**Ou o elenco abre como uma escada de classes, uma por vez** — um
+interruptor que sai desligado; desligado, vale o parágrafo acima e nada
+deste. Ligado, cada classe é um nível, da mais fraca para a mais forte, e a
+do nível atual é OBRIGATÓRIA: é ela que joga, qualquer que seja a escolha
+guardada, e todas as outras ficam trancadas — inclusive as de níveis já
+fechados. Cada nível fecha com um feito da própria classe, que exercita o
+traço dela e nunca depende de uma run limpa; fechá-lo abre o seguinte. O
+cartão do herói diz o nível e o feito que falta. A escolha guardada não é
+apagada: volta a valer quando a escada fecha.
+
 **Um feito conquistado guarda o número da run que o ganhou** e o mostra,
 em cinza bem fraco, no cartão. É só mostrador, não entra no recibo, e não é
 gravado numa página que não persiste (`?seed=`). Recomeçar zera a contagem.

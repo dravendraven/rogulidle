@@ -25,6 +25,7 @@ import {
   TURN_BUDGET, VAULT_LEVEL, VAULT_SIZE,
 } from '../sim/balance.js';
 import { LEVELS, RETURN_ENABLED } from '../sim/dungeon.js';
+import { CLASS_LADDER_ENABLED } from './achievements.js';
 import { readSlice, writeSlice } from './save.js';
 
 // B20 — NAMED STEPS INSTEAD OF A CONTINUOUS SLIDER, and the count is even
@@ -864,6 +865,20 @@ export const SECTIONS = [
         ],
       },
     ]],
+    // Not a run property at all — it decides WHO may play, which the page
+    // resolves before the run exists. A run dial anyway, because that is
+    // the section dial-overrides.json can ship and dev mode can flip; the
+    // engine never reads it (src/ui/achievements.js, CLASS_LADDER).
+    ['a escada de classes', [
+      {
+        kind: 'run', key: 'classLadder', label: 'uma classe por vez, cada uma abre a próxima',
+        title: 'Escada de classes', type: 'switch',
+        says: [
+          'heróis abertos pelo porco e pelo primeiro clear, como sempre',
+          'joga-se obrigado com a classe do nível; o feito dela abre a próxima',
+        ],
+      },
+    ]],
   ]],
 ];
 
@@ -873,6 +888,7 @@ const BOT_DEFAULTS = {
 const CURVE_DEFAULTS = { editFloor: 1, isAnchor: true };
 const RUN_DEFAULTS = {
   turnBudget: TURN_BUDGET, theReturn: RETURN_ENABLED, who: '', startFloor: 1,
+  classLadder: CLASS_LADDER_ENABLED,
 };
 
 

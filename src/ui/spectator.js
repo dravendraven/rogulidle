@@ -17,7 +17,7 @@ import {
   applyDepth, renderDebugInfo, carriedSvg, renderBossBar,
 } from './render.js';
 import {
-  ACHIEVEMENTS, earn, earnedBy, earnedByPurchase, getAchievements, getProgress,
+  ACHIEVEMENTS, earn, earnedBy, earnedByPurchase, getAchievements, getProgress, setClassLadder,
   recordProgress, resetAchievements, shopItemOpen, shopLockLine, verifyAchievements,
 } from './achievements.js';
 import { tileSvg } from './tiles.js';
@@ -1073,6 +1073,9 @@ async function runDescentForever() {
     // `null` from the rail means never picked — distinct from '' which is a
     // visitor choosing the ordinary hero on purpose, and that difference is
     // the whole reason the override can be a downgrade as well as an upgrade.
+    // The class ladder decides who MAY play before the rail is asked, and it
+    // is read off this run's dials so a Lab flip lands on the next run.
+    setClassLadder(dials.run.classLadder);
     const chosen = getChosenHero();
     const hero = heroByName(chosen === null ? dials.run.who : chosen);
     session.heroName = hero === heroByName('') ? '' : hero.name;
@@ -1567,6 +1570,7 @@ export async function start() {
   // load is the hero the first run will actually use rather than a guess it
   // has to correct a moment later.
   if (el.roster) {
+    setClassLadder(session.shippedDials.run.classLadder);
     session.roster = buildRoster(el.roster, {
       // A pick QUEUES: the run on screen keeps the hero it started with,
       // because a run is reproducible from its seed AND its hero and
