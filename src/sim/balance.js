@@ -413,6 +413,16 @@ export const SIDE_CHEST_BIAS = 3;
 // Loot is not free.
 export const CHEST_GUARD_RADIUS = 8;
 
+// ***** A — the bosses (docs/project/plano-2026-11.md) ***** //
+//
+// A floor can hold BOSS UNITS instead of its ordinary roster: 'fera' is one
+// strong creature per unit, 'matilha' (A3) a band of weaker ones worth the
+// same. 'off' is the shipped game, byte for byte — populate() only reads the
+// two values below when the mode is on.
+export const BOSS_MODE = 'off';
+// How many units a boss floor holds. A guess, from the plan.
+export const BOSS_UNITS = 3;
+
 // ***** M43 — the vault ***** //
 //
 // docs/project/candidates.md. One AUTHORED room on one floor, against a

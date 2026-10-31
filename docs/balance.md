@@ -43,6 +43,8 @@ rejected — lives in `docs/project/decisions.md` and in git. Not here.
 | | `MIN_ROSTER_FOR_SIDE` | 4 | below this many creatures, everything goes on the spine |
 | | `SHRINE_DISTANCE_SHARE` | 0.65 | how far still counts as "distant" for the exit hole; a model field, so the lab reaches it |
 | | `CHEST_GUARD_RADIUS` | 8 | every chest gets a creature within this — loot is not free |
+| the bosses | `BOSS_MODE` | `'off'` | **front A's switch** (`docs/project/plano-2026-11.md`): `'off'` is the shipped game byte for byte; `'fera'` replaces a floor's roster with `BOSS_UNITS` lone creatures from the top of its band (rules.md §3). A model field, per anchor. `'matilha'` arrives with A3 |
+| | `BOSS_UNITS` | 3 | units on a boss floor — a guess from the plan. Also the count granted to the bot on that floor |
 | the authored room | `VAULT_LEVEL` | 4 | which floor carries the vault, 1-based; 0 turns it off |
 | | `VAULT_SIZE` | 9 | its side in tiles — above any generated room, so the shape says it was placed |
 | | `VAULT_BOSS` | 🐷 hp 12 / xp 5 / activation 10 / **speed 2** | the Butcher; not a `MONSTER_TABLE` row and never drawn. **xp** sets who ENTERS — the bot is never told a creature's hp, it guesses one from xp (`assumedHp`, bent by Coragem) — while **hp and speed** set who WINS. So both of those make the fight harder without making the bot warier, which is the room's whole trick |

@@ -10,7 +10,7 @@ import {
   MONSTER_DIFFICULTY_SCALE, MIN_ROSTER_FOR_SIDE, MONSTER_DROP_CHANCE, MONSTER_TABLE,
   MONSTER_WEIGHTS, PLAYER_HP, PLAYER_XP, SHRINE_DISTANCE_SHARE,
   SHORT_ROUTE_MASS_SHARE, SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS,
-  SPINE_THREAT_SHARE, VAULT_BOSS,
+  SPINE_THREAT_SHARE, VAULT_BOSS, BOSS_UNITS,
   VAULT_BOSS_DROP, VAULT_CHEST_ITEMS, VAULT_LEVEL, WEAPON_AXE_MIN_TIER,
 } from './balance.js';
 import {
@@ -188,10 +188,16 @@ export function populate(state, map, counts = {}) {
   // On the COUNT rather than on strength because cost is linear in count, so
   // a mean-1 multiplier cannot move the average difficulty — the one thing
   // that was calibrated and must not move.
-  const monsterCount = Math.max(1, Math.round(
-    (counts.monsters ?? MONSTER_COUNT)
-    * drawLogUniform(state, 'spawn', counts.monsterSpread ?? 0),
-  ));
+  //
+  // A BOSS FLOOR (plano-2026-11.md, front A) skips all of it: the floor holds
+  // exactly `bossUnits` units and draws nothing for the count. 'off' never
+  // reaches this branch, so the shipped stream is untouched.
+  const fera = counts.bossMode === 'fera';
+  const monsterCount = fera ? Math.max(1, counts.bossUnits ?? BOSS_UNITS)
+    : Math.max(1, Math.round(
+      (counts.monsters ?? MONSTER_COUNT)
+      * drawLogUniform(state, 'spawn', counts.monsterSpread ?? 0),
+    ));
   // `let` because the vault takes it to zero — see step 3c.
   let chestCount = counts.chests ?? CHEST_COUNT;
   // How far up the monster table the deepest tiles reach. The third dial of
@@ -617,7 +623,8 @@ export function populate(state, map, counts = {}) {
   // How many creatures share one placement draw. 1 means every monster
   // still draws its own independent anchor — the loop below then places
   // exactly one tile per cluster, identically to before this item existed.
-  const clusterSize = Math.max(1, counts.clusterSize ?? 1);
+  // A fera stands alone: a unit is one body, so nothing groups.
+  const clusterSize = fera ? 1 : Math.max(1, counts.clusterSize ?? 1);
 
   // `template` is passed in rather than rolled here — see the call site.
   // One tier draw per CLUSTER, not per monster, is the actual mechanism
@@ -742,7 +749,12 @@ export function populate(state, map, counts = {}) {
     // changes in that case.
     const difficulty = Math.min(1, depthAt(anchor, 'risk') * difficultyScale);
     const index = Math.floor(difficulty * (MONSTER_TABLE.length - 1));
-    const rawSlot = drawWeighted(state, 'spawn', monsterWeightsAround(index));
+    // A fera is the TOP of the floor's band, not a draw around its depth —
+    // the strongest thing this floor is allowed to hold, so the curve that
+    // already scales every floor scales the boss too, with no table of its
+    // own. The draw is skipped, not wasted.
+    const rawSlot = fera ? MONSTER_TABLE.length - 1
+      : drawWeighted(state, 'spawn', monsterWeightsAround(index));
     // The band clamps the DRAWN slot, never the centre — the ±2 spread
     // reaches past any clamped centre in both directions (measured mistake,
     // twice; see balance.js "the tier band"). `Math.max(minIndex, ...)` is

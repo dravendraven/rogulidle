@@ -22,7 +22,7 @@ import {
   SHRINE_DISTANCE_SHARE,
   SIDE_CHEST_BIAS, SIDE_ROOM_DEPTH_BONUS, SPINE_THREAT_SHARE,
   TIER_FLOOR_CAP, TIER_FLOOR_PER_LEVEL, TIER_SLACK_CAP, TIER_SLACK_PER_LEVEL,
-  VAULT_LEVEL,
+  VAULT_LEVEL, BOSS_MODE, BOSS_UNITS,
 } from './balance.js';
 import { monsterWeightsAround } from './spawn.js';
 
@@ -290,6 +290,10 @@ export const DEFAULT_MODEL = {
   vaultLevel: VAULT_LEVEL,
   vaultChestItems: undefined,
   vaultBoss: undefined,
+  // A — the boss floors. Per segment, like everything that shapes a floor,
+  // so `model.floors` can turn them on from some depth down.
+  bossMode: BOSS_MODE,
+  bossUnits: BOSS_UNITS,
 };
 
 // Turns a model into the `floorPlan(level)` function the dungeon wants.
@@ -434,7 +438,11 @@ export function makeFloorPlan(model = {}) {
     level,
     threatAhead: aheadOf(level),
     floorsAhead: floorsAheadOf(level),
-    monsters: monstersAt(m.monstersBase, m.monsterGrowth, step),
+    // A boss floor holds exactly its units — and this is the count the bot
+    // is GRANTED (rules.md §7), so it has to be the real one or the hero
+    // hunts the dark for creatures that were never placed.
+    monsters: m.bossMode === 'fera' ? m.bossUnits
+      : monstersAt(m.monstersBase, m.monsterGrowth, step),
     monsterSpread: floorSpread(step, m),
     chests: m.chests,
     difficultyScale: floorStrength(step, m),
@@ -468,6 +476,8 @@ export function makeFloorPlan(model = {}) {
     vaultLevel: m.vaultLevel,
     vaultChestItems: m.vaultChestItems,
     vaultBoss: m.vaultBoss,
+    bossMode: m.bossMode,
+    bossUnits: m.bossUnits,
     };
   };
 }

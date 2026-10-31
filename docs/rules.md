@@ -190,6 +190,34 @@ a luta entrar na conta.
 nada — visão atravessa parede — mas encarece *entrar*, que é diferente de
 encarecer a criatura: criatura mais pesada o bot simplesmente recusa.
 
+### Andar de chefes
+
+**Existe um modo de chefes, e ele sai DESLIGADO.** Desligado, o andar é o de
+sempre. Ligado, o elenco comum do andar é **substituído** por um número fixo
+de **unidades de chefe** — nem mais nem menos, sem o espalhamento que sorteia
+a contagem de um andar comum. É campo do modelo, por âncora: uma curva pode
+ligá-lo só de certo andar para baixo.
+
+**No modo Fera, cada unidade é uma criatura sozinha, do topo da faixa do
+andar** — a mais forte que aquele andar tem permissão de ter, sem sorteio em
+torno da profundidade e sem grupo. O chefe não tem tabela própria: é a mesma
+curva que escala todo andar, lida pela ponta de cima. Andar raso tem fera
+rasa.
+
+**O guardião do buraco é uma das unidades**, não uma a mais: a regra do
+guardião acima move e eleva uma delas, como faz com o elenco comum.
+
+**O ocupante do vault fica à parte.** No andar do vault ele continua
+sozinho na sala dele, e não ocupa vaga de unidade.
+
+**Consequência que não é óbvia:** um andar de chefes tem poucas criaturas,
+e abaixo do mínimo de elenco tudo vai para a espinha (§2, regra de sempre).
+Então as unidades ficam na rota obrigatória, e o baú de sala lateral fica
+sem criatura por perto — a regra de que todo baú tem guarda não cruza a
+linha entre espinha e lateral.
+
+**A contagem concedida ao bot (§7) é a das unidades**, porque é a real.
+
 ### Como elas se comportam
 
 **Só perseguem.** Nunca fogem, nunca vagam, nunca pegam item.

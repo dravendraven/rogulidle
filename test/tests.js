@@ -8,7 +8,7 @@ import {
   FLAIL_TURNS, PLAYER_HP, PLAYER_XP, RAGE_MULT, RAGE_TURNS, READ_TURNS, ROOM_HEIGHT,
   ROOM_WIDTH, SHRINE_DISTANCE_SHARE,
   STARTING_ITEMS, TURN_BUDGET, VAULT_BOSS, VAULT_BOSS_DROP, VAULT_CHEST_ITEMS, VAULT_LEVEL,
-  VAULT_SIZE, VISIBLE_DIST, WEAPON_AXE_MIN_TIER,
+  VAULT_SIZE, VISIBLE_DIST, WEAPON_AXE_MIN_TIER, BOSS_UNITS,
 } from '../src/sim/balance.js';
 import {
   driveTurns, newGame, playGame, replayGame,
@@ -5604,4 +5604,46 @@ test('a band of three that arrives together costs more than one of them', () => 
   assert(cost['3 wolf'] > cost.wolf * 2, `3 wolves ${cost['3 wolf']} vs one ${cost.wolf}`);
   assert(cost['3 wolf'] > cost['3 wolf apart'],
     `a band fought together (${cost['3 wolf']}) should cost more than one at a time (${cost['3 wolf apart']})`);
+});
+
+// A2 — the boss floors, fera. Off is the shipped game; on, a floor holds
+// exactly BOSS_UNITS creatures, each the strongest its band allows, and the
+// vault keeps its own occupant apart from them.
+test('bossMode off builds the same floor as a plan that never heard of it', () => {
+  const plan = makeFloorPlan({});
+  for (const level of [1, 4, 7]) {
+    const { bossMode, bossUnits, ...legacy } = plan(level);
+    assertEq(bossMode, 'off', 'the shipped model must ship the bosses off');
+    const a = newGame(hashSeeds(77, level), plan(level));
+    const b = newGame(hashSeeds(77, level), legacy);
+    assertEq(JSON.stringify(a.monsters), JSON.stringify(b.monsters), `floor ${level} roster moved`);
+    assertEq(JSON.stringify(a.chests), JSON.stringify(b.chests), `floor ${level} chests moved`);
+  }
+});
+
+test('a fera floor holds BOSS_UNITS creatures, each at the top of its band', () => {
+  const plan = makeFloorPlan({ bossMode: 'fera' });
+  for (let level = 2; level <= 10; level++) {
+    const p = plan(level);
+    const top = MONSTER_TABLE.length - 1;
+    const ceiling = Math.floor(p.difficultyScale * top);
+    const minIndex = Math.floor(p.tierFloorShare * ceiling);
+    const bandTop = Math.max(minIndex, Math.min(top, ceiling + p.tierSlack));
+    for (let seed = 1; seed <= 6; seed++) {
+      const s = newGame(hashSeeds(seed, level), p);
+      const roster = s.monsters.filter((m) => !m.vault);
+      assertEq(roster.length, BOSS_UNITS, `floor ${level} seed ${seed}`);
+      for (const m of roster) {
+        const tier = MONSTER_TABLE.findIndex((t) => t.name === m.name);
+        assert(tier >= bandTop, `floor ${level}: ${m.name} sits under the band's top (${MONSTER_TABLE[bandTop].name})`);
+      }
+    }
+  }
+});
+
+test('the Butcher stays apart from the feras, on his own floor', () => {
+  const plan = makeFloorPlan({ bossMode: 'fera' });
+  const s = newGame(hashSeeds(3, VAULT_LEVEL), plan(VAULT_LEVEL));
+  assert(s.monsters.some((m) => m.vault), 'no Butcher on the vault floor in fera mode');
+  assertEq(s.monsters.filter((m) => !m.vault).length, BOSS_UNITS, 'the Butcher took a fera slot');
 });
