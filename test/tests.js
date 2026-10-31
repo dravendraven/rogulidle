@@ -4724,6 +4724,17 @@ test('the class ladder: one obligatory class per level, each feat opens the next
   }
 });
 
+test('the ladder closed, every hero is free and nobody is forced', () => {
+  const all = new Set(CLASS_LADDER.map((rung) => rung.feat));
+  assertEq(ladderRungGiven(all), CLASS_LADDER.length, 'the ladder is not closed with every feat');
+  assertEq(forcedHeroGiven(all, true), null, 'a closed ladder still forces a hero');
+  // Papazito among them: HERO_GATES' clear gate is the switched-off game,
+  // and a closed ladder is not switched off.
+  for (const name of Object.keys(HEROES)) {
+    assertEq(heroLockGiven(name, all, true), '', `${name} is still shut on a closed ladder`);
+  }
+});
+
 test('switched off, the strip shows the three rows it always did', () => {
   setClassLadder(false);
   assertEq(shownAchievements().map((a) => a.id).join(','), 'butcher,axe,bottom',

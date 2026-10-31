@@ -253,9 +253,11 @@ export function heroLock(name) {
 
 // The sentence the roster prints under the card while the ladder climbs:
 // which level this is and what is still missing to leave it. '' when the
-// ladder forces nobody.
+// ladder is off. Closed, it says so once — the whole cast opening at once
+// would otherwise look like the gates broke.
 export function ladderLine() {
-  if (forcedHero() === null) return '';
+  if (!ladderOn) return '';
+  if (forcedHero() === null) return `escada fechada · os ${CLASS_LADDER.length} heróis estão livres`;
   const index = ladderRung();
   const feat = ACHIEVEMENTS.find((a) => a.id === CLASS_LADDER[index].feat);
   const missing = feat ? `${feat.emoji} ${feat.title} — ${feat.locked}` : 'feito ainda por construir';

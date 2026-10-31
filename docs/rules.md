@@ -712,7 +712,9 @@ guardada, e todas as outras ficam trancadas — inclusive as de níveis já
 fechados. Cada nível fecha com um feito da própria classe, que exercita o
 traço dela e nunca depende de uma run limpa; fechá-lo abre o seguinte. O
 cartão do herói diz o nível e o feito que falta. A escolha guardada não é
-apagada: volta a valer quando a escada fecha.
+apagada: volta a valer quando a escada fecha. **Fechado o último nível, o
+elenco inteiro fica livre** — a escolha volta a ser do jogador, sem os
+degraus do porco e da run limpa, e o cartão diz que a escada fechou.
 
 Os níveis, em ordem: **Aurélio** fecha derrubando o porco (o feito que já
 existia); **Pawa**, vestindo chapa comprada na escada em muitos andares de
