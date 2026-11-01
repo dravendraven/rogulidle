@@ -289,9 +289,6 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
       // balance.js; undefined means the shipped list.
       vaultChestItems: plan.vaultChestItems,
       vaultBoss: plan.vaultBoss,
-      // Front A — the boss floors. 'off' (or absent) is the shipped game.
-      bossMode: plan.bossMode,
-      bossUnits: plan.bossUnits,
       // A fixed value overrides the per-floor one, for sweeping — same
       // pattern as weaponScarcity above.
       earlyChestQualityBoost: options.earlyChestQualityBoost ?? plan.earlyChestQualityBoost,
