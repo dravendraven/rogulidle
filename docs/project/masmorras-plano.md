@@ -16,6 +16,8 @@ doc que a descreve muda no mesmo commit e a etapa ganha "FEITO".
 3. **O inferno diário (frente D) não é a escada.** Ele pode ter uma masmorra
    tirada da seed do dia, ou regras próprias derivadas da seed — decidir na
    frente D. O catálogo da M1 é o que torna a primeira opção barata.
+4. **A próxima masmorra é SORTEADA** a cada clear (pela seed, então
+   reproduzível).
 
 A primeira masmorra é o jogo de hoje ("atual") — calibração e tutorial.
 
@@ -38,9 +40,6 @@ depois de as masmorras feitas só de dials se provarem.
 
 **Colisões:** `dial-overrides.json` e o save (M7) são também da frente B.
 M7 espera a B estar no main.
-
-4. **A próxima masmorra é SORTEADA** a cada clear (pela seed, então
-   reproduzível).
 
 ## Em aberto
 
