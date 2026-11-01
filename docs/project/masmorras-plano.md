@@ -39,8 +39,10 @@ depois de as masmorras feitas só de dials se provarem.
 **Colisões:** `dial-overrides.json` e o save (M7) são também da frente B.
 M7 espera a B estar no main.
 
+4. **A próxima masmorra é SORTEADA** a cada clear (pela seed, então
+   reproduzível).
+
 ## Em aberto
 
-- **A ordem das masmorras depois de um clear** — fixa (1 → 8) ou sorteada.
 - **O que um clear paga**, agora que não há degrau — se paga algo além de
   mudar o contexto.
