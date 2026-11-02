@@ -5818,8 +5818,9 @@ test('a pack dungeon places its bands whole', () => {
       const sizes = {};
       for (const m of state.monsters) if (m.pack !== undefined) sizes[m.pack] = (sizes[m.pack] || 0) + 1;
       const counts = Object.values(sizes);
-      const short = counts.filter((n) => n < plan(level).clusterSize).length;
-      assert(short <= 1, `floor ${level} seed ${seed}: bands ${counts.join('+')}`);
+      // +1: the last band swallows what would have been a lone stray.
+      assert(counts.every((n) => n >= 2 && n <= plan(level).clusterSize + 1),
+        `floor ${level} seed ${seed}: bands ${counts.join('+')}`);
     }
   }
 });

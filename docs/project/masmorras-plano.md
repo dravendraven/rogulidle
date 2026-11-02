@@ -36,7 +36,7 @@ A primeira masmorra é o jogo de hoje ("atual") — calibração e tutorial.
 | **M3** FEITO em parte (out.) | só a CONTAGEM é declarada; força e chance de drop são DERIVADAS dela, e um teste confere que cada trecho mantém a massa de ameaça e as armas por andar de hoje. Falta: conferir as de matilha pela arena da A1 (`src/analysis/bosses.js`) — bando que chega junto custa ~o dobro da massa, e a massa não vê isso | `node tools/measure.mjs bosses bossTable` |
 | **M4** FEITO (out.) | nome e três ícones na barra de cima, com o que cada um quer dizer | assistir |
 | **M5** FEITO (out.) | breu: raio de visão por andar, luz em degradê, o desconhecido é preto, tocha em volta do herói. Papazito continua vendo tudo | testes + assistir Tumba |
-| **M6** FEITO (2026-11-02) | nas masmorras de matilha o bando acorda junto (`packWake`, campo do modelo, só o eixo matilha liga), e o bando, de 3, nasce inteiro — antes a cota de zonas o picava em criaturas soltas (visto em Minas, seed 835122865). O bot não sabe — desenho ou defeito segue com o dono, escrito em `bot.md` | teste de regra + assistir Minas |
+| **M6** FEITO (2026-11-02) | nas masmorras de matilha o bando acorda junto (`packWake`, campo do modelo, só o eixo matilha liga), e o bando, de 2 a 4 sorteado (sem sobra de 1), nasce inteiro — antes a cota de zonas o picava em criaturas soltas (visto em Minas, seed 835122865). O bot não sabe — desenho ou defeito segue com o dono, escrito em `bot.md` | teste de regra + assistir Minas |
 | **M7** | rotação: masmorra atual no save; o clear avança; a tela anuncia a próxima | `?dev=1` forçando um clear |
 
 **Por que esta ordem (escrita antes de achar o branch):** M1 e M2 respondem "é divertido de assistir?" sem

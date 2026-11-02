@@ -733,7 +733,16 @@ export function populate(state, map, counts = {}) {
 
     const anchor = pool[drawInt(state, 'spawn', 0, pool.length - 1)];
     const remaining = monsterCount - state.monsters.length;
-    const positions = clusterAround(anchor, actualZone, Math.min(clusterSize, remaining));
+    // M6 — a band's size is drawn from 2 up to `clusterSize`, and never
+    // leaves a single creature behind to become the floor's one stray
+    // (owner, 2026-11-02: "2+ quase sempre"). Only a pack dungeon draws, so
+    // every other floor spends exactly the draws it always did.
+    let bandSize = clusterSize;
+    if (counts.packWake) {
+      bandSize = drawInt(state, 'spawn', Math.min(2, clusterSize), clusterSize);
+      if (remaining - bandSize === 1) bandSize++;
+    }
+    const positions = clusterAround(anchor, actualZone, Math.min(bandSize, remaining));
     // The anchor is always free and in its own zone, so this can only be
     // empty if `remaining` is 0 — guarded by the while condition above.
 
