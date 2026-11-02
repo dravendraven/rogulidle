@@ -895,9 +895,32 @@ dele é carimbada em qualquer tema (há teste).
 
 | eixo | dial | atual (1–3 / 4 / 5–7 / 8–9 / 10) | 🐺 Matilha | 🐉 Fera |
 |---|---|---|---|---|
-| criaturas | `monstersBase` | 5 / 6 / 6 / 7 / 7 | 8 / 10 / 10 / 11 / 11 | 3 / 3 / 3 / 4 / 4 |
+| criaturas | `monstersBase` | 5 / 6 / 6 / 7 / 7 | 6 / 10 / 10 / 11 / 11 | 3 / 3 / 3 / 4 / 7 |
 | | `clusterSize` | 6 | 12 | 1 |
-| | `strength` | a curva atual | ×0,75 | ×1,3 (teto 1) |
+| | `dropChance` | 0,5 | derivado | derivado |
+| | `strength` | a curva atual | derivado | derivado |
+
+**Os eixos conservam armas e massa (dono, 2026-10-04).** Arma só vem de
+criatura morta, então Fera cortava quase metade das armas por andar e
+Matilha as multiplicava — e o par do E2 (`weaponScarcity` nos andares 1–3)
+foi calibrado para a contagem de hoje. A força ×0,75 / ×1,3 era chute. Agora
+só a CONTAGEM é declarada, e o resto sai dela, sem parâmetro novo:
+
+- **armas:** em cada trecho, `dropChance` = o de hoje × (criaturas de hoje ÷
+  criaturas da masmorra), teto 1 — criaturas × chance de drop fica igual;
+  `weaponScarcity` não muda;
+- **massa:** a força de cada trecho é a que faz o `massOfPlan` do trecho
+  igual ao de hoje, achada por busca simples. Chega a poucos por cento — a
+  contagem é inteira e a massa sobe em degraus de linha da tabela.
+
+**A tabela de criaturas tem pontas, e duas contagens tiveram de se mover
+para caber.** No andar 1 todo mundo já é do tier mais fraco: uma matilha de
+oito pesa mais que os cinco de hoje mesmo no piso, então ela é de **seis**.
+No andar 10 todo mundo já é do tier mais forte: menos criaturas não podem
+pesar o mesmo, então a Fera ali tem **sete** — a mesma contagem de hoje.
+Consequência a saber: **no andar 10 a Fera é igual à Masmorra de sempre**, e
+no andar 1 a Matilha é só um pouco mais cheia. Os eixos de criatura vivem do
+meio da descida.
 
 | eixo | dial | atual | 📦 Fartura | 💎 Relíquia |
 |---|---|---|---|---|

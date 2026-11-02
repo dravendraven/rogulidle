@@ -281,6 +281,10 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
       hubBranches: plan.hubBranches,
       hubRings: plan.hubRings,
       shrineDistanceShare: plan.shrineDistanceShare,
+      // How far the hero sees here — a dark dungeon's floors set it
+      // (src/sim/dungeons.js), null is the shipped fog. Forgotten here the
+      // first time: the plan carried it and no run ever went dark.
+      sight: plan.sight,
       // M43 — 0 turns the authored room off for the whole descent, which is
       // what a control run needs. Undefined would silently fall back to the
       // shipped floor, so this has to travel explicitly.

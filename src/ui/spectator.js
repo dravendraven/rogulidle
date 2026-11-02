@@ -21,6 +21,7 @@ import {
   recordProgress, resetAchievements, shopItemOpen, shopLockLine, verifyAchievements,
 } from './achievements.js';
 import { tileSvg } from './tiles.js';
+import { dungeonByName, dungeonLegend } from '../sim/dungeons.js';
 import { harvestRows, noteFirsts, noteRun, takeHarvest } from './harvest.js';
 import { award, resetScore } from './score.js';
 import { resetOnDeath, getHeldItems, addHeldItem, setHeldItems } from './wallet.js';
@@ -160,7 +161,7 @@ function grab() {
     'coins', 'coinPopup', 'damage', 'debugInfo', 'app', 'lab', 'dials',
     'shop', 'shopBalance', 'shopItems', 'shopSkip', 'shopTimerBar', 'shopOrder',
     'achievements', 'roster', 'highscores', 'mapDials', 'simDials', 'dialButtons', 'bossBar',
-    'player', 'playerGate', 'harvest', 'harvestBody', 'harvestOk',
+    'player', 'playerGate', 'harvest', 'harvestBody', 'harvestOk', 'dungeon',
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -986,6 +987,16 @@ function tallyDescent(run, finalState, heroName, receipt) {
   if (el.history) renderHistory(el.history, session.history, ACHIEVEMENTS);
 }
 
+// The dungeon this run plays, in the floor bar: name and the three axis
+// icons, the blurb and what each icon means in the tooltip.
+function paintDungeon(value) {
+  if (!el.dungeon) return;
+  const d = dungeonByName(value);
+  const legend = dungeonLegend(d.name);
+  el.dungeon.innerHTML = `${d.title} ${legend.map(([g]) => tileSvg(g) || g).join('')}`;
+  el.dungeon.title = [d.blurb, ...legend.map(([g, m]) => `${g} ${m}`)].join('\n');
+}
+
 // THE HARVEST, collected once: on load, and every time the tab comes back.
 // Nothing here pauses the game — the card sits over the board until it is
 // clicked away, and the run underneath keeps playing.
@@ -1102,6 +1113,7 @@ async function runDescentForever() {
     // What the Lab's onChange stamps a change with: the run's config plus
     // the traversal and turn the NEXT decision will be made at.
     session.liveRun = { config, traversal: 1, turn: 0 };
+    paintDungeon(dials.run && dials.run.dungeon);
 
     let run = null;
     let finalState = null;

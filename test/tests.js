@@ -30,7 +30,7 @@ import {
   floorOfTraversal, floorPlan, heldAfterClear, playDungeon, LEVELS, TRAVERSALS,
 } from '../src/sim/dungeon.js';
 import {
-  expectedFloorMass, floorParams, floorStrength, layoutFor, makeFloorPlan,
+  expectedFloorMass, floorParams, floorStrength, layoutFor, makeFloorPlan, massOfPlan,
   monstersAt, outOfDepthChanceAt, saturatedAt, threatMass,
   CLUSTER_SIZE, MONSTERS_BASE, MONSTER_GROWTH,
   MONSTER_STRENGTH, POTION_SCARCITY, WEAPON_SCARCITY,
@@ -43,7 +43,7 @@ import {
 } from '../src/bot/config.js';
 import { tileSvg } from '../src/ui/tiles.js';
 import { depthTheme } from '../src/ui/depth-theme.js';
-import { playRun } from '../src/ui/run.js';
+import { playRun, playRunSteps } from '../src/ui/run.js';
 import {
   ACHIEVEMENTS, earn, earnedBy, earnedByPurchase, getProgress, isEarned, recordProgress,
   shopOpenGiven,
@@ -58,8 +58,9 @@ import {
   DEFAULT_ORDER, SHOP_ITEMS, getShopOrder, nextPurchase, setShopOrder,
 } from '../src/ui/shop.js';
 import { believedWalkable, dijkstra, key } from '../src/bot/nav.js';
-import { playOne, runWires } from '../src/analysis/check.js';
+import { planOf, playOne, runWires } from '../src/analysis/check.js';
 import saveWorker, { LEASE_MS, SaveRoom } from '../server/save-worker.js';
+import { DUNGEONS, DUNGEON_ORDER, STRETCHES, dungeonIcons, dungeonLegend, dungeonModel, dungeonName } from '../src/sim/dungeons.js';
 import { balanceOf, playChain, seedOf, spend } from '../src/analysis/chain.js';
 import { arenaDuel, bossTable } from '../src/analysis/bosses.js';
 
@@ -4043,6 +4044,8 @@ test('every glyph the game can draw has a sprite', () => {
     // too) and this list did not know walls existed.
     ...[1, 5, 9].flatMap((level) => [depthTheme(level).wall, depthTheme(level).door]),
     '⬜', '⚡', '🟥',
+    // The dungeon axes (src/sim/dungeons.js), drawn in the floor bar.
+    ...Object.keys(DUNGEONS).flatMap((name) => dungeonLegend(name).map(([g]) => g)),
   ];
   for (const glyph of glyphs) {
     assert(tileSvg(glyph),
@@ -5604,4 +5607,160 @@ test('a band of three that arrives together costs more than one of them', () => 
   assert(cost['3 wolf'] > cost.wolf * 2, `3 wolves ${cost['3 wolf']} vs one ${cost.wolf}`);
   assert(cost['3 wolf'] > cost['3 wolf apart'],
     `a band fought together (${cost['3 wolf']}) should cost more than one at a time (${cost['3 wolf apart']})`);
+});
+
+// U14 — the dungeons (src/sim/dungeons.js). A dungeon is a model, so what is
+// tested is the model it makes and the floors that model generates.
+test('the shipped dungeon hands the model back untouched', () => {
+  const model = { monstersBase: 5, floors: [{ from: 1, mapTheme: 3 }] };
+  assert(dungeonModel(model, 'masmorra') === model, 'masmorra rewrote the shipped model');
+  assert(dungeonModel(model, 'no-such-place') === model, 'an unknown name did not fall back to masmorra');
+  assertEq(dungeonIcons('masmorra').length, 0, 'the shipped dungeon claimed an axis');
+});
+
+test('each dungeon draws its own theme on every stretch, and its axes', () => {
+  for (const [name, d] of Object.entries(DUNGEONS)) {
+    if (!d.themes) continue;
+    const plan = makeFloorPlan(dungeonModel({}, name));
+    for (let level = 1; level <= 10; level++) {
+      const from = STRETCHES.filter((f) => f <= level).pop();
+      const want = layoutFor(level, dungeonModel({}, name).floors.find((f) => f.from === from).mapTheme);
+      assertEq(plan(level).layout, want, `${name} floor ${level}: wrong theme`);
+    }
+    const one = plan(1);
+    const four = plan(4);
+    const shipped4 = makeFloorPlan({})(4);
+    if (d.creatures === 'pack') assert(one.clusterSize > 6 && four.monsters > shipped4.monsters, `${name}: not a pack`);
+    else assert(one.clusterSize === 1 && four.monsters < shipped4.monsters, `${name}: not a beast`);
+    if (d.chests === 'plenty') assert(one.chests > 6, `${name}: not plenty`);
+    else assert(one.chests < 6 && one.chestLootChance > 0.9, `${name}: not relic`);
+    assertEq(dungeonIcons(name).length, 3, `${name}: not three icons`);
+  }
+});
+
+test('every dungeon generates all ten floors, playable, the same twice, the Butcher on 4', () => {
+  for (const [name, d] of Object.entries(DUNGEONS)) {
+    if (!d.themes) continue;
+    const plan = makeFloorPlan(dungeonModel({}, name));
+    for (let level = 1; level <= 10; level++) {
+      for (const seed of [601, 602]) {
+        const a = newGame(hashSeeds(seed, level), plan(level));
+        const b = newGame(hashSeeds(seed, level), plan(level));
+        const where = `${name} floor ${level} seed ${seed}`;
+        assertEq(JSON.stringify(a.map.tiles), JSON.stringify(b.map.tiles), `${where}: differs between identical seeds`);
+        const path = findPath(a.player.pos, a.shrine.pos, (x, y) => isWalkable(a.map, x, y));
+        assert(path.length > 0, `${where}: no path from hero to hole`);
+        assertEq(a.monsters.some((m) => m.vault), level === 4, `${where}: the Butcher is on the wrong floor`);
+      }
+    }
+  }
+});
+
+test('a dungeon reaches a run by name or by the Lab index, and replays exactly', () => {
+  assertEq(dungeonName(DUNGEON_ORDER.indexOf('tumba')), 'tumba', 'the Lab index missed');
+  assertEq(dungeonName('tumba'), 'tumba');
+  assertEq(dungeonName(99), 'masmorra', 'a stale index did not fall back');
+  assertEq(DUNGEON_ORDER[0], 'masmorra', 'the shipped dungeon is no longer index 0');
+  assertEq(DUNGEON_ORDER.length, Object.keys(DUNGEONS).length, 'a dungeon is missing from the order');
+  // The instruments and the page build the same plan from the same config.
+  assertEq(planOf({ model: {}, run: { dungeon: 'cofres' } })(1).layout, 'rogue', 'planOf ignored the dungeon');
+  const config = { dials: { model: {}, run: { dungeon: DUNGEON_ORDER.indexOf('covil') } } };
+  const a = playRun(hashSeeds(7070, 1), config);
+  const b = playRun(hashSeeds(7070, 1), config);
+  assertEq(JSON.stringify(a.levels.map((l) => [l.turns, l.outcome])),
+    JSON.stringify(b.levels.map((l) => [l.turns, l.outcome])), 'a dungeon run did not replay');
+  const plain = playRun(hashSeeds(7070, 1), { dials: { model: {} } });
+  assert(JSON.stringify(plain.levels) !== JSON.stringify(a.levels), 'the dungeon changed nothing');
+});
+
+// The dark (U14, 🌑): a floor's own sight radius, below the shipped fog.
+test('in the dark the hero sees less, and the scholar still sees it all', () => {
+  const rows = Array.from({ length: 21 }, (_, y) => (y === 0 || y === 20 ? '#'.repeat(21) : '#' + '.'.repeat(19) + '#'));
+  const map = tinyMap(rows);
+  const near = dummy('ogre', [10, 14], { id: 'near' });   // 4 away
+  const far = dummy('ogre', [10, 17], { id: 'far' });     // 7 away
+  const lit = makeState({ map, playerPos: [10, 10], monsters: [near, far] });
+  assertEq(observe(lit).monsters.length, 2, 'the shipped fog stopped seeing seven tiles away');
+  assertEq(observe(lit).sight, VISIBLE_DIST);
+  const dark = { ...lit, sight: 5 };
+  assertEq(observe(dark).monsters.map((m) => m.id).join(','), 'near', 'the dark showed what is beyond it');
+  assertEq(observe(dark).sight, 5, 'the hero was not told how far he sees');
+  const scholar = observe(dark, { sightRadius: SIGHT_WHOLE_MAP });
+  assertEq(scholar.monsters.length, 2, 'the dark blinded the hero who sees the whole floor');
+  assertEq(scholar.sight, VISIBLE_DIST, 'a whole-floor hero read differently from the shipped fog');
+  assertEq(step(dark, 'rest').state.sight, 5, 'the dark did not survive a step');
+});
+
+test('only a dark dungeon sets the floor sight', () => {
+  for (const [name, d] of Object.entries(DUNGEONS)) {
+    const sight = makeFloorPlan(dungeonModel({}, name))(2).sight;
+    if (d.light === 'dark') assert(sight > 0 && sight < VISIBLE_DIST, `${name}: not dark`);
+    else assertEq(sight, null, `${name}: changed the sight without being dark`);
+  }
+});
+
+// The dungeon redistributes the SHIPPED budget (owner, 2026-10-04): weapons
+// only come from dead creatures, so creatures × drop chance holds, and the
+// threat mass of each stretch holds — both derived from the declared count.
+// Checked on the code defaults and on a curve in pieces like the shipped one.
+const SHIPPED_LIKE = { floors: [
+  { from: 1, monstersBase: 5, strength: 0.22, strengthGrowth: 1.2, weaponScarcity: 16 },
+  { from: 4, monstersBase: 6, strength: 0.38, strengthGrowth: 1.2, tierFloorStart: 0.3, tierSlackStart: 0.6 },
+  { from: 5, monstersBase: 6, strength: 0.456, strengthGrowth: 1.2, tierFloorStart: 0.4, tierSlackStart: 0.8 },
+  { from: 8, monstersBase: 7, strength: 0.788, strengthGrowth: 1.2, tierFloorStart: 0.5, tierSlackStart: 1 },
+  { from: 10, monstersBase: 7, strength: 1, strengthGrowth: 1.2, tierFloorStart: 0.5, tierSlackStart: 1 },
+] };
+
+test('a dungeon keeps the shipped weapons per floor: creatures × drop chance', () => {
+  for (const model of [{}, SHIPPED_LIKE]) {
+    const today = makeFloorPlan(model);
+    for (const [name, d] of Object.entries(DUNGEONS)) {
+      if (!d.themes) continue;
+      const plan = makeFloorPlan(dungeonModel(model, name));
+      for (const from of STRETCHES) {
+        const want = today(from).monsters * today(from).dropChance;
+        const got = plan(from).monsters * plan(from).dropChance;
+        assert(Math.abs(got - want) < 1e-9, `${name} floor ${from}: ${got.toFixed(2)} weapon rolls against ${want.toFixed(2)}`);
+        assertEq(plan(from).weaponScarcity, today(from).weaponScarcity, `${name} floor ${from}: E2's scarcity moved`);
+      }
+    }
+  }
+});
+
+// Mass on the shipped-like curve only: the code defaults are a game nobody
+// plays, and on floor 1 every creature is already the weakest tier — the
+// pack's six fit the shipped five, not the defaults' lighter floor.
+test('a dungeon keeps the shipped threat mass on every stretch', () => {
+  for (const model of [SHIPPED_LIKE]) {
+    const today = makeFloorPlan(model);
+    for (const [name, d] of Object.entries(DUNGEONS)) {
+      if (!d.themes) continue;
+      const plan = makeFloorPlan(dungeonModel(model, name));
+      for (const from of STRETCHES) {
+        const want = massOfPlan(today(from));
+        const got = massOfPlan(plan(from));
+        // The count is whole and the mass climbs in table rows, so close —
+        // not equal — is what the search can reach.
+        assert(Math.abs(got - want) / want < 0.06,
+          `${name} floor ${from}: mass ${got.toFixed(1)} against ${want.toFixed(1)}`);
+      }
+    }
+  }
+});
+
+// The dark reached the plan and the state but not a real run: dungeon.js
+// builds each floor's counts field by field and dropped `sight`. Checked
+// through the path a watched run takes, not by building a state by hand.
+test('a dark dungeon run is dark on the board the player watches', () => {
+  const firstFrame = (dungeon) => {
+    const steps = playRunSteps(hashSeeds(8080, 1), { dials: { model: {}, run: { dungeon } } });
+    for (let step = steps.next(); !step.done; step = steps.next()) {
+      if (step.value.turn) return step.value.turn;
+    }
+    return null;
+  };
+  const dark = firstFrame('tumba');
+  assert(dark.state.sight > 0 && dark.state.sight < VISIBLE_DIST, 'the tomb is not dark in play');
+  assertEq(dark.observation.sight, dark.state.sight, 'the hero was not told how far he sees');
+  assertEq(firstFrame('cofres').state.sight, null, 'a lit dungeon went dark');
 });

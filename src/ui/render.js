@@ -7,12 +7,11 @@
 
 import { CLEAR_DIST, TURN_BUDGET, monsterEmoji, VISIBLE_DIST } from '../sim/balance.js';
 import { weaponDamage, weaponMinDamage } from '../sim/combat.js';
-import { distSq, posKey } from '../sim/mapgen.js';
+import { distSq, posKey, tileAt } from '../sim/mapgen.js';
 import { tileSvg } from './tiles.js';
 import { depthTheme } from './depth-theme.js';
 
 const VIEW = VISIBLE_DIST * 2;                 // 18 cells across
-const VISIBLE_SQ = VISIBLE_DIST * VISIBLE_DIST;
 const CLEAR_SQ = CLEAR_DIST * CLEAR_DIST;
 
 const PLAYER_GLYPH = '🧝';
@@ -62,6 +61,34 @@ export function buildGrid(container) {
     container.append(cell);
     cells.push({ cell, glyph, badge, net });
   }
+  // The dark (🌑, src/sim/dungeons.js): a torch-lit circle over the board,
+  // its edge where the hero's eyes stop. Out of the grid's flow (absolute),
+  // so it takes no cell; hidden whenever the hero sees the shipped distance.
+  torch = document.createElement('div');
+  torch.className = 'torch';
+  container.append(torch);
+}
+
+let torch = null;
+
+// The light falls off over the last cell of the reach and is dark beyond it
+// — dark enough that the memory under it is all but gone (owner: "que não
+// dê pra ver mesmo"). Drawn on top of the board rather than by repainting
+// cells, so the edge stays a soft ring instead of a staircase of tiles.
+function paintTorch(reach) {
+  if (!torch) return;
+  const dark = reach < VISIBLE_DIST;
+  torch.hidden = !dark;
+  if (!dark) return;
+  const cellPx = torch.clientWidth / VIEW;
+  const centre = `${(VISIBLE_DIST + 0.5) * cellPx}px ${(VISIBLE_DIST + 0.5) * cellPx}px`;
+  const r = (reach + 0.5) * cellPx;
+  // A falloff, not a wall (owner, 2026-10-05): clear only round the hero,
+  // dimming steadily across the lit area, near black at the reach's edge.
+  torch.style.background = `radial-gradient(circle ${r + cellPx}px at ${centre}, `
+    + `rgba(255, 176, 72, .12) 0, rgba(14, 10, 6, 0) ${r * 0.3}px, `
+    + `rgba(14, 10, 6, .25) ${r * 0.6}px, rgba(14, 10, 6, .6) ${r * 0.85}px, `
+    + `rgba(14, 10, 6, .92) ${r + cellPx * 0.3}px, rgba(14, 10, 6, .98) ${r + cellPx}px)`;
 }
 
 // Everything the bot believes is at each position, keyed by "x,y".
@@ -128,7 +155,17 @@ const signed = (n) => (n > 0 ? '+' : '') + n.toFixed(1);
 // whichever emoji is on top of it. Unset is the hero the game shipped with.
 export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYPH) {
   const player = state.player.pos;
+  // How far the hero sees here — the same rule observe() uses, capped at the
+  // viewport, so the board darkens exactly where the hero's eyes stop.
+  const reach = Math.min(VISIBLE_DIST,
+    (state.persona && state.persona.sightRadius) ?? state.sight ?? VISIBLE_DIST);
+  const reachSq = reach * reach;
+  paintTorch(reach);
   const truth = trueAt(state);
+  // A cave has no built walls — its rock is the wall, drawn with the wall's
+  // own glyph. A built floor (crypt, grid, halls) has real walls round its
+  // rooms, and the rock behind them keeps a colour of its own.
+  const caveRock = state.map.layout === 'cave';
   const memory = believedAt(belief);
   const goalKey = debug && debug.goal && debug.goal.pos ? posKey(debug.goal.pos) : null;
   const goalNet = debug ? goalScore(debug.goal) : null;
@@ -141,17 +178,22 @@ export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYP
       const { cell, glyph, badge, net } = cells[row * VIEW + column];
 
       const away = distSq(player, [x, y]);
-      const inSight = away <= VISIBLE_SQ;
+      const inSight = away <= reachSq;
       const remembered = belief.tiles.has(key);
 
       let text = '';
       let sub = '';
       let opacity = 0;
       let known = true;
+      // Undug ground — the rock the map was carved out of. `null` in the
+      // tiles (src/sim/mapgen.js), and it used to draw exactly like floor.
+      let rock = false;
 
       if (inSight) {
         opacity = away > CLEAR_SQ ? 0.75 : 1;
-        text = tileGlyph(state.map.tiles[y * state.map.w + x]);
+        const tile = tileAt(state.map, x, y);
+        rock = tile === null;
+        text = rock && caveRock ? theme.wall : tileGlyph(tile);
         const top = topmost(truth.get(key) || []);
         if (top) {
           text = top.kind === 'corpse' ? CORPSE_GLYPH : top.entity.emoji;
@@ -162,7 +204,8 @@ export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYP
         // wandered off since — see docs/rogule-spec.md §12.2.
         opacity = 0.3;
         known = false;
-        text = tileGlyph(belief.tiles.get(key));
+        rock = belief.tiles.get(key) === null;
+        text = rock && caveRock ? theme.wall : tileGlyph(belief.tiles.get(key));
         const top = topmost(memory.get(key) || []);
         if (top) {
           text = top.entity.emoji;
@@ -191,6 +234,7 @@ export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYP
       badge.textContent = sub;
       cell.style.opacity = opacity;
       cell.classList.toggle('remembered', !known && opacity > 0);
+      cell.classList.toggle('rock', rock && !caveRock && !(x === player[0] && y === player[1]));
 
       if (debug) {
         // Redder means the bot expects to lose more hp per turn spent here.
@@ -198,8 +242,11 @@ export function renderFrame(state, belief, debug = null, heroGlyph = PLAYER_GLYP
         const menace = debug.danger.menace.get(key) || 0;
         const heat = Math.min(1, menace / 2);
         const crowded = (debug.danger.crowd.get(key) || 0) >= 2;
+        // Over the floor colour, not instead of it: the cell's own background
+        // IS the floor now (style.css), and a bare tint would show the dark.
+        const tint = `rgba(${crowded ? 255 : 200}, ${crowded ? 40 : 70}, 60, ${0.12 + 0.55 * heat})`;
         cell.style.background = menace > 0
-          ? `rgba(${crowded ? 255 : 200}, ${crowded ? 40 : 70}, 60, ${0.12 + 0.55 * heat})`
+          ? `linear-gradient(${tint}, ${tint}), var(--floor)`
           : '';
         cell.classList.toggle('goal', key === goalKey);
         // Only the winner is labelled, because only the winner is in the

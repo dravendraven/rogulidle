@@ -135,7 +135,8 @@ function copyEntity(entity, fields) {
 // absent option is the shipped game in both cases.
 export function observe(state, options = {}) {
   const revealLoot = options.revealLoot ?? false;
-  const radius = options.sightRadius ?? VISIBLE_DIST;
+  // The persona's sight wins, then the floor's darkness, then the shipped fog.
+  const radius = options.sightRadius ?? state.sight ?? VISIBLE_DIST;
   const map = state.map;
   const from = state.player.pos;
 
@@ -182,6 +183,10 @@ export function observe(state, options = {}) {
     blow: state.blow ?? null,
     // The flail's other blows, the same shape and the same one-turn life.
     swept: state.swept ?? [],
+    // How far you see — your own eyes, not a secret. Capped at the shipped
+    // fog, so a hero who sees the whole floor reads the same as before the
+    // dark existed; only a dark floor brings it down.
+    sight: Math.min(radius, VISIBLE_DIST),
     visible,
     tiles,
     monsters: state.monsters.filter(seen).map((m) => copyEntity(m,
@@ -217,6 +222,7 @@ function cloneBelief(belief) {
     outcome: belief.outcome,
     w: belief.w,
     h: belief.h,
+    sight: belief.sight,
     player: belief.player,
     seen: new Set(belief.seen),
     tiles: new Map(belief.tiles),
@@ -257,6 +263,7 @@ export function foldBelief(belief, obs) {
   b.player = obs.player;
   b.w = obs.w ?? b.w;
   b.h = obs.h ?? b.h;
+  b.sight = obs.sight ?? b.sight;
 
   // Terrain never changes, so once seen it is known for good.
   for (const [key, kind] of obs.tiles) {
