@@ -51,8 +51,9 @@ M7 espera a B estar no main.
 
 - **Massa igual não é dificuldade igual** (profundidade medida por
   masmorra, 2026-11-02, 120 runs cada, o bot de sempre). As de fera ficam
-  mais DIFÍCEIS que a de sempre — Floresta muito, Tumba e Covil um pouco — e
-  as de matilha mais FÁCEIS, todas acima de 2σ. A M6 (bando acorda junto)
+  mais DIFÍCEIS que a de sempre — Floresta muito, Tumba e Covil um pouco;
+  Cofres empata — e Minas, Arena e Ossário mais FÁCEIS; Esgoto empata
+  (só se conta o que passa de 2σ). A M6 (bando acorda junto)
   quase não mexeu nas de matilha: o bando já nascia junto e acordava quase
   junto. O orçamento por massa (M3) não basta; o próximo ajuste é por
   profundidade, masmorra a masmorra.
