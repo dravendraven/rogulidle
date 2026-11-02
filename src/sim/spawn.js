@@ -618,6 +618,7 @@ export function populate(state, map, counts = {}) {
   // still draws its own independent anchor — the loop below then places
   // exactly one tile per cluster, identically to before this item existed.
   const clusterSize = Math.max(1, counts.clusterSize ?? 1);
+  let clusterNo = 0;
 
   // `template` is passed in rather than rolled here — see the call site.
   // One tier draw per CLUSTER, not per monster, is the actual mechanism
@@ -766,9 +767,13 @@ export function populate(state, map, counts = {}) {
     // whatever remains. No extra draw: this is the same arithmetic
     // `quotaWantsSide` above, just re-run per member instead of once.
     let placedInThisCluster = 0;
+    clusterNo++;
     for (const pos of positions) {
       if (placedInThisCluster > 0 && quotaZone() !== actualZone) break;
       placeOne(pos, template);
+      // M6 — which band it belongs to, written only when bands wake
+      // together, so a floor without the rule carries no new field.
+      if (counts.packWake) state.monsters[state.monsters.length - 1].pack = clusterNo;
       placedInThisCluster++;
     }
   }

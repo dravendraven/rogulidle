@@ -285,6 +285,9 @@ export function* playDungeonSteps(seed, makePolicy, options = {}) {
       // (src/sim/dungeons.js), null is the shipped fog. Forgotten here the
       // first time: the plan carried it and no run ever went dark.
       sight: plan.sight,
+      // M6 — the pack dungeons' "one wakes, all wake". Same reason as sight:
+      // a plan field this list forgets never reaches a floor.
+      packWake: plan.packWake,
       // M43 — 0 turns the authored room off for the whole descent, which is
       // what a control run needs. Undefined would silently fall back to the
       // shipped floor, so this has to travel explicitly.

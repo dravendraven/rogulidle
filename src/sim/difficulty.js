@@ -468,6 +468,9 @@ export function makeFloorPlan(model = {}) {
     // How far the hero sees on this floor — null is the shipped fog
     // (VISIBLE_DIST). Only a dungeon in the dark sets it (src/sim/dungeons.js).
     sight: m.sight ?? null,
+    // M6 — a band wakes together: one member in range wakes the whole
+    // cluster. Only a pack dungeon sets it (src/sim/dungeons.js).
+    packWake: m.packWake ?? false,
     vaultLevel: m.vaultLevel,
     vaultChestItems: m.vaultChestItems,
     vaultBoss: m.vaultBoss,

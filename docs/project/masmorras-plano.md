@@ -36,7 +36,7 @@ A primeira masmorra é o jogo de hoje ("atual") — calibração e tutorial.
 | **M3** FEITO em parte (out.) | só a CONTAGEM é declarada; força e chance de drop são DERIVADAS dela, e um teste confere que cada trecho mantém a massa de ameaça e as armas por andar de hoje. Falta: conferir as de matilha pela arena da A1 (`src/analysis/bosses.js`) — bando que chega junto custa ~o dobro da massa, e a massa não vê isso | `node tools/measure.mjs bosses bossTable` |
 | **M4** FEITO (out.) | nome e três ícones na barra de cima, com o que cada um quer dizer | assistir |
 | **M5** FEITO (out.) | breu: raio de visão por andar, luz em degradê, o desconhecido é preto, tocha em volta do herói. Papazito continua vendo tudo | testes + assistir Tumba |
-| **M6** | a matilha acorda junta (regra de motor atrás de campo do modelo). Decidir se o bot não ver isso é desenho ou defeito, e escrever em `bot.md` | teste de regra + assistir Minas |
+| **M6** FEITO (2026-11-02) | nas masmorras de matilha o bando acorda junto (`packWake`, campo do modelo, só o eixo matilha liga). O bot não sabe — desenho ou defeito segue com o dono, escrito em `bot.md` | teste de regra + assistir Minas |
 | **M7** | rotação: masmorra atual no save; o clear avança; a tela anuncia a próxima | `?dev=1` forçando um clear |
 
 **Por que esta ordem (escrita antes de achar o branch):** M1 e M2 respondem "é divertido de assistir?" sem
@@ -48,6 +48,17 @@ depois de as masmorras feitas só de dials se provarem.
 M7 espera a B estar no main.
 
 ## Em aberto
+
+- **Massa igual não é dificuldade igual** (profundidade medida por
+  masmorra, 2026-11-02, 120 runs cada, o bot de sempre). As de fera ficam
+  mais DIFÍCEIS que a de sempre — Floresta muito, Tumba e Covil um pouco — e
+  as de matilha mais FÁCEIS, todas acima de 2σ. A M6 (bando acorda junto)
+  quase não mexeu nas de matilha: o bando já nascia junto e acordava quase
+  junto. O orçamento por massa (M3) não basta; o próximo ajuste é por
+  profundidade, masmorra a masmorra.
+- **No Lab, a masmorra vale na próxima run.** O botão "reset" do topo NÃO
+  reinicia a run — apaga todo o progresso. Para trocar já, use "↻ começar
+  agora" no herói, ou espere a run acabar.
 
 - **O que um clear paga**, agora que não há degrau — se paga algo além de
   mudar o contexto.

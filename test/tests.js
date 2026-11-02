@@ -5764,3 +5764,46 @@ test('a dark dungeon run is dark on the board the player watches', () => {
   assertEq(dark.observation.sight, dark.state.sight, 'the hero was not told how far he sees');
   assertEq(firstFrame('cofres').state.sight, null, 'a lit dungeon went dark');
 });
+
+// M6 — docs/project/masmorras-plano.md. In a pack dungeon a band wakes
+// together: one member inside its own radius wakes every member, however far.
+function packFloor(pack) {
+  const size = 15;
+  const tiles = [];
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      tiles.push(x === 0 || y === 0 || x === size - 1 || y === size - 1 ? null : 'room');
+    }
+  }
+  const row = (name) => MONSTER_TABLE.find((m) => m.name === name);
+  const near = { ...row('wolf'), id: 2, pos: [7, 5], drop: null, dead: false };
+  const far = { ...row('zombie'), id: 3, pos: [7, 13], drop: null, dead: false };
+  if (pack) { near.pack = 1; far.pack = 1; }
+  return {
+    seed: 1, turn: 0, outcome: null, killedBy: null, nextId: 10, sim: true,
+    rng: { map: hashSeeds(1, 1), spawn: hashSeeds(1, 2), combat: hashSeeds(1, 3) },
+    log: [], persona: resolvePersona(), map: { w: size, h: size, tiles, rooms: [] },
+    player: { pos: [7, 7], hp: 1e6, hpMax: 1e6, armour: 0, xp: 3, inventory: [], kills: [], xpEarned: 0 },
+    monsters: [near, far], items: [], chests: [], shrine: { pos: [1, 1] },
+  };
+}
+
+test('one member of a band in range wakes the whole band', () => {
+  const zombieAfter = (pack) => {
+    let state = packFloor(pack);
+    for (let i = 0; i < 3; i++) state = step(state, 'rest').state;
+    return state.monsters.find((m) => m.id === 3).pos.join(',');
+  };
+  assertEq(zombieAfter(false), '7,13', 'a zombie six steps out moved without a band — the radius is broken');
+  assert(zombieAfter(true) !== '7,13', 'the wolf woke and its bandmate did not follow');
+});
+
+test('only a pack dungeon marks bands, and the shipped floor carries no new field', () => {
+  assertEq(makeFloorPlan({})(3).packWake, false, 'the shipped plan wakes bands together');
+  const shipped = newGame(4242, makeFloorPlan({})(3));
+  assert(shipped.monsters.every((m) => !('pack' in m)), 'a shipped creature carries a pack id');
+  const minas = newGame(4242, makeFloorPlan(dungeonModel({}, 'minas'))(3));
+  assert(minas.monsters.some((m) => m.pack !== undefined), 'a pack dungeon placed no bands');
+  const tumba = newGame(4242, makeFloorPlan(dungeonModel({}, 'tumba'))(3));
+  assert(tumba.monsters.every((m) => !('pack' in m)), 'a beast dungeon woke bands together');
+});

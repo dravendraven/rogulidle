@@ -202,6 +202,11 @@ criatura da tabela de tiers tem isso; hoje só o ocupante do vault tem.
 **São estáticas enquanto o herói estiver mais longe que o raio de ativação
 delas.** O raio não correlaciona com força.
 
+**Numa masmorra de matilha, o bando acorda junto.** Basta um membro ter o
+herói dentro do próprio raio para o bando inteiro vir, por mais longe que
+esteja cada um. Bando é o grupo que nasceu junto. Fora das masmorras de
+matilha nada muda: cada criatura acorda só pelo próprio raio.
+
 **Bloqueiam umas às outras, mas não o herói** — andar sobre o herói é como
 atacam.
 

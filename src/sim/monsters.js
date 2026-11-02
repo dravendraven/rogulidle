@@ -27,7 +27,22 @@ function moveMonster(state, monster, pos) {
   if (monster.drop) monster.drop.pos = pos.slice();
 }
 
+// M6 — the bands with a member inside its own activation radius at the
+// start of the turn. A creature carries `pack` only on a floor where bands
+// wake together (src/sim/spawn.js), so everywhere else this is empty and
+// costs one pass over the roster.
+function wokenPacks(state, map) {
+  const woken = new Set();
+  for (const monster of state.monsters) {
+    if (monster.dead || monster.pack === undefined || woken.has(monster.pack)) continue;
+    const path = findPath(monster.pos, state.player.pos, monsterPassable(state, map, monster));
+    if (path.length > 0 && path.length < monster.activation) woken.add(monster.pack);
+  }
+  return woken;
+}
+
 export function updateMonsters(state, map) {
+  const woken = wokenPacks(state, map);
   for (const monster of state.monsters) {
     // How many ACTIONS this creature takes per hero turn, each one a step
     // or a blow. DIVERGENCE: the original has no such thing and neither did
@@ -52,7 +67,7 @@ export function updateMonsters(state, map) {
       // The original short-circuits: when the activation test fails the skip
       // die is never rolled. Drawing it anyway would desync every later roll,
       // so the order here is load-bearing. FAITHFUL engine.cljs:350.
-      if (path.length >= monster.activation) break;
+      if (path.length >= monster.activation && !woken.has(monster.pack)) break;
       // Inside a hypothetical world the bot assumes monsters never skip a
       // turn: pessimistic in both directions, and it keeps the search free of
       // chance branches.

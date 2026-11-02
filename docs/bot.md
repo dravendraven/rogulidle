@@ -27,7 +27,10 @@ frases:
   nada acordado o alcança nos cinco turnos parados (`rules.md` §5). A segunda
   metade é exata, não chute: criatura fora do raio de ativação não anda, e
   herói parado não acorda ninguém novo — então só chegam as que já estavam
-  vindo. Isso só fecha para quem enxerga o andar inteiro, que é o mesmo herói
+  vindo. **Nas masmorras de matilha isso deixa de ser exato:** o bando
+  acorda junto (`rules.md` §3), e o bot não sabe quem é bando de quem — o
+  preço de cada criatura continua o dela sozinha. Se isso é desenho (como a
+  velocidade do porco, M44) ou defeito ainda é decisão do dono. Isso só fecha para quem enxerga o andar inteiro, que é o mesmo herói
   que carrega o livro.
 - **A exigência é um produto de três termos:** `READ_AT × ganância ×
   ameaça-à-frente`, com teto. `READ_AT` é a exigência quando a descida

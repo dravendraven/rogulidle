@@ -63,6 +63,8 @@ const AXES = {
     pack: {
       monstersBase: { 1: 6, 4: 10, 5: 10, 8: 11, 10: 11 },
       clusterSize: 12,
+      // M6 — a band arrives as a band (rules.md §3).
+      packWake: true,
     },
     beast: {
       monstersBase: { 1: 3, 4: 3, 5: 3, 8: 4, 10: 7 },
@@ -245,6 +247,7 @@ export function dungeonModel(model = {}, name = DEFAULT_DUNGEON) {
       ...light,
       monstersBase: count,
       clusterSize: creatures.clusterSize,
+      packWake: creatures.packWake ?? false,
       // Weapons come only from dead creatures, so the drop chance carries
       // the ratio the count changed: creatures × chance stays the shipped
       // product. `weaponScarcity` is untouched — it is E2's pair.
