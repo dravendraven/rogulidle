@@ -62,7 +62,9 @@ const AXES = {
   creatures: {
     pack: {
       monstersBase: { 1: 6, 4: 10, 5: 10, 8: 11, 10: 11 },
-      clusterSize: 12,
+      // A band is three (plano-2026-11.md, A). 12 only worked while the
+      // zone quota cut every band to strays anyway.
+      clusterSize: 3,
       // M6 — a band arrives as a band (rules.md §3).
       packWake: true,
     },

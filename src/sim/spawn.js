@@ -769,7 +769,10 @@ export function populate(state, map, counts = {}) {
     let placedInThisCluster = 0;
     clusterNo++;
     for (const pos of positions) {
-      if (placedInThisCluster > 0 && quotaZone() !== actualZone) break;
+      // M6 — except a band, which is born whole: split by the quota, a
+      // pack of three came out as three strays (seen on Minas, 2026-11-02).
+      // The quota still corrects itself between bands.
+      if (placedInThisCluster > 0 && !counts.packWake && quotaZone() !== actualZone) break;
       placeOne(pos, template);
       // M6 — which band it belongs to, written only when bands wake
       // together, so a floor without the rule carries no new field.

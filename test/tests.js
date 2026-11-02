@@ -5630,7 +5630,7 @@ test('each dungeon draws its own theme on every stretch, and its axes', () => {
     const one = plan(1);
     const four = plan(4);
     const shipped4 = makeFloorPlan({})(4);
-    if (d.creatures === 'pack') assert(one.clusterSize > 6 && four.monsters > shipped4.monsters, `${name}: not a pack`);
+    if (d.creatures === 'pack') assert(one.packWake && four.monsters > shipped4.monsters, `${name}: not a pack`);
     else assert(one.clusterSize === 1 && four.monsters < shipped4.monsters, `${name}: not a beast`);
     if (d.chests === 'plenty') assert(one.chests > 6, `${name}: not plenty`);
     else assert(one.chests < 6 && one.chestLootChance > 0.9, `${name}: not relic`);
@@ -5806,4 +5806,20 @@ test('only a pack dungeon marks bands, and the shipped floor carries no new fiel
   assert(minas.monsters.some((m) => m.pack !== undefined), 'a pack dungeon placed no bands');
   const tumba = newGame(4242, makeFloorPlan(dungeonModel({}, 'tumba'))(3));
   assert(tumba.monsters.every((m) => !('pack' in m)), 'a beast dungeon woke bands together');
+});
+
+// The zone quota used to re-decide after every member and cut each band
+// into strays — Minas seed 835122865 showed six lone rats on floor 1.
+test('a pack dungeon places its bands whole', () => {
+  const plan = makeFloorPlan(dungeonModel({}, 'minas'));
+  for (const level of [1, 4, 8]) {
+    for (let seed = 0; seed < 20; seed++) {
+      const state = newGame(7700 + seed, plan(level));
+      const sizes = {};
+      for (const m of state.monsters) if (m.pack !== undefined) sizes[m.pack] = (sizes[m.pack] || 0) + 1;
+      const counts = Object.values(sizes);
+      const short = counts.filter((n) => n < plan(level).clusterSize).length;
+      assert(short <= 1, `floor ${level} seed ${seed}: bands ${counts.join('+')}`);
+    }
+  }
 });
