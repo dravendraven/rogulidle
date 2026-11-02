@@ -55,7 +55,7 @@ M7 espera a B estar no main.
   Cofres empata — e Minas, Arena e Ossário mais FÁCEIS; Esgoto empata
   (só se conta o que passa de 2σ). A M6 (bando acorda junto)
   quase não mexeu nas de matilha: o bando já nascia junto e acordava quase
-  junto. O orçamento por massa (M3) não basta; o próximo ajuste é por
+  junto. Medido de novo com o bando inteiro (2 a 4), o quadro é o mesmo: matilha continua mais fácil que fera. O orçamento por massa (M3) não basta; o próximo ajuste é por
   profundidade, masmorra a masmorra.
 - **No Lab, a masmorra vale na próxima run.** O botão "reset" do topo NÃO
   reinicia a run — apaga todo o progresso. Para trocar já, use "↻ começar
