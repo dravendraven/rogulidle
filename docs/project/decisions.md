@@ -2338,3 +2338,37 @@ tem o alvo do dono para a curva.
 **O que ficou dele:** `COIN_RATE` em 14 (baseline mais pobre, que é o que o
 alvo novo pede), e o contador de moedas ao vivo no HUD, que mostra xp÷turno
 se formando e não dependia do baú. `GAME_VERSION` subiu para 2.
+
+## Frente B — traços do Ricardo e feitos da escada que não pegaram — 2026-11-03
+
+Medido em CADEIA (com loja), com os dials entregues. O que fica:
+
+**Um feito de classe tem de passar em dois testes, e quase tudo falha num
+deles.** (1) O traço da classe o torna mais fácil que nas outras; (2) um
+dial o move — raro no ajuste ruim, frequente no certo. Os limiares da B3
+(chapa em 8 andares, 10 baús cheios seguidos, dano baixo em 3 andares, cura
+alta do livro) estavam na cauda: nenhum dial movia a taxa além do ruído.
+Causa: foram calibrados com um script fora do `NEEDS_DIALS`, nos padrões do
+código — exatamente o aviso do CLAUDE.md.
+
+**Medidas que são efeito colateral não servem de feito.** "Comprar chapa na
+escada" mede renda (o Pawa sempre compra quando tem moeda); "baús cheios
+seguidos" é o traço do Ricardo funcionando sozinho, sem nada a descobrir.
+
+**Coragem quase não move nada em nenhuma classe.** Ganância e Pressa são as
+duas alavancas reais; um feito por classe com alavanca distinta tem no
+máximo uns dois ou três quebra-cabeças diferentes.
+
+**O Vito ganha em quase toda medida por ser o mais forte** — feito "dele"
+só é dele quando outra classe não chega perto (o dragão).
+
+**Ricardo, "lê a vida" (vida exata das criaturas visíveis): inerte.**
+Construído como opção de persona (o campo `hp` passando pelo `observe`, o
+`assumedHp` usando-o) e medido contra o Ricardo de hoje: ganho dentro do
+ruído. O bot quase não erra o preço de luta — criaturas do mesmo xp têm vida
+parecida, então a média do bestiário já acerta; o que mata é a sorte dos
+golpes e o que não se evita. Removido.
+
+**Ricardo, "sabe o que tem no baú" (o traço de hoje): sem vantagem fora dos
+baús.** Em turnos até o andar 5, moedas, dano e profundidade ele empata com
+o Aurélio — desviar de baús vazios poupa pouco porque ele abriria poucos.
