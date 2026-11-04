@@ -190,7 +190,7 @@ export const DUNGEONS = {
     creatures: 'beast', chests: 'relic', light: 'dark',
     themes: { 1: 'cripta', 4: 'grade', 5: 'cripta', 8: 'anel', 10: 'central' },
     map: {
-      dugPercentage: 0.18, mapSize: 28, roomScale: 1.0, roomBias: 4, corridorMin: 4,
+      dugPercentage: 0.25, mapSize: 32, roomScale: 1.0, roomBias: 4, corridorMin: 4,
       shrineDistanceShare: 1.0, spineThreatShare: 0.2, sideChestBias: 10, chestMix: 0.5,
     },
   },
