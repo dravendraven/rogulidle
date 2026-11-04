@@ -61,9 +61,13 @@ M7 espera a B estar no main.
   orçamento de turnos e a moeda são por travessia, então mapa maior era
   masmorra mais difícil por cansaço e mais pobre em moeda — a Floresta, em
   40, perdia mais da metade das runs pro relógio, quase todas por isso; em
-  32, quase nenhuma. Corrigir pelo mapa, não pela conta da moeda. A
-  profundidade medida antes disso (acima) não vale mais para Floresta,
-  Cofres, Esgoto e Minas.
+  32, quase nenhuma. Corrigir pelo mapa, não pela conta da moeda.
+  Remedido depois do corte: a Floresta deixou de ser a mais difícil e
+  entrou no grupo das feras; o resto mudou dentro do ruído. O quadro
+  matilha × fera continua o mesmo: as quatro de matilha vão mais fundo que
+  as quatro de fera, longe de 2σ — o eixo de criatura ainda não está
+  calibrado. Clear sem loja segue zero em todas; com loja, só masmorras de
+  matilha (Minas, Arena) fecham alguma.
 - **No Lab, a masmorra vale na próxima run.** O botão "reset" do topo NÃO
   reinicia a run — apaga todo o progresso. Para trocar já, use "↻ começar
   agora" no herói, ou espere a run acabar.
