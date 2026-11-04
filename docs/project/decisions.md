@@ -2384,3 +2384,13 @@ Ganância alta, e na Pressa baixa uma melhora abaixo de 2σ — com 25–40% a
 mais de tempo de CPU. É a lição da B20 de novo: o bot já reavalia a cada
 turno, então ir primeiro ao mais perto e depois ao outro raramente custa o
 que a conta de um percurso fixo diz.
+
+**Sonda de teto para quatro ideias de bot mais esperto (só observa).** 15
+sessões encadeadas × 20 corridas, herói base, ajustes publicados. Atrair uma
+criatura por vez e lutar no corredor têm teto pequeno: só ~8% do dano vem de
+turnos com duas ou mais criaturas batendo (~5% em sala aberta), e ~8% das
+mortes terminam assim — o `CROWD_PENALTY` inerte de novo, agora com
+`CLUSTER_SIZE` 10. A estamina mata ~2%. O que domina é o Açougueiro: mais
+da metade das mortes, todas no andar 4. Recuar de luta que deu errado contra
+criatura lenta teria chance em ~9–16% das mortes (vida ≥5 ou ≥3 quando o
+dano passou da estimativa) — teto, não ganho.
