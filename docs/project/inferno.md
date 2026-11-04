@@ -1,208 +1,272 @@
-# O inferno e o scroll de portal — estudo antes do código
+# O inferno, o scroll de portal e os chefes — estudo antes do código
 
-Escrito em 2026-11-03, antes de qualquer linha da frente D
-(`plano-2026-11.md`). O desenho do dono está lá; este arquivo responde o
-que o desenho deixou aberto, com uma recomendação por pergunta, e refina as
-etapas. **Nada aqui está construído.** Quando uma etapa for, o doc que a
-descreve (`rules.md`, `bot.md`, `balance.md`) muda no mesmo commit e a etapa
-ganha "FEITO" no plano.
+Escrito em 2026-11-03 e **revisado com o dono em 2026-11-04**. É a fonte da
+frente D do `plano-2026-11.md`. **Nada aqui está construído.** Quando uma
+etapa for, o doc que a descreve (`rules.md`, `bot.md`, `balance.md`) muda no
+mesmo commit e a etapa ganha "FEITO" na tabela do fim.
 
-Nenhum número mora aqui como valor: onde aparece um, é palpite de desenho
-que vira linha de `balance.md` quando construído.
+Número que aparece aqui é palpite de desenho; vira linha de `balance.md`
+quando construído.
 
-## O desenho, em seis frases
+## De onde este desenho vem
 
-1. O inferno abre no primeiro clear (o feito `bottom`).
-2. Um clear permite comprar um 📜 **scroll de portal**, que absorve TODAS as
-   moedas daquele clear; a run seguinte não compra nada.
-3. Cabem no máximo 3 scrolls, que não expiram. Cheio, um clear que paga mais
-   que o scroll mais fraco o substitui.
-4. Abrir o portal é ação manual. Antes de descer: herói, item do slot e a
-   loja com o saldo do scroll.
-5. A seed do inferno é a do dia, igual para todos (data UTC).
-6. O que o inferno paga vira **moeda infernal**, que compra só itens
-   exclusivos do inferno.
+O inferno não nasceu agora. O que já estava escrito, e o que cada parte
+reaproveita:
+
+| doc | o que ele já dizia | o que fica |
+|---|---|---|
+| U11 (`candidates.md`) | 20 andares, Balrog no fundo, chefes de barreira, cada chefe paga um desbloqueio situacional, seed do dia, placar de configurações | quase tudo — é o esqueleto |
+| U11, "The Balrog is a design problem" | o bot recusa a luta mortal em vez de perdê-la; a saída é o truque da velocidade ou "um andar cuja única saída é através dele" | é o problema central dos chefes, §3 |
+| M44 (`decisions.md`) | `speed` é a única propriedade que mexe no custo real sem mexer no preço; o bot não pode precificá-la | o primeiro molde de chefe |
+| A bola de neve (`decisions.md`, "Measurement") | o que foge ao infinito é a ARMADURA que os baús reabastecem; o conserto é "um jeito de perder que a armadura não responde" | o segundo molde de chefe |
+| `items.md` | 🌀 teleporte, 🔮 barreira, 🍀 sorte, 🥾 botas, 🏹 arco, e os atributos Magnitude / Foco / Persistência | o catálogo de desbloqueios |
+| `fuga.md` | a fuga 🌀 está CONSTRUÍDA e fora da prateleira, esperando um preço | o primeiro item do inferno, pronto |
+| stamina (`decisions.md`, 2026-08-19) | o orçamento é por travessia, e o andar mais caro do arco decide o clear | a curva de 20 andares mexe nisso |
+| U14 + `masmorras-plano.md`, decisão 3 | o inferno pode tirar uma masmorra da seed do dia | a identidade de cada dia |
+| `dials.md`, diretriz 4 | "o debuff diário do inferno" muda a resposta certa de dia para dia | é a masmorra do dia |
+| `trade-offs.md` | o portal como "gastar o ingresso agora × esperar uma pilha melhor" | o scroll com substituição |
+| U12 | recibo `{nome, data, config, seed}`, data UTC | o placar, por último |
+
+## O desenho, em sete frases
+
+1. O inferno abre no primeiro clear (o feito `bottom`), e só se entra com
+   scroll — não há descida grátis.
+2. No fim de um clear, ANTES da loja, uma escolha: **📜 scroll com todas as
+   moedas** ou **usar a loja**.
+3. Offline, um interruptor do jogador decide se a compra automática sempre
+   leva o scroll ou nunca leva.
+4. Cabem 3 scrolls, que não expiram; cheio, um clear que paga mais que o
+   scroll mais fraco o substitui.
+5. São **20 andares**, com chefes de barreira, e o **Balrog** no 20 quase
+   impossível de alcançar. O placar é até onde se chegou.
+6. **Cada chefe derrubado desbloqueia algo novo — itens ou classes.** A
+   moeda infernal, que é o que o inferno paga, desbloqueia itens na loja do
+   inferno.
+7. Enquanto a escada de classes está aberta, desce-se com a classe da
+   escada; fechada, o setup é livre. A seed é a do dia, igual para todos.
 
 ---
 
-## 1. A forma do inferno
+## 1. A forma: 20 andares
 
-**Recomendação: dez andares, a mesma máquina de run, um MODELO próprio — e
-nada de chefe impossível na primeira versão.**
+**A curva de hoje continuada, sem conteúdo novo.** "Uma dificuldade mais
+dura é um modelo entregue a `makeFloorPlan`" é regra dura do `CLAUDE.md`. O
+andar 1 do inferno é o andar 11 da curva: os campos `*Start`
+(`tierFloorStart`, `tierSlackStart`, `outOfDepthChanceStart`,
+`spreadStart`, em `balance.md`) existem para uma curva re-ancorada
+continuar de onde parou. A run já sabe ter N andares (`options.levels`,
+`src/sim/dungeon.js`), então 20 é valor, não código.
 
-**Por que dez, e não os vinte do U11.** A run já sabe ter N andares
-(`options.levels` em `src/sim/dungeon.js`), então vinte não custa código —
-custa TEMPO de assistir, e o orçamento de turnos é por travessia. Vinte
-andares de uma descida que o jogador ABRIU À MÃO e quer ver é meia hora de
-tela. Dez mantém a descida do tamanho de uma run normal; "até onde você
-chegou" continua sendo o placar. O número de andares fica num campo do
-modelo, então dobrar depois é mudança de valor.
+**Extenso de propósito** (dono, 2026-11-04): o inferno é a descida que o
+jogador abriu à mão e quer ver longe. O custo é tempo de tela, aceito.
 
-**Por que um modelo, e não conteúdo.** "Uma dificuldade mais dura é um
-modelo entregue a `makeFloorPlan`" é regra dura do `CLAUDE.md`. O inferno é
-a curva de hoje CONTINUADA: os campos `*Start` (`tierFloorStart`,
-`tierSlackStart`, `outOfDepthChanceStart`, `spreadStart` — `balance.md`)
-existem exatamente para uma curva re-ancorada no meio continuar de onde
-parou em vez de recomeçar do zero. O andar 1 do inferno é o andar 11 da
-curva. Zero criatura nova, zero tile novo.
+**A tabela de criaturas tem fim.** No andar 10 de hoje todo bicho já sai do
+topo da tabela (`dungeons.js` registra o limite). A curva continuada passa do
+fim em poucos andares, e daí em diante "mais difícil" só pode vir de três
+lugares: **mais criaturas, a cauda fora de profundidade, e os chefes.** Os
+chefes, portanto, não são enfeite — a partir do meio do inferno eles SÃO a
+curva.
 
-**E por cima, a masmorra do dia.** `masmorras-plano.md`, decisão 3: o
-inferno pode tirar uma masmorra da seed do dia. É barato — `dungeonModel`
-(`src/sim/dungeons.js`) já transforma um modelo no de uma masmorra — e dá ao
-dia uma identidade que se lê antes de descer ("hoje é Tumba 🐉💎🌑"). É o
-pilar 1 de `trade-offs.md` na medida: o jogador sabe o tipo e não o mapa, e
-escolhe herói e item contra isso. **Recomendado, como segunda etapa do
-modelo, atrás do seu próprio interruptor.**
+**A estamina morde aqui.** O orçamento é por travessia e o andar mais caro
+decide quem passa (`decisions.md`, 2026-08-19). Um andar de inferno cheio de
+criaturas do topo pode custar mais turnos que o orçamento, e aí a descida
+acaba por cansaço, o final mais chato que existe. O modelo do inferno pode
+ter um orçamento próprio — é um campo, não regra nova — e a D1 existe para
+assistir isso antes de qualquer chefe.
 
-**Chefes de barreira — depois, e com uma regra de bot antes.** O vault de
-hoje é beco sem saída e lateral: o bot passa reto quando o portão recusa, e
-é por isso que ele funciona como aposta. Uma BARREIRA tem de estar na rota.
-O único jeito de hoje é o guardião do buraco — e aí a lição do M44
-(`decisions.md`) morde: o bot recusa a luta mortal em vez de perdê-la, não
-tem como sair do andar sem passar pelo guardião, e a run acaba no orçamento
-de turnos, o final mais chato que existe. A barreira só pode ser construída
-junto com uma regra do bot: **quando o buraco é conhecido, o guardião dele é
-recusado e não sobrou mais nada a fazer, ele luta mesmo assim** — esperar o
-relógio nunca é sobreviver (`bot.md`, "Nunca fica parado"). Isso é etapa
-própria, depois das que dão para assistir.
+**A masmorra do dia por cima** (`dungeonModel`): o dia é "Tumba 🐉💎🌑" ou
+"Minas 🐺📦☀️", tirado da seed. É o "debuff diário" que `dials.md` pedia,
+na forma que o U14 já calibrou — redistribui, não endurece. O jogador sabe o
+tipo antes de escolher herói e item, e não sabe o mapa (pilar 1 de
+`trade-offs.md`).
 
-**O Balrog fica fora deste plano.** Ele é o mesmo problema da barreira com o
-sinal mais forte, e o U11 já registrou que "o objetivo real é até onde se
-chegou". Um inferno sem Balrog já tem placar.
-
-**O Butcher do andar 4** sai do inferno por padrão (`vaultLevel` é campo do
-modelo; 0 desliga). Um andar de aposta lateral num modo de uma tentativa só
-é ruído; a barreira é o que ocupa o lugar dele quando existir.
+**O Butcher sai do inferno** (`vaultLevel` é campo do modelo; 0 desliga):
+quem fica no lugar dele são os chefes.
 
 ## 2. O scroll de portal
 
-**Onde ele entra: num prompt próprio da loja do CLEAR, não na prateleira.**
-A prateleira tem preços fixos que não escalam com nada (`rules.md` §9), e o
-scroll custa "o saldo inteiro", que não é preço. Pô-lo em `SHOP_PRICES`
-quebraria a regra e a ordem padrão derivada dos preços (`DEFAULT_ORDER` em
-`src/ui/shop.js`). O fluxo é: a run acaba em clear → antes da loja, a tela
-pergunta "guardar este clear como scroll (N moedas)?" → sim absorve o saldo
-e a loja fecha sem comprar; não segue para a loja de sempre.
+**Uma escolha antes da loja, não um item da prateleira** (dono,
+2026-11-04). A prateleira tem preço fixo (`rules.md` §9) e "o saldo
+inteiro" não é preço. No fim de um clear:
 
-**Onde ele mora: uma fatia nova do save** (`src/ui/save.js`), `scrolls`, uma
-lista de até 3 entradas `{ coins, run }`. Mesma forma da `wallet`: o motor
-nunca a lê; a página a entrega à run do inferno como saldo da loja de
-preparação. Viaja para o servidor de save junto com o resto do documento,
-sem nada a fazer em `server/save-worker.js`.
+> 📜 **Scroll com todas as moedas** (N) — ou — 🛒 **Usar a loja**
 
-**Estoque e substituição são uma função pura** — `addScroll(list, coins)`
-devolve a lista nova: abaixo de 3, acrescenta; cheia, troca o mais fraco se
-`coins` for MAIOR; senão devolve a mesma lista e diz que recusou (as moedas
-vão para a loja, como hoje). Pura para o teste e para o instrumento de
-cadeia poderem perguntar sem tocar em armazenamento.
+Scroll fecha a loja sem comprar; loja segue como hoje. Nada no meio — o
+clear inteiro vira inferno ou inteiro vira equipamento (pilar 3).
 
-**A gestão offline continua em aberto** (o dono tirou o limiar em
-2026-11-03). As duas opções que sobram, e só elas:
+**Offline: um interruptor do jogador**, no bloco Loja do Lab: "na compra
+automática, sempre levar o scroll" — ligado ou desligado. Ligado, todo clear
+sem ninguém olhando vira scroll (até encher, com a substituição abaixo);
+desligado, vira equipamento como hoje. É a decisão de antes de sair, que
+`objectives.md` chama de a mais pesada do jogo, num botão só.
 
-| | o que acontece com um clear longe do PC | a favor | contra |
-|---|---|---|---|
-| **a. nunca automático** | vira equipamento, como hoje; só quem está olhando guarda scroll | zero regra nova; o ciclo médio não é alcançado por ausência (`objectives.md`) | clear é raro e quase sempre acontece com ninguém olhando — o inferno quase nunca abriria |
-| **b. um interruptor "guardar clears como scroll"** no bloco Loja do Lab | ligado, todo clear vira scroll (até encher, com substituição) | o jogador decide ANTES de sair, que é a decisão mais pesada do jogo | é o limiar retirado em versão de dois valores — decidir se isso é o que foi retirado |
+**Estoque de 3, sem prazo, com substituição.** Cheio, um clear que paga MAIS
+que o scroll mais fraco o troca; um que paga menos ou igual vai para a loja.
+Uma função pura (`addScroll(lista, moedas)`) decide, para o teste e o
+instrumento de cadeia poderem perguntar sem tocar em armazenamento. Mora numa
+fatia nova do save, `scrolls`, como a `wallet`: o motor nunca a lê.
 
-Até decidir, a primeira versão constrói **(a)**: é a que não acrescenta nada
-e a que (b) estende sem refazer.
+**O freio, dito com honestidade:** o scroll leva as MOEDAS, e a run seguinte
+não compra nada. Os itens que o herói terminou carregando ficam com ele
+(`rules.md` §9), e a pilha de uma sequência de vitórias é feita disso. É
+parcial de propósito — o freio de verdade da pilha é o segundo molde de
+chefe, §3.
 
-**O freio, dito com honestidade:** o scroll leva só as MOEDAS do clear. Os
-itens que o herói terminou carregando continuam com ele (`rules.md` §9), e
-a pilha de uma sequência de vitórias é feita disso. O scroll tira a compra
-de uma run, não a pilha. É parcial de propósito.
+## 3. Os chefes — o diferencial do inferno
 
-## 3. A moeda infernal
+### O problema que todo chefe tem de resolver primeiro
 
-**O que ela é:** cada travessia concluída no inferno paga moeda pela mesma
-taxa de sempre (xp por turno, `COIN_RATE`), e essa moeda vira moeda
-infernal, GUARDADA — a única coisa do jogo que se acumula entre descidas.
+**O bot recusa a luta que acha mortal, em vez de perdê-la** (M44: entrar e
+sobreviver são o mesmo número). Um chefe que ele pode recusar vira um chefe
+que ele contorna; um chefe que ele não pode contornar — que guarda o buraco
+— vira um andar em que ele fica parado até a estamina acabar.
 
-**O que ela compra: itens que só existem na descida do inferno, gastos no
-uso.** Consumíveis do inferno, comprados na loja de preparação, que somem
-quando usados ou quando a descida acaba. Nunca entram numa run normal.
+**A saída é uma regra do bot, e ela vem antes do primeiro chefe:** quando o
+buraco é conhecido, o guardião dele foi recusado, e não sobrou nada a fazer,
+**ele luta mesmo assim.** Esperar o relógio nunca é sobreviver — é a mesma
+frase que `bot.md` já usa para "nunca fica parado". Com isso o chefe vira o
+que o U11 pede: "um andar cuja única saída é através dele".
 
-**Por que isso fecha o risco que o plano registrou** ("se toda descida
-paga, inclusive a que morre cedo, o acúmulo é de derrotas"). Três travas,
-nenhuma nova:
-- **Toda descida do inferno foi paga por uma vitória.** Sem clear não há
-  scroll; sem scroll não há descida. Então "perder mil vezes" no inferno
-  exige ter vencido mil vezes antes — a regra de `objectives.md` vale no
-  nível do scroll.
-- **Andar não concluído não paga** — a regra de sempre (`rules.md` §9).
-- **O que ela compra não sai do inferno e é gasto.** Não há poder que
-  atravesse para o jogo normal, então não há canal de acúmulo para a run
-  que importa para o resto do jogo.
+### O molde: um chefe é um Butcher com uma pergunta diferente
 
-O que fica aberto é QUAIS itens. Regra para eles, a de todo item
-permanente-ou-quase: situacional, com trade-off, e o bot sabendo usar
-(`trade-offs.md`; U14, "quem extrai o 2X é o bot").
+O Butcher funciona porque tem **uma propriedade que o bot não precifica** (a
+velocidade) e um prêmio **anunciado** (o machado à vista). Todo chefe do
+inferno é esse molde — criatura fora da tabela, não sorteada, carimbada pelo
+modelo no andar dele, guardando o buraco — e cada um muda **qual** pergunta
+faz ao build. Um jeito diferente de perder por chefe é o que
+`objectives.md` pede ao poder permanente: o desbloqueio de cada um responde
+à pergunta DELE, e é inútil contra os outros.
 
-**Carteira com teto?** O U11 pedia teto para impedir farm infinito. Com o
-estoque de 3 scrolls e clear raro, o fluxo de entrada já é limitado.
-**Recomendação: sem teto na primeira versão; olhar a carteira depois de uma
-semana de jogo real.**
+### Proposta de elenco (desenho, para o dono decidir)
 
-## 4. A seed do dia, as descidas e o resultado
+| andar | chefe | a pergunta | de onde vem | desbloqueia (proposta) |
+|---|---|---|---|---|
+| 5 | **o Veloz** | dá para sair de uma luta? | speed 2, como o Butcher, com mais vida — M44 | 🌀 **fuga**, já construída e fora da prateleira (`fuga.md`) |
+| 10 | **o que atravessa a armadura** | e se a pilha de escudos não valer nada? | golpe que vai direto ao hp — "um jeito de perder que a armadura não responde", o conserto que a bola de neve pedia | 🔮 **barreira** (`items.md`: imune por dois turnos) |
+| 15 | **a Matilha-chefe** | e se vierem três de uma vez? | um bando que acorda junto (M6, frente A), chefes de vida média | uma **classe nova** — feita para multidão |
+| 20 | **o Balrog** | tudo junto | veloz + atravessa armadura + guarda o fim | o feito máximo; não paga poder, paga o nome no placar |
 
-**A seed:** uma função pura da data UTC (`hellSeed('2026-11-03')`) passada
-pelo gerador do jogo (`src/sim/rng.js`) — nunca o relógio dentro de
-`src/sim/`. A PÁGINA lê a data e entrega a seed; o motor só vê um número.
-UTC para dois amigos em fusos diferentes jogarem o mesmo mapa (U12).
+**Por que esta ordem:** cada chefe ensina uma coisa que o seguinte cobra. O
+Veloz pede fuga; o 10 pune quem confiou só em escudo; o 15 pune quem só
+duela; o Balrog cobra os três. O espaçamento de 5 andares é o U11
+("certos andares levantam a dificuldade bruscamente") e responde o risco que
+`idle-retention.md` nomeou: entre dois chefes não pode haver "nada novo à
+vista" — cinco andares é uma descida curta até o próximo marco.
 
-**Duas descidas no mesmo dia caem no mesmo mapa.** Recomendado: é a
-revanche, com outra preparação — o mesmo mapa com outro herói é a
-comparação mais limpa que o jogo pode oferecer ("o que mudou foi só a minha
-escolha"). Isso é o `Attributable` de `objectives.md` de graça.
+**O Balrog é "quase impossível de alcançar"** (dono) por construção: chegar
+nele exige passar por três chefes numa descida só, numa tentativa paga por
+uma vitória. Ninguém precisa afinar a força dele para isso; o caminho já é o
+filtro.
 
-**Não existe descida grátis por dia.** Só se entra com scroll. Uma regra só;
-o "uma vez por dia" deixa de ser necessário porque o scroll já raciona.
+**Os desbloqueios são permanentes e situacionais** — a condição de
+`objectives.md`. Um item que só vale contra um tipo de ameaça é um jeito
+diferente de perder, não uma chance menor. **E todo desbloqueio chega com o
+bot sabendo usá-lo** (U14: se o bot não extrai, a atribuição quebra). A fuga
+já tem gatilho no bot; a barreira e a classe nova precisam do delas.
 
-**O resultado:** o andar mais fundo do inferno, mostrado no fim da descida,
-com o recorde do dia e o de sempre guardados (fatia nova, mesma forma dos
-highscores). O cartão "enquanto você estava fora" (`src/ui/harvest.js`)
-ganha uma linha: scrolls guardados e o saldo de cada um.
+**Classe nova desbloqueada por chefe entra onde?** Duas opções: como mais um
+nível da escada (joga-se obrigado até o feito dela), ou direto livre.
+Recomendado: **mais um nível da escada** — mantém uma regra só para "como uma
+classe chega".
 
-**O recibo:** `{ data, seed do dia, herói, item, compras, config }`
-reproduz a descida inteira, porque a seed é do dia e a preparação é
-explícita. É o que o placar (U12) submete, e é quatro quintos do recibo de
-feito que já existe (`achievements.js`).
+## 4. A moeda infernal
 
-## 5. Onde isto esbarra nas frentes A e B
+**O que ela é** (dono, 2026-11-01 e 2026-11-04): cada travessia concluída no
+inferno paga moeda pela mesma taxa de sempre, e essa moeda vira moeda
+infernal, guardada.
 
-Nenhuma das duas está no main hoje (2026-11-03).
+**Para que serve: DESBLOQUEAR itens na loja do inferno.** Ela não compra o
+item para uma descida — abre o item na prateleira, de vez. Comprá-lo para
+uma descida é com o saldo do scroll, como qualquer compra. Assim ficam três
+economias, cada uma com uma função:
+
+| moeda | vem de | serve para |
+|---|---|---|
+| moeda da run | toda run | loja entre runs, ou o scroll |
+| saldo do scroll | um clear | a loja da preparação do inferno |
+| moeda infernal | andares do inferno concluídos | desbloquear itens na loja do inferno |
+
+E os chefes desbloqueiam por marco, a moeda infernal por acúmulo: o ciclo
+médio e o ciclo longo de `objectives.md`.
+
+**Por que isso não é "perder mil vezes vira vitória":**
+- toda descida foi paga por um clear — sem vitória não há inferno;
+- andar não concluído não paga (`rules.md` §9);
+- o que ela compra é **um desbloqueio, uma vez por item**, de um item
+  situacional — "um ganho que sobe a chance uma vez e não pode ser ganho de
+  novo não acumula" (`objectives.md`).
+
+**O catálogo de onde tirar os itens já existe:** `items.md` tem 🍀 sorte,
+🥾 botas e 🏹 arco (o arco só é equilibrável por causa da estamina, que já
+existe), e os atributos Magnitude / Foco / Persistência — "Profundo" e
+"Caminho de casa" só existem porque a run tem duas metades. A regra de
+`items.md` vale: **a loja não vende o que um herói já é** (item de visão é
+um Papazito pior).
+
+**"Ou outra coisa"** (dono): a mesma moeda pode abrir outras coisas que não
+são item — uma masmorra escolhida em vez da do dia, por exemplo. Fica
+registrado como possibilidade, sem desenho.
+
+## 5. A seed, as descidas e o resultado
+
+**A seed do dia:** função pura da data UTC passada pelo gerador
+(`src/sim/rng.js`) — a PÁGINA lê a data, o motor só vê um número. UTC para
+dois amigos em fusos diferentes jogarem o mesmo mapa (U12).
+
+**Dois scrolls no mesmo dia caem no mesmo mapa.** É a revanche: o mesmo
+inferno com outra preparação, a comparação mais limpa que o jogo pode
+oferecer — `Attributable` de graça.
+
+**O setup:** enquanto a escada de classes está aberta, desce-se com a classe
+do nível atual; fechada, qualquer herói, qualquer item do slot (dono,
+2026-11-04). Mais a loja com o saldo do scroll.
+
+**O resultado:** o andar mais fundo do inferno, os chefes derrubados, a
+moeda infernal ganha — com o recorde do dia e o de sempre guardados. O cartão
+"enquanto você estava fora" ganha os scrolls guardados.
+
+**O recibo** `{data, seed do dia, herói, item, compras, config}` reproduz a
+descida inteira. É o que o placar (U12) submete, e o feito de cada chefe
+usa o mesmo mecanismo de recibo de `achievements.js`.
+
+## 6. Onde isto esbarra nas frentes A e B
+
+Nenhuma das duas está no main (2026-11-04).
 
 | arquivo | quem mexe | o que o inferno faz nele | quando |
 |---|---|---|---|
-| `src/sim/dungeons.js`, `spawn.js`, `monsters.js` | A (bando que acorda junto, M6) | a masmorra do dia no inferno lê `dungeonModel` | D2, depois de A no main |
-| `src/ui/spectator.js` | B (escada) | o prompt do scroll no fim de um clear; a run do inferno no loop | D3, depois de B no main |
-| `src/ui/achievements.js` | B | o portão do inferno é `bottom` — só leitura | D4 |
-| `src/ui/roster.js` | B | a tela de preparação escolhe herói | D4 — **e há uma pergunta:** com a escada ligada o herói é forçado; no inferno vale o herói forçado ou qualquer um já aberto? Recomendado: qualquer um já aberto pela escada |
-| `src/ui/dials.js` | B (tem conflito com o main) | botão de descer no inferno no Lab (dev) | D1 |
-| `dial-overrides.json` | A e B | **não mexer**: o modelo do inferno mora em código, não no arquivo do jogo enviado | — |
+| `src/sim/dungeons.js`, `spawn.js`, `monsters.js` | A (bando que acorda junto) | a masmorra do dia; a Matilha-chefe usa o bando da A | D2, D8 — depois de A no main |
+| `src/ui/spectator.js` | B | a escolha scroll/loja no fim do clear; a descida no loop | D3 — depois de B no main |
+| `src/ui/achievements.js`, `roster.js` | B | o portão `bottom`; o herói forçado pela escada; feitos de chefe | D4 — depois de B |
+| `src/ui/dials.js` | B (em conflito com o main) | o interruptor offline; o botão de descer no Lab | D1, D3 |
+| `src/bot/bot.js` | ninguém hoje | "luta como último recurso" | D6 |
+| `dial-overrides.json` | A e B | **não mexer**: o modelo do inferno mora em código | — |
 
-**Ordem que evita conflito:** D1 (o modelo, `src/sim/` puro) e a função da
-seed não tocam em nada de A nem de B e podem começar já. O resto espera A e
-B no main.
+**Começa já, sem esperar ninguém:** D1 (modelo, `src/sim/` puro) e D6 (a
+regra do bot). O resto espera A e B no main.
 
-## 6. As etapas, refinadas
+## 7. As etapas
 
 Cada uma pequena, verificável sozinha, atrás de interruptor desligado.
 Desligado = jogo de hoje, provado pelo hash.
 
 | etapa | o que entrega | verificar como | espera |
 |---|---|---|---|
-| **D1** | o modelo do inferno: a curva de hoje continuada a partir do andar 11 (campos `*Start`), dez andares, sem Butcher. Um botão "descer no inferno" no Lab (dev) e `?dev=1&hold=` para assistir com uma pilha | assistir uma descida armada; a run reproduz pelo seed | nada |
-| **D2** | a seed do dia (`hellSeed`, pura, UTC) e a masmorra do dia tirada dela, atrás de interruptor próprio | teste: mesma data, mesma seed; o Lab mostra "hoje: Tumba" | A no main |
-| **D3** | o scroll: o prompt no fim de um clear, a fatia `scrolls`, `addScroll` com estoque 3 e substituição. Gestão offline = (a) | teste da função pura; `?dev=1` forçando um clear | B no main |
-| **D4** | o portal: botão visível com scroll guardado e `bottom` ganho; tela de preparação mínima (herói + loja com o saldo do scroll); a descida joga e o scroll é gasto | assistir do clique ao fim | D1, D3 |
-| **D5** | resultado e recorde local (do dia e de sempre); linha de scrolls no cartão de volta | ver o recorde depois de duas descidas | D4 |
-| **D6** | a moeda infernal: andares do inferno pagam, a carteira guarda, a loja de preparação mostra a prateleira (vazia até existirem itens) | a carteira sobe depois de uma descida | D4 |
-| **D7** | o item do slot na tela de preparação | escolher e ver o item na descida | frente C |
-| **D8** | a barreira: guardião-chefe do buraco em andares do modelo, junto com a regra "luta como último recurso" no bot | teste da regra + assistir | D4 |
-| **D9** | o placar no serviço de save, com recibo | outra máquina reproduz a descida de um amigo | D5 |
+| **D1** | o modelo: a curva continuada do 11 ao 30, 20 andares, sem Butcher. Botão "descer no inferno" no Lab (dev) e `?dev=1&hold=` para assistir com uma pilha | assistir; ver onde a estamina e o fim da tabela mordem | nada |
+| **D2** | a seed do dia (pura, UTC) e a masmorra do dia tirada dela | teste: mesma data, mesma seed; o Lab mostra "hoje: Tumba" | A no main |
+| **D3** | o scroll: a escolha antes da loja, a fatia `scrolls`, `addScroll` com estoque 3 e substituição, o interruptor offline | teste da função pura; `?dev=1` forçando um clear | B no main |
+| **D4** | o portal: botão com scroll guardado e `bottom` ganho; preparação (herói da escada ou livre, loja com o saldo do scroll); o scroll é gasto | assistir do clique ao fim | D1, D3 |
+| **D5** | resultado e recorde local; scrolls no cartão de volta | ver o recorde depois de duas descidas | D4 |
+| **D6** | a regra do bot: luta o guardião recusado do buraco quando não sobrou nada | teste da regra no motor de sempre (desligada fora do inferno) | nada |
+| **D7** | o primeiro chefe, o Veloz, no andar 5, e o feito dele desbloqueando a fuga 🌀 | assistir o chefe; recibo destrava | D1, D6 |
+| **D8** | os outros chefes, um por commit, cada um com o desbloqueio e o bot sabendo usar o que ele abre | assistir cada um | D7 (e A, para a Matilha-chefe) |
+| **D9** | a moeda infernal e a loja do inferno com desbloqueios | a carteira sobe; um item abre | D4 |
+| **D10** | o item do slot na preparação | escolher e ver na descida | frente C |
+| **D11** | o placar no serviço de save, com recibo | outra máquina reproduz a descida de um amigo | D5 |
 
-**Perguntas para o dono, nesta ordem:**
-1. Gestão offline: (a) nunca automático ou (b) interruptor?
-2. Com a escada ligada, o inferno aceita qualquer herói já aberto?
-3. Dez andares de inferno para começar?
+## Perguntas para o dono
+
+1. O elenco de chefes da §3 — andares, perguntas e desbloqueios.
+2. Classe desbloqueada por chefe entra como nível da escada ou livre?
+3. Os itens que a moeda infernal desbloqueia: começar pelo catálogo de
+   `items.md` (🍀 🥾 🏹)?
