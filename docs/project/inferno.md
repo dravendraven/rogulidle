@@ -81,7 +81,98 @@ tipo antes de escolher herói e item, e não sabe o mapa (pilar 1 de
 `trade-offs.md`).
 
 **O Butcher sai do inferno** (`vaultLevel` é campo do modelo; 0 desliga):
-quem fica no lugar dele são os chefes.
+quem fica no lugar dele são os vaults e os chefes do §1b.
+
+## 1b. Os quatro círculos, o bestiário e o salão final (dono, 2026-11-04)
+
+**Quatro círculos de cinco andares**, com nomes dos infernos do DCSS (mesma
+fonte de nomes do U14). Estrutura FIXA — aprende-se o caminho como se
+aprende o porco no 4 —, e a masmorra do dia (§1) muda criaturas, baús e luz
+por cima dela.
+
+| círculo | andares | nome | tema do mapa | clima | vault (opcional) | chefe (obrigatório) |
+|---|---|---|---|---|---|---|
+| 1 | 1–5 | **Gehena** | caverna | fogo, aberto | andar 3 | andar 5 · 🐎 o Pesadelo |
+| 2 | 6–10 | **Tártaro** | cripta | mortos, câmaras em fila | andar 8 | andar 10 · 💀 o Ceifador |
+| 3 | 11–15 | **Cócito** | grade | gelo, salas com loops, dá para ser cercado | andar 13 | andar 15 · 🐕 Cérbero |
+| 4 | 16–20 | **Dis** | central com anéis, cor mudando a cada andar | cidade de ferro, geométrica | andar 18 | andar 20 · o Balrog, no Salão |
+
+**Por que um bestiário próprio.** No andar 10 de hoje a força já chega ao
+teto (`strength` 1 no `dial-overrides.json`), então o inferno com a tabela de
+sempre seria todo vampiro, gênio, dragão e t-rex — e um t-rex não é
+inferno (dono). Cada círculo tem as suas criaturas.
+
+**Cada criatura é feita só do que o motor já tem**: vida, mordida (xp),
+raio de ativação, e o bando que acorda junto (frente A). Cada uma tem de ser
+reconhecível em trinta segundos de tela.
+
+| círculo | criatura | o que a distingue | o que pergunta ao build |
+|---|---|---|---|
+| Gehena | 👿 diabrete | fraco, bando grande, acorda de longe | aguenta ser caçado? |
+| Gehena | 🦎 salamandra | média em tudo | a régua do círculo |
+| Gehena | 🦂 escorpião | pouca vida, mordida enorme | mata antes de apanhar? |
+| Tártaro | 💀 esqueleto | muita vida, mordida fraca, dorme | tem tempo para gastar? |
+| Tártaro | 🧟 morto-vivo (o de sempre) | lento de acordar, duro | — |
+| Tártaro | 🐍 serpente | raio curto, mordida alta | passar perto custa caro |
+| Cócito | 🕷️ aranha | bando de 3, acorda junto | a matilha do círculo |
+| Cócito | 👺 demônio | forte, sozinho | duelo pesado |
+| Dis | 😈 demônio maior | topo de tudo | — |
+| Dis | 🐲 serpe | topo, acorda de longe | — |
+
+**Velocidade só em chefe e ocupante de vault.** O bot não a precifica
+(M44); numa criatura comum ela seria armadilha invisível em todo andar.
+
+**Os vaults: o prêmio é a resposta ao chefe do círculo, anunciado à vista**
+(como o machado do porco). Entrar é apostar vida agora para chegar ao chefe
+com a resposta; passar reto é chegar sem ela. O vault dá uma cópia para esta
+descida; o chefe derrubado desbloqueia a mesma resposta para sempre (§3).
+Andar 3: 🌀 fuga; andar 8: 🥃 poções (não escudos — o Ceifador atravessa
+armadura); andar 13: ⛓️ mangual; andar 18: um de cada. Ocupantes no molde do
+Butcher, cada um mais forte que o anterior. Risco já conhecido: o vault do
+porco é encarado ~99% das vezes (`vault-irrecusavel.md`) — prêmio fixo pode
+virar pedágio em vez de escolha.
+
+**O andar do chefe tem poucas criaturas além dele** (~3): o andar é o
+chefe, e a estamina não acaba antes da luta.
+
+### O círculo 4 é Zot
+
+Lido no código do DCSS (`dat/des/branches/zot.des`,
+`dat/des/builder/layout_halls.des`, 2026-11-04):
+
+- **Zot 1–4 não têm mapa fixo.** Cada andar sorteia um gerador geométrico e
+  simétrico — octógonos concêntricos, "cebola" (anéis um dentro do outro
+  com brechas), círculo torcido, catedral da simetria, rede de corredores
+  retos. O lugar parece CONSTRUÍDO, o contrário da caverna do começo. Cada
+  andar recebe salas temáticas de monstros, e **a cor muda a cada andar**
+  (cinza → branco → azul → azul-claro → magenta).
+- **Zot:5 é um mapa só, fixo: o Salão de Zot.** Uma entrada, pela escada,
+  embaixo; duas alas laterais com guardas; a câmara central com o Orbe,
+  cercada de armadilhas; em volta, a catedral em layout polar, simétrica em
+  torno do salão. Os desenvolvedores recusaram variações dele de propósito
+  (Mantis 6139): um salão só é o que torna o fim reconhecível.
+
+**No nosso motor, quase de graça:**
+- o tema **central** já tem `hubRings` — com 2–3 anéis vira os octógonos
+  concêntricos e a cebola; o **anel** é a versão de um anel só;
+- `src/ui/depth-theme.js` já troca a cor das paredes por profundidade —
+  estender o degradê para Dis (🟥 → 🟪, um tom por andar; 🟪 precisa entrar
+  em `tiles.js`);
+- **o andar 20 é o Salão do Balrog, carimbado** como o vault: uma entrada,
+  duas alas com guardas, a câmara central com o Balrog em cima do buraco. O
+  carimbo determinístico já existe; falta um carimbo maior, com essa forma.
+
+### O que isto custa em código
+
+- **Um bestiário por modelo.** Hoje há uma tabela (`MONSTER_TABLE`); o
+  inferno precisa da dele.
+- **O bot tem de conhecer o bestiário do inferno.** Ele chuta a vida pela
+  média da tabela para aquele xp (`expectedHpFor`); sem as linhas novas,
+  chuta errado.
+- **Vários vaults por descida.** Hoje o motor põe um só (`VAULT_LEVEL`).
+- **Cada emoji novo entra em `src/ui/tiles.js`**, ou a criatura aparece
+  como casa vazia, sem erro nenhum (aconteceu com o porco).
+- Vida e mordida saem da arena da A1 (`src/analysis/bosses.js`).
 
 ## 2. O scroll de portal
 
@@ -141,9 +232,9 @@ faz ao build. Um jeito diferente de perder por chefe é o que
 
 | andar | chefe | a pergunta | de onde vem | desbloqueia (proposta) |
 |---|---|---|---|---|
-| 5 | **o Veloz** | dá para sair de uma luta? | speed 2, como o Butcher, com mais vida — M44 | 🌀 **fuga**, já construída e fora da prateleira (`fuga.md`) |
-| 10 | **o que atravessa a armadura** | e se a pilha de escudos não valer nada? | golpe que vai direto ao hp — "um jeito de perder que a armadura não responde", o conserto que a bola de neve pedia | 🔮 **barreira** (`items.md`: imune por dois turnos) |
-| 15 | **a Matilha-chefe** | e se vierem três de uma vez? | um bando que acorda junto (M6, frente A), chefes de vida média | uma **classe nova** — feita para multidão |
+| 5 | 🐎 **o Pesadelo** (o Veloz) | dá para sair de uma luta? | speed 2, como o Butcher, com mais vida — M44 | 🌀 **fuga**, já construída e fora da prateleira (`fuga.md`) |
+| 10 | 💀 **o Ceifador** (atravessa a armadura) | e se a pilha de escudos não valer nada? | golpe que vai direto ao hp — "um jeito de perder que a armadura não responde", o conserto que a bola de neve pedia | 🔮 **barreira** (`items.md`: imune por dois turnos) |
+| 15 | 🐕 **Cérbero** (a Matilha-chefe) | e se vierem três de uma vez? | três cabeças = três cães que acordam juntos (M6, frente A) | uma **classe nova** — feita para multidão |
 | 20 | **o Balrog** | tudo junto | veloz + atravessa armadura + guarda o fim | o feito máximo; não paga poder, paga o nome no placar |
 
 **Por que esta ordem:** cada chefe ensina uma coisa que o seguinte cobra. O
@@ -252,21 +343,24 @@ Desligado = jogo de hoje, provado pelo hash.
 
 | etapa | o que entrega | verificar como | espera |
 |---|---|---|---|
-| **D1** | o modelo: a curva continuada do 11 ao 30, 20 andares, sem Butcher. Botão "descer no inferno" no Lab (dev) e `?dev=1&hold=` para assistir com uma pilha | assistir; ver onde a estamina e o fim da tabela mordem | nada |
+| **D1** | o modelo: 20 andares, os temas dos quatro círculos, sem Butcher, com a tabela de sempre. Botão "descer no inferno" no Lab (dev) e `?dev=1&hold=` para assistir com uma pilha | assistir; ver onde a estamina morde | nada |
+| **D1b** | o bestiário por modelo, e Gehena com as suas três criaturas (emoji em `tiles.js`, valores pela arena da A1, o bot conhecendo as linhas novas) | assistir o círculo 1 | D1 |
+| **D1c** | os outros três bestiários, um círculo por commit; o degradê de cor de Dis | assistir cada círculo | D1b |
 | **D2** | a seed do dia (pura, UTC) e a masmorra do dia tirada dela | teste: mesma data, mesma seed; o Lab mostra "hoje: Tumba" | A no main |
 | **D3** | o scroll: a escolha antes da loja, a fatia `scrolls`, `addScroll` com estoque 3 e substituição, o interruptor offline | teste da função pura; `?dev=1` forçando um clear | B no main |
 | **D4** | o portal: botão com scroll guardado e `bottom` ganho; preparação (herói da escada ou livre, loja com o saldo do scroll); o scroll é gasto | assistir do clique ao fim | D1, D3 |
 | **D5** | resultado e recorde local; scrolls no cartão de volta | ver o recorde depois de duas descidas | D4 |
 | **D6** | a regra do bot: luta o guardião recusado do buraco quando não sobrou nada | teste da regra no motor de sempre (desligada fora do inferno) | nada |
 | **D7** | o primeiro chefe, o Veloz, no andar 5, e o feito dele desbloqueando a fuga 🌀 | assistir o chefe; recibo destrava | D1, D6 |
-| **D8** | os outros chefes, um por commit, cada um com o desbloqueio e o bot sabendo usar o que ele abre | assistir cada um | D7 (e A, para a Matilha-chefe) |
+| **D8** | os outros chefes, um por commit, cada um com o desbloqueio e o bot sabendo usar o que ele abre; o Balrog no Salão carimbado do andar 20 | assistir cada um | D7 (e A, para Cérbero) |
+| **D8b** | os vaults dos andares 3, 8, 13 e 18 (o motor aceitando vários), prêmio anunciado = a resposta ao chefe do círculo | assistir quem entra e quem passa reto | D7 |
 | **D9** | a moeda infernal e a loja do inferno com desbloqueios | a carteira sobe; um item abre | D4 |
 | **D10** | o item do slot na preparação | escolher e ver na descida | frente C |
 | **D11** | o placar no serviço de save, com recibo | outra máquina reproduz a descida de um amigo | D5 |
 
 ## Perguntas para o dono
 
-1. O elenco de chefes da §3 — andares, perguntas e desbloqueios.
+1. O elenco de chefes da §3 e o bestiário do §1b — nomes, emojis, papéis.
 2. Classe desbloqueada por chefe entra como nível da escada ou livre?
 3. Os itens que a moeda infernal desbloqueia: começar pelo catálogo de
    `items.md` (🍀 🥾 🏹)?
