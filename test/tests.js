@@ -5737,8 +5737,16 @@ test('a dungeon keeps the shipped threat mass on every stretch', () => {
       if (!d.themes) continue;
       const plan = makeFloorPlan(dungeonModel(model, name));
       for (const from of STRETCHES) {
-        const want = massOfPlan(today(from));
-        const got = massOfPlan(plan(from));
+        // The WHOLE stretch, up to the next anchor — matched on the anchor
+        // alone, a pack floor 1 stayed at the weakest tier through floors
+        // 2–3 while the shipped ones climbed.
+        const next = STRETCHES.find((f) => f > from) ?? 11;
+        let want = 0;
+        let got = 0;
+        for (let f = from; f < next; f++) {
+          want += massOfPlan(today(f));
+          got += massOfPlan(plan(f));
+        }
         // The count is whole and the mass climbs in table rows, so close —
         // not equal — is what the search can reach.
         assert(Math.abs(got - want) / want < 0.06,

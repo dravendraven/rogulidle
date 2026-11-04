@@ -57,7 +57,9 @@ export const STRETCHES = [1, 4, 5, 8, 10];
 // what that allows, because the creature table has ends: on floor 1 every
 // creature is already the weakest tier, so a pack of more than six cannot
 // weigh as little as today's five; on floor 10 every creature is already
-// the strongest, so a beast floor cannot hold fewer than today's seven.
+// the strongest, so a beast floor cannot hold fewer than today's seven —
+// and on floors 8–9 not fewer than five, or the stretch cannot reach the
+// shipped mass (the test sums every floor of it).
 const AXES = {
   creatures: {
     pack: {
@@ -70,7 +72,7 @@ const AXES = {
       packWake: true,
     },
     beast: {
-      monstersBase: { 1: 3, 4: 3, 5: 3, 8: 4, 10: 7 },
+      monstersBase: { 1: 3, 4: 3, 5: 3, 8: 5, 10: 7 },
       clusterSize: 1,
     },
   },
@@ -260,7 +262,7 @@ export function dungeonModel(model = {}, name = DEFAULT_DUNGEON) {
       // product. `weaponScarcity` is untouched — it is E2's pair.
       dropChance: Math.min(1,
         shipped.dropChance * shipped.monsters / monstersAt(count, base.monsterGrowth, 0)),
-      strength: strengthFor({ ...base, monstersBase: count }, massOfPlan(shipped)),
+      strength: strengthFor({ ...base, monstersBase: count }, from, today),
       mapTheme: THEME[d.themes[from]],
       from,
     };
@@ -268,18 +270,26 @@ export function dungeonModel(model = {}, name = DEFAULT_DUNGEON) {
   return { ...model, floors };
 }
 
-// The strength that makes this anchor's floor weigh what the shipped floor
-// weighs (`massOfPlan`, the generator's own measure). A plain search over
-// the share in thousandths — the mass climbs in steps as the tier ceiling
+// The strength that makes this anchor's STRETCH weigh what the shipped
+// stretch weighs (`massOfPlan`, the generator's own measure) — summed over
+// every floor up to the next anchor, not matched on the anchor alone. On the
+// anchor alone a pack floor 1 sat at the weakest tier and stayed there for
+// its whole stretch while the shipped floors 2–3 climbed, so the pack
+// dungeons were lighter where the run is decided. A plain search over the
+// share in thousandths — the mass climbs in steps as the tier ceiling
 // crosses table rows, so there is no closed form, and the closest step is
 // the answer. Lowest on a tie, so the result never drifts between runs.
-function strengthFor(anchor, target) {
-  const massAt = (strength) => massOfPlan({
-    monsters: monstersAt(anchor.monstersBase, anchor.monsterGrowth, 0),
-    difficultyScale: floorStrength(0, { ...anchor, strength }),
-    tierFloorShare: tierFloorShare(0, anchor),
-    tierSlack: tierSlack(0, anchor),
-  });
+function strengthFor(anchor, from, today) {
+  const next = STRETCHES.find((f) => f > from) ?? 11;
+  const steps = [];
+  for (let f = from; f < next; f++) steps.push(f - from);
+  const target = steps.reduce((sum, step) => sum + massOfPlan(today(from + step)), 0);
+  const massAt = (strength) => steps.reduce((sum, step) => sum + massOfPlan({
+    monsters: monstersAt(anchor.monstersBase, anchor.monsterGrowth, step),
+    difficultyScale: floorStrength(step, { ...anchor, strength }),
+    tierFloorShare: tierFloorShare(step, anchor),
+    tierSlack: tierSlack(step, anchor),
+  }), 0);
   let best = 0;
   let bestGap = Infinity;
   for (let i = 0; i <= 1000; i++) {

@@ -55,8 +55,13 @@ M7 espera a B estar no main.
   Cofres empata — e Minas, Arena e Ossário mais FÁCEIS; Esgoto empata
   (só se conta o que passa de 2σ). A M6 (bando acorda junto)
   quase não mexeu nas de matilha: o bando já nascia junto e acordava quase
-  junto. Medido de novo com o bando inteiro (2 a 4), o quadro é o mesmo: matilha continua mais fácil que fera. O orçamento por massa (M3) não basta; o próximo ajuste é por
-  profundidade, masmorra a masmorra.
+  junto. Medido de novo com o bando inteiro (2 a 4), o quadro é o mesmo: matilha continua mais fácil que fera. Causa achada (2026-11-04): a força era
+  casada só no andar-âncora, e o andar 1 da matilha já está no piso da
+  tabela — o trecho 1–3 ficava parado ali enquanto o de sempre subia, e é
+  nesse trecho que a run se decide. Casada a massa do TRECHO inteiro,
+  matilha e fera passam a ir igualmente fundo (dentro do ruído), as duas um
+  pouco abaixo da de sempre. A fera precisou de cinco criaturas no trecho
+  8–9: com quatro, nem no topo da tabela o trecho pesa o de hoje.
 - **Nenhum tabuleiro maior que o de sempre (32)** (dono, 2026-11-04). O
   orçamento de turnos e a moeda são por travessia, então mapa maior era
   masmorra mais difícil por cansaço e mais pobre em moeda — a Floresta, em
