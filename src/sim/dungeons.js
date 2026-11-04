@@ -67,7 +67,7 @@ const AXES = {
       // The LARGEST band — each one draws its size from 2 up to this
       // (spawn.js). 12 only worked while the zone quota cut every band to
       // strays anyway.
-      clusterSize: 4,
+      clusterSize: 6,
       // M6 — a band arrives as a band (rules.md §3).
       packWake: true,
     },
