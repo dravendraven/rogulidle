@@ -2372,3 +2372,15 @@ golpes e o que não se evita. Removido.
 **Ricardo, "sabe o que tem no baú" (o traço de hoje): sem vantagem fora dos
 baús.** Em turnos até o andar 5, moedas, dano e profundidade ele empata com
 o Aurélio — desviar de baús vazios poupa pouco porque ele abriria poucos.
+
+**Ricardo, "ordem dos dois próximos" (`lookahead`): inerte também.** O bot
+precifica os dois objetivos mais baratos como um percurso — este, aquele, o
+buraco — nas duas ordens e começa pelo percurso mais barato. A sonda que só
+observava dizia que a outra ordem pouparia de 4% (padrão) a 20% (Pressa
+baixa) dos turnos; o teto era inflado porque somava o mesmo par a cada
+troca de alvo. Construído e medido em cadeias pareadas (mesmas sementes,
+12 × 20, herói base): turnos por andar e profundidade iguais no padrão e na
+Ganância alta, e na Pressa baixa uma melhora abaixo de 2σ — com 25–40% a
+mais de tempo de CPU. É a lição da B20 de novo: o bot já reavalia a cada
+turno, então ir primeiro ao mais perto e depois ao outro raramente custa o
+que a conta de um percurso fixo diz.
