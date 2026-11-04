@@ -2394,3 +2394,11 @@ mortes terminam assim — o `CROWD_PENALTY` inerte de novo, agora com
 da metade das mortes, todas no andar 4. Recuar de luta que deu errado contra
 criatura lenta teria chance em ~9–16% das mortes (vida ≥5 ou ≥3 quando o
 dano passou da estimativa) — teto, não ganho.
+
+**A mesma sonda nas masmorras de matilha** (código da Frente A, bando que
+acorda junto; 10 × 20 cada). Na masmorra de sempre o cerco fica onde estava
+(~8% do dano). Em "minas" sobe para ~14% (~9% em sala aberta) e em "arena"
+para ~19% (~17% em sala aberta), com ~18% das mortes terminando cercado. Ou
+seja: lutar no corredor e atrair um por vez são inertes no jogo de hoje e
+só ganham teto onde há matilha — candidatos a traço que brilha num tipo de
+masmorra, não a melhoria geral do bot.
