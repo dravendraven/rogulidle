@@ -2402,3 +2402,16 @@ para ~19% (~17% em sala aberta), com ~18% das mortes terminando cercado. Ou
 seja: lutar no corredor e atrair um por vez são inertes no jogo de hoje e
 só ganham teto onde há matilha — candidatos a traço que brilha num tipo de
 masmorra, não a melhoria geral do bot.
+
+**Lutar no corredor, construído e medido — perde** (`hero.chokepoint`, 3;
+pares de 10 × 20 no código da Frente A). Com dois ou mais acordados vindo e
+nenhum colado, o herói vai ao tile de corredor/porta mais próximo e espera.
+O mecanismo funciona: dano em grupo cai (masmorra 8→5%, minas 14→9%) e as
+mortes cercado caem à metade ou menos nas três. Mas a profundidade cai junto
+(masmorra −0,07 ±0,10, minas −0,6 ±0,27, arena −1,6 ±0,51, clears da arena
+21→3), e as mortes por cansaço sobem de ~0–13 para 27–78 por 200 corridas.
+A primeira versão esperava sem limite e era pior (arena −2,15); parar de
+esperar quando o grupo para de se aproximar só cortou parte do custo. O
+ganho do cerco evitado é menor que o tempo e as lutas que a espera e a ida
+ao corredor custam — o teto da sonda não vira ganho, como a ordem dos
+objetivos.
