@@ -5808,10 +5808,23 @@ test('only a pack dungeon marks bands, and the shipped floor carries no new fiel
   assert(tumba.monsters.every((m) => !('pack' in m)), 'a beast dungeon woke bands together');
 });
 
+// Floresta at 40 lost over half its runs to the turn budget (2026-11-04).
+test('no dungeon board is bigger than the shipped one', () => {
+  const shipped = makeFloorPlan({})(1).mapSize;
+  for (const name of DUNGEON_ORDER) {
+    const plan = makeFloorPlan(dungeonModel({}, name));
+    for (let level = 1; level <= 10; level++) {
+      assert(plan(level).mapSize <= shipped, `${name} floor ${level}: board ${plan(level).mapSize}`);
+    }
+  }
+});
+
 // The zone quota used to re-decide after every member and cut each band
 // into strays — Minas seed 835122865 showed six lone rats on floor 1.
 test('a pack dungeon places its bands whole', () => {
   const plan = makeFloorPlan(dungeonModel({}, 'minas'));
+  let bands = 0;
+  let strays = 0;
   for (const level of [1, 4, 8]) {
     for (let seed = 0; seed < 20; seed++) {
       const state = newGame(7700 + seed, plan(level));
@@ -5819,8 +5832,13 @@ test('a pack dungeon places its bands whole', () => {
       for (const m of state.monsters) if (m.pack !== undefined) sizes[m.pack] = (sizes[m.pack] || 0) + 1;
       const counts = Object.values(sizes);
       // +1: the last band swallows what would have been a lone stray.
-      assert(counts.every((n) => n >= 2 && n <= plan(level).clusterSize + 1),
+      assert(counts.every((n) => n <= plan(level).clusterSize + 1),
         `floor ${level} seed ${seed}: bands ${counts.join('+')}`);
+      bands += counts.length;
+      strays += counts.filter((n) => n === 1).length;
     }
   }
+  // "2+ quase sempre" (owner): a band squeezed into a pocket too small for
+  // it can still come out alone, rarely.
+  assert(strays <= bands * 0.05, `${strays} strays in ${bands} bands`);
 });

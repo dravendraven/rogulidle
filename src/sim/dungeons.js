@@ -100,6 +100,10 @@ const MEANING = {
   dark: 'vê pouco',
 };
 
+// No board is bigger than the shipped one (owner, 2026-11-04): the turn
+// budget and the coin rate are both per traversal, so a larger board was a
+// harder dungeon by exhaustion and a poorer one by coin — Floresta at 40
+// lost over half its runs to the clock. A dungeon may be SMALLER.
 export const DUNGEONS = {
   masmorra: {
     name: 'masmorra',
@@ -112,7 +116,7 @@ export const DUNGEONS = {
     creatures: 'pack', chests: 'plenty', light: 'clear',
     themes: { 1: 'caverna', 4: 'grade', 5: 'caverna', 8: 'caverna', 10: 'central' },
     map: {
-      dugPercentage: 0.30, mapSize: 34, roomScale: 0.8, roomBias: 2, corridorMin: 3,
+      dugPercentage: 0.30, mapSize: 32, roomScale: 0.8, roomBias: 2, corridorMin: 3,
       shrineDistanceShare: 0.7, spineThreatShare: 0.4, sideChestBias: 6, chestMix: 0.3,
     },
   },
@@ -122,7 +126,7 @@ export const DUNGEONS = {
     creatures: 'pack', chests: 'plenty', light: 'dark',
     themes: { 1: 'padrao', 4: 'grade', 5: 'padrao', 8: 'cripta', 10: 'anel' },
     map: {
-      dugPercentage: 0.20, mapSize: 34, roomScale: 0.6, roomBias: 1, corridorMin: 5,
+      dugPercentage: 0.20, mapSize: 32, roomScale: 0.6, roomBias: 1, corridorMin: 5,
       shrineDistanceShare: 0.8, spineThreatShare: 0.5, sideChestBias: 4, chestMix: 0.7,
     },
   },
@@ -153,7 +157,7 @@ export const DUNGEONS = {
     creatures: 'beast', chests: 'plenty', light: 'clear',
     themes: { 1: 'caverna', 4: 'caverna', 5: 'caverna', 8: 'anel', 10: 'caverna' },
     map: {
-      dugPercentage: 0.35, mapSize: 40, roomScale: 1.5, roomBias: 5, corridorMin: 1,
+      dugPercentage: 0.35, mapSize: 32, roomScale: 1.5, roomBias: 5, corridorMin: 1,
       shrineDistanceShare: 0.9, spineThreatShare: 0.2, sideChestBias: 5, chestMix: 0.6,
     },
   },
@@ -173,7 +177,7 @@ export const DUNGEONS = {
     creatures: 'beast', chests: 'relic', light: 'clear',
     themes: { 1: 'grade', 4: 'grade', 5: 'anel', 8: 'central', 10: 'anel' },
     map: {
-      dugPercentage: 0.22, mapSize: 36, roomScale: 1.3, roomBias: 6, corridorMin: 3,
+      dugPercentage: 0.22, mapSize: 32, roomScale: 1.3, roomBias: 6, corridorMin: 3,
       shrineDistanceShare: 0.7, spineThreatShare: 0.2, sideChestBias: 10, chestMix: 0.3,
       hubBranches: 4, hubRings: 2,
     },

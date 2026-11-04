@@ -57,6 +57,13 @@ M7 espera a B estar no main.
   quase não mexeu nas de matilha: o bando já nascia junto e acordava quase
   junto. Medido de novo com o bando inteiro (2 a 4), o quadro é o mesmo: matilha continua mais fácil que fera. O orçamento por massa (M3) não basta; o próximo ajuste é por
   profundidade, masmorra a masmorra.
+- **Nenhum tabuleiro maior que o de sempre (32)** (dono, 2026-11-04). O
+  orçamento de turnos e a moeda são por travessia, então mapa maior era
+  masmorra mais difícil por cansaço e mais pobre em moeda — a Floresta, em
+  40, perdia mais da metade das runs pro relógio, quase todas por isso; em
+  32, quase nenhuma. Corrigir pelo mapa, não pela conta da moeda. A
+  profundidade medida antes disso (acima) não vale mais para Floresta,
+  Cofres, Esgoto e Minas.
 - **No Lab, a masmorra vale na próxima run.** O botão "reset" do topo NÃO
   reinicia a run — apaga todo o progresso. Para trocar já, use "↻ começar
   agora" no herói, ou espere a run acabar.
