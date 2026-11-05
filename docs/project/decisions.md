@@ -2444,3 +2444,15 @@ defeito. Pares: masmorra −0,06 ±0,07, minas +0,13 ±0,22, arena −0,35 ±0,5
 neutro nas três. O dano em grupo cai em todas (arena 27% → 22%). O vai e
 volta que sobra (herói dançando com um fantasma colado que ele recusa) é do
 bot de sempre: 19 episódios em 80 corridas sem a regra, 13 com ela.
+
+**Sexta versão: "vindo" é um passo VISTO** (o dono viu mais um vai e volta,
+arena andar 2 — dois fantasmas parados na borda do raio pareciam acordar e
+dormir a cada passo dele, mesmo lendo pelo caminho). Agora um bicho só conta
+depois de ser visto dando um passo na direção do herói, e daí fica
+perseguidor enquanto o raio o alcança — criatura pula passo às vezes, e sem
+essa memória o grupo piscava de novo. A espera que desistia "quando o grupo
+para de chegar" saiu: só existia para o grupo que nunca vinha, e esse agora
+nunca conta. Pares: masmorra −0,13 ±0,07 (abaixo de 2σ), minas +0,01 ±0,17,
+arena +0,46 ±0,59 com clears 4 → 13. Dano em grupo cai nas três (minas 19% →
+11%, e o de sala aberta 9% → 2%; arena 27% → 18%). Cansaço igual ao do bot
+sem a regra. Primeira versão sem sinal de perda fora da masmorra de sempre.
