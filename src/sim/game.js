@@ -43,6 +43,12 @@ export function newGame(seed, counts = {}) {
   // identically, which is the determinism `step()` promises.
   state.persona = resolvePersona(counts.persona);
 
+  // How far the hero sees on THIS floor (a dungeon in the dark sets it; null
+  // is the shipped fog). Same shape as the persona: it rides in `counts`, so a
+  // replay rebuilds it, and it is fixed at generation. A persona's own sight
+  // still wins — the scholar sees the whole floor in the dark too.
+  state.sight = counts.sight ?? null;
+
   // M16 — docs/backlog.md. Passthrough so a sweep can ask "what if" without
   // editing balance.js; unset fields fall through to generateMap's own
   // defaults, which read the shipped constants.

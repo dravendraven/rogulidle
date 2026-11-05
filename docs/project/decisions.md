@@ -2476,3 +2476,27 @@ entre as runs, 24 sessões × 20 pareadas, corredor 3 contra 0). Profundidade
 21 de 24 sessões o conquistam nas duas. Clears 0 → 16, mas todos em duas
 sessões (uma sequência de vitórias alimenta a próxima pela loja) — é uma
 cauda, não uma taxa, e não se lê com esta amostra.
+
+## Andar de 3 feras — construído desligado, assistido, revertido — 2026-11-01
+
+Frente A do `plano-2026-11.md`, etapa A2. O modo `bossMode: 'fera'` trocava
+o elenco comum de cada andar por 3 criaturas sozinhas, cada uma do TOPO da
+faixa do andar (sem sorteio de tier, sem grupo, sem espalhamento de
+contagem); o guardião era uma das 3 e o Butcher ficava à parte. Desligado,
+o hash de geração e o selftest saíam idênticos.
+
+O que se viu antes de reverter:
+
+- O andar vira três cópias do mesmo bicho (👻👻👻 no 2, 🐺🐺🐺 no 4,
+  🦖🦖🦖 no 9–10) — a curva lida pela ponta de cima não dá variedade.
+- Com 3 criaturas o andar fica abaixo de `MIN_ROSTER_FOR_SIDE`, tudo vai
+  para a espinha e os baús laterais ficam sem guarda.
+- 120 runs, herói base, dials enviados: profundidade 3,54 → 3,92 (≈3,4σ).
+  Mais fácil no começo (paradas nos andares 1–2: 17 → 5), e o andar 4
+  concentra ainda mais as mortes (71 → 91 de 120).
+
+**Decisão do dono:** "a ideia de 3 feras não funcionou" — revertido
+(o commit A2 e o seu revert estão no git). O que sobrevive é a arena da A1
+(`src/analysis/bosses.js`) e os pares que ela mediu: vampiro ≈ 3 fantasmas,
+gênio ≈ 3 javalis, dragão/t-rex ≈ 3 lobos juntos — e o bot precificando uma
+matilha que acorda junta por um terço a metade do custo real.

@@ -19,7 +19,7 @@
 // bot, different game — one plays with the shop and one without.
 // `test/baseline.md` says which question belongs to which instrument.
 
-import { playOne, runWires, wire } from './check.js';
+import { playOne, runWires, wire, withDungeon } from './check.js';
 import { hashSeeds } from '../sim/rng.js';
 import { DEFAULT_ORDER, nextPurchase } from '../ui/shop.js';
 import { earnedBy, earnedByPurchase, shopOpenGiven } from '../ui/achievements.js';
@@ -204,7 +204,7 @@ export function chains(options = {}) {
   const count = options.chains ?? 8;
   const length = options.length ?? 12;
   const firstSeed = options.firstSeed ?? 500000;
-  const dials = options.dials;
+  const dials = withDungeon(options.dials, options.dungeon);
   const hero = typeof options.hero === 'string' ? heroByName(options.hero) : options.hero;
 
   const plays = [];
@@ -215,7 +215,7 @@ export function chains(options = {}) {
   for (let m = 0; m < count; m++) {
     const chainSeed = firstSeed + m;
     const mine = [];
-    const { runs } = playChain(chainSeed, length, { ...options, hero, collect: mine });
+    const { runs } = playChain(chainSeed, length, { ...options, dials, hero, collect: mine });
     plays.push(...mine);
     perChain.push(mine);
     // THE PAIRING, checked rather than trusted. `check.js` plays

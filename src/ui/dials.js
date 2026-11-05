@@ -5,12 +5,14 @@
 // stands on, rolled on the first visit and rewritten whenever the player
 // moves one (`rolledNotches` / `keepNotch`). Every other dial is a "what
 // if", and nothing here writes to balance.js — a value worth shipping is
-// still a docs/balance.md + code edit (CLAUDE.md). `src/sim/` and `src/bot/` never import this file; the page
+// still a docs/balance.md + code edit (CLAUDE.md). `src/sim/` and `src/bot/` never
+// import this file; the page
 // reads it and hands the result to makeFloorPlan / makeBot, which is the
 // same door a sweep already used. The map's values are read when a run
 // starts; the behaviour dials also land on the run in flight, at the next
 // turn — the page listens through `onChange` (src/ui/spectator.js).
 
+import { DUNGEON_ORDER, dungeonByName, dungeonIcons } from '../sim/dungeons.js';
 import {
   anchorAt, DEFAULT_MODEL, floorSpread, floorStrength, monstersAt, saturatedAt,
   tierFloorShare,
@@ -677,6 +679,19 @@ export const SECTIONS = [
   ['Simulação', [
     ['', [
       {
+        // U14 — which dungeon the NEXT run plays (src/sim/dungeons.js). Dev
+        // only, like everything outside Comportamento: until the clear
+        // rotates dungeons, nobody but the owner picks one. The number is an
+        // index into DUNGEON_ORDER, which is append-only for that reason.
+        kind: 'run', key: 'dungeon', label: 'masmorra da próxima run',
+        title: 'Masmorra', step: 1, range: [0, DUNGEON_ORDER.length - 1],
+        says: (v) => {
+          const d = dungeonByName(Math.round(v.run.dungeon ?? 0));
+          const icons = dungeonIcons(d.name).join('');
+          return `${d.title}${icons ? ' ' + icons : ''} — ${d.blurb}`;
+        },
+      },
+      {
         kind: 'run', key: 'startFloor', label: 'começar a descida neste andar',
         title: 'Começar no andar', step: 1, range: [1, 10],
         says: (v) => (v.run.startFloor <= 1
@@ -889,6 +904,7 @@ const CURVE_DEFAULTS = { editFloor: 1, isAnchor: true };
 const RUN_DEFAULTS = {
   turnBudget: TURN_BUDGET, theReturn: RETURN_ENABLED, who: '', startFloor: 1,
   classLadder: CLASS_LADDER_ENABLED,
+  dungeon: 0,
 };
 
 

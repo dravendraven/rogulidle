@@ -465,6 +465,9 @@ export function makeFloorPlan(model = {}) {
     roomWidth: roomRange(ROOM_WIDTH, m.roomScale),
     roomHeight: roomRange(ROOM_HEIGHT, m.roomScale),
     shrineDistanceShare: m.shrineDistanceShare,
+    // How far the hero sees on this floor — null is the shipped fog
+    // (VISIBLE_DIST). Only a dungeon in the dark sets it (src/sim/dungeons.js).
+    sight: m.sight ?? null,
     vaultLevel: m.vaultLevel,
     vaultChestItems: m.vaultChestItems,
     vaultBoss: m.vaultBoss,
