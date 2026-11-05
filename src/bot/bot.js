@@ -734,6 +734,60 @@ function fleeWouldSave(belief, hero) {
   return false;
 }
 
+// THE CORRIDOR (`hero.chokepoint`, config.js). A tile the crowd can only
+// reach from one side: a corridor or doorway tile with at most two open
+// sides. A room's corner has two open sides as well, but both face the room,
+// so the kind is read too. Movement is four-way, and a tile never seen counts
+// as open — the test must not promise a wall it has not looked at.
+function isChoke(belief, passable, [x, y]) {
+  const kind = belief.tiles.get(x + ',' + y);
+  if (kind !== 'corridor' && kind !== 'door') return false;
+  let open = 0;
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    if (passable(x + dx, y + dy)) open++;
+  }
+  return open <= 2;
+}
+
+// The crowd that makes the corridor worth it: two or more creatures awake
+// and coming — ONE ALREADY IN MELEE COUNTS (owner, watching: "correr pro
+// corredor antes de entrar em combate"). Stepping away from a creature of
+// the hero's own speed costs nothing, because it spends its turn following
+// instead of striking (rules.md §4); a FASTER one strikes anyway, so a
+// faster creature beside him leaves the fight where it is.
+//
+// "COMING" IS SEEN, NOT GUESSED: a creature counts when it stepped toward
+// him since last turn — it stands nearer to where he is now than its old
+// tile did. The chase radius was read twice before this and both times
+// paced him: through the walls, and then on the walk, a creature standing
+// right at the edge of its radius was awake from one tile and asleep from
+// the next, and the crowd blinked with every step he took (watched, arena
+// floor 2, twice). Motion does not blink — but creatures skip a step now
+// and then, so once seen coming a creature stays a CHASER for the floor,
+// and counts while its chase radius (on the walk) still holds him.
+//
+// Returns how many of the crowd are already beside him, or null when there
+// is no crowd.
+function crowdComing(belief, seenAt, chasers, reach) {
+  const [px, py] = belief.player.pos;
+  const here = px + ',' + py;
+  let coming = 0;
+  let beside = 0;
+  for (const m of belief.monsters.values()) {
+    if (m.dead) continue;
+    const d = Math.abs(m.pos[0] - px) + Math.abs(m.pos[1] - py);
+    if (d <= 1) {
+      if ((m.speed ?? 1) > 1) return null;
+      beside++;
+    }
+    const was = seenAt.get(m.id);
+    if (was && Math.abs(was[0] - px) + Math.abs(was[1] - py) > d) chasers.add(m.id);
+    const walk = reach.get(m.id)?.get(here) ?? Infinity;
+    if (d <= 1 || (chasers.has(m.id) && isAwakeAt(m, walk))) coming++;
+  }
+  return coming >= 2 ? { beside } : null;
+}
+
 function safeToStandStill(belief) {
   const [px, py] = belief.player.pos;
   for (const m of belief.monsters.values()) {
@@ -797,6 +851,12 @@ export function makeBot(options = {}) {
   // opened chest is REMOVED from the belief, so counting it would make every
   // opened chest look unfound again and the dark would never lose value.
   const chestsEverSeen = new Set();
+  // The corridor (`hero.chokepoint`): how near the walk to it got last turn,
+  // so a walk that stopped getting there is given up.
+  let lastCrowd = null;
+  let crowdStalled = false;
+  const seenAt = new Map();   // creature id -> where it stood last turn
+  const chasers = new Set();  // creatures seen stepping toward him this floor
 
   const decide = function decide(belief) {
     // Objective 1, cheapest form first: drink when the missing hp covers the
@@ -921,13 +981,57 @@ export function makeBot(options = {}) {
     // Reachable from a hostile tuning value (a negative persistence flips
     // menace's sign), so the router refuses one here rather than trusting
     // every caller.
-    const field = dijkstra(belief.player.pos, passable, (x, y) => {
+    const tilePrice = (x, y) => {
       const tile = x + ',' + y;
       const duel = duelAt.get(tile);
       if (duel !== undefined) return duel;
       return Math.max(0, hero.stepCost + danger.priceAt(x, y)
         + (deadly.has(tile) ? settings.deadlyTileCost : 0));
-    }, shrineSink(belief));
+    };
+    const field = dijkstra(belief.player.pos, passable, tilePrice, shrineSink(belief));
+
+    // THE CORRIDOR, reactive like the flight: a real action, no goal, so the
+    // plan resumes the turn the crowd is gone or the first blow lands.
+    // Standing in one already, he waits; otherwise he walks to the nearest.
+    // He waits only on creatures SEEN coming (`crowdComing`), which is what
+    // ended the two failures watched before it: waiting on a crowd that was
+    // never coming timed floors out, and a crowd that blinked paced him.
+    const crowd = hero.chokepoint ? crowdComing(belief, seenAt, chasers, danger.reach) : null;
+    seenAt.clear();
+    for (const m of belief.monsters.values()) if (!m.dead) seenAt.set(m.id, m.pos);
+    if (crowd === null) crowdStalled = false;
+    const closing = crowd !== null && !crowdStalled;
+    const wasHeading = lastCrowd && lastCrowd.toChoke;
+    lastCrowd = crowd === null ? null : { toChoke: null };
+    if (closing) {
+      // In the corridor with one already beside him, the fight is on and the
+      // ordinary goals take it from here; with none yet, he waits.
+      const inChoke = isChoke(belief, passable, belief.player.pos);
+      if (inChoke && crowd.beside === 0) return 'rest';
+      let choke = null;
+      for (const [tileKey, steps] of field.steps) {
+        if (steps < 1 || steps > hero.chokepoint) continue;
+        const pos = unkey(tileKey);
+        if (duelAt.has(tileKey) || !isChoke(belief, passable, pos)) continue;
+        if (!choke || steps < choke.steps) choke = { pos, steps };
+      }
+      // The walk must GET there: a turn that left him no nearer to a corridor
+      // than the last one (a creature in the doorway, the nearest corridor
+      // changing as they move) gives it up, the same way a crowd that stopped
+      // closing does — or he alternates between this and his goal.
+      if (choke && wasHeading && choke.steps >= wasHeading) {
+        crowdStalled = true;
+        choke = null;
+      }
+      if (choke && !inChoke) {
+        const route = routeTo(field, choke.pos);
+        // Never a step INTO a creature: that is an attack, not a retreat.
+        if (route.length >= 2 && !duelAt.has(key(route[1]))) {
+          lastCrowd.toChoke = choke.steps;
+          return actionToward(belief.player.pos, route[1]);
+        }
+      }
+    }
 
     // WHAT A JOURNEY TO `pos` OPENS, in hp, paid ONCE. C1 §10, third form and
     // the one the owner asked for: uncertainty chooses whether to go, not
@@ -1303,8 +1407,38 @@ export function makeBot(options = {}) {
     // hysteresis so near-ties do not cause dithering.
     const held = stillValid(goal, belief, field) ? goal : null;
     if (pool.length) {
-      const best = pool.reduce((a, b) => (b.price < a.price ? b : a));
-      const current = held && pool.find((g) => g.kind === held.kind && g.id === held.id);
+      const cheapest = pool.reduce((a, b) => (b.price < a.price ? b : a));
+      // THE ORDER OF THE NEXT TWO (`hero.lookahead`, config.js). The two
+      // cheapest goals are priced as a tour — lead, follow, then the hole if
+      // it is known — in both orders, and the cheaper tour picks the lead.
+      // Only the WALKS differ between the orders (duels, guards and the dark
+      // opened are paid once either way), so whole-route hp costs from the
+      // same tile prices are the fair comparison. The pair's verdict beats
+      // stickiness inside the pair — holding the demoted one would undo it —
+      // and stickiness still applies against everything else.
+      let best = cheapest;
+      let demoted = null;
+      if (hero.lookahead && pool.length > 1) {
+        const second = pool.filter((g) => g !== cheapest)
+          .reduce((a, b) => (b.price < a.price ? b : a));
+        const sink = shrineSink(belief);
+        const fromC = dijkstra(cheapest.pos, passable, tilePrice, sink);
+        const fromS = dijkstra(second.pos, passable, tilePrice, sink);
+        const hole = belief.shrine && belief.shrine.pos;
+        const tail = (from) => (hole ? priceOfReaching(from, hole) : 0);
+        const leadCheapest = priceOfReaching(field, cheapest.pos)
+          + priceOfReaching(fromC, second.pos) + tail(fromS);
+        const leadSecond = priceOfReaching(field, second.pos)
+          + priceOfReaching(fromS, cheapest.pos) + tail(fromC);
+        if (leadSecond < leadCheapest) {
+          best = second;
+          demoted = cheapest;
+        } else {
+          demoted = second;
+        }
+      }
+      const current = held && pool.find((g) => g !== demoted
+        && g.kind === held.kind && g.id === held.id);
       // The held goal keeps its place unless the best beats it by more than
       // the stickiness margin. Written as a GAP against `|best|` rather than
       // the old `best × stickiness`, because prices can now be negative and a

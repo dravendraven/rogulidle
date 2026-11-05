@@ -156,6 +156,24 @@ export const DEFAULT_HERO = {
   // 0.005 is not 0, but the shamble tripwire is the guard rail and the
   // band ships to be WATCHED, not presumed.
   stepCost: STEP_COST,
+
+  // THE ORDER OF THE NEXT TWO (front B, Ricardo's trait candidate). 0 is the
+  // shipped bot: he walks to the cheapest goal and thinks again from there.
+  // 1 prices the two cheapest goals as a TOUR — this one, then that one,
+  // then the hole — in both orders, and leads with whichever tour is
+  // cheaper. A switch, not a dial: it is a behaviour a hero has or does not,
+  // and no existing number could carry it — every other term prices ONE
+  // goal from where the hero stands. decisions.md B20 is the larger version
+  // of this idea, rejected; this one only ever reorders, never merges.
+  lookahead: 0,
+  // FIGHTING IN THE CORRIDOR (front B, a trait for the pack dungeons). 0 is
+  // the shipped bot. Above 0: when two or more creatures are awake and coming
+  // (one already beside him counts, unless it is faster than he is), a hero
+  // in the open walks to the nearest corridor or doorway tile, if it is no
+  // more than this many steps away, and waits there for them — until they
+  // arrive, or stop coming. The value is
+  // the reach, so one number is both the switch and how far he will go.
+  chokepoint: 0,
 };
 
 // Below this curiosity, the frontier stops COMPETING and goes back to being

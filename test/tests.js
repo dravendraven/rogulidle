@@ -3864,6 +3864,114 @@ test('the bot will not route through the shrine to reach loot beyond it', () => 
   assert(after.chests.length === 1, 'the bot got to the chest, which means it crossed the shrine');
 });
 
+test('lookahead leads with the goal whose tour to the hole is shorter', () => {
+  // Hole at the far left. The left chest is the nearer (2 steps) and the
+  // right one 3 — so the plain bot goes left, then right, then walks the
+  // whole corridor back: 2 + 5 + 12. Leading right is 3 + 5 + 7, and the
+  // lookahead hero must see it. Both bots still take both chests.
+  const map = tinyMap([
+    '#####################',
+    '#-------------------#',
+    '#####################',
+  ]);
+  const chests = () => [
+    { id: 'c-left', name: 'chest', emoji: '📦', pos: [8, 1], side: false, edge: false, drop: null },
+    { id: 'c-right', name: 'chest', emoji: '📦', pos: [13, 1], side: false, edge: false, drop: null },
+  ];
+  const shrine = { id: 's', emoji: '⛩️', pos: [1, 1] };
+  const first = (lookahead) => {
+    const trace = [];
+    driveBot(makeState({ map, playerPos: [10, 1], shrine, chests: chests() }), 1,
+      { monsterCount: 0, chestCount: 2, hero: { lookahead }, trace });
+    return trace[0].goal.id;
+  };
+  assert(first(0) === 'c-left', `the plain bot should lead with the nearer chest, led with ${first(0)}`);
+  assert(first(1) === 'c-right', `the lookahead bot should lead with the chest away from the hole, led with ${first(1)}`);
+});
+
+test('a corridor hero steps into the corridor and waits for a crowd', () => {
+  // Two creatures awake and coming across a room; the hero stands at the
+  // room's mouth, where four sides are open. One step east is a corridor
+  // tile with two — so the corridor hero takes it and then holds there,
+  // and the plain bot does neither.
+  const map = tinyMap([
+    '##########',
+    '#.....####',
+    '#.....####',
+    '#.....---#',
+    '#.....####',
+    '##########',
+  ]);
+  const crowd = () => [
+    dummy('rat', [1, 1], { activation: 99 }),
+    dummy('rat', [1, 2], { activation: 99 }),
+  ];
+  // "Coming" is a step SEEN, and creatures skip a step now and then, so the
+  // hero gets a few turns to see both of them move. The default combat seed
+  // happens to make the second rat skip its first steps, and the hero walks
+  // into them before he sees it come; 2 is one of the many that does not.
+  const play = (chokepoint) => driveBot(makeState({ map, playerPos: [5, 3], monsters: crowd(), combatSeed: 2 }), 5,
+    { monsterCount: 2, hero: { chokepoint } });
+  const corridor = play(2);
+  assertEq(corridor.state.player.pos.join(','), '6,3', `the corridor hero should end in the corridor: ${corridor.actions.join(' ')}`);
+  assert(corridor.actions.includes('rest'), `the corridor hero should wait in the corridor: ${corridor.actions.join(' ')}`);
+  assert(play(0).state.player.pos[0] < 6, 'the plain bot should not retreat into the corridor');
+});
+
+test('a corridor hero backs into the corridor with one already beside him', () => {
+  // One rat already in melee, a second coming. Stepping back costs nothing —
+  // the rat spends its turn following — so the corridor hero takes the
+  // corridor first and fights from there; the plain bot swings where he is.
+  const map = tinyMap([
+    '##########',
+    '#.....####',
+    '#.....####',
+    '#.....---#',
+    '#.....####',
+    '##########',
+  ]);
+  const crowd = () => [
+    dummy('rat', [4, 3], { activation: 99 }),
+    dummy('rat', [1, 1], { activation: 99 }),
+  ];
+  // The first turn only watches them move ("coming" is a step seen), and
+  // the rat beside him takes its swing at that one.
+  const play = (chokepoint) => driveBot(makeState({ map, playerPos: [5, 3], monsters: crowd() }), 4,
+    { monsterCount: 2, hero: { chokepoint } });
+  const corridor = play(2);
+  const backed = corridor.actions.indexOf('right');
+  assert(backed >= 0, `the corridor hero should back into the corridor: ${corridor.actions.join(' ')}`);
+  assertEq(corridor.actions[backed + 1], 'left', `in the corridor, with the rat beside him, he should fight: ${corridor.actions.join(' ')}`);
+  assert(!play(0).actions.includes('right'), 'the plain bot should swing where he stands');
+});
+
+test('a corridor hero gives up on a crowd that never comes, and does not pace', () => {
+  // The same mouth, but the two creatures are awake behind a wall with no
+  // way through: they never close. The hero may step in and wait once; then
+  // he must let it go rather than walk out and back (watched, arena floor 3).
+  const map = tinyMap([
+    '############',
+    '#.....#....#',
+    '#.....######',
+    '#.....---###',
+    '#.....######',
+    '############',
+  ]);
+  const crowd = () => [
+    dummy('rat', [8, 1], { activation: 99 }),
+    dummy('rat', [10, 1], { activation: 99 }),
+  ];
+  const shrine = { id: 's', emoji: '⛩️', pos: [1, 1] };
+  const { actions, state } = driveBot(makeState({ map, playerPos: [5, 3], monsters: crowd(), shrine }), 12,
+    { monsterCount: 2, hero: { chokepoint: 2 } });
+  const rests = actions.filter((a) => a === 'rest').length;
+  assertEq(state.outcome, 'ascended', `he should give up the wait and take the hole: ${actions.join(' ')}`);
+  assert(rests <= 2, `he should stop waiting on a crowd that never comes, rested ${rests} of 12: ${actions.join(' ')}`);
+  const backs = actions.filter((a, i) => i > 0 && a === 'right' && actions[i - 1] === 'left').length;
+  assert(backs === 0, `he should not walk back into the corridor again and again: ${actions.join(' ')}`);
+  
+});
+
 test('the shrine is still reachable as a goal', () => {
   // The failure direction the item names: a fix that makes the bot refuse to
   // path anywhere near the exit. With nothing else to do, it must still walk
