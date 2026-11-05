@@ -162,9 +162,14 @@ export const HEROES = {
     name: 'ricardo',
     title: 'o gênio',
     emoji: '👨‍🔬',
-    blurb: 'Sabe o que tem no baú antes de abrir. Passa reto pelos vazios e não comenta.',
+    blurb: 'Sabe o que tem no baú antes de abrir. Passa reto pelos vazios e não comenta. Quando um bando vem, espera no corredor.',
     persona: { revealLoot: true },
-    bot: {},
+    // The corridor (bot.md, `chokepoint` in config.js): his second
+    // intelligence, and his alone — neutral in depth across the board, so
+    // as everyone's default it would only move the baseline; as his it is a
+    // behaviour you can recognise by watching (owner, 2026-11-05). It fights
+    // the flail, which wants a crowd: not buying one is HIS tactic.
+    bot: { chokepoint: 3 },
   },
   // The engineer. Every floor he finishes, the coin it paid buys armour on
   // the spot — the only hero who reaches goods before the run is over.

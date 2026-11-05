@@ -118,7 +118,7 @@ never tune it by hand.
 
 The bot's dials belong to the bot. `DEFAULT_HERO` (bravery 1, sideAppetite 1,
 riskAppetite 1, curiosity 1, fightMargin 0.7, stepCost 0.1, lookahead 0, chokepoint 0) is the whole
-hero-as-configuration mechanism and the CENTRE the panel's four bands are
+hero-as-configuration mechanism (`chokepoint` 3 on ricardo, `HEROES`) and the CENTRE the panel's four bands are
 built around. `bravery` 1 means "take the bestiary average at face value" — the bot
 is never told a creature's health (rules.md §7) and `expectedHpFor` is what it
 guesses with.

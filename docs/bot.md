@@ -132,6 +132,15 @@ frases:
   sendo aberto, porque baú barra o tile e quem passa por cima abre
   (`rules.md` §6). Desviar sairia mais caro em turnos do que os dois que a
   abertura custa.
+- **Bando vindo, ele espera no corredor** (`chokepoint`, só o Ricardo —
+  `src/sim/heroes.js`). Com dois ou mais bichos que ele VIU dar um passo na
+  direção dele — um já colado conta, desde que não seja mais rápido —, quem
+  está em sala aberta anda até o tile de corredor ou porta mais próximo, a
+  até `chokepoint` passos, e espera; lá, com um já colado, luta. "Vindo" é
+  passo visto, não raio calculado: lido pelo raio (em linha reta ou pelo
+  caminho), um bicho parado na borda acordava e dormia a cada passo e o
+  herói ia e voltava (`decisions.md`). A ida desiste se um passo não o
+  deixar mais perto do corredor. Briga com o mangual, que quer cerco.
 - **Loot guardado é a aposta:** um baú ou item é ignorado quando o guardião
   custa mais do que o apetite permite. O custo de um guardião se divide entre
   tudo que ele guarda — uma sala de tesouro é `n × valor − 1 × duelo`, não a

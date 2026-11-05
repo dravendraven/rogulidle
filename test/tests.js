@@ -3972,6 +3972,15 @@ test('a corridor hero gives up on a crowd that never comes, and does not pace', 
   
 });
 
+test('the corridor is ricardo's, and nobody else's', () => {
+  assert(HEROES.ricardo.bot.chokepoint > 0, 'ricardo should wait in the corridor');
+  for (const [name, hero] of Object.entries(HEROES)) {
+    if (name === 'ricardo') continue;
+    assert(!(hero.bot && hero.bot.chokepoint), `${name} should not have the corridor`);
+  }
+  assertEq(DEFAULT_HERO.chokepoint, 0, 'the default bot ships without the corridor');
+});
+
 test('the shrine is still reachable as a goal', () => {
   // The failure direction the item names: a fix that makes the bot refuse to
   // path anywhere near the exit. With nothing else to do, it must still walk
