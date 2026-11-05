@@ -2424,3 +2424,12 @@ as rodadas, então só os pares de cada rodada se comparam): masmorra +0,03
 arena o dano em grupo nem cai (27% → 28%): ela quase não tem corredor para
 onde ir, e a ida custa o que custava. O cansaço caiu (arena 45 → 22 por 200)
 mas segue acima do bot sem a regra.
+
+**Quarta versão: recua também com um já colado** (o dono, assistindo: o bot
+"muito mais inteligente ao esperar no corredor", e faltava correr para lá
+antes do combate). Recuar de criatura da mesma velocidade é de graça; de uma
+mais rápida não, e essa fica fora. Pares: masmorra −0,06 ±0,10, minas −0,08
+±0,27, arena −0,78 ±0,41 (abaixo de 2σ). Neutro onde há corredor, a arena
+ainda tendendo a perder; o cansaço segue o mesmo da terceira versão. O que o
+dono viu e o que os números dizem não coincidem — ele parece mais esperto, e
+ainda não desce mais.
