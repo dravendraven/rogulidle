@@ -2469,3 +2469,10 @@ Ler a luta que passou do preço como luta perdida está errado: a maioria
 delas ele ganharia, e descer ferido para um andar mais fundo custa mais.
 Recuo + corredor: masmorra −0,43 ±0,31, minas −0,06 ±0,29, arena −0,23
 ±0,80 (clears 9 → 20 com amostra larga demais para ler).
+
+**Ricardo com o corredor, em sessões encadeadas** (masmorra de sempre, loja
+entre as runs, 24 sessões × 20 pareadas, corredor 3 contra 0). Profundidade
++0,16 ±0,16 — neutra. O feito dele não se move: ~7,5% das runs com e sem, e
+21 de 24 sessões o conquistam nas duas. Clears 0 → 16, mas todos em duas
+sessões (uma sequência de vitórias alimenta a próxima pela loja) — é uma
+cauda, não uma taxa, e não se lê com esta amostra.
