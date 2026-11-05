@@ -2415,3 +2415,12 @@ esperar quando o grupo para de se aproximar só cortou parte do custo. O
 ganho do cerco evitado é menor que o tempo e as lutas que a espera e a ida
 ao corredor custam — o teto da sonda não vira ganho, como a ordem dos
 objetivos.
+
+**Terceira versão, depois de assistir** (o dono viu o vai e volta na arena,
+andar 3): a espera agora DESISTE de um grupo que parou de vir e só volta com
+outro grupo. Pares de novo (a Frente A mexeu nas masmorras de matilha entre
+as rodadas, então só os pares de cada rodada se comparam): masmorra +0,03
+±0,12 e minas −0,14 ±0,26 — neutros —, arena −0,92 ±0,33, ainda perde. Na
+arena o dano em grupo nem cai (27% → 28%): ela quase não tem corredor para
+onde ir, e a ida custa o que custava. O cansaço caiu (arena 45 → 22 por 200)
+mas segue acima do bot sem a regra.
