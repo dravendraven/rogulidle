@@ -5663,7 +5663,7 @@ test('a dungeon reaches a run by name or by the Lab index, and replays exactly',
   assertEq(DUNGEON_ORDER[0], 'masmorra', 'the shipped dungeon is no longer index 0');
   assertEq(DUNGEON_ORDER.length, Object.keys(DUNGEONS).length, 'a dungeon is missing from the order');
   // The instruments and the page build the same plan from the same config.
-  assertEq(planOf({ model: {}, run: { dungeon: 'cofres' } })(1).layout, 'rogue', 'planOf ignored the dungeon');
+  assertEq(planOf({ model: {}, run: { dungeon: 'arena' } })(1).layout, 'hub', 'planOf ignored the dungeon');
   const config = { dials: { model: {}, run: { dungeon: DUNGEON_ORDER.indexOf('covil') } } };
   const a = playRun(hashSeeds(7070, 1), config);
   const b = playRun(hashSeeds(7070, 1), config);

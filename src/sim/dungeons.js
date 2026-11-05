@@ -178,9 +178,9 @@ export const DUNGEONS = {
     name: 'cofres', title: 'Cofres', dcss: 'Vaults',
     blurb: 'Salas trancadas e iluminadas, guardiões fortes, o melhor saque.',
     creatures: 'beast', chests: 'relic', light: 'clear',
-    themes: { 1: 'grade', 4: 'grade', 5: 'anel', 8: 'central', 10: 'anel' },
+    themes: { 1: 'cripta', 4: 'grade', 5: 'anel', 8: 'central', 10: 'anel' },
     map: {
-      dugPercentage: 0.22, mapSize: 32, roomScale: 1.3, roomBias: 6, corridorMin: 3,
+      dugPercentage: 0.30, mapSize: 32, roomScale: 1.3, roomBias: 6, corridorMin: 3,
       shrineDistanceShare: 0.7, spineThreatShare: 0.2, sideChestBias: 10, chestMix: 0.3,
       hubBranches: 4, hubRings: 2,
     },
