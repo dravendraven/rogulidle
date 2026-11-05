@@ -2433,3 +2433,14 @@ mais rápida não, e essa fica fora. Pares: masmorra −0,06 ±0,10, minas −0,
 ainda tendendo a perder; o cansaço segue o mesmo da terceira versão. O que o
 dono viu e o que os números dizem não coincidem — ele parece mais esperto, e
 ainda não desce mais.
+
+**Quinta versão: "vindo" lido pelo caminho, não em linha reta** (o dono viu
+outro vai e volta, arena andar 2). A causa: a regra lia "acordado" pela
+distância em linha reta, através da parede, e um fantasma a dois cômodos
+acordava e dormia a cada passo do herói. Agora usa o flood do próprio campo
+de perigo, e a ida desiste se um passo não aproximar do corredor. O cansaço
+VOLTOU ao do bot sem a regra (5, 10, 0 por 200) — era quase todo esse
+defeito. Pares: masmorra −0,06 ±0,07, minas +0,13 ±0,22, arena −0,35 ±0,53;
+neutro nas três. O dano em grupo cai em todas (arena 27% → 22%). O vai e
+volta que sobra (herói dançando com um fantasma colado que ele recusa) é do
+bot de sempre: 19 episódios em 80 corridas sem a regra, 13 com ela.
