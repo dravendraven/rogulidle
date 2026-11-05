@@ -2456,3 +2456,16 @@ nunca conta. Pares: masmorra −0,13 ±0,07 (abaixo de 2σ), minas +0,01 ±0,17,
 arena +0,46 ±0,59 com clears 4 → 13. Dano em grupo cai nas três (minas 19% →
 11%, e o de sala aberta 9% → 2%; arena 27% → 18%). Cansaço igual ao do bot
 sem a regra. Primeira versão sem sinal de perda fora da masmorra de sempre.
+
+**O recuo, construído e medido — perde** (`hero.retreat`; Ricardo, pares de
+10 × 20 no código da Frente A). Antes de construir: nas mortes para bicho
+não mais rápido que ele, em ~2/3 o herói ainda estava batendo — o portão
+acreditava na própria estimativa até o fim, então "o portão recusaria agora"
+nunca dispararia. O gatilho virou "esta luta já custou mais do que foi
+precificada quando começou", e aí ele anda até o buraco conhecido. Ricardo
+só com o recuo: masmorra −0,35 ±0,26 (clears 9 → 1), minas +0,01 ±0,18,
+arena −0,69 ±0,38; as mortes para bicho lento SOBEM (79 → 98, 109 → 119).
+Ler a luta que passou do preço como luta perdida está errado: a maioria
+delas ele ganharia, e descer ferido para um andar mais fundo custa mais.
+Recuo + corredor: masmorra −0,43 ±0,31, minas −0,06 ±0,29, arena −0,23
+±0,80 (clears 9 → 20 com amostra larga demais para ler).
