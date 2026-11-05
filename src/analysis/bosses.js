@@ -47,7 +47,12 @@ function arenaMap() {
 // the hero, on different sides, so the band arrives as a band — the case the
 // A3 rule ("one wakes, all wake") produces.
 const CENTRE = Math.floor(ARENA / 2);
-const SPOTS = [[CENTRE - 2, CENTRE], [CENTRE + 2, CENTRE], [CENTRE, CENTRE - 2]];
+// Six, for M8's bands of up to six; the first three are the original spots,
+// so every unit of three or fewer replays exactly as before.
+const SPOTS = [
+  [CENTRE - 2, CENTRE], [CENTRE + 2, CENTRE], [CENTRE, CENTRE - 2],
+  [CENTRE, CENTRE + 2], [CENTRE - 1, CENTRE - 1], [CENTRE + 1, CENTRE + 1],
+];
 
 function arenaState(seed, rows, weapon) {
   const persona = resolvePersona();

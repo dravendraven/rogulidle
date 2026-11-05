@@ -37,7 +37,7 @@ A primeira masmorra é o jogo de hoje ("atual") — calibração e tutorial.
 | **M4** FEITO (out.) | nome e três ícones na barra de cima, com o que cada um quer dizer | assistir |
 | **M5** FEITO (out.) | breu: raio de visão por andar, luz em degradê, o desconhecido é preto, tocha em volta do herói. Papazito continua vendo tudo | testes + assistir Tumba |
 | **M6** FEITO (2026-11-02) | nas masmorras de matilha o bando acorda junto (`packWake`, campo do modelo, só o eixo matilha liga), e o bando, de 3 para cima (o andar se divide em bandos de 3, a sobra entra no último), nasce inteiro e continua inteiro quando vira guarda de baú ou do santuário. Antes, a cota de zonas picava o bando em criaturas soltas (Minas, seed 835122865), e a guarda de baú e do santuário arrastava uma criatura por vez (Minas, 2026-11-05). O bot não sabe — desenho ou defeito segue com o dono, escrito em `bot.md` | teste de regra + assistir Minas |
-| **M8** desenho, aguarda o dono | matilha por UNIDADE — ver abaixo | tabela de equivalência da A1 + dano por andar |
+| **M8** etapa 1 medida, aguarda o dono | matilha por UNIDADE — ver abaixo | tabela de equivalência da A1 + dano por andar |
 | **M7** | rotação: masmorra atual no save; o clear avança; a tela anuncia a próxima | `?dev=1` forçando um clear |
 
 **Por que esta ordem (escrita antes de achar o branch):** M1 e M2 respondem "é divertido de assistir?" sem
@@ -99,6 +99,19 @@ equivalência é de LUTA e vale por construção.
 2. o spawn das masmorras de matilha passa a usar a tabela — a de sempre
    continua byte-idêntica (hash);
 3. medir matilha × fera por dano por andar e turnos por andar, e assistir.
+
+**Etapa 1 medida (2026-11-05) — a conta não vale, e o andar 1 não fecha.**
+Na arena da A1, bando que chega junto custa MUITO mais que a conta
+`n(n+1)/2`: três ratos juntos custam o que um lobo custa, não o que três
+ratos custam. Os pares que fecham (dentro de ~10%): lobo ≈ 3 ratos, ogro ≈ 4
+ratos, zumbi e vampiro ≈ 3 fantasmas, gênio ≈ 3 javalis, dragão e t-rex ≈ 3
+lobos. Fera mais fraca que o lobo (rato, morcego, fantasma, javali) NÃO tem
+bando equivalente de 3 ou mais — e são exatamente as feras dos andares 1–3,
+onde a run se decide. Lá, o mesmo número de unidades nos dois polos dá à
+matilha bem mais que o dobro do custo. Decisão pendente do dono: nos andares
+de feras fracas, a matilha tem MENOS bandos que a fera tem criaturas (o
+custo de luta casa, o número de unidades não), ou o desenho por unidade vale
+só do trecho 5 para baixo.
 
 ## Em aberto
 
