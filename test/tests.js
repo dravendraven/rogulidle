@@ -5829,24 +5829,37 @@ test('no dungeon board is bigger than the shipped one', () => {
 
 // The zone quota used to re-decide after every member and cut each band
 // into strays — Minas seed 835122865 showed six lone rats on floor 1.
-test('a pack dungeon places its bands whole', () => {
+test('a pack dungeon places its bands whole, and keeps them together', () => {
   const plan = makeFloorPlan(dungeonModel({}, 'minas'));
   let bands = 0;
-  let strays = 0;
+  let small = 0;
+  let members = 0;
+  let apart = 0;
   for (const level of [1, 4, 8]) {
     for (let seed = 0; seed < 20; seed++) {
       const state = newGame(7700 + seed, plan(level));
+      const cs = plan(level).clusterSize;
+      const banded = state.monsters.filter((m) => m.pack !== undefined);
       const sizes = {};
-      for (const m of state.monsters) if (m.pack !== undefined) sizes[m.pack] = (sizes[m.pack] || 0) + 1;
+      for (const m of banded) sizes[m.pack] = (sizes[m.pack] || 0) + 1;
       const counts = Object.values(sizes);
-      // +1: the last band swallows what would have been a lone stray.
-      assert(counts.every((n) => n <= plan(level).clusterSize + 1),
-        `floor ${level} seed ${seed}: bands ${counts.join('+')}`);
+      // Bands of `clusterSize`; a remainder too small for its own band
+      // joins the last one, so none can reach twice the size.
+      assert(counts.every((n) => n < 2 * cs), `floor ${level} seed ${seed}: bands ${counts.join('+')}`);
       bands += counts.length;
-      strays += counts.filter((n) => n === 1).length;
+      small += counts.filter((n) => n < cs).length;
+      // Still TOGETHER once the floor is laid out: the chest and shrine
+      // guards used to drag members off one at a time.
+      for (const m of banded) {
+        members++;
+        const near = banded.some((o) => o !== m && o.pack === m.pack
+          && Math.max(Math.abs(o.pos[0] - m.pos[0]), Math.abs(o.pos[1] - m.pos[1])) <= 3);
+        if (!near) apart++;
+      }
     }
   }
-  // "2+ quase sempre" (owner): a band squeezed into a pocket too small for
-  // it can still come out alone, rarely.
-  assert(strays <= bands * 0.05, `${strays} strays in ${bands} bands`);
+  // "3+, sempre agrupadas" (owner): a band squeezed into a pocket too small
+  // for it can still come out short or split, rarely.
+  assert(small <= bands * 0.05, `${small} short bands in ${bands}`);
+  assert(apart <= members * 0.03, `${apart} of ${members} members far from every mate`);
 });

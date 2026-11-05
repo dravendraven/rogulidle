@@ -204,7 +204,7 @@ delas.** O raio não correlaciona com força.
 
 **Numa masmorra de matilha, o bando acorda junto.** Basta um membro ter o
 herói dentro do próprio raio para o bando inteiro vir, por mais longe que
-esteja cada um. Bando é o grupo que nasceu junto — de duas criaturas para cima, de tamanho sorteado — e nasce inteiro: a
+esteja cada um. Bando é o grupo que nasceu junto — de três criaturas para cima; o andar se divide no maior número de bandos de três que couber, e a sobra entra no último — e nasce e fica inteiro. Quando o andar põe guarda junto a um baú ou ao santuário, vai o bando todo; e a
 divisão das criaturas entre as zonas do andar se acerta entre um bando e
 outro, nunca no meio de um. Fora das masmorras de
 matilha nada muda: cada criatura acorda só pelo próprio raio.

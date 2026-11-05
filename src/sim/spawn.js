@@ -733,15 +733,14 @@ export function populate(state, map, counts = {}) {
 
     const anchor = pool[drawInt(state, 'spawn', 0, pool.length - 1)];
     const remaining = monsterCount - state.monsters.length;
-    // M6 — a band's size is drawn from 2 up to `clusterSize`, and never
-    // leaves a single creature behind to become the floor's one stray
-    // (owner, 2026-11-02: "2+ quase sempre"). Only a pack dungeon draws, so
-    // every other floor spends exactly the draws it always did.
+    // M6 — on a pack floor `clusterSize` is the SMALLEST band, and the
+    // roster is split into as many of those as fit: a remainder too small
+    // to be a band of its own joins the last one (owner, 2026-11-05: "grupos
+    // de 3+, em vez de sempre grupos de 6" — and a band of two read as two
+    // strays). Nothing is drawn, so every floor spends exactly the draws it
+    // always did.
     let bandSize = clusterSize;
-    if (counts.packWake) {
-      bandSize = drawInt(state, 'spawn', Math.min(2, clusterSize), clusterSize);
-      if (remaining - bandSize === 1) bandSize++;
-    }
+    if (counts.packWake && remaining - bandSize < clusterSize) bandSize = remaining;
     const positions = clusterAround(anchor, actualZone, Math.min(bandSize, remaining));
     // The anchor is always free and in its own zone, so this can only be
     // empty if `remaining` is 0 — guarded by the while condition above.
@@ -869,6 +868,23 @@ export function populate(state, map, counts = {}) {
         guardian.pos = target;
         guardian.side = zones.isSide(target);
         guardian.edge = edgeAt(target);
+        // M6 — its band follows it, packed around the guardian but off the
+        // shrine's other neighbours, so it is still the ONE guard.
+        if (guardian.pack !== undefined) {
+          const band = state.monsters.filter((m) => m.pack === guardian.pack && m !== guardian);
+          for (const m of band) free.set(posKey(m.pos), m.pos);
+          const held = neighbours.filter((pos) => free.has(posKey(pos)));
+          for (const pos of held) free.delete(posKey(pos));
+          const spots = clusterAround(target, zones.zoneAt(target), band.length + 1).slice(1);
+          for (const pos of held) free.set(posKey(pos), pos);
+          band.forEach((m, i) => {
+            const pos = spots[i] ?? m.pos;
+            free.delete(posKey(pos));
+            m.pos = pos;
+            m.side = zones.isSide(pos);
+            m.edge = edgeAt(pos);
+          });
+        }
       }
       // No free neighbour at all (shrine boxed in by chests/geometry) — rare
       // enough on a real map that skipping this floor's guardian rather than
@@ -944,12 +960,32 @@ export function populate(state, map, counts = {}) {
       const target = nearby.find((pos) => free.has(posKey(pos)) && zones.isSide(pos) === chestSide);
       if (!target) continue;
 
-      const candidates = state.monsters.filter((m) => m.side === chestSide && m !== shrineGuardian);
+      // M6 — nor the guardian's band, which would leave the guardian alone.
+      const candidates = state.monsters.filter((m) => m.side === chestSide && m !== shrineGuardian
+        && (m.pack === undefined || m.pack !== shrineGuardian?.pack));
       if (!candidates.length) continue;
       const nearest = candidates.reduce((closest, m) => {
         const d = Math.abs(m.pos[0] - chest.pos[0]) + Math.abs(m.pos[1] - chest.pos[1]);
         return !closest || d < closest.d ? { m, d } : closest;
       }, null).m;
+
+      // M6 — a band goes to the chest WHOLE. Dragged one member at a time,
+      // a plenty floor's ten chests pulled every band apart before the hero
+      // ever arrived (seen on Minas, 2026-11-05: "ainda vejo criaturas
+      // solitárias"). The band re-forms around the target with the same
+      // breadth-first walk it was born with.
+      if (nearest.pack !== undefined) {
+        const band = state.monsters.filter((m) => m.pack === nearest.pack && m !== shrineGuardian);
+        for (const m of band) free.set(posKey(m.pos), m.pos);
+        const spots = clusterAround(target, zones.zoneAt(target), band.length);
+        band.forEach((m, i) => {
+          const pos = spots[i] ?? m.pos;
+          free.delete(posKey(pos));
+          m.pos = pos;
+          m.edge = edgeAt(pos);
+        });
+        continue;
+      }
 
       free.set(posKey(nearest.pos), nearest.pos);
       free.delete(posKey(target));
