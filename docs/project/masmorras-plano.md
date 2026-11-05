@@ -36,7 +36,8 @@ A primeira masmorra é o jogo de hoje ("atual") — calibração e tutorial.
 | **M3** FEITO em parte (out.) | só a CONTAGEM é declarada; força e chance de drop são DERIVADAS dela, e um teste confere que cada trecho mantém a massa de ameaça e as armas por andar de hoje. Falta: conferir as de matilha pela arena da A1 (`src/analysis/bosses.js`) — bando que chega junto custa ~o dobro da massa, e a massa não vê isso | `node tools/measure.mjs bosses bossTable` |
 | **M4** FEITO (out.) | nome e três ícones na barra de cima, com o que cada um quer dizer | assistir |
 | **M5** FEITO (out.) | breu: raio de visão por andar, luz em degradê, o desconhecido é preto, tocha em volta do herói. Papazito continua vendo tudo | testes + assistir Tumba |
-| **M6** FEITO (2026-11-02) | nas masmorras de matilha o bando acorda junto (`packWake`, campo do modelo, só o eixo matilha liga), e o bando, de 3 para cima (o andar se divide em bandos de 3, a sobra entra no último), nasce inteiro e continua inteiro quando vira guarda de baú ou do santuário — antes cada guarda arrastava UMA criatura e o bando saía picado (visto em Minas, 2026-11-05) — antes a cota de zonas o picava em criaturas soltas (visto em Minas, seed 835122865). O bot não sabe — desenho ou defeito segue com o dono, escrito em `bot.md` | teste de regra + assistir Minas |
+| **M6** FEITO (2026-11-02) | nas masmorras de matilha o bando acorda junto (`packWake`, campo do modelo, só o eixo matilha liga), e o bando, de 3 para cima (o andar se divide em bandos de 3, a sobra entra no último), nasce inteiro e continua inteiro quando vira guarda de baú ou do santuário. Antes, a cota de zonas picava o bando em criaturas soltas (Minas, seed 835122865), e a guarda de baú e do santuário arrastava uma criatura por vez (Minas, 2026-11-05). O bot não sabe — desenho ou defeito segue com o dono, escrito em `bot.md` | teste de regra + assistir Minas |
+| **M8** desenho, aguarda o dono | matilha por UNIDADE — ver abaixo | tabela de equivalência da A1 + dano por andar |
 | **M7** | rotação: masmorra atual no save; o clear avança; a tela anuncia a próxima | `?dev=1` forçando um clear |
 
 **Por que esta ordem (escrita antes de achar o branch):** M1 e M2 respondem "é divertido de assistir?" sem
@@ -46,6 +47,58 @@ depois de as masmorras feitas só de dials se provarem.
 
 **Colisões:** `dial-overrides.json` e o save (M7) são também da frente B.
 M7 espera a B estar no main.
+
+## Como se mede a dificuldade (dono, 2026-11-05)
+
+**Dano recebido por andar, sem a luta com o Butcher, e turnos por andar ao
+lado.** Não mais a profundidade. Quase toda run sem loja morre no andar 4 ou
+perto, então a profundidade media "passou do Butcher?" — e o Butcher é o
+mesmo em toda masmorra. Por andar, e não por run: toda run sem loja termina
+em morte, então o total da run cresce com a duração e uma masmorra fácil
+pareceria cara. Os turnos ficam ao lado porque uma masmorra pode cobrar em
+tempo em vez de HP (a Floresta de mapa 40). O HP máximo é fixo por herói, não
+sobe com nível — não há o que normalizar dentro de um herói.
+
+Na prática (primeira leitura, 2026-11-05): a MEDIANA do dano por andar sai em
+HP inteiro e não separa nada; o que separa é a média por run do dano por
+andar, com o seu ±σ. Lida assim, com bando de 3, a matilha custa um pouco MAIS
+que a fera por andar (pouco acima de 2σ) — a mesma direção que a
+profundidade dava, com folga menor. E dentro do mesmo polo as masmorras se
+espalham tanto quanto a distância entre os polos: os outros dois eixos
+(baú, luz) também pesam, e calibrar só a criatura não iguala as oito.
+
+## M8 — matilha por unidade (desenho, antes do código)
+
+**A ideia do dono (2026-11-05):** um andar tem N UNIDADES, o mesmo N nos dois
+modos. Na fera, a unidade é uma criatura forte; na matilha, é um bando de
+criaturas mais fracas que, junto, vale aquela fera — 6 ratos ou 3 lobos, o
+que for equivalente. O bando grande fica raro por construção: só sai quando a
+criatura do bando é muito fraca.
+
+**Por que trocar o que existe:** hoje cada polo declara a sua contagem e a
+força é casada por MASSA. A massa não vê que um bando que acorda junto bate
+mais, então cada mudança no tamanho do bando desequilibrou o eixo de novo (de
+2 a 4, até 6, de 3: três medidas, três respostas). Por unidade, a
+equivalência é de LUTA e vale por construção.
+
+**Como:**
+- N = a contagem de criaturas da fera naquele trecho (a que já existe). O
+  `monstersBase` próprio da matilha sai.
+- A unidade da fera é o que já é hoje: uma criatura do tier do andar.
+- A unidade da matilha troca essa criatura por `n` de um tier mais fraco.
+  Contra um bando que acorda junto e morre um por vez, o herói leva golpes de
+  n, n−1, …, 1: o custo é `n(n+1)/2 · h · d` contra `H · D` da fera (vida ×
+  mordida, a conta da frente A em `plano-2026-11.md`). O tier do bando é o
+  mais forte que ainda dá `n ≥ 3`, com teto de 6.
+- A conta é ponto de partida; a tabela da A1 (`bossTable`, duelos de verdade)
+  confere cada par antes de ir para o spawn.
+
+**Etapas, cada uma verificável sozinha:**
+1. a tabela fera → bando (criatura e `n`) saída da conta, conferida pela A1 —
+   não muda o jogo;
+2. o spawn das masmorras de matilha passa a usar a tabela — a de sempre
+   continua byte-idêntica (hash);
+3. medir matilha × fera por dano por andar e turnos por andar, e assistir.
 
 ## Em aberto
 
