@@ -3974,13 +3974,30 @@ test('a corridor hero gives up on a crowd that never comes, and does not pace', 
   
 });
 
-test('the corridor is ricardo's, and nobody else's', () => {
+test('the corridor is ricardo\'s, and nobody else\'s', () => {
   assert(HEROES.ricardo.bot.chokepoint > 0, 'ricardo should wait in the corridor');
   for (const [name, hero] of Object.entries(HEROES)) {
     if (name === 'ricardo') continue;
     assert(!(hero.bot && hero.bot.chokepoint), `${name} should not have the corridor`);
   }
   assertEq(DEFAULT_HERO.chokepoint, 0, 'the default bot ships without the corridor');
+});
+
+// The page (src/ui/run.js) and the instruments (check.js playOne) must
+// play the SAME ricardo. The page once dropped `hero.bot`, so every
+// measurement of the corridor described a hero nobody could watch.
+test('the page plays ricardo with his corridor, as the instruments do', () => {
+  const shape = (r) => JSON.stringify(r.levels.map((l) => [l.turns, l.outcome, l.damage]));
+  let differs = false;
+  for (let i = 1; i <= 6; i++) {
+    const seed = hashSeeds(20261106, i);
+    const page = playRun(seed, { heroName: 'ricardo' });
+    assertEq(shape(page), shape(playOne(seed, undefined, HEROES.ricardo)),
+      `seed ${seed}: the page and the instrument played different ricardos`);
+    const bare = playOne(seed, undefined, { ...HEROES.ricardo, bot: {} });
+    if (shape(page) !== shape(bare)) differs = true;
+  }
+  assert(differs, 'six runs with and without the corridor came out identical — the trait is not reaching the page');
 });
 
 test('the shrine is still reachable as a goal', () => {

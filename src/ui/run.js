@@ -51,7 +51,13 @@ export function playRun(seed, config, onFloorTrace = null) {
 // reproduces the run, mid-run change and all (src/ui/achievements.js). No
 // existing field could carry this — `hero` is one value for the whole run,
 // and a mid-run change is a fact about a specific turn onward.
-function heroDialsAt(dials, traversal, turn) {
+//
+// The playing hero's own traits (`HEROES[name].bot`, e.g. ricardo's
+// corridor) are laid OVER whatever the dials say, the same direction
+// `playOne` in src/analysis/check.js takes: a dial is what everyone gets, a
+// hero is who this run is. Before this the page dropped them, so the
+// instruments measured a ricardo the watched game never showed.
+function heroDialsAt(dials, traversal, turn, own) {
   let hero = dials.hero;
   for (const change of dials.heroChanges || []) {
     if (change.traversal < traversal
@@ -59,7 +65,7 @@ function heroDialsAt(dials, traversal, turn) {
       hero = change.hero;
     }
   }
-  return hero;
+  return own ? { ...hero, ...own } : hero;
 }
 
 // The stepwise door — same assembly, one decision at a time. The spectator
@@ -88,14 +94,14 @@ export function* playRunSteps(seed, config, onFloorTrace = null) {
       // book is weighed against (src/sim/difficulty.js).
       threatAhead: floor.threatAhead,
       floorsAhead: floor.floorsAhead,
-      hero: heroDialsAt(dials, floor.traversal, 0),
+      hero: heroDialsAt(dials, floor.traversal, 0, hero.bot),
       ...dials.bot,
     });
     // ALWAYS the wrapper, even while the list is empty: in live play the
     // spectator appends to `dials.heroChanges` while this floor is running,
     // and a bare bot returned on an empty list would never hear about it.
     return (belief, observation) => {
-      bot.setHero(heroDialsAt(dials, floor.traversal, belief.turn));
+      bot.setHero(heroDialsAt(dials, floor.traversal, belief.turn, hero.bot));
       return bot(belief, observation);
     };
   }, {

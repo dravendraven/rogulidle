@@ -573,7 +573,9 @@ export const COIN_RATE = 14;
 // 2 -> 3: pawa's bar went to 12 (should have bumped then), and the deadly
 // radius entered the bot's route price (src/bot/config.js DEADLY_TILE_COST)
 // — every route near the Butcher is priced differently now.
-export const GAME_VERSION = 3;
+// 3 -> 4: the page started handing the hero's own bot traits to the bot
+// (src/ui/run.js) — every ricardo seed now plays with his corridor.
+export const GAME_VERSION = 4;
 
 // What the shop charges, in coins. The RATIONALE for each number — the hp
 // ruler, the E2 axe bridge, why the potion stays at 1 — lives with the shop
