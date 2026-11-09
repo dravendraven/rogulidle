@@ -37,7 +37,7 @@ A primeira masmorra é o jogo de hoje ("atual") — calibração e tutorial.
 | **M4** FEITO (out.) | nome e três ícones na barra de cima, com o que cada um quer dizer | assistir |
 | **M5** FEITO (out.) | breu: raio de visão por andar, luz em degradê, o desconhecido é preto, tocha em volta do herói. Papazito continua vendo tudo | testes + assistir Tumba |
 | **M6** FEITO (2026-11-02) | nas masmorras de matilha o bando acorda junto (`packWake`, campo do modelo, só o eixo matilha liga), e o bando, de 3 para cima (o andar se divide em bandos de 3, a sobra entra no último), nasce inteiro e continua inteiro quando vira guarda de baú ou do santuário. Antes, a cota de zonas picava o bando em criaturas soltas (Minas, seed 835122865), e a guarda de baú e do santuário arrastava uma criatura por vez (Minas, 2026-11-05). O bot não sabe — desenho ou defeito segue com o dono, escrito em `bot.md` | teste de regra + assistir Minas |
-| **M8** etapa 1 medida, aguarda o dono | matilha por UNIDADE — ver abaixo | tabela de equivalência da A1 + dano por andar |
+| **M8** medida e desfeita (2026-11-09) | matilha por UNIDADE — ver abaixo | tabela de equivalência da A1 + dano por andar |
 | **M7** | rotação: masmorra atual no save; o clear avança; a tela anuncia a próxima | `?dev=1` forçando um clear |
 
 **Por que esta ordem (escrita antes de achar o branch):** M1 e M2 respondem "é divertido de assistir?" sem
@@ -100,18 +100,25 @@ equivalência é de LUTA e vale por construção.
    continua byte-idêntica (hash);
 3. medir matilha × fera por dano por andar e turnos por andar, e assistir.
 
-**Etapa 1 medida (2026-11-05) — a conta não vale, e o andar 1 não fecha.**
-Na arena da A1, bando que chega junto custa MUITO mais que a conta
-`n(n+1)/2`: três ratos juntos custam o que um lobo custa, não o que três
-ratos custam. Os pares que fecham (dentro de ~10%): lobo ≈ 3 ratos, ogro ≈ 4
-ratos, zumbi e vampiro ≈ 3 fantasmas, gênio ≈ 3 javalis, dragão e t-rex ≈ 3
-lobos. Fera mais fraca que o lobo (rato, morcego, fantasma, javali) NÃO tem
-bando equivalente de 3 ou mais — e são exatamente as feras dos andares 1–3,
-onde a run se decide. Lá, o mesmo número de unidades nos dois polos dá à
-matilha bem mais que o dobro do custo. Decisão pendente do dono: nos andares
-de feras fracas, a matilha tem MENOS bandos que a fera tem criaturas (o
-custo de luta casa, o número de unidades não), ou o desenho por unidade vale
-só do trecho 5 para baixo.
+**Etapa 1 medida (2026-11-05) — na arena, o bando custa o que a conta diz.**
+Na arena da A1, bando que chega junto custa perto de `n(n+1)/2` criaturas
+soltas (um pouco mais): três ratos juntos custam o que um lobo custa. Os pares
+que fecham (dentro de ~10%): lobo ≈ 3 ratos, ogro ≈ 4 ratos, zumbi e vampiro ≈
+3 fantasmas, gênio ≈ 3 javalis, dragão e t-rex ≈ 3 lobos. Fera mais fraca que
+o lobo (rato, morcego, fantasma, javali) não tem bando de 3+ equivalente — e
+são as feras dos andares 1–3.
+
+**Etapa 2 medida e DESFEITA (2026-11-09) — a arena não é o jogo.** O dono
+escolheu "menos bandos" onde o bando não cabe. Feito pela derivação (cada
+criatura de bando pesando `(n+1)/2` soltas, e a contagem caindo onde nem o
+bando mais fraco cabe), a matilha passou a custar MUITO menos HP por andar
+que a fera — corrigiu o dobro do que precisava. Na masmorra o bando não
+chega inteiro de uma vez como na arena aberta: corredor, porta e o bot
+escolhendo onde lutar cortam quantos mordem juntos. E com a Cofres
+corrigida, a matilha pela massa simples já custa o mesmo que a fera por
+andar (dentro do ruído). **Conclusão: o eixo de criatura está calibrado pela
+massa do trecho; a M8 não entra.** Se voltar, o peso do bando tem de vir de
+medida DENTRO da masmorra, nunca da arena.
 
 ## Em aberto
 
